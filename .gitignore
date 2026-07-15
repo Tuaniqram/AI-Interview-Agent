@@ -38,7 +38,6 @@ env/
 *~
 
 # Project specific
-vector_db/
 documents/*.pdf
 documents/*.txt
 documents/*.docx
