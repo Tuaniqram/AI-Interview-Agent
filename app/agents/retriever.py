@@ -11,8 +11,19 @@ def retrieval_agent(state):
             state["company_context"] = ""
             return state
 
+        # Retrieve company context from knowledge base
         context = retrieve_company_context(state["job_role"])
-        state["company_context"] = context
+        
+        # Format context in a more readable way for the interviewer
+        if context:
+            formatted_context = f"""
+Key Requirements for {state['job_role']}:
+{context}
+"""
+        else:
+            formatted_context = f"General requirements for {state['job_role']}"
+        
+        state["company_context"] = formatted_context
         logger.info("Company context retrieved")
         return state
 

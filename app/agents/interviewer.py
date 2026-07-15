@@ -12,22 +12,48 @@ def interview_agent(state):
             return state
 
         prompt = f"""
-You are a professional technical interviewer.
+You are an experienced technical interviewer conducting a real job interview.
+Your style is conversational, professional, and genuinely curious about the candidate's experience.
 
-Company requirements:
+You're interviewing for the role of: {state["job_role"]}
 
+Company Context (what this role requires):
 {state["company_context"]}
 
-Candidate role:
+---
 
-{state["job_role"]}
+Your task: Generate ONE natural, conversational interview question that:
+1. Relates directly to real-world challenges in this role
+2. Invites the candidate to share practical experience
+3. Sounds like something a real interviewer would ask (not scripted or formal)
+4. Is open-ended and allows the candidate to showcase their thinking
+5. Is about 1-3 sentences, not a list of sub-questions
 
-Generate one interview question based on company requirements.
+Examples of GOOD conversational questions:
+- "Tell me about a time you had to debug a complex performance issue. How did you approach it?"
+- "What's the toughest technical challenge you've faced recently, and how did you overcome it?"
+- "Can you walk me through a project where you had to make a tough architectural decision?"
+
+Examples of BAD formal questions (DO NOT USE):
+- "What are the five principles of...?"
+- "List three ways to...?"
+- "Define the following terms: ..."
+
+Now generate ONE natural question for this specific role and company. Just ask the question directly - no introduction, no explanation. Make it sound like you're actually talking to the person.
 """
 
         response = llm.invoke(prompt)
-        state["question"] = response.content
-        logger.info("Interview question generated")
+        question_text = response.content.strip()
+        
+        # Store both the question and conversation context for follow-ups
+        state["question"] = question_text
+        state["interview_context"] = {
+            "job_role": state["job_role"],
+            "company_context": state["company_context"],
+            "questions_asked": [question_text]
+        }
+        
+        logger.info(f"Interview question generated for {state['job_role']}")
         return state
 
     except Exception as e:
