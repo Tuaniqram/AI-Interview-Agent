@@ -13,6 +13,17 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
+# Add CORS support for external requests (ngrok, deployed servers, etc.)
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins (secure in production)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.get("/")
 def home():
