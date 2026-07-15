@@ -434,6 +434,33 @@
                 return;
             }
 
+            // ✅ Test connection first
+            showMessage('Testing connection...', 'info');
+            
+            try {
+                const testResp = await fetch(`${state.apiUrl}/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'ngrok-skip-browser-warning': 'true'
+                    }
+                });
+
+                if (!testResp.ok) {
+                    throw new Error(`Connection test failed: ${testResp.status}`);
+                }
+
+                showMessage('✅ Connection successful! Starting interview...', 'success');
+            } catch (error) {
+                showMessage(`❌ Cannot connect to API: ${error.message}`, 'error');
+                showMessage(`Make sure:
+1. API server is running in Colab
+2. ngrok tunnel is active
+3. API URL is correct: ${state.apiUrl}
+4. Browser console (F12) shows more details`, 'error');
+                return;
+            }
+
             startBtn.disabled = true;
             answerInput.disabled = false;
             resetBtn.disabled = false;
@@ -456,7 +483,10 @@
 
                 const response = await fetch(`${state.apiUrl}/interview`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'ngrok-skip-browser-warning': 'true'
+                    },
                     body: JSON.stringify({
                         job_role: state.jobRole,
                         candidate_answer: ''
@@ -483,6 +513,7 @@
             } catch (error) {
                 removeTyping();
                 showMessage(`❌ Connection Error: ${error.message}`, 'error');
+                console.error('Fetch error:', error);
                 sendBtn.disabled = false;
             }
         }
@@ -506,7 +537,10 @@
             try {
                 const response = await fetch(`${state.apiUrl}/interview/evaluate-with-followup`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'ngrok-skip-browser-warning': 'true'
+                    },
                     body: JSON.stringify({
                         job_role: state.jobRole,
                         question: state.currentQuestion,
@@ -554,6 +588,7 @@
             } catch (error) {
                 removeTyping();
                 showMessage(`❌ Error: ${error.message}`, 'error');
+                console.error('Send answer error:', error);
                 sendBtn.disabled = false;
             }
         }
