@@ -358,11 +358,11 @@
                 <option value="Full Stack Developer">Full Stack Developer</option>
             </select>
 
-            <input 
+           <input 
                 type="text" 
                 id="apiUrl" 
-                placeholder="API URL (e.g., http://localhost:8000)" 
-                value="http://localhost:8000"
+                placeholder="API URL"
+                value="https://1bd0-104-196-239-146.ngrok-free.app"
             >
 
             <button onclick="startInterview()" id="startBtn">Start Interview</button>
@@ -439,13 +439,11 @@
             
             try {
                 const testResp = await fetch(`${state.apiUrl}/health`, {
-                    method: 'POST',  // Use POST instead of GET
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'ngrok-skip-browser-warning': 'true'
-                    },
-                    body: JSON.stringify({})
-                });
+                method: 'GET',
+                headers: {
+                    'ngrok-skip-browser-warning': 'true'
+                }
+            });
 
                 console.log('Health check response:', testResp.status, testResp.statusText);
 
@@ -577,7 +575,8 @@
                     addMessage(data.evaluation, 'feedback', '📋 Feedback');
                     
                     // Extract score
-                    const scoreMatch = data.evaluation.match(/Score:\s*(\d+)/);
+                    const scoreMatch = data.evaluation.match(/\*{0,2}Score\*{0,2}\s*:\s*(\d+)/i);
+                    console.log(scoreMatch);
                     if (scoreMatch) {
                         state.scores.push(parseInt(scoreMatch[1]));
                         updateStats();
