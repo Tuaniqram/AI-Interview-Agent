@@ -439,25 +439,33 @@
             
             try {
                 const testResp = await fetch(`${state.apiUrl}/health`, {
-                    method: 'GET',
+                    method: 'POST',  // Use POST instead of GET
                     headers: {
                         'Content-Type': 'application/json',
                         'ngrok-skip-browser-warning': 'true'
-                    }
+                    },
+                    body: JSON.stringify({})
                 });
 
+                console.log('Health check response:', testResp.status, testResp.statusText);
+
                 if (!testResp.ok) {
-                    throw new Error(`Connection test failed: ${testResp.status}`);
+                    const errorText = await testResp.text();
+                    console.error('Health check error:', errorText);
+                    throw new Error(`Connection test failed: ${testResp.status} ${testResp.statusText}`);
                 }
 
+                const healthData = await testResp.json();
+                console.log('Health check success:', healthData);
                 showMessage('✅ Connection successful! Starting interview...', 'success');
             } catch (error) {
+                console.error('Full error:', error);
                 showMessage(`❌ Cannot connect to API: ${error.message}`, 'error');
-                showMessage(`Make sure:
-1. API server is running in Colab
-2. ngrok tunnel is active
-3. API URL is correct: ${state.apiUrl}
-4. Browser console (F12) shows more details`, 'error');
+                showMessage(`Debug info:
+1. API URL: ${state.apiUrl}
+2. Make sure API server is running in Colab
+3. ngrok tunnel should be active
+4. Check browser console (F12) for details`, 'error');
                 return;
             }
 

@@ -46,15 +46,23 @@ def home():
     }
 
 
-# ✅ Test endpoint for CORS & connectivity
+# ✅ Test endpoint for CORS & connectivity (MUST support GET AND POST)
 @app.get("/health")
+@app.post("/health")
 def health_check():
     """Test endpoint to verify CORS and API connectivity"""
     return {
         "status": "✅ API is working",
         "message": "You can now access the API from your HTML file",
-        "timestamp": str(__import__('datetime').datetime.now())
+        "timestamp": str(__import__('datetime').datetime.now()),
+        "cors": "✅ CORS enabled"
     }
+
+
+@app.options("/health")
+async def health_options():
+    """Handle CORS preflight for health endpoint"""
+    return {"status": "ok"}
 
 
 @app.options("/{full_path:path}")
