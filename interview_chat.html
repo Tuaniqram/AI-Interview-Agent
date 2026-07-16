@@ -356,6 +356,7 @@
                 <option value="DevOps Engineer">DevOps Engineer</option>
                 <option value="Data Scientist">Data Scientist</option>
                 <option value="Full Stack Developer">Full Stack Developer</option>
+                <option value="Petroleum Engineer">Petroleum Engineer</option>
             </select>
 
            <input 
@@ -575,8 +576,7 @@
                     addMessage(data.evaluation, 'feedback', '📋 Feedback');
                     
                     // Extract score
-                    const scoreMatch = data.evaluation.match(/\*{0,2}Score\*{0,2}\s*:\s*(\d+)/i);
-                    console.log(scoreMatch);
+                    const scoreMatch = data.evaluation.match(/Score[^0-9]*(\d+)/i);                    console.log(scoreMatch);
                     if (scoreMatch) {
                         state.scores.push(parseInt(scoreMatch[1]));
                         updateStats();
