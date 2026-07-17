@@ -1,0 +1,32 @@
+# AI Interview Agent Rules
+
+## Current Task Scope
+Only modify:
+- interviewv2.html
+- app/api/interview.py
+
+## Database Issue
+The problem:
+Interview session and messages are not updating in Supabase.
+
+Investigate:
+- API request flow
+- session_id handling
+- message insert/update logic
+- Supabase client usage
+
+## Ignore
+Do NOT inspect or modify:
+- agents/
+- rag/
+- pinecone/
+- huggingface/
+- embeddings/
+- vector_db/
+- uploads/
+
+## Rules
+- Do not redesign architecture.
+- Keep existing LangGraph/agent workflow unchanged.
+- Fix only interview session persistence.
+- Before editing, explain the cause.

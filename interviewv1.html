@@ -198,6 +198,8 @@ body {
 
 
 
+
+
 /* CHAT */
 
 
@@ -217,6 +219,7 @@ body {
 
 
 
+
 .message {
 
 
@@ -226,21 +229,18 @@ body {
 
 }
 
-
-
 .message.interviewer {
 
     justify-content:flex-start;
 
 }
 
-
-
 .message.candidate {
 
     justify-content:flex-end;
 
 }
+
 
 
 
@@ -258,8 +258,6 @@ body {
 
 }
 
-
-
 .message.interviewer
 .message-content {
 
@@ -272,6 +270,7 @@ body {
     4px solid #667eea;
 
 }
+
 
 
 
@@ -291,6 +290,8 @@ body {
 
 
 
+
+
 .message.feedback
 .message-content {
 
@@ -307,6 +308,7 @@ body {
 
 
 
+
 .message-label {
 
 
@@ -317,6 +319,8 @@ body {
     margin-bottom:4px;
 
 }
+
+
 
 
 
@@ -362,6 +366,7 @@ body {
 .input-area button {
 
 
+
     padding:12px 24px;
 
     background:#667eea;
@@ -388,6 +393,8 @@ body {
 
 
 
+
+
 /* MESSAGE TYPES */
 
 
@@ -409,6 +416,8 @@ body {
 
 
 
+
+
 .success {
 
 
@@ -424,6 +433,8 @@ body {
     margin-bottom:10px;
 
 }
+
+
 
 
 
@@ -445,7 +456,8 @@ body {
 
 
 
-/* STATS */
+
+
 
 
 .stats {
@@ -463,6 +475,8 @@ body {
     justify-content:space-around;
 
 }
+
+
 
 
 
@@ -485,6 +499,8 @@ body {
 
 
 
+
+
 .stat-label {
 
     font-size:12px;
@@ -492,6 +508,8 @@ body {
     color:#666;
 
 }
+
+
 
 
 
@@ -529,6 +547,8 @@ body {
 
 
 
+
+
 .empty-state {
 
     text-align:center;
@@ -540,6 +560,27 @@ body {
 }
 
 
+
+
+
+/* PHASE INDICATOR STYLE */
+.phase-indicator {
+    padding:15px;
+    background:#f8f9fa;
+    border-top:1px solid #ddd;
+    display:none;
+}
+
+.phase-indicator-content {
+    text-align:center;
+    color:#666;
+    font-size:14px;
+}
+
+.phase-indicator strong {
+    color:#667eea;
+    font-weight:bold;
+}
 
 </style>
 
@@ -557,11 +598,15 @@ body {
 <div class="header">
 
 <h1>
+
 🎯 AI Interview Agent
+
 </h1>
 
 <p>
+
 Company Based Technical Interview
+
 </p>
 
 </div>
@@ -572,13 +617,16 @@ Company Based Technical Interview
 <!-- SETUP -->
 
 
+
 <div class="setup">
 
 
 <select id="companySelect">
 
 <option value="">
+
 Loading companies...
+
 </option>
 
 </select>
@@ -589,32 +637,46 @@ Loading companies...
 <select id="jobRole">
 
 <option value="">
+
 Select Job Role...
+
 </option>
 
 
+
+
+
 <option>
+
 Backend Developer
+
 </option>
 
 <option>
+
 Frontend Engineer
+
 </option>
 
 <option>
+
 DevOps Engineer
+
 </option>
 
 <option>
+
 Data Scientist
+
 </option>
 
 <option>
+
 Full Stack Developer
+
 </option>
+
 <option value="Petroleum Engineer">Petroleum Engineer</option>
-
-
 
 </select>
 
@@ -622,33 +684,40 @@ Full Stack Developer
 
 
 <input
+
 type="text"
+
 id="apiUrl"
+
 value="http://127.0.0.1:8000"
+
 placeholder="API URL"
+
 />
 
 
 
 <button
+
 onclick="startInterview()"
+
 id="startBtn">
 
 Start Interview
 
 </button>
 
-
-
 <button
+
 onclick="resetChat()"
+
 id="resetBtn"
+
 disabled>
 
 Reset
 
 </button>
-
 
 </div>
 
@@ -658,16 +727,23 @@ Reset
 <!-- CHAT -->
 
 <div
+
 class="chat-container"
+
 id="chatContainer">
+
 
 
 <div class="empty-state">
 
 
+
 <p>
+
 👋 Select company and role to begin
+
 </p>
+
 
 
 <p style="font-size:12px">
@@ -676,28 +752,32 @@ AI will interview based on company knowledge
 
 </p>
 
+</div>
 
 </div>
 
 
-</div>
 
 
 
-
-<!-- STATS -->
 
 
 <div
+
 class="stats"
+
 id="stats"
+
 style="display:none">
+
 
 
 <div class="stat">
 
 <div
+
 class="stat-value"
+
 id="questionCount">
 
 0
@@ -705,7 +785,9 @@ id="questionCount">
 </div>
 
 <div class="stat-label">
+
 Questions
+
 </div>
 
 </div>
@@ -715,7 +797,9 @@ Questions
 <div class="stat">
 
 <div
+
 class="stat-value"
+
 id="avgScore">
 
 -
@@ -723,18 +807,21 @@ id="avgScore">
 </div>
 
 <div class="stat-label">
+
 Average Score
-</div>
 
 </div>
 
+</div>
 
 
 
 <div class="stat">
 
 <div
+
 class="stat-value"
+
 id="turnCount">
 
 0
@@ -742,13 +829,12 @@ id="turnCount">
 </div>
 
 <div class="stat-label">
+
 Turns
-</div>
-
 
 </div>
 
-
+</div>
 
 </div>
 
@@ -756,91 +842,114 @@ Turns
 
 
 
-<!-- ANSWER -->
+
+
+<div class="phase-indicator" id="phaseIndicator">
+
+<div class="phase-indicator-content">
+
+📊 Phase: <strong id="currentPhaseText">undefined</strong>
+
+| Difficulty: <strong id="difficultyText">Level 1</strong>
+
+</div>
+
+</div>
+
+
+
+
+
+
 
 <div class="input-area">
 
-
 <textarea
+
 id="answerInput"
+
 rows="2"
+
 disabled
+
 placeholder="Type your answer..."
+
 ></textarea>
 
 
-
 <button
+
 onclick="sendAnswer()"
+
 id="sendBtn"
+
 disabled>
 
 Send
 
 </button>
 
-
 </div>
 
-
-
 </div>
-
-
 
 <script>
 
 let state = {
 
     companyId: null,
-
     companyName: "",
-
     jobRole: "",
-
     apiUrl: "",
-
     currentQuestion: "",
-
     interviewStarted: false,
-
     scores: [],
-
-    turnCount: 0
-
+    
+    // NEW PHASE-BASED STATE
+    sessionId: null,
+    currentPhase: "intro",
+    questionNumber: 0,
+    difficultyLevel: 1,
+    conversationHistory: [],
+    turnCount: 0,
+    totalQuestions: 10,
+    interviewStatus: "idle"
 };
 
+function updatePhaseIndicator() {
+    document.getElementById("phaseIndicator").style.display = "flex";
+    document.getElementById("currentPhaseText").innerText = state.currentPhase;
+    document.getElementById("difficultyText").innerText = `Level ${state.difficultyLevel}`;
+}
 
+function clearPhaseIndicator() {
+    document.getElementById("phaseIndicator").style.display = "none";
+}
 
 const chatContainer =
     document.getElementById(
         "chatContainer"
     );
 
-
 const answerInput =
     document.getElementById(
         "answerInput"
     );
-
 
 const sendBtn =
     document.getElementById(
         "sendBtn"
     );
 
-
 const startBtn =
     document.getElementById(
         "startBtn"
     );
 
-
 const resetBtn =
     document.getElementById(
         "resetBtn"
     );
-
 
 const stats =
     document.getElementById(
@@ -851,10 +960,12 @@ const stats =
 
 
 
-// ================================
-// LOAD COMPANY LIST
+
 // ================================
 
+// LOAD COMPANY LIST
+
+// ================================
 
 async function loadCompanies(){
 
@@ -906,7 +1017,6 @@ async function loadCompanies(){
         `;
 
 
-
         companies.forEach(company => {
 
 
@@ -922,19 +1032,15 @@ async function loadCompanies(){
                 company.id;
 
 
-
             option.textContent =
                 company.name;
-
 
 
             select.appendChild(
                 option
             );
 
-
         });
-
 
 
     }
@@ -961,21 +1067,19 @@ async function loadCompanies(){
 
 
 
-
 // ================================
+
 // START INTERVIEW
-// ================================
 
+// ================================
 
 async function startInterview(){
-
 
 
     state.companyId =
         document.getElementById(
             "companySelect"
         ).value;
-
 
 
     state.companyName =
@@ -986,20 +1090,16 @@ async function startInterview(){
         ?.text;
 
 
-
     state.jobRole =
         document.getElementById(
             "jobRole"
         ).value;
 
 
-
     state.apiUrl =
         document.getElementById(
             "apiUrl"
         ).value;
-
-
 
 
     if(!state.companyId){
@@ -1013,8 +1113,8 @@ async function startInterview(){
 
         return;
 
-    }
 
+    }
 
 
     if(!state.jobRole){
@@ -1028,9 +1128,8 @@ async function startInterview(){
 
         return;
 
+
     }
-
-
 
 
     startBtn.disabled = true;
@@ -1044,33 +1143,33 @@ async function startInterview(){
 
     state.scores = [];
 
+    state.conversationHistory = [];
+
     state.turnCount = 0;
 
-
+    state.currentPhase = "intro";
+    state.questionNumber = 0;
+    state.difficultyLevel = 1;
 
 
     chatContainer.innerHTML = "";
 
-    stats.style.display =
-        "flex";
-
-
+    stats.style.display = "flex";
+    
+    clearPhaseIndicator();
 
     showMessage(
         `🏢 Company: ${state.companyName}`,
         "info"
     );
 
-
     showMessage(
         `🎯 Role: ${state.jobRole}`,
         "info"
     );
 
-
-
-    await getFirstQuestion();
-
+    // CREATE SESSION FIRST
+    await createSession();
 
 
 }
@@ -1078,63 +1177,35 @@ async function startInterview(){
 
 
 
-
-// ================================
-// GET FIRST QUESTION
 // ================================
 
+// CREATE SESSION
 
-async function getFirstQuestion(){
+// ================================
 
+async function createSession(){
 
     try{
 
-
         sendBtn.disabled = true;
-
 
         showTyping();
 
-
-
         const response =
             await fetch(
-
-`${state.apiUrl}/companies/${state.companyId}/interview`,
-
-            {
-
-                method:"POST",
-
-
-                headers:{
-
-
-                    "Content-Type":
-                    "application/json"
-
-                },
-
-
-                body:JSON.stringify({
-
-                    job_role:
-                    state.jobRole,
-
-
-                    candidate_answer:""
-
-                })
-
-            }
-
-        );
-
-
-
+                `${state.apiUrl}/companies/${state.companyId}/interview/session`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        job_role: state.jobRole
+                    })
+                }
+            );
 
         if(!response.ok){
-
 
             throw new Error(
                 `API Error ${response.status}`
@@ -1142,18 +1213,10 @@ async function getFirstQuestion(){
 
         }
 
-
-
-
-        const data =
-            await response.json();
-
-
+        const data = await response.json();
 
 
         removeTyping();
-
-
 
 
         if(data.error){
@@ -1167,42 +1230,25 @@ async function getFirstQuestion(){
 
             return;
 
+
         }
 
 
+        // Store session data
+        state.sessionId = data.session_id;
+        state.currentPhase = data.current_phase;
+        state.questionNumber = data.question_number;
+        state.totalQuestions = data.total_questions;
 
 
+        // Update phase indicator
+        updatePhaseIndicator();
 
-        state.currentQuestion =
-            data.question;
-
-
-
-
-        addMessage(
-
-            data.question,
-
-            "interviewer",
-
-            "Interviewer"
-
-        );
+        // GET FIRST QUESTION
+        await getNextQuestion();
 
 
-
-
-        sendBtn.disabled = false;
-
-
-        answerInput.focus();
-
-
-
-    }
-
-
-    catch(error){
+    } catch(error) {
 
 
         removeTyping();
@@ -1211,6 +1257,142 @@ async function getFirstQuestion(){
         console.error(error);
 
 
+        showMessage(
+            `❌ ${error.message}`,
+            "error"
+        );
+
+
+        sendBtn.disabled = false;
+
+
+    }
+
+
+}
+
+
+
+
+// ================================
+
+// GET NEXT QUESTION
+
+// ================================
+
+async function getNextQuestion(){
+
+
+    try{
+
+
+        sendBtn.disabled = true;
+
+        showTyping();
+
+
+
+
+        // Build conversation history string
+        const historyString = state.conversationHistory
+            .map(entry => `Q: ${entry.question}\nA: ${entry.answer}`)
+            .join("\n\n");
+
+
+        const response =
+            await fetch(
+                `${state.apiUrl}/companies/${state.companyId}/interview/session/${state.sessionId}/next`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                   body: JSON.stringify({
+                    job_role: state.jobRole,
+                    conversation_history: historyString,
+                    current_phase: state.currentPhase,
+                    question_number: state.questionNumber,
+                    difficulty_level: state.difficultyLevel,
+                    previous_scores: state.scores
+                })
+                }
+            );
+
+
+
+        if(!response.ok){
+
+
+            throw new Error(
+                `API Error ${response.status}`
+            );
+
+        }
+
+        const data =
+            await response.json();
+
+
+        removeTyping();
+
+
+        if(data.error){
+
+
+            showMessage(
+                data.error,
+                "error"
+            );
+
+            sendBtn.disabled = false;
+
+            return;
+
+
+        }
+
+
+        // Update state
+        state.currentQuestion = data.question;
+        state.currentPhase = data.phase;
+        state.questionNumber = data.question_number;
+        state.difficultyLevel = data.difficulty_level;
+        state.interviewStatus = data.interview_status;
+
+
+        // Log conversation history
+       
+
+
+        // Display question
+        addMessage(
+            state.currentQuestion,
+            "interviewer",
+            "Interviewer"
+        );
+
+
+        // Check if interview has completed
+        if(state.interviewStatus === "completed") {
+            showMessage("🎉 Good job! Interview finished.", "success");
+            sendBtn.disabled = true;
+            return;
+        }
+
+
+        sendBtn.disabled = false;
+
+        answerInput.focus();
+
+
+
+
+    } catch(error) {
+
+
+        removeTyping();
+
+        console.error(error);
 
         showMessage(
 
@@ -1219,8 +1401,6 @@ async function getFirstQuestion(){
             "error"
 
         );
-
-
 
         sendBtn.disabled = false;
 
@@ -1235,78 +1415,98 @@ async function getFirstQuestion(){
 
 
 // ================================
-// UI MESSAGE FUNCTION
+
+// UI MESSAGE FUN
+
+
+
+
 // ================================
 
-
 function addMessage(
+
     text,
+
     type,
+
     label
+
 ){
 
 
 
     const messageDiv =
+
         document.createElement(
+
             "div"
+
         );
 
-
     messageDiv.className =
+
         `message ${type}`;
 
 
-
-
     const content =
-        document.createElement(
-            "div"
-        );
 
+
+
+        document.createElement(
+
+            "div"
+
+        );
 
     content.className =
+
         "message-content";
 
-
-
     content.innerText =
+
         text;
 
-
-
     const labelDiv =
+
+
+
         document.createElement(
+
             "div"
+
         );
 
-
     labelDiv.className =
+
         "message-label";
 
-
     labelDiv.innerText =
+
         label;
 
 
-
     messageDiv.appendChild(
+
         labelDiv
-    );
 
+    );
 
     messageDiv.appendChild(
-        content
-    );
 
+        content
+
+    );
 
     chatContainer.appendChild(
+
         messageDiv
+
     );
 
 
 
     chatContainer.scrollTop =
+
         chatContainer.scrollHeight;
 
 
@@ -1318,58 +1518,65 @@ function addMessage(
 
 
 function showMessage(
+
     text,
+
     type
+
 ){
 
 
+
     const div =
+
         document.createElement(
+
             "div"
+
         );
 
-
     div.className =
+
         type;
 
-
     div.innerText =
+
         text;
 
-
-
     chatContainer.prepend(
+
         div
+
     );
 
-
-
 }
-
-
 
 
 
 function showTyping(){
 
 
+
     const div =
+
         document.createElement(
+
             "div"
+
         );
 
-
     div.id =
+
         "typing";
 
-
     div.className =
+
         "message interviewer";
 
-
-
     div.innerHTML =
+
     `
+
     <div class="message-content">
 
         <div class="spinner"></div>
@@ -1377,28 +1584,30 @@ function showTyping(){
         Interviewer is thinking...
 
     </div>
+
     `;
 
-
-
     chatContainer.appendChild(
+
         div
+
     );
 
-
 }
-
 
 
 
 function removeTyping(){
 
 
-    const typing =
-        document.getElementById(
-            "typing"
-        );
 
+    const typing =
+
+        document.getElementById(
+
+            "typing"
+
+        );
 
     if(typing){
 
@@ -1412,7 +1621,6 @@ function removeTyping(){
 
 
 
-
 // Load companies when page opens
 
 window.onload = function(){
@@ -1421,106 +1629,118 @@ window.onload = function(){
 
 };
 
-
 // ================================
+
 // SEND ANSWER
-// ================================
 
+// ================================
 
 async function sendAnswer(){
 
 
     const answer =
-        answerInput.value.trim();
 
+        answerInput.value.trim();
 
 
     if(!answer){
 
 
         showMessage(
+
             "Please type your answer",
+
             "error"
+
         );
 
-
         return;
+
 
     }
 
 
+    // Add candidate answer to conversation history
+    state.conversationHistory.push({
+        question: state.currentQuestion,
+        answer: answer
+    });
+
 
     addMessage(
-        answer,
-        "candidate",
-        "You"
-    );
 
+        answer,
+
+        "candidate",
+
+        "You"
+
+    );
 
 
     answerInput.value = "";
 
 
-
     state.turnCount++;
-
 
     updateStats();
 
 
-
     sendBtn.disabled = true;
 
-
     showTyping();
-
-
 
 
     try{
 
 
         const response =
+
             await fetch(
 
-`${state.apiUrl}/companies/${state.companyId}/interview/evaluate-with-followup`,
+`${state.apiUrl}/companies/${state.companyId}/interview/answer`,
 
-            {
-
-
-                method:"POST",
+                {
 
 
-                headers:{
+
+                    method: "POST",
+
+                    headers: {
 
 
-                    "Content-Type":
-                    "application/json"
 
-                },
+                        "Content-Type": "application/json"
 
+                    },
 
-                body:JSON.stringify({
-
-                    job_role:
-                    state.jobRole,
+                    body: JSON.stringify({
 
 
-                    question:
-                    state.currentQuestion,
 
+                        job_role: state.jobRole,
 
-                    candidate_answer:
-                    answer
+                        session_id: state.sessionId,
 
-                })
+                        question: state.currentQuestion,
 
+                        candidate_answer: answer,
 
-            }
+                        current_phase: state.currentPhase,
 
-        );
+                        difficulty_level: state.difficultyLevel,
 
+                        question_number: state.questionNumber,
 
+                        conversation_history: state.conversationHistory
+                            .map(entry => `Q: ${entry.question}\nA: ${entry.answer}`)
+                            .join("\n\n")
+
+                    })
+
+                }
+
+            );
 
 
 
@@ -1528,156 +1748,158 @@ async function sendAnswer(){
 
 
             throw new Error(
-                `API Error ${response.status}`
-            );
 
+                `API Error ${response.status}`
+
+            );
 
         }
 
-
-
-
-        const data =
-            await response.json();
-
+        const data = await response.json();
+        console.log("=================");
+        console.log(data);
+        console.log("STATUS:", data.interview_status);
+        console.log("=================");
 
 
 
         removeTyping();
-
-
+       
 
 
         if(data.error){
 
 
             showMessage(
-                data.error,
-                "error"
-            );
 
+                data.error,
+
+                "error"
+
+            );
 
             sendBtn.disabled = false;
 
-
             return;
 
+
         }
-
-
-
-
-
-        // ============================
-        // SHOW FEEDBACK
-        // ============================
-
-
+        state.questionNumber = data.question_number;
+        state.currentPhase = data.phase;
+        state.difficultyLevel = data.difficulty_level;
+        state.interviewStatus = data.interview_status;
+        // Show evaluation
         if(data.evaluation){
 
 
             addMessage(
 
+
+
                 data.evaluation,
+
+
 
                 "feedback",
 
+
+
                 "📋 Feedback"
 
+
+
             );
 
-
-
+            // Extract score
             const scoreMatch =
+
                 data.evaluation.match(
+
                     /Score[^0-9]*(\d+)/i
+
                 );
 
-
-
             console.log(
+
                 "Score:",
+
                 scoreMatch
+
             );
-
-
 
             if(scoreMatch){
 
 
+
                 state.scores.push(
 
+
+
+
+
                     parseInt(
+
                         scoreMatch[1]
+
                     )
 
                 );
 
-
                 updateStats();
 
+            } else {
+
+
+
+                state.scores.push(7);
+
+                updateStats();
 
             }
 
 
-        }
+
+        } else {
 
 
 
-
-
-        // ============================
-        // NEXT QUESTION
-        // ============================
-
-
-        if(data.suggested_follow_up){
-
-
-            state.currentQuestion =
-                data.suggested_follow_up;
-
-
-
-            addMessage(
-
-                data.suggested_follow_up,
-
-                "interviewer",
-
-                "Interviewer"
-
-            );
-
+            // If no evaluation returned, add fallback score
+            state.scores.push(7);
+            updateStats();
 
         }
 
+        // Check if interview has completed
+        if(data.interview_status === "completed") {
+            showMessage("🎉 Interview completed!", "success");
+            sendBtn.disabled = true;
+            return;
+        }
 
 
-        sendBtn.disabled = false;
+        // Display next phase indicator
+        updatePhaseIndicator();
 
 
-        answerInput.focus();
+        // Update next question
+        console.log("NEXT QUESTION CALLED");
+        await getNextQuestion();
 
 
-
-
-
-    }
-
-    catch(error){
+    } catch(error){
 
 
 
         removeTyping();
 
 
-
         console.error(
-            "Answer error:",
-            error
-        );
 
+            "Answer error:",
+
+            error
+
+        );
 
 
         showMessage(
@@ -1689,12 +1911,10 @@ async function sendAnswer(){
         );
 
 
-
         sendBtn.disabled = false;
 
 
     }
-
 
 
 }
@@ -1703,60 +1923,78 @@ async function sendAnswer(){
 
 
 
-
-
 // ================================
+
 // UPDATE STATISTICS
-// ================================
 
+// ================================
 
 function updateStats(){
 
 
 
     document.getElementById(
-        "questionCount"
-    )
-    .innerText =
-        state.turnCount;
 
+        "questionCount"
+
+    )
+
+    .innerText =
+
+        state.questionNumber > 0 ? state.questionNumber : state.turnCount;
 
 
 
     document.getElementById(
+
         "turnCount"
+
     )
+
     .innerText =
+
         state.turnCount;
 
 
-
-
     if(state.scores.length > 0){
+
 
 
         const average =
 
         (
 
+
+
             state.scores.reduce(
+
                 (a,b)=>a+b,
+
                 0
+
             )
 
             /
 
+
+
             state.scores.length
 
         )
+
         .toFixed(1);
 
 
 
+
         document.getElementById(
+
             "avgScore"
+
         )
+
         .innerText =
+
             average;
 
 
@@ -1770,12 +2008,11 @@ function updateStats(){
 
 
 
-
-
 // ================================
+
 // RESET CHAT
-// ================================
 
+// ================================
 
 function resetChat(){
 
@@ -1784,74 +2021,108 @@ function resetChat(){
     state = {
 
 
+
+
+
         companyId:null,
+
+
+
 
 
         companyName:"",
 
 
+
+
+
         jobRole:"",
 
 
+
+
+
         apiUrl:
+
+
+
+
+
+
+
         document.getElementById(
+
+
+
+
+
+
+
             "apiUrl"
+
         ).value,
+
+
+
 
 
         currentQuestion:"",
 
 
+
+
+
         interviewStarted:false,
 
 
+
+
+
         scores:[],
-
-
-        turnCount:0
-
+        
+        // PHASE-BASED STATE
+        sessionId: null,
+        currentPhase: "intro",
+        questionNumber: 0,
+        difficultyLevel: 1,
+        conversationHistory: [],
+        turnCount: 0,
+        totalQuestions: 10,
+        interviewStatus: "idle"
 
     };
-
-
 
 
 
     chatContainer.innerHTML =
 
     `
+
     <div class="empty-state">
 
         <p>
+
         👋 Select company and role to begin
+
         </p>
 
     </div>
+
     `;
-
-
 
 
     answerInput.value = "";
 
-
     answerInput.disabled = true;
-
 
     sendBtn.disabled = true;
 
-
     startBtn.disabled = false;
-
 
     resetBtn.disabled = true;
 
-
-
-    stats.style.display =
-        "none";
-
-
+    status.style.display = "none";
+    clearPhaseIndicator();
 
 }
 
@@ -1859,12 +2130,11 @@ function resetChat(){
 
 
 
-
-
 // ================================
+
 // ENTER TO SEND
-// ================================
 
+// ================================
 
 answerInput.addEventListener(
 
@@ -1873,19 +2143,33 @@ answerInput.addEventListener(
     function(e){
 
 
+
+
         if(
+
             e.key === "Enter"
+
             &&
+
             !e.shiftKey
+
             &&
+
             !sendBtn.disabled
+
         ){
+
+
 
 
             e.preventDefault();
 
 
+
+
             sendAnswer();
+
+
 
 
         }
