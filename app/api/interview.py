@@ -511,7 +511,7 @@ async def get_next_question(
         return {
             "question": question_text,
             "phase": current_phase,
-            "question_number": question_number + 1,
+            "question_number": question_number,
             "difficulty_level": difficulty_level,
             "interview_status": "in_progress"
         }
@@ -592,7 +592,7 @@ async def submit_candidate_answer(
             "role": "candidate",
             "message_type": data.question,
             "content": data.candidate_answer,
-            "question_number": question_number + 1,
+            "question_number": question_number,
             "phase": current_phase,
             "score": score,
             "evaluated_at": "now()"
@@ -615,19 +615,18 @@ async def submit_candidate_answer(
         question_number = int(question_number)
         total_questions = int(session["total_questions"])
 
-        new_question_number = question_number + 1
         # Interview completes only when the phase machine says so (e.g.
         # conclusion -> completed) OR we've genuinely exhausted the grand
         # total question budget across all phases. This prevents the
         # interview from ending right after the intro phase.
-        should_complete = (next_status == "completed") or (new_question_number >= total_questions)
+        should_complete = (next_status == "completed") or (question_number >= total_questions)
 
         if should_complete:
             final_score = next_difficulty * 2 + (score - 5) * 0.5  # Approximate calculation
             final_score = min(10, max(0, final_score))
             
             supabase.table("interview_sessions").update({
-                "current_question_number": new_question_number,
+                "current_question_number": question_number,
                 "current_phase": next_phase,
                 "final_score": final_score,
                 "final_feedback": evaluation_result.get("evaluation", ""),
@@ -640,7 +639,7 @@ async def submit_candidate_answer(
             # Update session for next iteration (persist phase so the
             # frontend/DB stay in sync across turns)
             supabase.table("interview_sessions").update({
-                "current_question_number": new_question_number,
+                "current_question_number": question_number,
                 "current_phase": next_phase
             }).eq("id", data.session_id).execute()
         
@@ -648,7 +647,7 @@ async def submit_candidate_answer(
             "evaluation": evaluation_result.get("evaluation", ""),
             "suggested_follow_up": evaluation_result.get("suggested_follow_up", ""),
             "phase": next_phase,
-            "question_number": new_question_number,
+            "question_number": question_number,
             "difficulty_level": next_difficulty,
             "interview_status": next_status,
             "score": score
