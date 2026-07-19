@@ -22,17 +22,6 @@ export class AudioSync {
     return this.totalDuration
   }
 
-  get debugState() {
-    return {
-      isPlaying: this._isPlaying,
-      queueLen: this.bufferQueue.length,
-      chunks: this.chunks.length,
-      startTime: this.startTime,
-      pausedAt: this.pausedAt,
-      ctxState: this.audioContext?.state ?? 'null',
-    }
-  }
-
   async init(): Promise<void> {
     if (this.audioContext) return
     this.audioContext = new AudioContext()

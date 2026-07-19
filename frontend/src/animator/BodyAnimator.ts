@@ -11,11 +11,11 @@ import { EyeLayer } from './layers/EyeLayer'
 import { BlinkLayer } from './layers/BlinkLayer'
 import { HeadLayer } from './layers/HeadLayer'
 import { LipSyncLayer } from './layers/LipSyncLayer'
-import { GestureLayer } from './layers/GestureLayer'
+import { GestureLayer, GESTURE_LAYER_CONFLICT } from './layers/GestureLayer'
 import { SpeakingLayer } from './layers/SpeakingLayer'
 import { ListeningLayer } from './layers/ListeningLayer'
 import { ThinkingLayer } from './layers/ThinkingLayer'
-import { storeRestPose, getBoneNames } from './utils/BoneUtils'
+import { storeRestPose, getBoneNames, getGestureRelevantBones } from './utils/BoneUtils'
 import { damp, clamp } from './utils/Damp'
 
 export class BodyAnimator {
@@ -56,6 +56,7 @@ export class BodyAnimator {
     this.scheduler = new AnimationScheduler()
     this.stateMachine = new AnimationStateMachine()
     this.gestureLayer = new GestureLayer()
+    this.gestureLayer.setAvailableBones(getGestureRelevantBones())
     this.speakingLayer = new SpeakingLayer(this.gestureLayer)
     this.listeningLayer = new ListeningLayer()
     this.thinkingLayer = new ThinkingLayer()
@@ -144,6 +145,19 @@ export class BodyAnimator {
     this.speakingLayer.weight = ctx.state === 'speaking' ? (isTransitioning ? transP : 1) : (isTransitioning ? 1 - transP : 0)
     this.listeningLayer.weight = ctx.state === 'listening' ? (isTransitioning ? transP : 1) : (isTransitioning ? 1 - transP : 0)
     this.thinkingLayer.weight = ctx.state === 'thinking' ? (isTransitioning ? transP : 1) : (isTransitioning ? 1 - transP : 0)
+
+    const gestureActive = this.gestureLayer.isAnyGestureActive()
+    if (gestureActive) {
+      const g = GESTURE_LAYER_CONFLICT[this.gestureLayer.getCurrentGesture() ?? '']
+      if (g) {
+        if (g.head) { this.headLayer.weight *= 0.2; this.idle.weight *= 0.2 }
+        if (g.shoulders) { this.breathing.weight *= 0.5; this.posture.weight *= 0.3; this.weightShift.weight *= 0.3; this.micro.weight *= 0.5 }
+        if (g.spine) { this.speakingLayer.weight *= 0.5; this.listeningLayer.weight *= 0.5; this.thinkingLayer.weight *= 0.5 }
+        if (g.arms) { this.weightShift.weight *= 0.5; this.posture.weight *= 0.5 }
+      } else {
+        this.headLayer.weight *= 0.5
+      }
+    }
 
     this.breathing.update(ctx)
     this.posture.update(ctx)

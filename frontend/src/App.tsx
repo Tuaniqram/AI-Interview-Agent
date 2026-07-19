@@ -13,8 +13,9 @@ import StartView from './components/startView';
 import { AvatarLayout } from './components/AvatarLayout';
 import { AvatarPlaceholder } from './components/AvatarPlaceholder';
 import { LipSyncTest } from './components/LipSyncTest';
+import { AnimationTest } from './components/AnimationTest';
 
-type InterviewMode = 'typing' | 'voice' | 'avatar' | 'realtime' | 'lip-sync-test';
+type InterviewMode = 'typing' | 'voice' | 'avatar' | 'realtime' | 'lip-sync-test' | 'animation-test';
 
 export function App() {
   const { state,actions } = useInterviewStore();
@@ -110,6 +111,9 @@ export function App() {
       case 'lip-sync-test':
         return <LipSyncTest />;
 
+      case 'animation-test':
+        return <AnimationTest />;
+
       default:
         return <div>Invalid mode</div>;
     }
@@ -140,6 +144,7 @@ export function App() {
                 { id: 'avatar' as InterviewMode, label: 'Avatar Mode', icon: '🎭' },
                 { id: 'realtime' as InterviewMode, label: 'Real-time', icon: '💬' },
                 { id: 'lip-sync-test' as InterviewMode, label: 'Lip Sync Test', icon: '🔊' },
+                { id: 'animation-test' as InterviewMode, label: 'Animation Test', icon: '🎬' },
               ].map((mode) => (
                 <button
                   key={mode.id}

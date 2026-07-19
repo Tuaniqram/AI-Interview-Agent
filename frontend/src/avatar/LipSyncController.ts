@@ -1,5 +1,6 @@
 import type { Mesh } from 'three'
 import type { VisemeEvent, ExpressionEvent, GestureEvent, WsMessage, LipSyncState } from './types'
+import type { GestureType } from '../animator/types'
 import { VisemeEngine } from './VisemeEngine'
 import { AudioSync } from './AudioSync'
 import { MorphTargetController } from './MorphTargetController'
@@ -47,6 +48,22 @@ export class LipSyncController {
 
   setOnLipSyncUpdate(callback: (targets: Record<string, number>) => void): void {
     this.onLipSyncUpdate = callback
+  }
+
+  triggerGesture(type: GestureType): void {
+    this.bodyAnimator?.gestureLayer.triggerGesture(type)
+  }
+
+  stopGesture(): void {
+    this.bodyAnimator?.gestureLayer.stopGesture()
+  }
+
+  hasActiveGesture(): boolean {
+    return this.bodyAnimator?.gestureLayer.isAnyGestureActive() ?? false
+  }
+
+  setExpression(emotion: 'neutral' | 'laughing' | 'considering' | 'excited' | 'thoughtful', intensity = 1): void {
+    this.expressionController.setEmotion(emotion, intensity)
   }
 
   set onConnected(callback: (() => void) | null) {
@@ -190,7 +207,6 @@ export class LipSyncController {
         break
 
       case 'speech_start':
-        console.log('[LipSync] >> speech_start')
         this._isSpeaking = true
         this._speechActive = true
         this._speakingSince = Date.now()
@@ -214,7 +230,6 @@ export class LipSyncController {
         break
 
       case 'speech_end':
-        console.log('[LipSync] >> speech_end  audioPlaying:', this.audioSync.isPlaying)
         this._speechActive = false
         break
 

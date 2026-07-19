@@ -90,6 +90,8 @@ export interface LayerBoneOffsets {
   rightForeArm?: BoneTransform
   leftShoulder?: BoneTransform
   rightShoulder?: BoneTransform
+  leftHand?: BoneTransform
+  rightHand?: BoneTransform
 }
 
 export type BoneName = keyof LayerBoneOffsets
@@ -108,4 +110,6 @@ export interface BoneMap {
   rightForeArm?: Bone
   leftShoulder?: Bone
   rightShoulder?: Bone
+  leftHand?: Bone
+  rightHand?: Bone
 }

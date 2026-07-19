@@ -424,6 +424,7 @@ export function AvatarRenderer({
           console.log(`[Avatar] bones: ${Object.keys(bones).join(', ')}`);
 
           _globalLipSync?.setMeshes(morphMeshes)
+          _globalLipSync?.setBodyAnimator(bodyAnimator)
           debugLog('[PIPELINE] meshes set on LipSyncController', morphMeshes.length)
 
           sceneRef.current = {
@@ -446,13 +447,15 @@ export function AvatarRenderer({
           });
 
           const fallbackBones = getBonesMap(headGroup);
+          const bodyAnimator = new BodyAnimator(fallbackBones);
 
           _globalLipSync?.setMeshes(morphMeshes)
+          _globalLipSync?.setBodyAnimator(bodyAnimator)
           debugLog('[PIPELINE] meshes set on LipSyncController (procedural)', morphMeshes.length)
 
           sceneRef.current = {
             scene, camera, renderer, model: headGroup, morphMeshes,
-            bodyAnimator: new BodyAnimator(fallbackBones), clock,
+            bodyAnimator, clock,
           };
 
           setModelType('procedural');
@@ -503,18 +506,6 @@ export function AvatarRenderer({
         if (_globalLipSync && lipSyncSpeaking) {
           const lipState = _globalLipSync.update(delta)
           const lipMorphs = lipState.morphTargets
-
-          // One-time diagnostic: log morph key overlap
-          if (!(window as any).__morphDiag && s.morphMeshes.length > 0) {
-            (window as any).__morphDiag = true
-            const mesh = s.morphMeshes[0]
-            const meshKeys = mesh.morphTargetDictionary ? Object.keys(mesh.morphTargetDictionary) : []
-            const lipKeys = Object.keys(lipMorphs)
-            console.log('[LipSync] mesh morph keys:', meshKeys.join(','))
-            console.log('[LipSync] lip morph keys:', lipKeys.join(','))
-            const overlap = lipKeys.filter(k => meshKeys.includes(k))
-            console.log('[LipSync] overlap:', overlap.join(','))
-          }
 
           // Override with lip sync targets (highest priority)
           Object.assign(targets, lipMorphs)

@@ -7,6 +7,7 @@ export function buildBoneMap(skeleton: Object3D): BoneMap {
     'spine', 'spine1', 'spine2', 'head', 'neck',
     'leftEye', 'rightEye', 'leftArm', 'rightArm',
     'leftForeArm', 'rightForeArm', 'leftShoulder', 'rightShoulder',
+    'leftHand', 'rightHand',
   ]
 
   const allBoneNames: string[] = []
@@ -47,6 +48,18 @@ export function getBoneNames(): BoneName[] {
     'spine', 'spine1', 'spine2', 'head', 'neck',
     'leftEye', 'rightEye', 'leftArm', 'rightArm',
     'leftForeArm', 'rightForeArm', 'leftShoulder', 'rightShoulder',
+    'leftHand', 'rightHand',
+  ]
+}
+
+export function getGestureRelevantBones(): string[] {
+  return [
+    'head', 'neck',
+    'leftShoulder', 'rightShoulder',
+    'leftArm', 'rightArm',
+    'leftForeArm', 'rightForeArm',
+    'leftHand', 'rightHand',
+    'spine', 'spine1',
   ]
 }
 
