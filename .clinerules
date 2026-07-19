@@ -1,32 +1,277 @@
-# AI Interview Agent Rules
+# AI Interview Agent Backend Architecture Rules
 
-## Current Task Scope
-Only modify:
-- interviewv2.html
-- app/api/interview.py
+You are working on the AI Interview Agent backend.
 
-## Database Issue
-The problem:
-Interview session and messages are not updating in Supabase.
+IMPORTANT:
+Before making ANY backend changes, ALWAYS review and understand the architecture defined in these core files first.
 
-Investigate:
-- API request flow
-- session_id handling
-- message insert/update logic
-- Supabase client usage
+Never modify backend code based only on the current file. Always cross-check against the architecture source of truth.
 
-## Ignore
-Do NOT inspect or modify:
-- agents/
-- rag/
-- pinecone/
-- huggingface/
-- embeddings/
-- vector_db/
-- uploads/
+---
 
-## Rules
-- Do not redesign architecture.
-- Keep existing LangGraph/agent workflow unchanged.
-- Fix only interview session persistence.
-- Before editing, explain the cause.
+# Architecture Source of Truth (MUST READ)
+
+## Main Architecture Documents
+
+1. ARCHITECTURE_README.md
+2. ARCHITECTURE_REFACTOR_COMPLETE.md
+
+These documents define:
+- Overall system architecture
+- Layer responsibilities
+- Data flow
+- Migration status
+- API design
+- LangGraph workflow design
+- RAG integration rules
+- Future extension rules
+
+---
+
+# Core Backend Files (ALWAYS CHECK)
+
+## API Layer
+
+Location:
+
+app/api/interview_agent.py
+
+Purpose:
+- REST API endpoints only
+- Request validation
+- Response formatting
+- Error handling
+- Calling orchestrator
+
+Rules:
+- API MUST NOT contain business logic
+- API MUST NOT call database directly
+- API MUST NOT call LLM directly
+- API MUST NOT generate questions
+- API MUST NOT evaluate answers
+
+Flow:
+
+Frontend
+    ↓
+API Router
+    ↓
+InterviewOrchestrator
+    ↓
+LangGraph Workflow
+    ↓
+Agents
+    ↓
+Repositories / Services
+
+
+---
+
+# Orchestrator Layer
+
+Location:
+
+app/orchestrators/
+
+Main file:
+
+app/orchestrators/interview_orchestrator.py
+
+
+Purpose:
+- Coordinate API requests
+- Prepare LangGraph state
+- Load session information
+- Execute workflows
+- Return results
+
+Rules:
+- Orchestrator coordinates ONLY
+- Business intelligence belongs inside agents
+- Database access only through repositories
+- Do not put prompts here
+- Do not put LLM logic here
+
+
+---
+
+# LangGraph Layer
+
+Location:
+
+app/graph/
+
+
+Files:
+
+app/graph/interview_state.py
+
+Defines the shared state object.
+
+Before changing workflow logic:
+ALWAYS inspect InterviewState first.
+
+
+app/graph/interview_workflow.py
+
+Main workflow definition.
+
+
+app/graph/question_workflow.py
+
+Question generation workflow.
+
+
+app/graph/evaluation_workflow.py
+
+Answer evaluation workflow.
+
+
+Rules:
+
+LangGraph controls:
+- State transitions
+- Node execution
+- Conditional routing
+- Interview flow
+
+
+Never bypass LangGraph by directly calling agents.
+
+
+---
+
+# Agent Layer
+
+Location:
+
+app/agents/
+
+
+## session_init_node.py
+
+Responsible for:
+- Initializing interview state
+
+
+## company_context_node.py
+
+Responsible for:
+- Company RAG retrieval
+- Pinecone namespace handling
+- Injecting company context
+
+
+IMPORTANT:
+
+Every company interview MUST maintain:
+
+company_id
+        ↓
+Pinecone namespace:
+company_{company_id}
+        ↓
+Retriever
+        ↓
+Company documents
+        ↓
+Question generation context
+
+
+Never generate company interview questions without checking company context.
+
+
+## question_generation_node.py
+
+Responsible for:
+- AI generated interview questions
+
+Rules:
+- NO hardcoded questions
+- NO templates
+- ALWAYS use LLM
+- Use:
+  - company context
+  - job role
+  - candidate profile
+  - conversation history
+  - difficulty
+
+
+## answer_evaluator_node.py
+
+Responsible for:
+- Answer evaluation
+- Scoring
+- Feedback generation
+
+
+Rules:
+- Use LLM evaluator
+- Return structured evaluation
+- Do not mix question generation logic
+
+
+## decision_node.py
+
+Responsible for:
+- Adaptive interview decisions
+
+Controls:
+- difficulty changes
+- phase transitions
+- next action
+
+
+---
+
+# Repository Layer
+
+Location:
+
+app/repositories/
+
+
+Purpose:
+
+Database abstraction only.
+
+Rules:
+
+Allowed:
+- CRUD operations
+- Queries
+- Database transactions
+
+
+Forbidden:
+- LLM calls
+- Business decisions
+- Prompt handling
+
+
+All database access MUST go through repositories.
+
+
+---
+
+# Service Layer
+
+Location:
+
+app/services/
+
+
+Important files:
+
+## llm_service.py
+
+Central LLM gateway.
+
+Rules:
+All LLM calls MUST use this service.
+
+Never:
+
+```python
+llm.invoke(...)

@@ -7,7 +7,8 @@ import logging
 from app.api.company import router as company_router
 from app.api.knowledge import router as knowledge_router
 from app.api.general import router as general_router
-from app.api.interview import router as interview_router
+from app.api.interview_agent import router as interview_agent
+from app.api.avatar_ws import router as avatar_ws_router
 from app.rag.loader import load_pdf
 from app.rag.embedding import split_documents
 from app.rag.vectorstore import create_database
@@ -28,7 +29,11 @@ app.include_router(
 )
 
 app.include_router(
-    interview_router
+    interview_agent
+)
+
+app.include_router(
+    avatar_ws_router
 )
 # ✅ CORS Configuration - Must be FIRST middleware
 app.add_middleware(

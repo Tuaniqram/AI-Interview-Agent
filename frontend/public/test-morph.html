@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>avatarv2 Morph Test</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; overflow: hidden; font-family: monospace; display: flex; }
+  #canvas-container { flex: 1; height: 100vh; }
+  #panel {
+    width: 300px; background: #16213e; color: #ccc; padding: 12px;
+    overflow-y: auto; border-left: 1px solid #333;
+  }
+  #panel h3 { margin: 8px 0 4px; color: #88f; font-size: 13px; }
+  .slider-row { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+  .slider-row label { width: 120px; font-size: 10px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .slider-row input { flex: 1; }
+  .slider-row .val { width: 30px; font-size: 10px; text-align: center; }
+  button { margin: 4px 2px; padding: 4px 10px; background: #2a3a6e; color: #ccc; border: 1px solid #558; cursor: pointer; font-size: 12px; }
+  button:hover { background: #3a4a8e; }
+  #info { font-size: 11px; margin-top: 8px; color: #888; }
+  .section { font-size: 11px; color: #66a; padding: 4px 0; font-weight: bold; }
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+<div id="panel">
+  <h3>avatarv2 Morph Targets</h3>
+  <div id="sliders"></div>
+  <div style="margin-top:8px">
+    <button id="btnAnimate">▶ Animate</button>
+    <button id="btnReset">Reset all</button>
+    <button id="btnTestJaw">Test jawOpen=1</button>
+  </div>
+  <div id="info">Loading avatarv2.glb...</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const container = document.getElementById('canvas-container');
+const infoEl = document.getElementById('info');
+const slidersEl = document.getElementById('sliders');
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a2e);
+
+const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 100);
+camera.position.set(0, 0.5, 3);
+camera.lookAt(0, 1.5, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+container.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const key = new THREE.DirectionalLight(0xffffff, 1.2);
+key.position.set(1, 1.5, 2);
+scene.add(key);
+const fill = new THREE.DirectionalLight(0x8888ff, 0.4);
+fill.position.set(-1, 0.5, 1);
+scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 0.6);
+rim.position.set(0, 1, -2);
+scene.add(rim);
+
+// State
+let modelGroup = null;
+let headMesh = null;
+let morphMeshes = []; // all meshes with morph targets
+let animating = false;
+let animTime = 0;
+let morphNames = [];
+const inputs = [];
+
+function buildUI(names) {
+  slidersEl.innerHTML = '';
+  inputs.length = 0;
+
+  // Add section headers and sliders
+  const visemeList = ['CH','DD','E','FF','PP','RR','SS','TH','aa','ih','kk','nn','oh','ou','sil'];
+  names.forEach((n, i) => {
+    const row = document.createElement('div');
+    row.className = 'slider-row';
+
+    const label = document.createElement('label');
+    label.textContent = n;
+    label.title = n;
+
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = 0; input.max = 2; input.step = 0.01; input.value = '0';
+
+    const val = document.createElement('span');
+    val.className = 'val';
+    val.textContent = '0';
+
+    input.addEventListener('input', () => {
+      val.textContent = input.value;
+      // Set influence on ALL morph meshes
+      for (const m of morphMeshes) {
+        if (m.morphTargetDictionary && m.morphTargetInfluences) {
+          const idx = m.morphTargetDictionary[n];
+          if (idx !== undefined) m.morphTargetInfluences[idx] = parseFloat(input.value);
+        }
+      }
+    });
+
+    row.appendChild(label);
+    row.appendChild(input);
+    row.appendChild(val);
+    slidersEl.appendChild(row);
+    inputs.push(input);
+  });
+}
+
+function setupMorphMesh(child, names) {
+  const geom = child.geometry;
+  const mp = geom.morphAttributes?.position;
+  if (!mp || mp.length === 0) return;
+
+  // Clone material with morph targets
+  if (child.material) {
+    if (Array.isArray(child.material)) {
+      child.material = child.material.map(m => { const c = m.clone(); c.morphTargets = true; c.needsUpdate = true; return c; });
+    } else {
+      const c = child.material.clone();
+      c.morphTargets = true;
+      c.needsUpdate = true;
+      child.material = c;
+    }
+  }
+
+  child.updateMorphTargets();
+  child.morphTargetDictionary = Object.fromEntries(names.map((n, i) => [n, i]));
+  child.morphTargetInfluences = new Array(names.length).fill(0);
+
+  // Log data quality
+  let maxD = 0, nzSamples = 0;
+  for (let mi = 0; mi < mp.length; mi++) {
+    const arr = mp[mi].array;
+    for (let k = 0; k < Math.min(arr.length, 5000); k += 5) {
+      const av = Math.abs(arr[k]);
+      if (av > 0.00001) nzSamples++;
+      if (av > maxD) maxD = av;
+    }
+  }
+  console.log(`[${child.name}] ${mp.length} targets, maxDelta=${maxD.toFixed(6)}, nzSamples=${nzSamples}`);
+
+  morphMeshes.push(child);
+}
+
+const loader = new GLTFLoader();
+loader.load('/models/avatarv2.glb', (gltf) => {
+  const model = gltf.scene;
+
+  // Center & scale
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const targetHeight = 3.2;
+  const scaleFactor = targetHeight / size.y;
+  model.scale.setScalar(scaleFactor);
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+  model.position.sub(scaledCenter);
+  model.position.y += (-scaledBox.min.y) - 0.3;
+
+  modelGroup = model;
+  scene.add(model);
+
+  // Find morph targets and detect names
+  model.traverse((child) => {
+    if (!child.isMesh && !child.isSkinnedMesh) return;
+    const geom = child.geometry;
+    if (!geom.morphAttributes?.position?.length) return;
+
+    // Try to get target names from userData (loaded from GLTF extras)
+    console.log(`[${child.name}] userData keys: ${Object.keys(child.userData).join(',')}`);
+    let names = child.userData?.targetNames;
+    if (!names || names.length === 0) {
+      console.log(`[${child.name}] No targetNames in userData, using numeric`);
+      names = geom.morphAttributes.position.map((_, i) => String(i));
+    }
+
+    morphNames = names;
+    console.log(`[${child.name}] Morph targets: ${names.length} names found`);
+
+    if (child.name === 'AvatarHead') {
+      headMesh = child;
+      setupMorphMesh(child, names);
+    } else if (child.name === 'AvatarEyelashes' || child.name === 'AvatarTeethLower') {
+      setupMorphMesh(child, names);
+    }
+  });
+
+  if (!headMesh) {
+    infoEl.textContent = 'No AvatarHead mesh found!';
+    return;
+  }
+
+  console.log(`[Test] Total morph meshes: ${morphMeshes.length}`);
+  console.log(`[Test] Names: ${morphNames.join(', ')}`);
+  infoEl.textContent = `${morphNames.length} targets on ${morphMeshes.length} meshes`;
+
+  buildUI(morphNames);
+});
+
+// UI
+document.getElementById('btnAnimate').addEventListener('click', () => {
+  animating = !animating;
+  document.getElementById('btnAnimate').textContent = animating ? '⏸ Stop' : '▶ Animate';
+  if (!animating) animTime = 0;
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  inputs.forEach((inp, i) => {
+    inp.value = '0';
+    for (const m of morphMeshes) {
+      if (m.morphTargetInfluences) m.morphTargetInfluences[i] = 0;
+    }
+  });
+});
+
+document.getElementById('btnTestJaw').addEventListener('click', () => {
+  // Reset all
+  inputs.forEach((inp, i) => { inp.value = '0'; });
+  for (const m of morphMeshes) {
+    if (m.morphTargetInfluences) m.morphTargetInfluences.fill(0);
+  }
+  // Set jawOpen to 1
+  const idx = morphNames.indexOf('jawOpen');
+  if (idx >= 0) {
+    inputs[idx].value = '1.0';
+    for (const m of morphMeshes) {
+      if (m.morphTargetInfluences) m.morphTargetInfluences[idx] = 1.0;
+    }
+    console.log('[Test] Set jawOpen to 1.0');
+  }
+});
+
+window.addEventListener('resize', () => {
+  const w = container.clientWidth, h = container.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+});
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  if (animating && morphMeshes.length > 0) {
+    animTime += 0.02;
+    const len = morphNames.length;
+    const cycle = animTime % (len * 2);
+    const idx = Math.floor(cycle / 2) % len;
+    const phase = (cycle % 2);
+    const wave = phase < 1 ? Math.sin(phase * Math.PI) : 0;
+
+    inputs.forEach((inp, i) => {
+      const v = i === idx ? wave : 0;
+      inp.value = v.toFixed(2);
+      const valEl = inp.nextSibling;
+      if (valEl) valEl.textContent = v.toFixed(2);
+      for (const m of morphMeshes) {
+        if (m.morphTargetInfluences) m.morphTargetInfluences[i] = v;
+      }
+    });
+  }
+
+  if (modelGroup) {
+    modelGroup.rotation.y = Math.sin(Date.now() * 0.0003) * 0.05;
+  }
+
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
