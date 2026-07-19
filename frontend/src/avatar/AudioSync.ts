@@ -22,6 +22,17 @@ export class AudioSync {
     return this.totalDuration
   }
 
+  get debugState() {
+    return {
+      isPlaying: this._isPlaying,
+      queueLen: this.bufferQueue.length,
+      chunks: this.chunks.length,
+      startTime: this.startTime,
+      pausedAt: this.pausedAt,
+      ctxState: this.audioContext?.state ?? 'null',
+    }
+  }
+
   async init(): Promise<void> {
     if (this.audioContext) return
     this.audioContext = new AudioContext()
@@ -30,8 +41,7 @@ export class AudioSync {
     this.gainNode.connect(this.audioContext.destination)
   }
 
-  async appendChunk(base64Data: string): Promise<void> {
-    await this.init()
+  appendChunk(base64Data: string): void {
     const binary = atob(base64Data)
     const bytes = new Uint8Array(binary.length)
     for (let i = 0; i < binary.length; i++) {

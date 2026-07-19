@@ -105,6 +105,19 @@ export class VisemeEngine {
     return this.fadeValue
   }
 
+  get isActive(): boolean {
+    return this.currentViseme !== null || this.queue.length > 0 || this.silenceStartTime >= 0
+  }
+
+  get debugState() {
+    return {
+      current: this.currentViseme?.value ?? null,
+      queueLen: this.queue.length,
+      silenceStart: this.silenceStartTime,
+      silenceDur: this.silenceDuration,
+    }
+  }
+
   loadVisemes(visemes: VisemeEvent[]): void {
     this.queue = [...visemes].sort((a, b) => a.time - b.time)
     this.currentViseme = null

@@ -15,6 +15,8 @@ export class LipSyncController {
   private ws: WebSocket | null = null
   private bodyAnimator: BodyAnimator | null = null
   private _isSpeaking = false
+  private _speechActive = false
+  private _speakingSince = 0
   private expressionQueue: ExpressionEvent[] = []
   private gestureQueue: GestureEvent[] = []
   private onLipSyncUpdate: ((targets: Record<string, number>) => void) | null = null
@@ -100,6 +102,8 @@ export class LipSyncController {
     this.expressionQueue = []
     this.gestureQueue = []
     this._isSpeaking = false
+    this._speechActive = false
+    this._speakingSince = 0
   }
 
   speak(text: string, emotion = 'neutral'): void {
@@ -146,6 +150,22 @@ export class LipSyncController {
     this.checkExpressions(elapsed)
     this.checkGestures(elapsed)
 
+    // End speech when: speech_end received + audio finished + viseme fade complete
+    if (this._isSpeaking) {
+      const hasWork = this._speechActive || this.visemeEngine.isActive || this.audioSync.isPlaying
+      if (!hasWork) {
+        this._isSpeaking = false
+        this._speakingSince = 0
+      }
+
+      // Safety: speech_end received but audio never started → force end after 5s real time
+      if (!this._speechActive && !this.audioSync.isPlaying && this._speakingSince > 0 && Date.now() - this._speakingSince > 5000) {
+        console.log('[LipSync] force end (audio timeout):', { elapsedMs: Date.now() - this._speakingSince })
+        this._isSpeaking = false
+        this._speakingSince = 0
+      }
+    }
+
     return {
       isSpeaking: this._isSpeaking,
       currentViseme: this.visemeEngine.current,
@@ -170,7 +190,10 @@ export class LipSyncController {
         break
 
       case 'speech_start':
+        console.log('[LipSync] >> speech_start')
         this._isSpeaking = true
+        this._speechActive = true
+        this._speakingSince = Date.now()
         this.visemeEngine.clear()
         break
 
@@ -191,8 +214,8 @@ export class LipSyncController {
         break
 
       case 'speech_end':
-        this._isSpeaking = false
-        this.visemeEngine.setSilence(0.2, this.audioSync.currentTime)
+        console.log('[LipSync] >> speech_end  audioPlaying:', this.audioSync.isPlaying)
+        this._speechActive = false
         break
 
       case 'error':

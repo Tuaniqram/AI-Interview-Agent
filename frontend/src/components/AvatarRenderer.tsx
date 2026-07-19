@@ -305,9 +305,13 @@ export function getLipSyncController(): LipSyncController | null {
   return _globalLipSync
 }
 
-const DEBUG_LIPSYNC = true
+const DEBUG_LIPSYNC = false
+const DEBUG_LIPSYNC_MORPH = true
 function debugLog(...args: unknown[]) {
   if (DEBUG_LIPSYNC) console.log('[DEBUG_LIPSYNC]', ...args)
+}
+function debugMorph(...args: unknown[]) {
+  if (DEBUG_LIPSYNC_MORPH) console.log('[LIPSYNC]', ...args)
 }
 
 function getBonesMap(model: THREE.Object3D): ReturnType<typeof buildBoneMap> {
@@ -471,10 +475,10 @@ export function AvatarRenderer({
         const lipSyncSpeaking = _globalLipSync?.isSpeaking ?? false
         const effectiveSpeaking = _isSpeaking || lipSyncSpeaking
 
-        debugLog('[PIPELINE] animate frame', {
-          isSpeaking: _isSpeaking, lipSyncSpeaking, effectiveSpeaking,
-          lipSyncExists: !!_globalLipSync,
-        })
+        if (effectiveSpeaking !== (window as any).__lastSpeakingState) {
+          (window as any).__lastSpeakingState = effectiveSpeaking
+          debugMorph('[STATE] speaking:', effectiveSpeaking, 'browser:', _isSpeaking, 'ws:', lipSyncSpeaking)
+        }
 
         // Body animation
         if (s.bodyAnimator) {
@@ -500,23 +504,27 @@ export function AvatarRenderer({
           const lipState = _globalLipSync.update(delta)
           const lipMorphs = lipState.morphTargets
 
-          debugLog('[PIPELINE] LipSyncController.update() returned', {
-            morphCount: Object.keys(lipMorphs).length,
-            sample: lipMorphs,
-            currentViseme: lipState.currentViseme,
-            audioTime: lipState.audioTime,
-            isSpeaking: lipState.isSpeaking,
-          })
+          // One-time diagnostic: log morph key overlap
+          if (!(window as any).__morphDiag && s.morphMeshes.length > 0) {
+            (window as any).__morphDiag = true
+            const mesh = s.morphMeshes[0]
+            const meshKeys = mesh.morphTargetDictionary ? Object.keys(mesh.morphTargetDictionary) : []
+            const lipKeys = Object.keys(lipMorphs)
+            console.log('[LipSync] mesh morph keys:', meshKeys.join(','))
+            console.log('[LipSync] lip morph keys:', lipKeys.join(','))
+            const overlap = lipKeys.filter(k => meshKeys.includes(k))
+            console.log('[LipSync] overlap:', overlap.join(','))
+          }
 
           // Override with lip sync targets (highest priority)
           Object.assign(targets, lipMorphs)
 
-          // Log morph target values for verification
-          if (lipMorphs['jawOpen'] !== undefined) {
-            debugLog('[MORPH] jawOpen =', lipMorphs['jawOpen'])
-          }
-          if (lipMorphs['aa'] !== undefined) {
-            debugLog('[MORPH] aa =', lipMorphs['aa'])
+          // Log morph target values only when they change significantly
+          const jw = lipMorphs['jawOpen']
+          const lastJaw = (window as any).__lastJaw
+          if (jw !== undefined && (lastJaw === undefined || Math.abs(jw - lastJaw) > 0.05)) {
+            (window as any).__lastJaw = jw
+            debugMorph('[VISEME]', lipState.currentViseme, 'jawOpen:', jw?.toFixed(2), 'time:', lipState.audioTime?.toFixed(2))
           }
         }
 
