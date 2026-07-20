@@ -1,8 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Custom animations and utilities */
+@layer base {
+  :root {
+    /* ── Background hierarchy ── */
+    --bg-page:            #f5f5f7;
+    --bg-section:         #ffffff;
+    --bg-elevated:        #ffffff;
+    --bg-input:           #f0f0f2;
+    --bg-hover:           #e8e8ec;
+    --bg-overlay:         rgba(0, 0, 0, 0.3);
+
+    /* ── Text ── */
+    --text-primary:       #1a1a1e;
+    --text-secondary:     #54545c;
+    --text-muted:         #6b7280;
+    --text-inverse:       #ffffff;
+
+    /* ── Border & divider ── */
+    --border-default:     #e2e2e8;
+    --border-strong:      #c8c8d0;
+    --border-focus:       #6d4fe8;
+    --divider:            #eaeaf0;
+
+    /* ── Action system ── */
+    --action-primary:           #6d4fe8;
+    --action-primary-hover:     #5438d4;
+    --action-primary-text:      #ffffff;
+    --action-secondary:         #e8e8ec;
+    --action-secondary-hover:   #dcdce2;
+    --action-secondary-text:    #1a1a1e;
+    --action-ghost-text:        #54545c;
+    --action-ghost-hover:       #e8e8ec;
+    --action-danger:            #dc2626;
+    --action-danger-hover:      #b91c1c;
+    --action-danger-text:       #ffffff;
+    --action-disabled:          #e2e2e8;
+    --action-disabled-text:     #8a8a94;
+
+    /* ── Status ── */
+    --status-success:           #059669;
+    --status-success-bg:        #ecfdf5;
+    --status-success-text:      #065f46;
+    --status-warning:           #d97706;
+    --status-warning-bg:        #fffbeb;
+    --status-warning-text:      #92400e;
+    --status-error:             #dc2626;
+    --status-error-bg:          #fef2f2;
+    --status-error-text:        #991b1b;
+    --status-info:              #2563eb;
+    --status-info-bg:           #eff6ff;
+    --status-info-text:         #1e40af;
+
+    /* ── Focus ── */
+    --focus-ring:               rgba(109, 79, 232, 0.25);
+
+    /* ── Shadows ── */
+    --shadow-sm:                0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md:                0 4px 12px rgba(0, 0, 0, 0.06);
+    --shadow-lg:                0 8px 24px rgba(0, 0, 0, 0.08);
+  }
+
+  [data-theme="dark"] {
+    --bg-page:            #0a0a0b;
+    --bg-section:         #141416;
+    --bg-elevated:        #1c1c1f;
+    --bg-input:           #252528;
+    --bg-hover:           #2f2f33;
+    --bg-overlay:         rgba(0, 0, 0, 0.6);
+
+    --text-primary:       #f2f2f5;
+    --text-secondary:     #a8a8b3;
+    --text-muted:         #8a8a94;
+    --text-inverse:       #1a1a1e;
+
+    --border-default:     #2c2c30;
+    --border-strong:      #3a3a40;
+    --border-focus:       #7c5cfc;
+    --divider:            #222226;
+
+    --action-primary:           #8b6ff5;
+    --action-primary-hover:     #a08aff;
+    --action-primary-text:      #ffffff;
+    --action-secondary:         #2f2f33;
+    --action-secondary-hover:   #3a3a40;
+    --action-secondary-text:    #f2f2f5;
+    --action-ghost-text:        #a8a8b3;
+    --action-ghost-hover:       #2f2f33;
+    --action-danger:            #f87171;
+    --action-danger-hover:      #fca5a5;
+    --action-danger-text:       #ffffff;
+    --action-disabled:          #2c2c30;
+    --action-disabled-text:     #6f6f7a;
+
+    --status-success:           #34d399;
+    --status-success-bg:        rgba(52, 211, 153, 0.15);
+    --status-success-text:      #a7f3d0;
+    --status-warning:           #fbbf24;
+    --status-warning-bg:        rgba(251, 191, 36, 0.15);
+    --status-warning-text:      #fde68a;
+    --status-error:             #f87171;
+    --status-error-bg:          rgba(248, 113, 113, 0.15);
+    --status-error-text:        #fecaca;
+    --status-info:              #60a5fa;
+    --status-info-bg:           rgba(96, 165, 250, 0.15);
+    --status-info-text:         #bfdbfe;
+
+    --focus-ring:               rgba(139, 111, 245, 0.3);
+
+    --shadow-sm:                0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md:                0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg:                0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+}
+
 @layer utilities {
   .card-shadow {
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);

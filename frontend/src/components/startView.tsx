@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Sparkles, MessageSquare, Mic, Video, AlertCircle } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 
 interface Company {
@@ -15,10 +15,6 @@ interface StartViewProps {
   onModeConfigChange: (config: { companyId: number; jobRole: string; apiURL: string }) => void;
 }
 
-/**
- * Start View Component
- * Displays the initial interview setup screen where users select their interview mode and configuration
- */
 export default function StartView({
   onInterviewStart,
   modeConfig,
@@ -46,11 +42,6 @@ export default function StartView({
       .finally(() => setCompaniesLoading(false));
   }, []);
 
-  const handleModeSelect = (mode: string) => {
-    setSelectedMode(mode);
-    setError(null);
-  };
-
   const handleStart = async () => {
     setIsStarting(true);
     setError(null);
@@ -68,72 +59,62 @@ export default function StartView({
     }
   };
 
-  const handleConfigChange = (field: keyof typeof modeConfig, value: string) => {
-    onModeConfigChange({ ...modeConfig, [field]: value });
-  };
+  const modes = [
+    { id: 'typing', label: 'Typing', icon: MessageSquare, description: 'Text-based interview' },
+    { id: 'voice', label: 'Voice', icon: Mic, description: 'Speech-to-text evaluation' },
+    { id: 'avatar', label: 'Avatar', icon: Video, description: '3D AI interviewer' },
+  ];
 
   return (
-    <div className="min-h-[600px] bg-white rounded-2xl shadow-lg p-8">
+    <div className="min-h-[600px] bg-elevated border border-default rounded-xl p-8">
       <div className="text-center mb-8">
-        <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="text-4xl">🎯</span>
+        <div className="w-16 h-16 bg-action-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Sparkles className="w-8 h-8 text-inverse" />
         </div>
-        <h2 className="text-3xl font-bold text-gray-800 mb-2">AI Interview Agent</h2>
-        <p className="text-gray-600">Select your interview mode and configure your session</p>
+        <h2 className="text-2xl font-bold text-primary mb-1">AI Interview Agent</h2>
+        <p className="text-sm text-secondary">Select your interview mode and configure your session</p>
       </div>
 
-      {/* Error Display */}
       {error && (
-        <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
-          <div className="flex items-center gap-2 text-red-700">
-            <span>❌</span>
-            <span>{error}</span>
-          </div>
+        <div className="mb-6 bg-error-bg border border-error/20 rounded-lg p-3 text-sm text-error-text flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{error}</span>
         </div>
       )}
 
-      {/* Mode Selection */}
       <div className="mb-8">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Select Mode</h3>
-        <div className="grid grid-cols-2 gap-4">
-          {[
-            { id: 'typing', label: 'Typing Mode', icon: '📝', description: 'Traditional text-based interview' },
-            { id: 'voice', label: 'Voice Mode', icon: '🎤', description: 'Speech-to-text interview evaluation' },
-            { id: 'avatar', label: 'Avatar Mode', icon: '🎭', description: 'AI avatar interviewer' },
-            { id: 'realtime', label: 'Real-time', icon: '💬', description: 'Live conversation (coming soon)' },
-          ].map((mode) => (
+        <h3 className="text-sm font-semibold text-primary mb-3">Mode</h3>
+        <div className="grid grid-cols-3 gap-3">
+          {modes.map((mode) => (
             <button
               key={mode.id}
-              onClick={() => handleModeSelect(mode.id)}
-              className={`p-4 rounded-xl border-2 text-left transition-all ${
+              onClick={() => setSelectedMode(mode.id)}
+              className={`p-3 rounded-xl border-2 text-left transition-all ${
                 selectedMode === mode.id
-                  ? 'border-purple-600 bg-purple-50'
-                  : 'border-gray-200 hover:border-purple-300'
+                  ? 'border-focus bg-action-primary/15'
+                  : 'border-default hover:border-focus'
               }`}
             >
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-2xl">{mode.icon}</span>
-                <span className="font-semibold text-gray-800">{mode.label}</span>
+              <div className="flex items-center gap-2 mb-1">
+                <mode.icon className="w-4 h-4 text-action-primary" />
+                <span className="text-sm font-medium text-primary">{mode.label}</span>
               </div>
-              <p className="text-sm text-gray-600">{mode.description}</p>
+              <p className="text-xs text-muted">{mode.description}</p>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Configuration */}
       <div className="mb-8">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Configuration</h3>
+        <h3 className="text-sm font-semibold text-primary mb-3">Configuration</h3>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Company
-            </label>
+            <label className="block text-xs font-medium text-secondary mb-1.5">Company</label>
             <select
               value={modeConfig.companyId}
               onChange={(e) => onModeConfigChange({ ...modeConfig, companyId: Number(e.target.value) })}
               disabled={companiesLoading}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              className="w-full px-3 py-2 text-sm bg-input text-primary border border-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus transition-colors"
             >
               {companiesLoading && <option value="">Loading companies...</option>}
               {!companiesLoading && companies.length === 0 && <option value="">No companies found</option>}
@@ -143,37 +124,31 @@ export default function StartView({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Job Role
-            </label>
+            <label className="block text-xs font-medium text-secondary mb-1.5">Job Role</label>
             <input
               type="text"
               value={modeConfig.jobRole}
-              onChange={(e) => handleConfigChange('jobRole', e.target.value)}
+              onChange={(e) => onModeConfigChange({ ...modeConfig, jobRole: e.target.value })}
               placeholder="e.g., Software Engineer"
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              className="w-full px-3 py-2 text-sm bg-input text-primary border border-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus transition-colors"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              API URL
-            </label>
+            <label className="block text-xs font-medium text-secondary mb-1.5">API URL</label>
             <input
               type="text"
               value={modeConfig.apiURL}
-              onChange={(e) => handleConfigChange('apiURL', e.target.value)}
+              onChange={(e) => onModeConfigChange({ ...modeConfig, apiURL: e.target.value })}
               placeholder="http://localhost:8000"
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all font-mono text-sm"
+              className="w-full px-3 py-2 text-sm bg-input text-primary border border-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus transition-colors font-mono"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Number of Questions
-            </label>
+            <label className="block text-xs font-medium text-secondary mb-1.5">Number of Questions</label>
             <select
               value={totalQuestions}
               onChange={(e) => setTotalQuestions(Number(e.target.value))}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              className="w-full px-3 py-2 text-sm bg-input text-primary border border-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus transition-colors"
             >
               <option value={5}>5 questions (Quick)</option>
               <option value={10}>10 questions (Standard)</option>
@@ -184,22 +159,18 @@ export default function StartView({
         </div>
       </div>
 
-      {/* Start Button */}
       <button
         onClick={handleStart}
         disabled={isStarting}
-        className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold text-lg hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
+        className="w-full py-3 bg-action-primary text-inverse rounded-xl font-semibold text-sm hover:bg-action-primary-hover active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
       >
         {isStarting ? (
-          <>
-            <Loader2 className="animate-spin w-5 h-5 inline-block mr-2" />
+          <span className="inline-flex items-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" />
             Starting Interview...
-          </>
+          </span>
         ) : (
-          <>
-            Start Interview
-            <span className="ml-2 text-2xl">🚀</span>
-          </>
+          'Start Interview'
         )}
       </button>
     </div>

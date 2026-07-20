@@ -135,6 +135,24 @@ def get_company(
 
 
 
+@router.get("/{company_id}/sessions")
+def get_company_sessions(company_id: int):
+    """List all interview sessions for a company."""
+    try:
+        db = get_supabase()
+        result = (
+            db.table("interview_sessions")
+            .select("id, candidate_id, job_role, status, final_score, started_at, created_at")
+            .eq("company_id", company_id)
+            .order("started_at", desc=True)
+            .execute()
+        )
+        return result.data
+    except Exception as e:
+        logger.error(f"Get company sessions error: {str(e)}")
+        return []
+
+
 @router.delete("/{company_id}")
 def delete_company(
     company_id:int

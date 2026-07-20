@@ -20,7 +20,7 @@ export function CameraPreview({ stream, isCameraOn, onToggle, size = 'md' }: Cam
   const sizeClass = size === 'sm' ? 'w-24 h-24' : size === 'lg' ? 'w-40 h-40' : 'w-32 h-32';
 
   return (
-    <div className={`relative ${sizeClass} rounded-full overflow-hidden border-2 border-purple-300 bg-gray-900`}>
+    <div className={`relative ${sizeClass} rounded-full overflow-hidden border-2 border-focus bg-input`}>
       {isCameraOn && stream ? (
         <video
           ref={videoRef}
@@ -30,19 +30,19 @@ export function CameraPreview({ stream, isCameraOn, onToggle, size = 'md' }: Cam
           className="w-full h-full object-cover scale-x-[-1]"
         />
       ) : (
-        <div className="w-full h-full flex items-center justify-center bg-gray-800">
-          <CameraOff className="w-8 h-8 text-gray-500" />
+        <div className="w-full h-full flex items-center justify-center bg-elevated">
+          <CameraOff className="w-8 h-8 text-muted" />
         </div>
       )}
       <button
         onClick={onToggle}
-        className="absolute bottom-0 right-0 w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center hover:bg-purple-700 transition-colors shadow-lg"
+        className="absolute bottom-0 end-0 w-8 h-8 bg-action-primary rounded-full flex items-center justify-center hover:bg-action-primary-hover transition-colors shadow-md"
         title={isCameraOn ? 'Turn off camera' : 'Turn on camera'}
       >
         {isCameraOn ? (
-          <Camera className="w-4 h-4 text-white" />
+          <Camera className="w-4 h-4 text-inverse" />
         ) : (
-          <CameraOff className="w-4 h-4 text-white" />
+          <CameraOff className="w-4 h-4 text-inverse" />
         )}
       </button>
     </div>

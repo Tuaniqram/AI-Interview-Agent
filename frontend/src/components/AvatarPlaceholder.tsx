@@ -77,37 +77,36 @@ export function AvatarPlaceholder({
   };
 
   return (
-    <div className="min-h-[600px] bg-white rounded-2xl shadow-lg p-8 flex flex-col items-center">
+    <div className="min-h-[600px] bg-section rounded-2xl shadow-lg p-8 flex flex-col items-center">
       {/* Avatar Visualization */}
       <div className="relative mb-6">
-        <div className="w-48 h-48 bg-gradient-to-br from-purple-400 to-indigo-500 rounded-full flex items-center justify-center animate-pulse">
-          <div className="w-40 h-40 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center">
-            <span className="text-8xl">🎭</span>
+        <div className="w-48 h-48 bg-action-primary/30 rounded-full flex items-center justify-center animate-pulse">
+          <div className="w-40 h-40 bg-action-primary/40 rounded-full flex items-center justify-center">
           </div>
         </div>
-        <div className="absolute bottom-4 right-4 w-6 h-6 bg-green-500 rounded-full" />
+        <div className="absolute bottom-4 right-4 w-6 h-6 bg-success rounded-full" />
       </div>
 
-      <h2 className="text-3xl font-bold text-gray-800 mb-2">AI Avatar Interview</h2>
-      <p className="text-gray-600 text-center mb-6 max-w-md">
+      <h2 className="text-3xl font-bold text-primary mb-2">AI Avatar Interview</h2>
+      <p className="text-secondary text-center mb-6 max-w-md">
         AI avatar asks questions aloud. You can speak answers or type them.
         Camera preview shows your video (future emotion analysis).
       </p>
 
       {/* Device Permissions */}
       <div className="w-full max-w-2xl mb-6 grid grid-cols-2 gap-4">
-        <div className="p-4 bg-gray-50 rounded-xl">
+        <div className="p-4 bg-section rounded-xl">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Camera className="w-5 h-5 text-gray-600" />
-              <span className="font-medium text-gray-700 text-sm">Camera</span>
+              <Camera className="w-5 h-5 text-secondary" />
+              <span className="font-medium text-secondary text-sm">Camera</span>
             </div>
             <button
               onClick={camera.isCameraOn ? camera.stopCamera : camera.startCamera}
               className={`p-1.5 rounded-lg transition-all ${
                 camera.isCameraOn
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                  ? 'bg-success-bg text-success-text'
+                  : 'bg-input text-muted hover:bg-hover'
               }`}
             >
               {camera.isCameraOn ? <CheckCircle className="w-4 h-4" /> : <CameraOff className="w-4 h-4" />}
@@ -119,64 +118,64 @@ export function AvatarPlaceholder({
               autoPlay
               playsInline
               muted
-              className="w-full h-24 rounded-lg object-cover scale-x-[-1] bg-black"
+              className="w-full h-24 rounded-lg object-cover scale-x-[-1] bg-page"
             />
           ) : (
-            <div className="w-full h-24 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs">
+            <div className="w-full h-24 bg-input rounded-lg flex items-center justify-center text-muted text-xs">
               {camera.isPermissionDenied ? 'Permission denied' : 'Click to enable'}
             </div>
           )}
-          {camera.error && <p className="text-red-500 text-xs mt-1">{camera.error}</p>}
+          {camera.error && <p className="text-error-text text-xs mt-1">{camera.error}</p>}
         </div>
 
-        <div className="p-4 bg-gray-50 rounded-xl">
+        <div className="p-4 bg-section rounded-xl">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Mic className="w-5 h-5 text-gray-600" />
-              <span className="font-medium text-gray-700 text-sm">Microphone</span>
+              <Mic className="w-5 h-5 text-secondary" />
+              <span className="font-medium text-secondary text-sm">Microphone</span>
             </div>
             <button
               onClick={testMic}
               disabled={micTested === 'testing'}
               className={`p-1.5 rounded-lg transition-all ${
                 micTested === 'success'
-                  ? 'bg-green-100 text-green-700'
+                  ? 'bg-success-bg text-success-text'
                   : micTested === 'error'
-                  ? 'bg-red-100 text-red-700'
-                  : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                  ? 'bg-error-bg text-error-text'
+                  : 'bg-input text-muted hover:bg-hover'
               } disabled:opacity-50`}
             >
               {micTested === 'idle' && <Mic className="w-4 h-4" />}
-              {micTested === 'testing' && <span className="w-4 h-4 block animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />}
+              {micTested === 'testing' && <span className="w-4 h-4 block animate-spin rounded-full border-2 border-muted border-t-transparent" />}
               {micTested === 'success' && <CheckCircle className="w-4 h-4" />}
               {micTested === 'error' && <XCircle className="w-4 h-4" />}
             </button>
           </div>
-          <div className="w-full h-24 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs">
+          <div className="w-full h-24 bg-input rounded-lg flex items-center justify-center text-muted text-xs">
             {micTested === 'idle' && 'Test your microphone'}
             {micTested === 'testing' && 'Testing...'}
             {micTested === 'success' && 'Microphone working'}
             {micTested === 'error' && 'Microphone not detected'}
           </div>
           {!voiceService.isSupported && (
-            <p className="text-yellow-600 text-xs mt-1">Voice not supported in this browser</p>
+            <p className="text-warning text-xs mt-1">Voice not supported in this browser</p>
           )}
         </div>
       </div>
 
       {/* Configuration */}
       <div className="w-full max-w-2xl mb-8">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Configuration</h3>
+        <h3 className="text-lg font-semibold text-primary mb-4">Configuration</h3>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-secondary mb-2">
               Company
             </label>
             <select
               value={modeConfig.companyId}
               onChange={(e) => onModeConfigChange({ ...modeConfig, companyId: Number(e.target.value) })}
               disabled={companiesLoading}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              className="w-full px-4 py-2.5 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-transparent transition-all bg-input text-primary"
             >
               {companiesLoading && <option value="">Loading companies...</option>}
               {!companiesLoading && companies.length === 0 && <option value="">No companies found</option>}
@@ -186,7 +185,7 @@ export function AvatarPlaceholder({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-secondary mb-2">
               Job Role
             </label>
             <input
@@ -194,17 +193,17 @@ export function AvatarPlaceholder({
               value={modeConfig.jobRole}
               onChange={(e) => onModeConfigChange({ ...modeConfig, jobRole: e.target.value })}
               placeholder="e.g., AI Research Engineer"
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              className="w-full px-4 py-2.5 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-transparent transition-all bg-input text-primary"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-secondary mb-2">
               Number of Questions
             </label>
             <select
               value={totalQuestions}
               onChange={(e) => setTotalQuestions(Number(e.target.value))}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              className="w-full px-4 py-2.5 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-transparent transition-all bg-input text-primary"
             >
               <option value={5}>5 questions (Quick)</option>
               <option value={10}>10 questions (Standard)</option>
@@ -219,7 +218,7 @@ export function AvatarPlaceholder({
       <button
         onClick={handleStart}
         disabled={isSimulating}
-        className="w-full py-3.5 bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white rounded-xl font-semibold text-lg hover:from-fuchsia-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl max-w-2xl"
+        className="w-full py-3.5 bg-action-primary text-inverse rounded-xl font-semibold text-lg hover:bg-action-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl max-w-2xl"
       >
         {isSimulating ? (
           <>
@@ -228,7 +227,6 @@ export function AvatarPlaceholder({
         ) : (
           <>
             Start Avatar Interview
-            <span className="ml-2 text-2xl">🎭</span>
           </>
         )}
       </button>

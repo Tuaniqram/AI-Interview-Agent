@@ -3,8 +3,7 @@
  * Displays interview phase/health status
  */
 
-import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { LoadingSpinner } from './LoadingSpinner';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 
 interface StatusIndicatorProps {
   status: string;
@@ -15,7 +14,7 @@ interface StatusIndicatorProps {
 export function StatusIndicator({ status, showLoader = false, message }: StatusIndicatorProps) {
   if (showLoader) {
     return (
-      <div className="flex items-center gap-2 text-purple-600">
+      <div className="flex items-center gap-2 text-action-primary">
         <Loader2 className="animate-spin" />
         <span>{message || 'Loading...'}</span>
       </div>
@@ -28,29 +27,29 @@ export function StatusIndicator({ status, showLoader = false, message }: StatusI
       case 'in_progress':
         return {
           icon: CheckCircle2,
-          color: 'text-green-500',
-          bgColor: 'bg-green-100',
-          label: '✓ Active'
+          color: 'text-success',
+          bgColor: 'bg-success-bg',
+          label: 'Active'
         };
       case 'completed':
         return {
           icon: CheckCircle2,
-          color: 'text-purple-600',
-          bgColor: 'bg-purple-100',
-          label: '✓ Completed'
+          color: 'text-action-primary',
+          bgColor: 'bg-action-primary/15',
+          label: 'Completed'
         };
       case 'initiating':
         return {
           icon: Loader2,
-          color: 'text-blue-500',
-          bgColor: 'bg-blue-100',
-          label: '⟳ Initializing'
+          color: 'text-info',
+          bgColor: 'bg-info-bg',
+          label: 'Initializing'
         };
       default:
         return {
           icon: CheckCircle2,
-          color: 'text-gray-500',
-          bgColor: 'bg-gray-100',
+          color: 'text-muted',
+          bgColor: 'bg-hover',
           label: status
         };
     }

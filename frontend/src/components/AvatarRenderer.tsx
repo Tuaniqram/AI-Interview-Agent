@@ -583,17 +583,17 @@ export function AvatarRenderer({
   return (
     <div ref={containerRef} className={`relative w-full h-full ${className}`}>
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50 rounded-lg z-10">
+        <div className="absolute inset-0 flex items-center justify-center bg-overlay rounded-lg z-10">
           <div className="text-center">
-            <Loader2 className="animate-spin w-10 h-10 text-purple-400 mx-auto mb-2" />
-            <p className="text-gray-300 text-sm">Loading avatar...</p>
+            <Loader2 className="animate-spin w-10 h-10 text-action-primary mx-auto mb-2" />
+            <p className="text-secondary text-sm">Loading avatar...</p>
           </div>
         </div>
       )}
       {!loading && modelType && (
-        <div className="absolute top-2 left-2 z-10">
-          <span className="px-2 py-0.5 bg-black/40 text-gray-300 text-[10px] rounded-full">
-            {modelType === 'glb' ? '3D Model' : 'Procedural'}
+        <div className="absolute top-2 start-2 z-10">
+          <span className="px-2 py-0.5 bg-overlay text-muted text-[10px] rounded-full">
+            {modelType === 'glb' ? '3D' : 'Procedural'}
           </span>
         </div>
       )}

@@ -27,16 +27,16 @@ export function ProgressBar({ current, total, label, size = 'md' }: ProgressBarP
 
   return (
     <div className="w-full">
-      <div className={`w-full ${sizeClass} bg-gray-200 rounded-full overflow-hidden`}>
+      <div className={`w-full ${sizeClass} bg-hover rounded-full overflow-hidden`}>
         <div
-          className={`h-full bg-gradient-to-r from-purple-600 to-indigo-600 transition-all duration-500 ease-out`}
+          className={`h-full bg-action-primary transition-all duration-500 ease-out`}
           style={{ width: `${percentage}%` }}
         />
       </div>
       {label && (
         <div className={`mt-2 flex justify-between ${labelClass}`} style={{ width: 'fit-content' }}>
-          <span className="text-gray-600">{label}</span>
-          <span className="font-semibold text-gray-800">
+          <span className="text-secondary">{label}</span>
+          <span className="font-semibold text-primary">
             {current} / {total}
           </span>
         </div>

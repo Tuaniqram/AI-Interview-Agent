@@ -1,67 +1,56 @@
-import React from 'react';
-import { Mic, Keyboard, Volume2 } from 'lucide-react';
+import { Mic, Keyboard, Volume2, Wrench } from 'lucide-react';
 
-/**
- * Voice View Placeholder Component
- * Displays UI for voice-based interview mode
- * TODO: Integrate with speech recognition (Web Speech API) and speech synthesis
- */
 export default function VoiceView() {
   return (
-    <div className="min-h-[600px] bg-white rounded-2xl shadow-lg p-8">
+    <div className="min-h-[600px] bg-elevated border border-default rounded-xl p-8">
       <div className="text-center mb-8">
-        <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 text-white">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-          </svg>
+        <div className="w-16 h-16 bg-action-primary rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Mic className="w-8 h-8 text-inverse" />
         </div>
-        <h2 className="text-3xl font-bold text-gray-800 mb-2">Voice Interview</h2>
-        <p className="text-gray-600">Speak your answers naturally and get real-time transcription</p>
+        <h2 className="text-2xl font-bold text-primary mb-1">Voice Interview</h2>
+        <p className="text-sm text-secondary">Speak your answers naturally and get real-time transcription</p>
       </div>
 
-      {/* Voice Utils Grid */}
       <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="text-center p-4 bg-blue-50 rounded-xl">
-          <Volume2 className="w-10 h-10 mx-auto mb-2 text-blue-600" />
-          <div className="text-sm font-medium text-gray-700">Microphone</div>
+        <div className="text-center p-4 bg-section rounded-xl border border-default">
+          <Volume2 className="w-8 h-8 mx-auto mb-2 text-action-primary" />
+          <div className="text-sm font-medium text-primary">Microphone</div>
         </div>
-        <div className="text-center p-4 bg-cyan-50 rounded-xl">
-          <Mic className="w-10 h-10 mx-auto mb-2 text-cyan-600" />
-          <div className="text-sm font-medium text-gray-700">Speech Recognition</div>
+        <div className="text-center p-4 bg-section rounded-xl border border-default">
+          <Mic className="w-8 h-8 mx-auto mb-2 text-info" />
+          <div className="text-sm font-medium text-primary">Speech Recognition</div>
         </div>
-        <div className="text-center p-4 bg-indigo-50 rounded-xl">
-          <Keyboard className="w-10 h-10 mx-auto mb-2 text-indigo-600" />
-          <div className="text-sm font-medium text-gray-700">Speech Synthesis</div>
+        <div className="text-center p-4 bg-section rounded-xl border border-default">
+          <Keyboard className="w-8 h-8 mx-auto mb-2 text-success" />
+          <div className="text-sm font-medium text-primary">Speech Synthesis</div>
         </div>
       </div>
 
-      {/* Implementation Note */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-8">
-        <div className="flex items-start gap-2 text-blue-800 text-sm">
-          <span className="text-lg">🔧</span>
+      <div className="bg-info-bg border border-info/20 rounded-xl p-4 mb-8">
+        <div className="flex items-start gap-2 text-info-text text-sm">
+          <Wrench className="w-4 h-4 shrink-0 mt-0.5" />
           <div>
             <p className="font-medium mb-1">Voice Mode Coming Soon</p>
             <p className="opacity-80">
-              This feature requires integration with speech-to-text (Web Speech API) 
-              for real-time transcription and text-to-speech (Web Speech API) 
+              This feature requires integration with speech-to-text (Web Speech API)
+              for real-time transcription and text-to-speech (Web Speech API)
               for AI avatar responses.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Demo Feature Preview */}
       <div className="w-full max-w-md mx-auto">
-        <div className="bg-gray-50 rounded-xl p-6 border-2 border-dashed border-gray-300">
+        <div className="bg-section border-2 border-dashed border-default rounded-xl p-6">
           <div className="text-center space-y-4">
-            <Mic className="w-16 h-16 mx-auto text-gray-400" />
+            <Mic className="w-12 h-12 mx-auto text-muted" />
             <div>
-              <p className="text-gray-700 font-medium">Voice Commands Ready</p>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-primary font-medium text-sm">Voice Commands Ready</p>
+              <p className="text-xs text-muted mt-1">
                 Click to test microphone access
               </p>
             </div>
-            <button className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all">
+            <button className="px-5 py-2 bg-action-primary text-inverse text-sm font-medium rounded-lg hover:bg-action-primary-hover active:scale-[0.98] transition-all">
               Test Microphone
             </button>
           </div>
@@ -70,5 +59,3 @@ export default function VoiceView() {
     </div>
   );
 }
-
-// Helper icon component
