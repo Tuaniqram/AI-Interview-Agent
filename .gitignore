@@ -32,7 +32,8 @@ wheels/
 venv/
 ENV/
 env/
-
+skills-lock.json
+.agents/
 # IDE
 .vscode/
 .idea/

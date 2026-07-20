@@ -8,7 +8,8 @@ import {
   InterviewSession, 
   Question, 
   AnswerEvaluation, 
-  InterviewReport 
+  InterviewReport,
+  InterviewMode
 } from '../types/interview';
 import { interviewController } from '../controllers/interviewController';
 
@@ -27,6 +28,9 @@ export type InterviewState = {
   // Evaluation results (from backend)
   evaluation: AnswerEvaluation | null;
   finalReport: InterviewReport | null;
+  
+  // Interview mode
+  interviewMode: InterviewMode;
   
   // Loading states
   isLoading: boolean;
@@ -47,6 +51,7 @@ type InterviewAction =
   | { type: 'SET_USER_ANSWER'; payload: string }
   | { type: 'SET_EVALUATION'; payload: AnswerEvaluation }
   | { type: 'SET_FINAL_REPORT'; payload: InterviewReport }
+  | { type: 'SET_INTERVIEW_MODE'; payload: InterviewMode }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_EVALUATING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string }
@@ -61,6 +66,7 @@ const initialState: InterviewState = {
   userAnswer: '',
   evaluation: null,
   finalReport: null,
+  interviewMode: 'avatar',
   isLoading: false,
   isEvaluating: false,
   error: null,
@@ -104,6 +110,12 @@ function interviewReducer(state: InterviewState, action: InterviewAction): Inter
       return {
         ...state,
         finalReport: action.payload,
+      };
+
+    case 'SET_INTERVIEW_MODE':
+      return {
+        ...state,
+        interviewMode: action.payload,
       };
 
     case 'SET_LOADING':
@@ -166,19 +178,12 @@ const InterviewContext = createContext<InterviewContextType | undefined>(undefin
 // ========== ACTIONS ==========
 
 interface InterviewStoreActions {
-  // Session management
-  startInterview: (params: { companyId: number; jobRole: string; totalQuestions?: number }) => Promise<void>;
+  startInterview: (params: { companyId: number; jobRole: string; totalQuestions?: number; candidateName?: string; candidateEmail?: string; mode?: string }) => Promise<void>;
   cancelInterview: () => void;
   fetchFinalReport: () => Promise<void>;
-  
-  // Question management
   goToNextQuestion: () => Promise<void>;
-  
-  // Answer management
   submitAnswer: (answer: string) => Promise<void>;
   updateAnswer: (answer: string) => void;
-  
-  // Utilities
   clearError: () => void;
 }
 
@@ -197,6 +202,9 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
     startInterview: async (params) => {
       dispatch({ type: 'SET_LOADING', payload: true });
       try {
+        if (params.mode) {
+          dispatch({ type: 'SET_INTERVIEW_MODE', payload: params.mode as InterviewMode });
+        }
         const result = await controller.startInterview(params);
         console.log('[Store] QUESTION RECEIVED:', result.firstQuestion);
         dispatch({ type: 'SET_SESSION', payload: result.session });

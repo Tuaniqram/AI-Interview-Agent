@@ -63,17 +63,22 @@ export class InterviewController {
     companyId: number;
     jobRole: string;
     totalQuestions?: number;
+    candidateName?: string;
+    candidateEmail?: string;
+    mode?: string;
   }): Promise<{ session: InterviewSession; firstQuestion: Question }> {
     if (!params.jobRole.trim()) {
       throw new Error('Job role is required');
     }
 
     try {
-      // Call service to create session (new API: POST /interviews)
       const session = await interviewService.startSession({
         company_id: params.companyId,
         job_role: params.jobRole,
         total_questions: params.totalQuestions,
+        candidate_name: params.candidateName,
+        candidate_email: params.candidateEmail,
+        interview_mode: params.mode,
       });
 
       console.log('[Controller] startInterview session:', session);

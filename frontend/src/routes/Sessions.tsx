@@ -63,6 +63,14 @@ export function Sessions() {
     { key: 'started_at', header: 'Date', render: s => new Date(s.started_at).toLocaleDateString(), className: 'text-secondary' },
   ];
 
+  const handleRowClick = (s: SessionRecord) => {
+    if (s.status === 'completed') {
+      navigate(`/interview/${s.id}/report`);
+    } else {
+      navigate(`/interview/${s.id}`);
+    }
+  };
+
   return (
     <div>
       <PageHeader title="Interview Sessions" description="All interview sessions across companies" />
@@ -79,7 +87,7 @@ export function Sessions() {
         </Card>
       ) : (
         <Card padding="sm">
-          <DataTable columns={columns} data={sessions} keyField="id" onRowClick={s => navigate(`/interview/${s.id}`)} />
+          <DataTable columns={columns} data={sessions} keyField="id" onRowClick={handleRowClick} />
         </Card>
       )}
     </div>

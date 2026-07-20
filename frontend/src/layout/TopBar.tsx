@@ -8,8 +8,10 @@ const pageTitles: Record<string, string> = {
   '/': 'Dashboard',
   '/companies': 'Companies',
   '/sessions': 'Interview Sessions',
+  '/analytics': 'Analytics',
   '/avatar-lab': 'Avatar Lab',
   '/settings': 'Settings',
+  '/new-interview': 'New Interview',
 };
 
 function getInitialTheme(): boolean {

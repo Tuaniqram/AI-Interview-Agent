@@ -31,25 +31,13 @@ class SessionRepository(BaseRepository):
         job_role: str,
         current_phase: str = "intro",
         candidate_id: Optional[str] = None,
+        candidate_name: str = "",
+        candidate_email: str = "",
         total_questions: int = 10,
         interview_type: str = "company"
     ) -> dict:
         """
         Create a new interview session.
-        
-        Args:
-            company_id: Company ID
-            job_role: Job role for the interview
-            current_phase: Current phase (default: "intro")
-            candidate_id: Candidate UUID (optional)
-            total_questions: Total number of questions for the interview
-            interview_type: Type of interview ("company", "skill", "adaptive")
-            
-        Returns:
-            dict: Created session
-            
-        Raises:
-            DatabaseException: If creation fails
         """
         session_data = {
             "id": str(uuid4()),
@@ -60,6 +48,8 @@ class SessionRepository(BaseRepository):
             "current_question_number": 0,
             "total_questions": total_questions,
             "candidate_id": candidate_id,
+            "candidate_name": candidate_name,
+            "candidate_email": candidate_email,
             "interview_type": interview_type
         }
         
@@ -188,19 +178,24 @@ class SessionRepository(BaseRepository):
         final_feedback: str
     ) -> dict:
         """
-        Mark session as completed.
+        Mark session as completed with final score and feedback.
         
         Args:
             session_id: Session ID
-            final_score: Final score
-            final_feedback: Final feedback
+            final_score: Final score (0-10)
+            final_feedback: Final feedback text
             
         Returns:
             dict: Completed session
         """
-        return await self.update_feedback(
+        return await self.update(
             session_id,
-            final_feedback
+            {
+                "final_score": final_score,
+                "final_feedback": final_feedback,
+                "status": "completed"
+            },
+            self._table_name
         )
     
     async def check_completion_before(self, session_id: str) -> tuple[bool, int, Optional[float]]:

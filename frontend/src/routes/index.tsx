@@ -7,6 +7,8 @@ import { CompanyDetail } from './CompanyDetail';
 import { Sessions } from './Sessions';
 import { NewInterview } from './NewInterview';
 import { InterviewRoom } from './InterviewRoom';
+import { InterviewReportPage } from './InterviewReport';
+import { Analytics } from './Analytics';
 import { AvatarLab } from './AvatarLab';
 import { Settings } from './Settings';
 
@@ -18,6 +20,8 @@ export function AppRoutes() {
         <Route path="companies" element={<CompanyList />} />
         <Route path="companies/:id" element={<CompanyDetail />} />
         <Route path="sessions" element={<Sessions />} />
+        <Route path="analytics" element={<Analytics />} />
+        <Route path="interview/:id/report" element={<InterviewReportPage />} />
         <Route path="new-interview" element={<NewInterview />} />
         <Route path="avatar-lab" element={<AvatarLab />} />
         <Route path="settings" element={<Settings />} />

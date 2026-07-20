@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional, List
 from app.graph.interview_state import InterviewState
 from app.graph.question_workflow import get_question_workflow
 from app.graph.evaluation_workflow import get_evaluation_workflow
-from app.services.repositories import get_session_repo, get_message_repo
+from app.services.repositories import get_session_repo, get_message_repo, get_evaluation_repo
 from app.exceptions import SessionNotFoundException
 
 logger = logging.getLogger(__name__)
@@ -23,8 +23,9 @@ class InterviewOrchestrator:
         """Initialize orchestrator."""
         self.session_repo = get_session_repo()
         self.message_repo = get_message_repo()
-        self.question_workflow = None  # Will be loaded on demand
-        self.evaluation_workflow = None  # Will be loaded on demand
+        self.evaluation_repo = get_evaluation_repo()
+        self.question_workflow = None
+        self.evaluation_workflow = None
     
     def get_question_workflow(self):
         """
@@ -55,31 +56,24 @@ class InterviewOrchestrator:
         company_id: int,
         job_role: str,
         candidate_id: Optional[str] = None,
+        candidate_name: str = "",
+        candidate_email: str = "",
         total_questions: int = 10,
         initial_difficulty: int = 1,
-        interview_type: str = "company"
+        interview_type: str = "company",
+        interview_mode: str = "avatar"
     ) -> Dict[str, Any]:
         """
         Start a new interview session.
-        
-        Args:
-            company_id: Company ID
-            job_role: Job role for interview
-            candidate_id: Optional candidate identifier
-            total_questions: Total questions to ask
-            initial_difficulty: Initial difficulty level (1-3)
-            interview_type: Type of interview
-            
-        Returns:
-            dict: Session initialization response
         """
         logger.info(f"Starting interview: company_id={company_id}, job_role={job_role}")
         
         try:
-            # Create session in database
             session = await self.session_repo.create_session(
                 company_id=company_id,
                 candidate_id=candidate_id,
+                candidate_name=candidate_name,
+                candidate_email=candidate_email,
                 job_role=job_role,
                 total_questions=total_questions,
                 interview_type=interview_type
@@ -94,7 +88,8 @@ class InterviewOrchestrator:
                 "question_number": 0,
                 "total_questions": total_questions,
                 "difficulty_level": initial_difficulty,
-                "start_time": session.get("started_at")
+                "start_time": session.get("started_at"),
+                "interview_mode": interview_mode
             }
             
         except Exception as e:
@@ -315,8 +310,16 @@ class InterviewOrchestrator:
             
             logger.info(f"Answer evaluated: score={evaluation_score}, technical={technical_score}")
             
-            # Store answer in database
-            await self.message_repo.create_candidate_answer(
+            # 1. Save the question to interview_messages
+            question_msg = await self.message_repo.create_question(
+                session_id=session_id,
+                question_text=question,
+                question_number=question_number,
+                phase=next_phase
+            )
+            
+            # 2. Save the candidate answer to interview_messages
+            answer_msg = await self.message_repo.create_candidate_answer(
                 session_id=session_id,
                 role="candidate",
                 candidate_answer=candidate_answer,
@@ -324,6 +327,31 @@ class InterviewOrchestrator:
                 phase=next_phase,
                 score=evaluation_score
             )
+            
+            # 3. Save structured evaluation to interview_evaluations
+            try:
+                await self.evaluation_repo.create_evaluation(
+                    session_id=session_id,
+                    message_id=answer_msg.get("id", ""),
+                    technical_score=technical_score or 0.0,
+                    communication_score=communication_score or 0.0,
+                    strengths=", ".join(strengths) if strengths else None,
+                    weaknesses=", ".join(weaknesses) if weaknesses else None,
+                    feedback=feedback,
+                    overall_score=evaluation_score
+                )
+            except Exception as e:
+                logger.warning(f"Failed to save evaluation to interview_evaluations: {e}")
+            
+            # 4. If interview is finished, finalize the session
+            if next_action == "finish":
+                await self.session_repo.update_score(session_id, evaluation_score)
+                await self.session_repo.complete_session(
+                    session_id=session_id,
+                    final_score=evaluation_score,
+                    final_feedback=feedback
+                )
+                logger.info(f"Session {session_id} finalized with score={evaluation_score}")
             
             return {
                 "session_id": session_id,
@@ -391,7 +419,12 @@ class InterviewOrchestrator:
         try:
             session = await self.session_repo.get_session(session_id)
             messages = await self.message_repo.get_session_messages(session_id)
-            evaluations = await self.message_repo.get_evaluations(session_id)
+            
+            # Get structured evaluations from interview_evaluations table
+            try:
+                evaluations = await self.evaluation_repo.get_evaluations_by_session(session_id)
+            except Exception:
+                evaluations = []
             
             # Calculate metrics
             answered_questions = len([
@@ -400,23 +433,52 @@ class InterviewOrchestrator:
             ])
             total_questions_possible = session.get("total_questions", 10)
             
-            scores = [float(e.get("score", 0)) for e in evaluations]
-            avg_score = sum(scores) / len(scores) if scores else 0
+            # Use evaluations if available, fallback to message scores
+            if evaluations:
+                scores = [float(e.get("overall_score", e.get("score", 0))) for e in evaluations]
+                technical_scores = [float(e.get("technical_score", 0)) for e in evaluations if e.get("technical_score")]
+                comm_scores = [float(e.get("communication_score", 0)) for e in evaluations if e.get("communication_score")]
+            else:
+                message_evals = await self.message_repo.get_evaluations(session_id)
+                scores = [float(e.get("score", 0)) for e in message_evals]
+                technical_scores = []
+                comm_scores = []
+            
+            avg_score = sum(scores) / len(scores) if scores else (session.get("final_score") or 0)
+            avg_technical = sum(technical_scores) / len(technical_scores) if technical_scores else None
+            avg_communication = sum(comm_scores) / len(comm_scores) if comm_scores else None
+            
+            # Aggregate strengths and weaknesses
+            all_strengths = []
+            all_weaknesses = []
+            for e in evaluations:
+                if e.get("strengths"):
+                    all_strengths.extend([s.strip() for s in e["strengths"].split(",") if s.strip()])
+                if e.get("weaknesses"):
+                    all_weaknesses.extend([w.strip() for w in e["weaknesses"].split(",") if w.strip()])
             
             return {
                 "session_id": session_id,
                 "company_id": session.get("company_id"),
+                "candidate_name": session.get("candidate_name", ""),
+                "candidate_email": session.get("candidate_email", ""),
                 "job_role": session.get("job_role"),
                 "status": session.get("status"),
                 "current_phase": session.get("current_phase"),
                 "question_number": session.get("current_question_number"),
                 "total_questions": total_questions_possible,
-                "final_score": round(avg_score, 2) if scores else None,
+                "final_score": round(avg_score, 2) if avg_score else session.get("final_score"),
+                "technical_score": round(avg_technical, 2) if avg_technical else None,
+                "communication_score": round(avg_communication, 2) if avg_communication else None,
+                "strengths": list(set(all_strengths)),
+                "weaknesses": list(set(all_weaknesses)),
                 "answered_ratio": round(answered_questions / total_questions_possible, 2) if total_questions_possible > 0 else 0,
                 "total_questions_answered": answered_questions,
                 "messages_count": len(messages),
                 "evaluations_count": len(evaluations),
                 "interview_complete": session.get("status") == "completed",
+                "started_at": session.get("started_at"),
+                "ended_at": session.get("ended_at"),
                 "messages": messages,
                 "evaluations": evaluations
             }

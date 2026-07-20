@@ -1,15 +1,16 @@
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard, Building2, ListChecks, FlaskConical, Settings, ChevronLeft, ChevronRight, PlusCircle
+  LayoutDashboard, Building2, ListChecks, BarChart3, FlaskConical, Settings, ChevronLeft, ChevronRight, PlusCircle
 } from 'lucide-react';
 import { useState } from 'react';
 
 const navItems = [
   { to: '/',          icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/companies', icon: Building2,       label: 'Companies' },
-  { to: '/sessions',  icon: ListChecks,       label: 'Sessions' },
-  { to: '/avatar-lab',icon: FlaskConical,     label: 'Avatar Lab' },
-  { to: '/settings',  icon: Settings,         label: 'Settings' },
+  { to: '/sessions',  icon: ListChecks,      label: 'Sessions' },
+  { to: '/analytics', icon: BarChart3,       label: 'Analytics' },
+  { to: '/avatar-lab',icon: FlaskConical,    label: 'Avatar Lab' },
+  { to: '/settings',  icon: Settings,        label: 'Settings' },
 ];
 
 export function Sidebar() {

@@ -28,7 +28,7 @@ export function InterviewHistoryTable({ sessions }: { sessions: SessionRecord[] 
       columns={columns}
       data={sessions}
       keyField="id"
-      onRowClick={s => navigate(`/interview/${s.id}`)}
+      onRowClick={s => navigate(s.status === 'completed' ? `/interview/${s.id}/report` : `/interview/${s.id}`)}
       emptyMessage="No interview sessions yet"
     />
   );

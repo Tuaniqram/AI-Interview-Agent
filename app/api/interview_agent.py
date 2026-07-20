@@ -32,9 +32,12 @@ class InterviewStartRequest(BaseModel):
     company_id: int
     job_role: str
     candidate_id: str = ""
+    candidate_name: str = ""
+    candidate_email: str = ""
     total_questions: int = 10
     initial_difficulty: int = 1
     interview_type: str = "company"
+    interview_mode: str = "avatar"
 
 
 class QuestionInitiateRequest(BaseModel):
@@ -81,9 +84,12 @@ async def start_interview(request: InterviewStartRequest):
             company_id=request.company_id,
             job_role=request.job_role,
             candidate_id=request.candidate_id or str(request.company_id),
+            candidate_name=request.candidate_name,
+            candidate_email=request.candidate_email,
             total_questions=request.total_questions,
             initial_difficulty=request.initial_difficulty,
-            interview_type=request.interview_type
+            interview_type=request.interview_type,
+            interview_mode=request.interview_mode
         )
         
         logger.info(f"Created interview session: company_id={request.company_id}, session_id={result['session_id']}")

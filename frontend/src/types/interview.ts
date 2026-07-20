@@ -24,10 +24,13 @@ export interface InterviewSession {
   session_id: string;
   status: InterviewStatus;
   current_phase: string;
-  question_number: number;  // Backend uses "question_number" (matches orchestrator output)
+  question_number: number;
   total_questions: number;
   difficulty_level?: number;
   start_time?: string;
+  candidate_name?: string;
+  candidate_email?: string;
+  interview_mode?: InterviewMode;
 }
 
 /**
@@ -127,13 +130,21 @@ export interface InterviewStatusResponse {
 export interface InterviewReport {
   session_id: string;
   company_id?: number;
+  candidate_name?: string;
+  candidate_email?: string;
   job_role?: string;
   status: InterviewStatus;
   final_score: number | null;
+  technical_score?: number | null;
+  communication_score?: number | null;
+  strengths?: string[];
+  weaknesses?: string[];
   total_questions_answered: number;
   answered_ratio: number;
   total_questions: number;
   interview_complete: boolean;
+  started_at?: string;
+  ended_at?: string;
   messages: Array<Record<string, unknown>>;
   evaluations: Array<Record<string, unknown>>;
   messages_count: number;

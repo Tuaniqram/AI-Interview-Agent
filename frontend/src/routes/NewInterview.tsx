@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Bookmark } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 import { useInterviewStore } from '../state/interviewStore';
 import { Card } from '../components/shared/Card';
@@ -12,6 +12,15 @@ interface Company {
   description?: string;
 }
 
+interface Template {
+  id: string;
+  company_id: number;
+  name: string;
+  job_role: string;
+  total_questions: number;
+  interview_type: string;
+}
+
 export function NewInterview() {
   const navigate = useNavigate();
   const { actions } = useInterviewStore();
@@ -19,10 +28,18 @@ export function NewInterview() {
   const [companyId, setCompanyId] = React.useState<number>(0);
   const [jobRole, setJobRole] = React.useState('Software Engineer');
   const [totalQuestions, setTotalQuestions] = React.useState(10);
+  const [candidateName, setCandidateName] = React.useState('');
+  const [candidateEmail, setCandidateEmail] = React.useState('');
   const [isStarting, setIsStarting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [companies, setCompanies] = React.useState<Company[]>([]);
   const [companiesLoading, setCompaniesLoading] = React.useState(true);
+
+  // Template state
+  const [templates, setTemplates] = React.useState<Template[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('');
+  const [saveAsTemplate, setSaveAsTemplate] = React.useState(false);
+  const [templateName, setTemplateName] = React.useState('');
 
   React.useEffect(() => {
     apiClient.get<Company[]>('/companies/')
@@ -34,11 +51,50 @@ export function NewInterview() {
       .finally(() => setCompaniesLoading(false));
   }, []);
 
+  // Load templates when company changes
+  React.useEffect(() => {
+    if (!companyId) return;
+    apiClient.get<Template[]>(`/templates/?company_id=${companyId}`)
+      .then(setTemplates)
+      .catch(() => setTemplates([]));
+  }, [companyId]);
+
+  // Apply template
+  const handleTemplateChange = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    const t = templates.find(tmp => tmp.id === templateId);
+    if (t) {
+      setJobRole(t.job_role);
+      setTotalQuestions(t.total_questions);
+      setTemplateName(t.name);
+    }
+  };
+
   const handleStart = async () => {
     setIsStarting(true);
     setError(null);
     try {
-      await actions.startInterview({ companyId, jobRole, totalQuestions });
+      // Save as template if requested
+      if (saveAsTemplate && templateName.trim()) {
+        try {
+          await apiClient.post('/templates/', {
+            company_id: companyId,
+            name: templateName.trim(),
+            job_role: jobRole,
+            total_questions: totalQuestions,
+            interview_type: 'company',
+          });
+        } catch {}
+      }
+
+      await actions.startInterview({
+        companyId,
+        jobRole,
+        totalQuestions,
+        candidateName,
+        candidateEmail,
+        mode: selectedMode,
+      });
       navigate('/interview/active');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start interview');
@@ -61,6 +117,18 @@ export function NewInterview() {
         {error && (
           <div className="mb-6 bg-error-bg border border-error/20 rounded-lg p-3 text-sm text-error-text">
             {error}
+          </div>
+        )}
+
+        {/* Load Template */}
+        {templates.length > 0 && (
+          <div className="mb-6">
+            <label className="block text-xs font-medium text-secondary mb-1.5">Load Template</label>
+            <select value={selectedTemplateId} onChange={e => handleTemplateChange(e.target.value)}
+              className="w-full px-3 py-2 text-sm bg-input text-primary border border-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus">
+              <option value="">None (custom)</option>
+              {templates.map(t => <option key={t.id} value={t.id}>{t.name} — {t.job_role}</option>)}
+            </select>
           </div>
         )}
 
@@ -87,6 +155,16 @@ export function NewInterview() {
 
         <div className="space-y-4 mb-6">
           <div>
+            <label className="block text-xs font-medium text-secondary mb-1.5">Candidate Name</label>
+            <input type="text" value={candidateName} onChange={e => setCandidateName(e.target.value)} placeholder="e.g. John Doe"
+              className="w-full px-3 py-2 text-sm bg-input text-primary border border-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-secondary mb-1.5">Candidate Email</label>
+            <input type="email" value={candidateEmail} onChange={e => setCandidateEmail(e.target.value)} placeholder="e.g. john@example.com"
+              className="w-full px-3 py-2 text-sm bg-input text-primary border border-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus" />
+          </div>
+          <div>
             <label className="block text-xs font-medium text-secondary mb-1.5">Company</label>
             <select value={companyId} onChange={e => setCompanyId(Number(e.target.value))} disabled={companiesLoading}
               className="w-full px-3 py-2 text-sm bg-input text-primary border border-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus">
@@ -106,6 +184,20 @@ export function NewInterview() {
               {[5, 10, 15, 20].map(n => <option key={n} value={n}>{n} questions</option>)}
             </select>
           </div>
+        </div>
+
+        {/* Save as Template */}
+        <div className="mb-6 border border-default rounded-lg p-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={saveAsTemplate} onChange={e => setSaveAsTemplate(e.target.checked)} className="rounded" />
+            <Bookmark className="w-4 h-4 text-muted" />
+            <span className="text-sm text-secondary">Save as template for this company</span>
+          </label>
+          {saveAsTemplate && (
+            <input type="text" value={templateName} onChange={e => setTemplateName(e.target.value)}
+              placeholder="Template name (e.g. Senior Engineer)"
+              className="mt-2 w-full px-3 py-2 text-sm bg-input text-primary border border-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus" />
+          )}
         </div>
 
         <button onClick={handleStart} disabled={isStarting || !companyId}

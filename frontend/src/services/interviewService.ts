@@ -54,18 +54,24 @@ export class InterviewService {
     company_id: number;
     job_role: string;
     candidate_id?: string;
+    candidate_name?: string;
+    candidate_email?: string;
     total_questions?: number;
     initial_difficulty?: number;
     interview_type?: string;
+    interview_mode?: string;
   }): Promise<InterviewSession> {
     console.log('[InterviewService] startSession:', params);
     return await this.apiClient.post<InterviewSession>('/interviews', {
       company_id: params.company_id,
       job_role: params.job_role,
       candidate_id: params.candidate_id || '',
+      candidate_name: params.candidate_name || '',
+      candidate_email: params.candidate_email || '',
       total_questions: params.total_questions ?? 10,
       initial_difficulty: params.initial_difficulty ?? 1,
       interview_type: params.interview_type || 'company',
+      interview_mode: params.interview_mode || 'avatar',
     });
   }
 
