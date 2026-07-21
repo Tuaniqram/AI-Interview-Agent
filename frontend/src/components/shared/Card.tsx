@@ -14,9 +14,9 @@ export function Card({ children, className = '', hover = false, padding = 'md', 
   return (
     <div
       onClick={onClick}
-      className={`bg-elevated border border-default rounded-xl ${paddings[padding]} ${
-        hover ? 'hover:border-strong transition-colors' : ''
-      } ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      className={`bg-elevated shadow-sm rounded-xl ${paddings[padding]} ${
+        hover ? 'shadow-md transition-shadow' : ''
+      } ${onClick ? 'cursor-pointer' : ''} focus-visible:outline-none ${className}`}
     >
       {children}
     </div>

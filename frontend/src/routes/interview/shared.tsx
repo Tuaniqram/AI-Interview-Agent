@@ -28,7 +28,7 @@ export function LoadingScreen({ label = 'Preparing interview...' }: { label?: st
 
 export function QuestionCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-section/80 backdrop-blur-sm rounded-xl px-5 py-3 border border-default">
+    <div className="bg-section/80 backdrop-blur-sm rounded-xl px-5 py-3">
       {children}
     </div>
   );
@@ -36,7 +36,7 @@ export function QuestionCard({ children }: { children: React.ReactNode }) {
 
 export function EvaluationCard({ evaluation, score }: { evaluation: string; score: number }) {
   return (
-    <div className="bg-elevated/95 backdrop-blur-sm rounded-xl p-4 border border-default">
+    <div className="bg-elevated/95 backdrop-blur-sm rounded-xl p-4">
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
           <h4 className="font-semibold text-primary text-sm mb-1">Analysis</h4>
@@ -92,7 +92,7 @@ export function InputBar({ input, onInputChange, onSend, onKeyDown, isSending, p
   const { state } = useInterviewStore();
 
   return (
-    <div className="bg-section border-t border-default p-3 z-30">
+    <div className="bg-section p-3 z-30">
       <div className="max-w-2xl mx-auto flex gap-3 items-end">
         {children}
         <div className="flex-1 relative">
@@ -103,7 +103,7 @@ export function InputBar({ input, onInputChange, onSend, onKeyDown, isSending, p
             placeholder={placeholder}
             rows={2}
             disabled={isSending}
-            className="w-full px-4 py-2.5 bg-input text-primary border border-strong rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus disabled:bg-input transition-all text-sm placeholder-muted"
+            className="w-full px-4 py-2.5 bg-input text-primary rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] disabled:bg-input transition-all text-sm placeholder-muted"
           />
         </div>
         <button

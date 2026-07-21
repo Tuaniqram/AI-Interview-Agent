@@ -209,7 +209,7 @@ export function InterviewReportPage() {
               const matchingAnswer = answers.find(a => a.question_number === q.question_number);
               const evalData = evaluations.find(e => e.message_id === matchingAnswer?.id);
               return (
-                <div key={q.id || i} className="border-l-2 border-action-primary/30 pl-4">
+                <div key={q.id || i} className="-l-2 -action-primary/30 pl-4">
                   <div className="mb-2">
                     <span className="text-[10px] font-medium text-action-primary uppercase">Q{q.question_number}</span>
                     <p className="text-sm text-primary mt-0.5">{q.content}</p>

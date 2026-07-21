@@ -2,6 +2,7 @@
 Prompt Loader for loading prompts from external files.
 Handles environment variable injection and prompt template rendering.
 """
+import hashlib
 import logging
 import os
 from pathlib import Path
@@ -18,10 +19,11 @@ class PromptLoader:
     
     def __init__(self):
         """Initialize prompt loader."""
-        # Base directory for prompts
         self.prompts_dir = Path(__file__).parent.parent.parent / "prompts"
+        self._file_cache: dict[str, str] = {}
+        self._rendered_cache: dict[str, str] = {}
+        self._MAX_RENDERED_CACHE = 200
         
-        # Validate directory exists
         if not self.prompts_dir.exists():
             logger.warning(f"Prompts directory not found: {self.prompts_dir}")
     
@@ -45,18 +47,24 @@ class PromptLoader:
         Raises:
             FileNotFoundError: If prompt file doesn't exist
         """
-        # Build file path
         file_path = self.prompts_dir / category / filename
+        cache_key = f"{category}/{filename}"
+
+        if cache_key not in self._file_cache:
+            if not file_path.exists():
+                raise FileNotFoundError(f"Prompt file not found: {file_path}")
+            with open(file_path, 'r', encoding='utf-8') as f:
+                self._file_cache[cache_key] = f.read()
+
+        content = self._file_cache[cache_key]
         
-        # Check if file exists
-        if not file_path.exists():
-            raise FileNotFoundError(
-                f"Prompt file not found: {file_path}"
-            )
+        # Generate rendered cache key from all inputs
+        key_data = f"{category}/{filename}:{sorted(kwargs.items())}"
+        rendered_key = hashlib.md5(key_data.encode()).hexdigest()
         
-        # Read file content
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
+        if rendered_key in self._rendered_cache:
+            logger.debug(f"Rendered prompt cache hit: {category}/{filename}")
+            return self._rendered_cache[rendered_key]
         
         # Replace variables in format {{variable_name}} or {variable_name}
         for key, value in kwargs.items():
@@ -69,6 +77,9 @@ class PromptLoader:
                 content = content.replace(single_brace_placeholder, str(value))
             elif double_brace_placeholder in content:
                 content = content.replace(double_brace_placeholder, str(value))
+        
+        if len(self._rendered_cache) < self._MAX_RENDERED_CACHE:
+            self._rendered_cache[rendered_key] = content
         
         logger.info(f"Loaded prompt: {category}/{filename} with {len(kwargs)} variables")
         return content

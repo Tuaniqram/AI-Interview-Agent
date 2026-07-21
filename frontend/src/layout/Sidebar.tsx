@@ -30,12 +30,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         />
       )}
 
-      <aside className={`h-screen bg-section border-r border-default flex flex-col transition-all duration-200
+      <aside className={`h-screen bg-section shadow-sm flex flex-col transition-all duration-200
         ${collapsed ? 'w-14' : 'w-56'}
         fixed lg:static z-50 lg:z-auto
         ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <div className="h-14 flex items-center px-4 border-b border-default">
+        <div className="h-14 flex items-center px-4">
           {!collapsed && (
             <span className="text-sm font-semibold text-primary truncate">AI Interview</span>
           )}
@@ -66,7 +66,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               {!collapsed && <span>{item.label}</span>}
             </NavLink>
           ))}
-          <div className="pt-3 border-t border-default mt-3">
+          <div className="pt-3 mt-3">
+            <div className="h-px bg-hover mb-3" />
             <NavLink
               to="/new-interview"
               onClick={onClose}
@@ -84,7 +85,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           </div>
         </nav>
 
-        <div className="p-3 border-t border-default">
+        <div className="p-3">
+          <div className="h-px bg-hover mb-3" />
           <div className={`flex items-center gap-2 ${collapsed ? 'justify-center' : ''}`}>
             <div className="w-6 h-6 rounded-full bg-action-primary flex items-center justify-center text-inverse text-xs font-medium shrink-0">
               A

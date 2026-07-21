@@ -103,7 +103,7 @@ There is no trade-off between accessible design and beautiful design. Every colo
 ### 2.2 Focus Visibility
 
 - Every interactive element must have a visible focus indicator
-- Focus ring: 3px solid using `--border-focus` with `--focus-ring` box-shadow
+- Focus ring: 3px solid using `---focus` with `--focus-ring` box-shadow
 - Focus must be visible in both light and dark themes
 - Use `:focus-visible` instead of `:focus` to avoid showing focus on mouse clicks
 - Never use `outline: none` without providing an alternative focus style
@@ -140,7 +140,7 @@ There is no trade-off between accessible design and beautiful design. Every colo
 
 - Respect `prefers-reduced-motion`: disable all non-essential animations
 - Animations under 100ms do not need a reduced-motion alternative
-- Transitions: Use `transition-all` sparingly — prefer specific properties (`background-color`, `border-color`, `opacity`)
+- Transitions: Use `transition-all` sparingly — prefer specific properties (`background-color`, `-color`, `opacity`)
 - No flashing or strobing effects (WCAG 2.3.1)
 
 ### 2.8 Color Independence
@@ -167,7 +167,7 @@ There is no trade-off between accessible design and beautiful design. Every colo
 |-------------|---------|
 | Background | Establish surface hierarchy — guide the eye to content areas |
 | Text | Ensure readability at every size — primary, secondary, muted |
-| Border | Define boundaries without competing with content |
+|  | Define boundaries without competing with content |
 | Action | Communicate interactivity — hover, active, disabled |
 | Status | Convey state at a glance — success, warning, error, info |
 
@@ -264,7 +264,7 @@ Group related content into a visually bounded container.
 #### Anatomy
 
 ```
-+-- border-default, rounded-xl, p-4/5 -----------+
++-- -default, rounded-xl, p-4/5 -----------+
 |                                                 |
 |  (optional header)  Title                    ← text-primary, font-semibold
 |  (optional desc)    Supporting text          ← text-secondary
@@ -276,11 +276,11 @@ Group related content into a visually bounded container.
 
 #### States
 
-| State | Background | Border | Cursor |
+| State | Background |  | Cursor |
 |-------|-----------|--------|--------|
-| Default | `--bg-elevated` | `--border-default` | default |
-| Hover (if clickable) | `--bg-elevated` | `--border-strong` | pointer |
-| Active (if clickable) | `--bg-elevated` | `--border-strong` | pointer |
+| Default | `--bg-elevated` | `---default` | default |
+| Hover (if clickable) | `--bg-elevated` | `---strong` | pointer |
+| Active (if clickable) | `--bg-elevated` | `---strong` | pointer |
 
 #### Rules
 
@@ -289,12 +289,12 @@ Group related content into a visually bounded container.
 - Card body text is `--text-secondary` at `text-sm`
 - Padding: 20px default, 16px compact, 24px spacious
 - Cards should never contain other cards
-- Shadow is optional via `shadow-sm` — prefer border-only for a cleaner look
+- Shadow is optional via `shadow-sm` — prefer -only for a cleaner look
 
 #### When Not to Use
 
 - For single rows of content (use a list or table instead)
-- For forms with many fields (the card border just adds visual noise)
+- For forms with many fields (the card  just adds visual noise)
 - Inside other cards (nesting breaks the surface hierarchy)
 
 ---
@@ -308,10 +308,10 @@ Allow users to enter text, select options, or provide data.
 #### Anatomy
 
 ```
-+--- border-strong, rounded-lg, bg-input --------+
++--- -strong, rounded-lg, bg-input --------+
 |  label                                       ← text-secondary, text-xs font-medium
 |                                                 |
-|  [  border-strong, bg-input                   ] ← placeholder: text-muted
+|  [  -strong, bg-input                   ] ← placeholder: text-muted
 |                                                 |
 |  helper text                                  ← text-muted, text-xs
 |  error text (if invalid)                      ← text-error-text, text-xs
@@ -320,14 +320,14 @@ Allow users to enter text, select options, or provide data.
 
 #### States
 
-| State | Border | Background | Text | Notes |
+| State |  | Background | Text | Notes |
 |-------|--------|-----------|------|-------|
-| Default | `--border-strong` | `--bg-input` | `--text-primary` | — |
-| Hover | `--border-strong` (lighten) | `--bg-input` | `--text-primary` | Cursor: text |
-| Focus | `--border-focus` | `--bg-input` | `--text-primary` | + `--focus-ring` shadow |
-| Filled | `--border-strong` | `--bg-input` | `--text-primary` | — |
+| Default | `---strong` | `--bg-input` | `--text-primary` | — |
+| Hover | `---strong` (lighten) | `--bg-input` | `--text-primary` | Cursor: text |
+| Focus | `---focus` | `--bg-input` | `--text-primary` | + `--focus-ring` shadow |
+| Filled | `---strong` | `--bg-input` | `--text-primary` | — |
 | Error | `--status-error` | `--bg-input` | `--text-primary` | + error message below |
-| Disabled | `--border-default` | `--bg-hover` (50%) | `--text-muted` | Cursor: not-allowed |
+| Disabled | `---default` | `--bg-hover` (50%) | `--text-muted` | Cursor: not-allowed |
 
 #### Rules
 
@@ -337,7 +337,7 @@ Allow users to enter text, select options, or provide data.
 - Error messages appear below the input with error icon + text
 - Helper text appears below the input with `--text-muted` color
 - Input height: 36px (h-9) for text, auto for textarea
-- Border radius: 8px (rounded-lg)
+-  radius: 8px (rounded-lg)
 - Focus ring: 3px `--focus-ring` via box-shadow
 
 #### Select
@@ -368,10 +368,10 @@ Trigger actions. Four variants serve different hierarchical needs.
 
 #### Variants
 
-| Variant | Background | Text | Border | Hover | Active | Disabled |
+| Variant | Background | Text |  | Hover | Active | Disabled |
 |---------|-----------|------|--------|-------|--------|----------|
 | Primary | `--action-primary` | `--action-primary-text` | None | `--action-primary-hover` | scale(0.98) | `--action-disabled` bg + text |
-| Secondary | `--action-secondary` | `--action-secondary-text` | None (or `--border-default`) | `--action-secondary-hover` | scale(0.98) | `--action-disabled` bg + text |
+| Secondary | `--action-secondary` | `--action-secondary-text` | None (or `---default`) | `--action-secondary-hover` | scale(0.98) | `--action-disabled` bg + text |
 | Ghost | transparent | `--action-ghost-text` | None | `--action-ghost-hover` | scale(0.98) | `--action-disabled-text` |
 | Danger | `--action-danger` | `--action-danger-text` | None | `--action-danger-hover` | scale(0.98) | `--action-disabled` bg + text |
 
@@ -415,7 +415,7 @@ Display structured data in rows for quick scanning and comparison.
 +-------------------------------------------------------+
 |  Header 1    Header 2    Header 3    Header 4         |  ← text-secondary, text-xs, uppercase
 +-------------------------------------------------------+
-|  Cell 1      Cell 2      Cell 3      Cell 4           |  ← border-divider separator
+|  Cell 1      Cell 2      Cell 3      Cell 4           |  ← -divider separator
 |  Cell 1      Cell 2      Cell 3      Cell 4           |  ← hover: bg-hover
 +-------------------------------------------------------+
 ```
@@ -424,7 +424,7 @@ Display structured data in rows for quick scanning and comparison.
 
 - Header text: `--text-secondary`, 12px (text-xs), 600 weight, uppercase, `tracking-wider`
 - Body text: `--text-primary`, 14px (text-sm), 400 weight
-- Row separator: `--divider` border-bottom
+- Row separator: `--divider` ottom
 - Row hover: `--bg-hover` at 50% opacity — subtle enough not to overwhelm
 - Clickable rows: pointer cursor on the entire row, no text decoration
 - Cell padding: 12px vertical, 16px horizontal
@@ -523,7 +523,7 @@ Communicate the state of an entity at a glance.
 - Badge background: `--status-*-bg`
 - Dot: `--status-*` (the saturated version)
 - Badges are inline elements — do not use block display
-- Border radius: `rounded-full` (pill shape)
+-  radius: `rounded-full` (pill shape)
 
 #### Status Mapping
 
@@ -726,7 +726,7 @@ Layer 6 (admin only)          → Debug info — NEVER visible to normal users
 #### Input Bar (Layer 3)
 
 - Fixed at bottom, full width
-- Background: `--bg-page` with top border `--border-default`
+- Background: `--bg-page` with top  `---default`
 - Mic button: 44px circle, `--action-secondary` when off, `--status-error` (red) with pulse when recording
 - Text input: same tokens as standard input, rounded-xl
 - Send button: 44px circle, `--action-primary`, disabled when empty
@@ -846,7 +846,7 @@ The Avatar Lab is a **developer tool** for testing and debugging the 3D avatar. 
 #### Controls Panel (Right Sidebar)
 
 - Width: 320px
-- Background: `--bg-section` with left border `--border-default`
+- Background: `--bg-section` with left  `---default`
 - Scrollable content
 - Sections separated by 20px gaps with header labels
 - Controls are dense: small buttons, compact grids, close spacing
@@ -894,7 +894,7 @@ Add new UI here when:
 | # | Mistake | Why It Fails | Correct Approach |
 |---|---------|-------------|------------------|
 | 1 | Pure black background (#000) | Creates eye strain, hides depth perception | Use `--bg-page` (#0a0a0b) — a very dark gray preserves depth |
-| 2 | White cards on white page with invisible inputs | Inputs disappear — users cannot find where to type | Differentiate with `--bg-input` + `--border-strong` on a card with `--border-default` |
+| 2 | White cards on white page with invisible inputs | Inputs disappear — users cannot find where to type | Differentiate with `--bg-input` + `---strong` on a card with `---default` |
 | 3 | Placeholder as label replacement | Accessibility failure — disappears on input, no association | Always use `<label htmlFor="...">` + placeholder is supplementary |
 | 4 | Gray text on dark gray background | WCAG contrast failure (2.9:1, needs 4.5:1) | Use `--text-secondary` which is verified to pass on every surface |
 | 5 | Inconsistent button heights | Visual noise, lack of rhythm | Define 3 sizes (sm/md/lg) and use them consistently across the app |
@@ -919,14 +919,14 @@ The design language follows these product aesthetics:
 
 | Product | Characteristics to Emulate |
 |---------|---------------------------|
-| Linear | Clean surfaces, excellent typography, subtle borders, clear interaction states |
+| Linear | Clean surfaces, excellent typography, subtle s, clear interaction states |
 | Vercel | Strong contrast hierarchy, minimal decoration, purpose-driven color |
 | Stripe | Professional blue-purple accent, generous whitespace, readable forms |
 | OpenAI / ChatGPT | Clean dark theme, focus on content, avatar-centric interaction |
 
 ### What to Avoid
 
-- Gaming UI aesthetics (glowing elements, heavy gradients, futuristic borders)
+- Gaming UI aesthetics (glowing elements, heavy gradients, futuristic s)
 - Neon colors on dark backgrounds
 - Excessive glassmorphism or frosted-glass effects
 - Skeuomorphic 3D button styles

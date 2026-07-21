@@ -31,6 +31,7 @@ Generate ONE follow-up question based on the candidate's answer:
 - No repetition of original question
 
 # Constraints
+- Connect to the company context — the candidate is applying to work in this specific industry, so questions must reference company domain details
 - Generate exactly ONE question
 - Don't ask questions already asked
 - Don't invalidate the candidate's answer

@@ -1,218 +1,133 @@
 """
 Base repository class for database operations.
-Provides common patterns for all repository implementations.
+Provides common patterns for all repository implementations using async SQLAlchemy.
 """
 import logging
 from typing import Any, Optional
-from pydantic import BaseModel
+from sqlalchemy import select, update, delete as sa_delete, func
+from app.database.session import get_session_factory
 from app.exceptions import RecordNotFoundException, DatabaseException
+
 logger = logging.getLogger(__name__)
 
 
 class BaseRepository:
     """
-    Base repository for database access.
-    All repository implementations should inherit from this.
+    Base repository with async SQLAlchemy helpers.
     """
-    
-    def __init__(self, db):
-        """
-        Initialize repository with database client.
-        
-        Args:
-            db: Database client (Supabase client)
-        """
-        self.db = db
+
+    def __init__(self):
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
-    
-    async def get(
-        self,
-        id: str,
-        table: str
-    ) -> dict:
-        """
-        Get a single record by ID.
-        
-        Args:
-            id: Record ID
-            table: Table name
-            
-        Returns:
-            dict: The fetched record
-            
-        Raises:
-            RecordNotFoundException: If record not found
-            DatabaseException: If database operation fails
-        """
+
+    async def _get_session(self):
+        if get_session_factory() is None:
+            raise RuntimeError("DATABASE_URL not configured")
+        async with get_session_factory()() as session:
+            yield session
+
+    async def get(self, id: str, model_class) -> dict:
+        from uuid import UUID
         try:
-            response = self.db.table(table).select("*").eq("id", id).execute()
-            
-            if not response.data or len(response.data) == 0:
-                raise RecordNotFoundException(
-                    table=table,
-                    identifier="id",
-                    value=id
+            async with get_session_factory()() as session:
+                result = await session.execute(
+                    select(model_class).where(model_class.id == UUID(id))
                 )
-            
-            return response.data[0]
-            
+                instance = result.scalar_one_or_none()
+                if instance is None:
+                    raise RecordNotFoundException(table=model_class.__tablename__, identifier="id", value=id)
+                return self._to_dict(instance)
         except RecordNotFoundException:
             raise
         except Exception as e:
-            self.logger.error(
-                f"Database error: {e}",
-                extra={"table": table, "id": id}
-            )
+            self.logger.error(f"Database error: {e}")
             raise DatabaseException(f"Failed to get record: {str(e)}")
-    
-    async def create(
-        self,
-        data: dict,
-        table: str
-    ) -> dict:
-        """
-        Create a new record.
-        
-        Args:
-            data: Record data
-            table: Table name
-            
-        Returns:
-            dict: The created record
-        """
+
+    async def create(self, data: dict, model_class) -> dict:
         try:
-            response = self.db.table(table).insert(data).execute()
-            return response.data[0] if response.data else None
-            
+            async with get_session_factory()() as session:
+                instance = model_class(**data)
+                session.add(instance)
+                await session.commit()
+                await session.refresh(instance)
+                return self._to_dict(instance)
         except Exception as e:
-            self.logger.error(
-                f"Database error creating record: {e}",
-                extra={"table": table, "data": data}
-            )
+            self.logger.error(f"Database error creating record: {e}")
             raise DatabaseException(f"Failed to create record: {str(e)}")
-    
-    async def update(
-        self,
-        id: str,
-        updates: dict,
-        table: str
-    ) -> dict:
-        """
-        Update a record.
-        
-        Args:
-            id: Record ID
-            updates: Fields to update
-            table: Table name
-            
-        Returns:
-            dict: The updated record
-        """
+
+    async def update(self, id: str, updates: dict, model_class) -> dict:
+        from uuid import UUID
         try:
-            response = self.db.table(table).update(updates).eq("id", id).execute()
-            
-            if not response.data or len(response.data) == 0:
-                raise RecordNotFoundException(
-                    table=table,
-                    identifier="id",
-                    value=id
+            async with get_session_factory()() as session:
+                result = await session.execute(
+                    select(model_class).where(model_class.id == UUID(id))
                 )
-            
-            return response.data[0]
-            
+                instance = result.scalar_one_or_none()
+                if instance is None:
+                    raise RecordNotFoundException(table=model_class.__tablename__, identifier="id", value=id)
+                for key, value in updates.items():
+                    setattr(instance, key, value)
+                await session.commit()
+                await session.refresh(instance)
+                return self._to_dict(instance)
         except RecordNotFoundException:
             raise
         except Exception as e:
-            self.logger.error(
-                f"Database error updating record: {e}",
-                extra={"table": table, "id": id}
-            )
+            self.logger.error(f"Database error updating record: {e}")
             raise DatabaseException(f"Failed to update record: {str(e)}")
-    
-    async def delete(
-        self,
-        id: str,
-        table: str
-    ) -> bool:
-        """
-        Delete a record.
-        
-        Args:
-            id: Record ID
-            table: Table name
-            
-        Returns:
-            bool: True if deleted
-            
-        Raises:
-            RecordNotFoundException: If record not found
-        """
+
+    async def delete(self, id: str, model_class) -> bool:
+        from uuid import UUID
         try:
-            response = self.db.table(table).delete().eq("id", id).execute()
-            return response.data is not None
-            
+            async with get_session_factory()() as session:
+                result = await session.execute(
+                    select(model_class).where(model_class.id == UUID(id))
+                )
+                instance = result.scalar_one_or_none()
+                if instance is None:
+                    return False
+                await session.delete(instance)
+                await session.commit()
+                return True
         except Exception as e:
-            self.logger.error(
-                f"Database error deleting record: {e}",
-                extra={"table": table, "id": id}
-            )
+            self.logger.error(f"Database error deleting record: {e}")
             raise DatabaseException(f"Failed to delete record: {str(e)}")
-    
-    async def list_by_session(
-        self,
-        session_id: str,
-        table: str,
-        order_by: Optional[str] = None
-    ) -> list[dict]:
-        """
-        List all records by session ID with optional ordering.
-        
-        Args:
-            session_id: Session ID
-            table: Table name
-            order_by: Field to order by (e.g., "created_at")
-            
-        Returns:
-            list[dict]: List of records
-        """
+
+    async def list_by_session(self, session_id: str, model_class, order_by: Optional[str] = None) -> list[dict]:
+        from uuid import UUID
         try:
-            query = self.db.table(table).select("*").eq("session_id", session_id)
-            
-            if order_by:
-                query = query.order(order_by)
-            
-            response = query.execute()
-            return response.data if response.data else []
-            
+            async with get_session_factory()() as session:
+                query = select(model_class).where(model_class.session_id == UUID(session_id))
+                if order_by:
+                    order_col = getattr(model_class, order_by, None)
+                    if order_col is not None:
+                        query = query.order_by(order_col)
+                result = await session.execute(query)
+                instances = result.scalars().all()
+                return [self._to_dict(inst) for inst in instances]
         except Exception as e:
-            self.logger.error(
-                f"Database error listing records: {e}",
-                extra={"table": table, "session_id": session_id}
-            )
+            self.logger.error(f"Database error listing records: {e}")
             raise DatabaseException(f"Failed to list records: {str(e)}")
-    
-    async def exists(
-        self,
-        id: str,
-        table: str
-    ) -> bool:
-        """
-        Check if a record exists.
-        
-        Args:
-            id: Record ID
-            table: Table name
-            
-        Returns:
-            bool: True if exists
-        """
+
+    async def exists(self, id: str, model_class) -> bool:
+        from uuid import UUID
         try:
-            response = self.db.table(table).select("id").eq("id", id).limit(1).execute()
-            return response.data is not None and len(response.data) > 0
-            
+            async with get_session_factory()() as session:
+                result = await session.execute(
+                    select(model_class.id).where(model_class.id == UUID(id)).limit(1)
+                )
+                return result.scalar_one_or_none() is not None
         except Exception as e:
-            self.logger.error(
-                f"Database error checking existence: {e}",
-                extra={"table": table, "id": id}
-            )
+            self.logger.error(f"Database error checking existence: {e}")
             raise DatabaseException(f"Failed to check existence: {str(e)}")
+
+    def _to_dict(self, instance) -> dict:
+        """Convert SQLAlchemy model instance to dict, handling UUID and datetime."""
+        result = {}
+        for column in instance.__table__.columns:
+            value = getattr(instance, column.name)
+            if hasattr(value, 'isoformat'):
+                value = value.isoformat()
+            elif hasattr(value, 'hex'):
+                value = str(value)
+            result[column.name] = value
+        return result

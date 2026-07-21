@@ -541,7 +541,7 @@ export default function AnimatedFlow() {
 
                 rounded-2xl
 
-                border
+                
 
                 flex
                 flex-col
@@ -566,9 +566,9 @@ export default function AnimatedFlow() {
                 ${
                   done
                   ?
-                  "border-purple-400/50"
+                  "shadow-[0_0_15px_rgba(139,111,245,.3)]"
                   :
-                  "border-white/10"
+                  "shadow-[0_0_0_1px_rgba(255,255,255,.08)]"
                 }
 
                 `}

@@ -20,7 +20,7 @@ export function CameraPreview({ stream, isCameraOn, onToggle, size = 'md' }: Cam
   const sizeClass = size === 'sm' ? 'w-24 h-24' : size === 'lg' ? 'w-40 h-40' : 'w-32 h-32';
 
   return (
-    <div className={`relative ${sizeClass} rounded-full overflow-hidden border-2 border-focus bg-input`}>
+    <div className={`relative ${sizeClass} rounded-full overflow-hidden -2 -focus bg-input`}>
       {isCameraOn && stream ? (
         <video
           ref={videoRef}

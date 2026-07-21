@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useMemo } from 'react';
 import { DataTable, Column } from '../shared/DataTable';
 import { StatusBadge } from '../shared/StatusBadge';
 import { ScoreDisplay } from '../shared/ScoreDisplay';
@@ -15,13 +16,13 @@ interface SessionRecord {
 export function InterviewHistoryTable({ sessions }: { sessions: SessionRecord[] }) {
   const navigate = useNavigate();
 
-  const columns: Column<SessionRecord>[] = [
+  const columns = useMemo<Column<SessionRecord>[]>(() => [
     { key: 'candidate_id', header: 'Candidate', render: s => s.candidate_id || 'Anonymous' },
     { key: 'job_role', header: 'Role' },
     { key: 'status', header: 'Status', render: s => <StatusBadge status={s.status} /> },
     { key: 'final_score', header: 'Score', render: s => <ScoreDisplay score={s.final_score} size="sm" showLabel={false} /> },
     { key: 'started_at', header: 'Date', render: s => new Date(s.started_at).toLocaleDateString(), className: 'text-secondary' },
-  ];
+  ], []);
 
   return (
     <DataTable

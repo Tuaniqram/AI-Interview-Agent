@@ -3,6 +3,7 @@ Question Generation LangGraph Workflow
 Workflow for generating exactly ONE interview question.
 """
 import logging
+from langgraph.checkpoint.memory import MemorySaver
 from app.graph.interview_state import InterviewState
 from app.agents.session_init_node import session_init_node
 from app.agents.company_context_node import company_context_node
@@ -47,7 +48,8 @@ def create_question_workflow():
     workflow.add_edge("question_generation", END)
     
     # Compile the workflow
-    question_workflow = workflow.compile()
+    checkpointer = MemorySaver()
+    question_workflow = workflow.compile(checkpointer=checkpointer)
     
     logger.info("Question Generation LangGraph workflow compiled successfully")
     

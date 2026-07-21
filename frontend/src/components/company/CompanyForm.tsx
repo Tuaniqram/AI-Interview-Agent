@@ -32,19 +32,19 @@ export function CompanyForm({ open, initial, onSave, onCancel }: CompanyFormProp
           <div>
             <label className="block text-xs font-medium text-secondary mb-1.5">Company Name *</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)} required
-              className="w-full px-3 py-2 text-sm bg-input text-primary border border-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus"
+              className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
               placeholder="e.g. Acme Corp" />
           </div>
           <div>
             <label className="block text-xs font-medium text-secondary mb-1.5">Website</label>
             <input type="url" value={website} onChange={e => setWebsite(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-input text-primary border border-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus"
+              className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
               placeholder="https://acme.com" />
           </div>
           <div>
             <label className="block text-xs font-medium text-secondary mb-1.5">Description</label>
             <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3}
-              className="w-full px-3 py-2 text-sm bg-input text-primary border border-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus resize-none"
+              className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] resize-none"
               placeholder="Brief description of the company" />
           </div>
           <div className="flex justify-end gap-3 pt-2">

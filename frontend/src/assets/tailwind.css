@@ -20,10 +20,7 @@
     --text-muted:         #6b7280;
     --text-inverse:       #ffffff;
 
-    /* ── Border & divider ── */
-    --border-default:     #e2e2e8;
-    --border-strong:      #c8c8d0;
-    --border-focus:       #6d4fe8;
+    /* ── Divider ── */
     --divider:            #eaeaf0;
 
     /* ── Action system ── */
@@ -77,9 +74,6 @@
     --text-muted:         #8a8a94;
     --text-inverse:       #1a1a1e;
 
-    --border-default:     #2c2c30;
-    --border-strong:      #3a3a40;
-    --border-focus:       #7c5cfc;
     --divider:            #222226;
 
     --action-primary:           #8b6ff5;

@@ -41,7 +41,14 @@ logger = logging.getLogger("integration_test")
 # ---------------------------------------------------------------------------
 
 def _run(coro):
-    """Run async coroutine synchronously."""
+    """Run async coroutine synchronously.
+    Each call creates its own event loop, so we null the async engine first
+    so the next call creates a fresh one in the correct loop.
+    """
+    import app.database.session as _db
+    _db._engine = None
+    _db._async_session_factory = None
+
     loop = asyncio.new_event_loop()
     try:
         return loop.run_until_complete(coro)

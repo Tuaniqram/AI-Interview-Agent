@@ -30,7 +30,7 @@ Generate ONE interview question for this phase and difficulty level.
 - Open-ended (invite detailed responses)
 - Relevant to the job role
 - 1-3 sentences only
-- Connect to company context if provided
+- Connect to the company context — the candidate is applying to work in this specific industry, so questions must reference company domain details
 
 # Constraints
 - Generate exactly ONE question

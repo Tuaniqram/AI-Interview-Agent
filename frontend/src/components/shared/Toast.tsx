@@ -47,9 +47,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   };
 
   const bg: Record<ToastType, string> = {
-    success: 'bg-success-bg border-success/20',
-    error: 'bg-error-bg border-error/20',
-    info: 'bg-info-bg border-info/20',
+    success: 'bg-success-bg',
+    error: 'bg-error-bg',
+    info: 'bg-info-bg',
   };
 
   return (
@@ -59,7 +59,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map(t => (
           <div
             key={t.id}
-            className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg animate-in slide-in-from-right ${bg[t.type]}`}
+            className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg  shadow-lg animate-in slide-in-from-right ${bg[t.type]}`}
           >
             {icons[t.type]}
             <span className="text-sm text-primary">{t.message}</span>

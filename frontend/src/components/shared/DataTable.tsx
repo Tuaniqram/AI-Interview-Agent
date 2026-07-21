@@ -27,7 +27,7 @@ export function DataTable<T extends Record<string, any>>({ columns, data, keyFie
     <div className={`overflow-x-auto ${className}`}>
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-divider">
+          <tr>
             {columns.map(col => (
               <th key={col.key} className={`text-left text-xs font-medium text-secondary uppercase tracking-wider pb-3 ${col.className || ''}`}>
                 {col.header}
@@ -40,7 +40,7 @@ export function DataTable<T extends Record<string, any>>({ columns, data, keyFie
             <tr
               key={String(row[keyField])}
               onClick={() => onRowClick?.(row)}
-              className={`border-b border-divider ${onRowClick ? 'cursor-pointer hover:bg-hover' : ''}`}
+              className={`even:bg-hover/30 ${onRowClick ? 'cursor-pointer hover:bg-hover' : ''}`}
             >
               {columns.map(col => (
                 <td key={col.key} className={`py-3 text-primary ${col.className || ''}`}>

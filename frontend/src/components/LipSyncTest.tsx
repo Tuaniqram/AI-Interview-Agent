@@ -98,7 +98,7 @@ export function LipSyncTest() {
         />
       </div>
 
-      <div className="bg-gray-900 border-t border-gray-800 p-3 z-30">
+      <div className="bg-gray-900 -t -gray-800 p-3 z-30">
         <div className="max-w-2xl mx-auto flex gap-3 items-end">
           <div className="flex-1 relative">
             <textarea
@@ -107,7 +107,7 @@ export function LipSyncTest() {
               onKeyDown={handleKeyDown}
               placeholder="Type text for the avatar to speak..."
               rows={2}
-              className="w-full px-4 py-2.5 bg-gray-800 text-white border border-gray-700 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all text-sm placeholder-gray-500"
+              className="w-full px-4 py-2.5 bg-gray-800 text-white  -gray-700 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:-transparent transition-all text-sm placeholder-gray-500"
             />
           </div>
           <button

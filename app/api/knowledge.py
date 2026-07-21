@@ -2,7 +2,7 @@ import os
 import shutil
 import logging
 
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File
 
 from app.config.database import get_supabase
 
@@ -84,10 +84,26 @@ def delete_knowledge(company_id: int, doc_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+async def _process_document(filepath: str, company_id: int, doc_id: str | None, filename: str):
+    """Run the RAG pipeline in the background: load PDF, split, store in Pinecone."""
+    try:
+        from app.rag.loader import load_pdf
+        from app.rag.splitter import split_documents
+        from app.rag.pinecone_store import store_company_knowledge
+
+        documents = load_pdf(filepath)
+        chunks = split_documents(documents)
+        store_company_knowledge(chunks, company_id, doc_id=doc_id)
+        logger.info(f"RAG pipeline completed: {len(chunks)} chunks stored (doc_id={doc_id})")
+    except Exception as e:
+        logger.error(f"RAG pipeline failed for {filename} (doc_id={doc_id}): {e}")
+
+
 @router.post("/{company_id}/knowledge")
 async def upload_knowledge(
     company_id: int,
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = None
 ):
     # Validate file extension
     _, ext = os.path.splitext(file.filename or "")
@@ -97,7 +113,7 @@ async def upload_knowledge(
             detail=f"File type '{ext}' not supported. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
         )
 
-    # Step 1: Save file to disk
+    # Step 1: Save file to disk (sync)
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     filepath = f"{UPLOAD_DIR}/{file.filename}"
 
@@ -106,7 +122,7 @@ async def upload_knowledge(
 
     logger.info(f"File saved to disk: {filepath}")
 
-    # Step 2: Insert metadata into Supabase FIRST to get the doc_id
+    # Step 2: Insert metadata into Supabase (sync) to get doc_id
     doc_id = None
     try:
         db = get_supabase()
@@ -122,34 +138,16 @@ async def upload_knowledge(
         logger.error(f"Failed to save metadata to Supabase: {e}")
         raise HTTPException(status_code=500, detail=f"File saved but metadata save failed: {e}")
 
-    # Step 3-4: RAG pipeline (best-effort, tags vectors with doc_id)
-    chunks_count = 0
-    rag_error = None
-    try:
-        from app.rag.loader import load_pdf
-        from app.rag.splitter import split_documents
-        from app.rag.pinecone_store import store_company_knowledge
+    # Step 3-4: RAG pipeline runs in the background
+    if background_tasks and doc_id:
+        background_tasks.add_task(_process_document, filepath, company_id, doc_id, file.filename)
+        logger.info(f"RAG pipeline queued as background task (doc_id={doc_id})")
+    else:
+        logger.warning(f"RAG pipeline skipped — background_tasks unavailable or doc_id missing (doc_id={doc_id})")
 
-        documents = load_pdf(filepath)
-        chunks = split_documents(documents)
-        store_company_knowledge(chunks, company_id, doc_id=doc_id)
-        chunks_count = len(chunks)
-        logger.info(f"RAG pipeline completed: {chunks_count} chunks stored (doc_id={doc_id})")
-    except Exception as e:
-        rag_error = str(e)
-        logger.warning(f"RAG pipeline failed (file still saved): {e}")
-
-    response = {
-        "message": "Document uploaded",
-        "company_id": company_id,
-        "filename": file.filename,
+    return {
+        "message": "Upload queued",
         "doc_id": doc_id,
+        "filename": file.filename,
+        "status": "processing"
     }
-
-    if chunks_count > 0:
-        response["chunks"] = chunks_count
-
-    if rag_error:
-        response["warning"] = f"File saved but RAG processing failed: {rag_error}"
-
-    return response

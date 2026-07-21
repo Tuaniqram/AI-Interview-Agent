@@ -24,12 +24,26 @@ class FallbackLLM:
                 logger.warning("Model %s failed, trying next: %s", model.model_name, e)
         raise RuntimeError("All models failed") from last_error
 
+    async def astream(self, messages, config=None, **kwargs):
+        """Stream tokens from the first available model."""
+        last_error = None
+        for model in self._models:
+            try:
+                async for chunk in model.astream(messages, config, **kwargs):
+                    if hasattr(chunk, 'content') and chunk.content:
+                        yield chunk.content
+                return
+            except Exception as e:
+                last_error = e
+        raise RuntimeError("All models failed") from last_error
+
     @property
     def model_name(self) -> str:
         return "+".join(m.model_name for m in self._models)
 
 
 _LLM_CONFIGS: list[dict[str, str | None]] = [
+    {"model": "llama-3.3-70b-versatile", "base_url": "https://api.groq.com/openai/v1", "api_key": os.getenv("GROQ_API_KEY")},
     {"model": "one", "base_url": "http://localhost:20128/v1", "api_key": None},
     {"model": "openrouter/auto-beta", "base_url": "https://openrouter.ai/api/v1", "api_key": os.getenv("OPENROUTER_API_KEY")},
 ]

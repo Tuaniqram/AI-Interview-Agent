@@ -61,12 +61,12 @@ export function Settings() {
             <div>
               <label className="block text-xs font-medium text-secondary mb-1.5">API URL</label>
               <input type="text" value={settings.apiUrl} onChange={e => update('apiUrl', e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-input text-primary border border-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus font-mono" />
+                className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] font-mono" />
             </div>
             <div>
               <label className="block text-xs font-medium text-secondary mb-1.5">WebSocket URL</label>
               <input type="text" value={settings.wsUrl} onChange={e => update('wsUrl', e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-input text-primary border border-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus font-mono" />
+                className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] font-mono" />
             </div>
           </div>
         </Card>
@@ -77,7 +77,7 @@ export function Settings() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-secondary">Default Questions</span>
               <select value={settings.defaultQuestions} onChange={e => update('defaultQuestions', Number(e.target.value))}
-                className="px-3 py-1.5 text-sm bg-input text-primary border border-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus">
+                className="px-3 py-1.5 text-sm bg-input text-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]">
                 <option value={5}>5 (Quick)</option>
                 <option value={10}>10 (Standard)</option>
                 <option value={15}>15 (Detailed)</option>
@@ -88,14 +88,14 @@ export function Settings() {
               <span className="text-sm text-secondary">Voice Input</span>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" checked={settings.voiceInput} onChange={e => update('voiceInput', e.target.checked)} className="sr-only peer" />
-                <div className="w-9 h-5 bg-input peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--focus-ring)] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-inverse after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-action-primary" />
+                <div className="w-9 h-5 bg-input peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--focus-ring)] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-inverse after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-action-primary" />
               </label>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-secondary">Avatar Auto-speak</span>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" checked={settings.avatarAutoSpeak} onChange={e => update('avatarAutoSpeak', e.target.checked)} className="sr-only peer" />
-                <div className="w-9 h-5 bg-input peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--focus-ring)] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-inverse after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-action-primary" />
+                <div className="w-9 h-5 bg-input peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--focus-ring)] rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-inverse after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-action-primary" />
               </label>
             </div>
           </div>

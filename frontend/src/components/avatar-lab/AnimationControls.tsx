@@ -20,7 +20,7 @@ export const GESTURES = [
 ] as const;
 
 function btnCls(active: boolean): string {
-  return `px-3 py-1.5 text-xs rounded-lg font-medium transition-all border ${active ? 'bg-action-primary text-inverse border-action-primary' : 'bg-input text-secondary border-strong hover:bg-hover'}`;
+  return `px-3 py-1.5 text-xs rounded-lg font-medium transition-all  ${active ? 'bg-action-primary text-inverse' : 'bg-input text-secondary hover:bg-hover'}`;
 }
 
 const gestureLabels: Record<string, string> = {
@@ -57,7 +57,7 @@ export function AnimationControls({
   text, onTextChange, onSpeak, connected, speaking, debugMode, onDebugModeChange, debugInfo,
 }: AnimationControlsProps) {
   return (
-    <div className="w-80 bg-section border-s border-default overflow-y-auto p-4 space-y-5">
+    <div className="w-80 bg-section overflow-y-auto p-4 space-y-5">
       <h2 className="text-primary font-bold text-sm tracking-wide">Animation Controls</h2>
 
       <section>
@@ -70,7 +70,7 @@ export function AnimationControls({
         </div>
         <div className="flex gap-1.5">
           <button onClick={onStopGesture} disabled={!activeGesture}
-            className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium bg-action-danger text-action-danger-text border border-action-danger/50 hover:bg-action-danger-hover disabled:opacity-30 disabled:cursor-not-allowed">
+            className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium bg-action-danger text-action-danger-text hover:bg-action-danger-hover disabled:opacity-30 disabled:cursor-not-allowed">
             Stop Gesture
           </button>
         </div>
@@ -107,7 +107,7 @@ export function AnimationControls({
         <div className="grid grid-cols-2 gap-1.5">
           {GESTURES.map(g => (
             <button key={g} onClick={() => onTriggerGesture(g)}
-              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-all border ${activeGesture === g ? 'bg-action-primary text-inverse border-action-primary' : 'bg-input text-secondary border-strong hover:bg-hover'}`}>
+              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-all  ${activeGesture === g ? 'bg-action-primary text-inverse' : 'bg-input text-secondary hover:bg-hover'}`}>
               {gestureLabels[g] ?? g}
             </button>
           ))}
@@ -117,7 +117,7 @@ export function AnimationControls({
       <section>
         <h3 className="text-secondary text-xs font-semibold uppercase mb-2">Speaking</h3>
         <textarea value={text} onChange={e => onTextChange(e.target.value)} rows={2}
-          className="w-full px-3 py-2 bg-input text-primary border border-strong rounded-lg resize-none text-xs focus:outline-none focus:ring-1 focus:ring-focus" />
+          className="w-full px-3 py-2 bg-input text-primary rounded-lg resize-none text-xs focus:outline-none focus:ring-1 focus:ring-focus" />
         <div className="flex gap-2 mt-2">
           <button onClick={onSpeak} disabled={!text.trim() || !connected}
             className="flex-1 h-8 bg-action-primary text-inverse rounded-lg text-xs font-medium hover:bg-action-primary-hover disabled:opacity-30">

@@ -14,7 +14,7 @@ export function StatRow({ totalCompanies, totalSessions, activeSessions, average
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[1,2,3,4].map(i => (
-          <div key={i} className="bg-elevated border border-default rounded-xl p-4 animate-pulse">
+          <div key={i} className="bg-elevated rounded-xl p-4 animate-pulse">
             <div className="h-3 bg-hover rounded w-1/2 mb-3" />
             <div className="h-6 bg-hover rounded w-1/3" />
           </div>

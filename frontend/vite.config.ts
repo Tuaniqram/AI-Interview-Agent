@@ -11,5 +11,16 @@ export default defineConfig({
         changeOrigin: true,
       }
     }
-  }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-three': ['three'],
+          'vendor-charts': ['recharts'],
+          'vendor-ui': ['lucide-react'],
+        },
+      },
+    },
+  },
 })

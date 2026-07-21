@@ -574,6 +574,15 @@ export function AvatarRenderer({
     }
   }, [emotion, isSpeaking, applyBlendShapes]);
 
+  // Clean up global lip sync on unmount
+  useEffect(() => {
+    return () => {
+      if (typeof _globalLipSync !== 'undefined' && _globalLipSync) {
+        _globalLipSync.destroy();
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (activeViseme && isSpeaking) {
       applyBlendShapes({ ...emotionToBlendShapes(emotion), ...visemeToBlendShapes(activeViseme) });

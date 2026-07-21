@@ -21,7 +21,7 @@ const GESTURES = [
 ] as const;
 
 function btnCls(active: boolean): string {
-  return `px-3 py-1.5 text-xs rounded-lg font-medium transition-all border ${active ? 'bg-purple-600 text-white border-purple-600' : 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700'}`;
+  return `px-3 py-1.5 text-xs rounded-lg font-medium transition-all  ${active ? 'bg-purple-600 text-white -purple-600' : 'bg-gray-800 text-gray-300 -gray-700 hover:bg-gray-700'}`;
 }
 
 export function AnimationTest() {
@@ -138,7 +138,7 @@ export function AnimationTest() {
         )}
       </div>
 
-      <div className="w-80 bg-gray-800/80 border-l border-gray-700 overflow-y-auto p-4 space-y-5">
+      <div className="w-80 bg-gray-800/80 -l -gray-700 overflow-y-auto p-4 space-y-5">
         <h2 className="text-white font-bold text-sm tracking-wide">Animation Test</h2>
 
         <section>
@@ -158,7 +158,7 @@ export function AnimationTest() {
             <button
               onClick={stopCurrentGesture}
               disabled={!activeGesture}
-              className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium bg-red-800 text-red-200 border border-red-700 hover:bg-red-700 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex-1 px-2 py-1.5 text-xs rounded-lg font-medium bg-red-800 text-red-200  -red-700 hover:bg-red-700 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               Stop Gesture
             </button>
@@ -198,10 +198,10 @@ export function AnimationTest() {
               <button
                 key={g}
                 onClick={() => triggerGesture(g)}
-                className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-all border ${
+                className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-all  ${
                   activeGesture === g
-                    ? 'bg-purple-600 text-white border-purple-600'
-                    : 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700'
+                    ? 'bg-purple-600 text-white -purple-600'
+                    : 'bg-gray-800 text-gray-300 -gray-700 hover:bg-gray-700'
                 }`}
               >
                 {gestureLabels[g] ?? g}
@@ -216,7 +216,7 @@ export function AnimationTest() {
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={2}
-            className="w-full px-3 py-2 bg-gray-900 text-white border border-gray-700 rounded-lg resize-none text-xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+            className="w-full px-3 py-2 bg-gray-900 text-white  -gray-700 rounded-lg resize-none text-xs focus:outline-none focus:ring-1 focus:ring-purple-500"
           />
           <div className="flex gap-2 mt-2">
             <button

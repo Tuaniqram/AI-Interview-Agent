@@ -131,29 +131,34 @@ export function CompanyDetail() {
         <ArrowLeft className="w-3.5 h-3.5" /> Back to Companies
       </button>
 
-      <div className="flex items-start gap-4 mb-6">
-        <div className="w-12 h-12 rounded-xl bg-action-primary/15 flex items-center justify-center shrink-0">
-          <Building2 className="w-6 h-6 text-action-primary" />
+      <Card className="mb-6">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-xl bg-action-primary/15 flex items-center justify-center shrink-0">
+            <Building2 className="w-6 h-6 text-action-primary" />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold text-primary">{company.name}</h1>
+            {company.website && <p className="text-sm text-muted mt-0.5">{company.website}</p>}
+            {company.description && <p className="text-sm text-secondary mt-1 max-w-xl">{company.description}</p>}
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl font-semibold text-primary">{company.name}</h1>
-          {company.website && <p className="text-sm text-muted mt-0.5">{company.website}</p>}
-          {company.description && <p className="text-sm text-secondary mt-1 max-w-xl">{company.description}</p>}
-        </div>
-      </div>
+      </Card>
 
-      <div className="flex gap-1 border-b border-default mb-6">
+      <div className="flex gap-4 mb-6">
         {tabs.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-1 py-2 text-sm font-medium transition-colors relative ${
               tab === t.key
-                ? 'border-action-primary text-action-primary'
-                : 'border-transparent text-secondary hover:text-primary'
+                ? 'text-action-primary'
+                : 'text-secondary hover:text-primary'
             }`}
           >
             {t.label}
+            {tab === t.key && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-action-primary rounded-full" />
+            )}
           </button>
         ))}
       </div>

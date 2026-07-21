@@ -24,7 +24,7 @@ export function Toggle({ checked, onChange, label, disabled = false, size = 'md'
         aria-checked={checked}
         disabled={disabled}
         onClick={() => !disabled && onChange(!checked)}
-        className={`relative inline-flex shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${trackSizes[size]} ${checked ? 'bg-action-primary' : 'bg-input border border-strong'}`}
+        className={`relative inline-flex shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${trackSizes[size]} ${checked ? 'bg-action-primary' : 'bg-input'}`}
       >
         <span
           className={`pointer-events-none inline-block rounded-full bg-white shadow-sm transition-transform ${thumbSizes[size]} ${size === 'sm' ? 'mt-0.5 ml-0.5' : 'mt-0.5 ml-0.5'} ${checked ? (size === 'sm' ? 'translate-x-4' : 'translate-x-5') : 'translate-x-0'}`}

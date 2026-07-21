@@ -315,16 +315,6 @@ class InterviewService:
             difficulty_level=difficulty_level
         )
         
-        # Update message number
-        await self.message_repo.create_candidate_answer(
-            session_id=session_id,
-            role="candidate",
-            candidate_answer=candidate_answer,
-            question_number=question_number,
-            phase=current_phase,
-            score=evaluation["score"]
-        )
-        
         # Adapt to performance and determine next state
         next_phase, next_difficulty, next_status = await self._adapt_to_performance(
             current_phase=current_phase,

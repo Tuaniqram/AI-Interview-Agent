@@ -146,7 +146,7 @@ export function AvatarPlaceholder({
               } disabled:opacity-50`}
             >
               {micTested === 'idle' && <Mic className="w-4 h-4" />}
-              {micTested === 'testing' && <span className="w-4 h-4 block animate-spin rounded-full border-2 border-muted border-t-transparent" />}
+              {micTested === 'testing' && <span className="w-4 h-4 block animate-spin rounded-full" />}
               {micTested === 'success' && <CheckCircle className="w-4 h-4" />}
               {micTested === 'error' && <XCircle className="w-4 h-4" />}
             </button>
@@ -175,7 +175,7 @@ export function AvatarPlaceholder({
               value={modeConfig.companyId}
               onChange={(e) => onModeConfigChange({ ...modeConfig, companyId: Number(e.target.value) })}
               disabled={companiesLoading}
-              className="w-full px-4 py-2.5 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-transparent transition-all bg-input text-primary"
+              className="w-full px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] transition-all bg-input text-primary"
             >
               {companiesLoading && <option value="">Loading companies...</option>}
               {!companiesLoading && companies.length === 0 && <option value="">No companies found</option>}
@@ -193,7 +193,7 @@ export function AvatarPlaceholder({
               value={modeConfig.jobRole}
               onChange={(e) => onModeConfigChange({ ...modeConfig, jobRole: e.target.value })}
               placeholder="e.g., AI Research Engineer"
-              className="w-full px-4 py-2.5 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-transparent transition-all bg-input text-primary"
+              className="w-full px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] transition-all bg-input text-primary"
             />
           </div>
           <div>
@@ -203,7 +203,7 @@ export function AvatarPlaceholder({
             <select
               value={totalQuestions}
               onChange={(e) => setTotalQuestions(Number(e.target.value))}
-              className="w-full px-4 py-2.5 border border-default rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-transparent transition-all bg-input text-primary"
+              className="w-full px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] transition-all bg-input text-primary"
             >
               <option value={5}>5 questions (Quick)</option>
               <option value={10}>10 questions (Standard)</option>

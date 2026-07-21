@@ -1,11 +1,11 @@
 """
-Session repository for managing interview sessions.
+Session repository for interview sessions using async SQLAlchemy.
 """
 import logging
 from typing import Optional
-from uuid import UUID, uuid4
+from uuid import uuid4
 
-from app.config.database import get_supabase
+from app.models.db import InterviewSession, InterviewMessage
 from app.exceptions import SessionNotFoundException, RecordNotFoundException
 from app.repositories.base_repository import BaseRepository
 
@@ -15,16 +15,14 @@ logger = logging.getLogger(__name__)
 class SessionRepository(BaseRepository):
     """
     Repository for interview sessions.
-    Handles all database operations for interview_sessions table.
+    Uses async SQLAlchemy with InterviewSession ORM model.
     """
-    
-    _table_name = "interview_sessions"
-    
+
+    model_class = InterviewSession
+
     def __init__(self):
-        """Initialize session repository with database client."""
-        db = get_supabase()
-        super().__init__(db)
-    
+        super().__init__()
+
     async def create_session(
         self,
         company_id: int,
@@ -36,11 +34,8 @@ class SessionRepository(BaseRepository):
         total_questions: int = 10,
         interview_type: str = "company"
     ) -> dict:
-        """
-        Create a new interview session.
-        """
         session_data = {
-            "id": str(uuid4()),
+            "id": uuid4(),
             "company_id": company_id,
             "job_role": job_role,
             "status": "active",
@@ -50,206 +45,74 @@ class SessionRepository(BaseRepository):
             "candidate_id": candidate_id,
             "candidate_name": candidate_name,
             "candidate_email": candidate_email,
-            "interview_type": interview_type
+            "interview_type": interview_type,
         }
-        
-        return await self.create(session_data, self._table_name)
-    
+        return await self.create(session_data, self.model_class)
+
     async def get_session(self, session_id: str) -> dict:
-        """
-        Get a session by ID.
-        
-        Args:
-            session_id: Session ID
-            
-        Returns:
-            dict: Session data
-            
-        Raises:
-            SessionNotFoundException: If session not found
-            DatabaseException: If retrieval fails
-        """
         try:
-            return await self.get(session_id, self._table_name)
+            return await self.get(session_id, self.model_class)
         except RecordNotFoundException:
             raise SessionNotFoundException(session_id)
-    
-    async def update_phase(
-        self,
-        session_id: str,
-        current_phase: str
-    ) -> dict:
-        """
-        Update session phase.
-        
-        Args:
-            session_id: Session ID
-            current_phase: New phase
-            
-        Returns:
-            dict: Updated session
-            
-        Raises:
-            SessionNotFoundException: If session not found
-            DatabaseException: If update fails
-        """
-        return await self.update(
-            session_id,
-            {"current_phase": current_phase},
-            self._table_name
-        )
-    
-    async def update_question_number(
-        self,
-        session_id: str,
-        question_number: int
-    ) -> dict:
-        """
-        Update current question number.
-        
-        Args:
-            session_id: Session ID
-            question_number: New question number
-            
-        Returns:
-            dict: Updated session
-            
-        Raises:
-            SessionNotFoundException: If session not found
-            DatabaseException: If update fails
-        """
-        return await self.update(
-            session_id,
-            {"current_question_number": question_number},
-            self._table_name
-        )
-    
-    async def update_score(
-        self,
-        session_id: str,
-        final_score: float
-    ) -> dict:
-        """
-        Update final score for session.
-        
-        Args:
-            session_id: Session ID
-            final_score: Final score (0-10)
-            
-        Returns:
-            dict: Updated session
-            
-        Raises:
-            SessionNotFoundException: If session not found
-            DatabaseException: If update fails
-        """
-        return await self.update(
-            session_id,
-            {"final_score": final_score},
-            self._table_name
-        )
-    
-    async def update_feedback(
-        self,
-        session_id: str,
-        final_feedback: str
-    ) -> dict:
-        """
-        Update final feedback for session.
-        
-        Args:
-            session_id: Session ID
-            final_feedback: Final feedback text
-            
-        Returns:
-            dict: Updated session
-            
-        Raises:
-            SessionNotFoundException: If session not found
-            DatabaseException: If update fails
-        """
+
+    async def update_phase(self, session_id: str, current_phase: str) -> dict:
+        return await self.update(session_id, {"current_phase": current_phase}, self.model_class)
+
+    async def update_question_number(self, session_id: str, question_number: int) -> dict:
+        return await self.update(session_id, {"current_question_number": question_number}, self.model_class)
+
+    async def update_score(self, session_id: str, final_score: float) -> dict:
+        return await self.update(session_id, {"final_score": final_score}, self.model_class)
+
+    async def update_feedback(self, session_id: str, final_feedback: str) -> dict:
         return await self.update(
             session_id,
             {"final_feedback": final_feedback, "status": "completed"},
-            self._table_name
+            self.model_class
         )
-    
-    async def complete_session(
-        self,
-        session_id: str,
-        final_score: float,
-        final_feedback: str
-    ) -> dict:
-        """
-        Mark session as completed with final score and feedback.
-        
-        Args:
-            session_id: Session ID
-            final_score: Final score (0-10)
-            final_feedback: Final feedback text
-            
-        Returns:
-            dict: Completed session
-        """
+
+    async def complete_session(self, session_id: str, final_score: float, final_feedback: str) -> dict:
         return await self.update(
             session_id,
-            {
-                "final_score": final_score,
-                "final_feedback": final_feedback,
-                "status": "completed"
-            },
-            self._table_name
+            {"final_score": final_score, "final_feedback": final_feedback, "status": "completed"},
+            self.model_class
         )
-    
+
     async def check_completion_before(self, session_id: str) -> tuple[bool, int, Optional[float]]:
-        """
-        Check if interviews is complete before a certain question.
-        
-        Args:
-            session_id: Session ID
-            
-        Returns:
-            tuple: (is_complete, current_answered_count, total_questions)
-        """
         try:
             session = await self.get_session(session_id)
             question_number = session.get("current_question_number", 0)
             total_questions = session.get("total_questions", 10)
-            
-            # Count messages to see how many have been answered
-            messages = await self.list_by_session(
-                session_id,
-                "interview_messages"
-            )
-            answered_count = len([m for m in messages if m.get("question_number") < question_number])
-            
+            total_messages = await self._count_messages_for_session(session_id)
+            answered_count = total_messages
             is_complete = answered_count >= question_number or question_number >= total_questions
             return is_complete, question_number, total_questions
-            
         except Exception as e:
             logger.error(f"Error checking completion: {e}", exc_info=True)
             return False, 0, 0
-    
+
+    async def _count_messages_for_session(self, session_id: str) -> int:
+        from uuid import UUID
+        from sqlalchemy import select, func
+        from app.database.session import get_session_factory
+        try:
+            async with get_session_factory()() as session:
+                result = await session.execute(
+                    select(func.count()).where(InterviewMessage.session_id == UUID(session_id))
+                )
+                return result.scalar() or 0
+        except Exception as e:
+            self.logger.error(f"Error counting messages: {e}")
+            return 0
+
     async def get_session_summary(self, session_id: str) -> dict:
-        """
-        Get a comprehensive summary of the session.
-        
-        Args:
-            session_id: Session ID
-            
-        Returns:
-            dict: Session summary with messages count, etc.
-        """
         try:
             session = await self.get_session(session_id)
-            
-            # Get messages count
-            messages = await self.list_by_session(session_id, "interview_messages")
+            messages = await self.list_by_session(session_id, InterviewMessage)
             questions_attempted = len([
-                m for m in messages 
-                if m.get("question_number") < session.get("current_question_number", 0)
+                m for m in messages
+                if m.get("question_number", 0) < session.get("current_question_number", 0)
             ])
-            
             return {
                 "id": session["id"],
                 "company_id": session["company_id"],
@@ -264,7 +127,6 @@ class SessionRepository(BaseRepository):
                 "messages_count": len(messages),
                 "questions_attempted": questions_attempted
             }
-            
         except Exception as e:
             logger.error(f"Error getting session summary: {e}", exc_info=True)
             raise

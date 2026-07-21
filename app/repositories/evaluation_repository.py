@@ -1,10 +1,10 @@
 """
-Evaluation repository for storing structured answer evaluations.
+Evaluation repository for storing structured answer evaluations using async SQLAlchemy.
 """
 import logging
 from typing import Optional
 
-from app.config.database import get_supabase
+from app.models.db import InterviewEvaluation
 from app.exceptions import DatabaseException
 from app.repositories.base_repository import BaseRepository
 
@@ -14,20 +14,13 @@ logger = logging.getLogger(__name__)
 class EvaluationRepository(BaseRepository):
     """
     Repository for interview evaluations.
-    Handles all database operations for interview_evaluations table.
-    Stores structured evaluation data (scores, feedback, strengths, weaknesses).
-
-    DB schema (interview_evaluations):
-      id, session_id, message_id, score, technical_score, communication_score,
-      strengths, weaknesses, feedback_detail, evaluated_at, created_at
+    Uses async SQLAlchemy with InterviewEvaluation ORM model.
     """
 
-    _table_name = "interview_evaluations"
+    model_class = InterviewEvaluation
 
     def __init__(self):
-        """Initialize evaluation repository with database client."""
-        db = get_supabase()
-        super().__init__(db)
+        super().__init__()
 
     async def create_evaluation(
         self,
@@ -40,29 +33,14 @@ class EvaluationRepository(BaseRepository):
         feedback: Optional[str] = None,
         overall_score: Optional[float] = None
     ) -> dict:
-        """
-        Create a new structured evaluation record.
-
-        Args:
-            session_id: Session ID
-            message_id: Related message ID (candidate answer)
-            technical_score: Technical score (0-10)
-            communication_score: Communication score (0-10)
-            strengths: Candidate strengths (comma-separated)
-            weaknesses: Candidate weaknesses (comma-separated)
-            feedback: Detailed feedback text (stored as feedback_detail in DB)
-            overall_score: Overall aggregated score (stored as score in DB)
-
-        Returns:
-            dict: Created evaluation record
-        """
+        from uuid import UUID, uuid4
         evaluation_data = {
-            "session_id": session_id,
-            "message_id": message_id,
+            "id": uuid4(),
+            "session_id": UUID(session_id),
+            "message_id": UUID(message_id),
             "technical_score": technical_score,
             "communication_score": communication_score,
         }
-
         if strengths is not None:
             evaluation_data["strengths"] = strengths
         if weaknesses is not None:
@@ -71,55 +49,22 @@ class EvaluationRepository(BaseRepository):
             evaluation_data["feedback_detail"] = feedback
         if overall_score is not None:
             evaluation_data["score"] = overall_score
+        return await self.create(evaluation_data, self.model_class)
 
-        return await self.create(evaluation_data, self._table_name)
+    async def get_evaluations_by_session(self, session_id: str, order_by: str = "created_at") -> list[dict]:
+        return await self.list_by_session(session_id, self.model_class, order_by=order_by)
 
-    async def get_evaluations_by_session(
-        self,
-        session_id: str,
-        order_by: str = "created_at"
-    ) -> list[dict]:
-        """
-        Get all evaluations for a session ordered by creation time.
-
-        Args:
-            session_id: Session ID
-            order_by: Field to order by
-
-        Returns:
-            list[dict]: List of evaluation records
-        """
-        return await self.list_by_session(
-            session_id,
-            self._table_name,
-            order_by=order_by
-        )
-
-    async def get_evaluation_by_message(
-        self,
-        message_id: str
-    ) -> Optional[dict]:
-        """
-        Get the evaluation associated with a specific message.
-
-        Args:
-            message_id: Message ID
-
-        Returns:
-            dict or None: Evaluation record if found
-        """
+    async def get_evaluation_by_message(self, message_id: str) -> Optional[dict]:
+        from uuid import UUID
+        from sqlalchemy import select
+        from app.database.session import get_session_factory
         try:
-            response = (
-                self.db.table(self._table_name)
-                .select("*")
-                .eq("message_id", message_id)
-                .limit(1)
-                .execute()
-            )
-            return response.data[0] if response.data else None
+            async with get_session_factory()() as session:
+                result = await session.execute(
+                    select(self.model_class).where(self.model_class.message_id == UUID(message_id)).limit(1)
+                )
+                instance = result.scalar_one_or_none()
+                return self._to_dict(instance) if instance else None
         except Exception as e:
-            self.logger.error(
-                f"Database error fetching evaluation by message: {e}",
-                extra={"message_id": message_id}
-            )
+            self.logger.error(f"Database error fetching evaluation by message: {e}")
             raise DatabaseException(f"Failed to fetch evaluation: {str(e)}")

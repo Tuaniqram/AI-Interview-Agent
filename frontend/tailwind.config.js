@@ -26,11 +26,6 @@ export default {
         muted:     'var(--text-muted)',
         inverse:   'var(--text-inverse)',
 
-        border: {
-          DEFAULT: 'var(--border-default)',
-          strong:  'var(--border-strong)',
-          focus:   'var(--border-focus)',
-        },
         divider: 'var(--divider)',
 
         action: {

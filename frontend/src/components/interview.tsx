@@ -34,7 +34,7 @@ export function InterviewLayout({ mode = 'typing' }: { mode?: InterviewMode }) {
 
   if (!state.currentQuestion) {
     return (
-      <div className="min-h-[400px] bg-elevated border border-default rounded-xl p-8 flex items-center justify-center">
+      <div className="min-h-[400px] bg-elevated rounded-xl p-8 flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 className="animate-spin w-12 h-12 text-action-primary mx-auto" />
           <p className="text-secondary text-sm">Preparing interview...</p>
@@ -44,9 +44,9 @@ export function InterviewLayout({ mode = 'typing' }: { mode?: InterviewMode }) {
   }
 
   return (
-    <div className="min-h-[500px] bg-elevated border border-default rounded-xl flex flex-col">
+    <div className="min-h-[500px] bg-elevated rounded-xl flex flex-col">
       {/* Question Area */}
-      <div className="p-6 border-b border-divider flex-1">
+        <div className="p-6 flex-1">
         <div className="mb-4">
           <span className="inline-block px-3 py-1 bg-action-primary/15 text-action-primary rounded-full text-xs font-medium">
             Question {state.currentQuestion.question_number || 0}
@@ -59,7 +59,7 @@ export function InterviewLayout({ mode = 'typing' }: { mode?: InterviewMode }) {
 
       {/* Previous Answer Display */}
       {state.userAnswer && (
-        <div className="px-6 py-4 bg-section border-b border-divider">
+        <div className="px-6 py-4 bg-section">
           <div className="flex items-start gap-3">
             <span className="text-sm font-medium text-secondary mt-0.5">Your Answer:</span>
             <p className="text-primary text-sm flex-1">{state.userAnswer}</p>
@@ -68,7 +68,7 @@ export function InterviewLayout({ mode = 'typing' }: { mode?: InterviewMode }) {
       )}
 
       {/* Answer Area */}
-      <div className="p-6 border-b border-divider flex-1">
+        <div className="p-6 flex-1">
         <textarea
           ref={textareaRef}
           value={input}
@@ -79,7 +79,7 @@ export function InterviewLayout({ mode = 'typing' }: { mode?: InterviewMode }) {
             : 'Type your answer here...'}
           disabled={!state.currentQuestion || isSending}
           rows={6}
-          className="w-full px-4 py-3 bg-input text-primary border border-strong rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus disabled:bg-hover disabled:text-muted transition-all text-sm placeholder-muted"
+          className="w-full px-4 py-3 bg-input text-primary rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] disabled:bg-hover disabled:text-muted transition-all text-sm placeholder-muted"
         />
       </div>
 
@@ -89,7 +89,7 @@ export function InterviewLayout({ mode = 'typing' }: { mode?: InterviewMode }) {
           <button
             onClick={() => setInput('')}
             disabled={isSending || !input}
-            className="px-5 py-2 text-sm font-medium border border-default rounded-lg text-action-ghost-text hover:bg-action-ghost-hover disabled:bg-action-disabled disabled:text-action-disabled-text disabled:cursor-not-allowed transition-colors"
+            className="px-5 py-2 text-sm font-medium rounded-lg text-action-ghost-text hover:bg-action-ghost-hover disabled:bg-action-disabled disabled:text-action-disabled-text disabled:cursor-not-allowed transition-colors"
           >
             <span className="inline-flex items-center gap-2">
               <RotateCcw className="w-3.5 h-3.5" />
@@ -118,7 +118,7 @@ export function InterviewLayout({ mode = 'typing' }: { mode?: InterviewMode }) {
 
       {/* Feedback / Analysis Area */}
       {state.evaluation && (
-        <div className="p-6 border-t border-divider">
+        <div className="p-6">
           <div className="flex items-start gap-3">
             <div className="p-2 rounded-full bg-action-primary/15 shrink-0">
               <Lightbulb className="w-5 h-5 text-action-primary" />

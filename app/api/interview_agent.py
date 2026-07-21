@@ -2,9 +2,11 @@
 AI Interview Agent API - Clean Production API Endpoints
 Provides modern, RESTful API for AI Interview Agent workflow.
 """
+import json
 import logging
 from typing import List, Dict, Any
 from fastapi import APIRouter, HTTPException, Body
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.orchestrators.interview_orchestrator import InterviewOrchestrator
@@ -144,6 +146,62 @@ async def initiate_next_question(
     except Exception as e:
         logger.exception("Failed to generate next question")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/interviews/{session_id}/questions/next/stream")
+async def initiate_next_question_stream(
+    session_id: str,
+    request: QuestionInitiateRequest
+):
+    """
+    Stream question generation token-by-token via SSE.
+    """
+    async def event_stream():
+        try:
+            llm_service = get_llm_service()
+            system_prompt = load_prompt("system", "interviewer_system.md")
+            job_role = request.candidate_profile.get("job_role", "the role")
+            phase = request.current_phase
+            difficulty = request.difficulty_level
+
+            user_prompt = load_prompt(
+                "interview",
+                "question_generation.md",
+                job_role=job_role,
+                phase=phase,
+                difficulty_level=difficulty,
+                company_context="N/A",
+                candidate_profile="N/A",
+                question_number=request.question_number,
+                conversation_history="(new interview)"
+            )
+
+            yield f"data: {json.dumps({'type': 'meta', 'session_id': session_id})}\n\n"
+
+            full_text = ""
+            async for token in llm_service.invoke_stream(
+                prompt=user_prompt,
+                system_prompt=system_prompt,
+                temperature=0.8,
+                max_tokens=200
+            ):
+                full_text += token
+                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+
+            yield f"data: {json.dumps({'type': 'done', 'question': full_text.strip()})}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
 
 
 @router.post("/interviews/{session_id}/answers")

@@ -3,7 +3,7 @@
  * Centralized state management with context API
  */
 
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useMemo, useRef, ReactNode } from 'react';
 import { 
   InterviewSession, 
   Question, 
@@ -197,101 +197,88 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
   const [state, dispatch] = useReducer(interviewReducer, initialState);
   const controller = interviewController;
 
-  // Actions with controller integration
-  const actions: InterviewStoreActions = {
-    startInterview: async (params) => {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      try {
-        if (params.mode) {
-          dispatch({ type: 'SET_INTERVIEW_MODE', payload: params.mode as InterviewMode });
-        }
-        const result = await controller.startInterview(params);
-        console.log('[Store] QUESTION RECEIVED:', result.firstQuestion);
-        dispatch({ type: 'SET_SESSION', payload: result.session });
-        dispatch({ type: 'SET_QUESTION', payload: result.firstQuestion });
-      } catch (error: any) {
-        dispatch({ type: 'SET_ERROR', payload: error.message });
-      }
-    },
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
-    cancelInterview: () => {
-      controller.cancelInterview();
-      dispatch({ type: 'RESET_STATE' });
-    },
-
-    fetchFinalReport: async () => {
-      if (!state.session) return;
-      
+  const actions = useMemo<InterviewStoreActions>(() => {
+    const fetchFinalReport = async () => {
+      if (!stateRef.current.session) return;
       dispatch({ type: 'SET_LOADING', payload: true });
       try {
         const { interviewService } = await import('../services/interviewService');
-        const report = await interviewService.getSummary(state.session.session_id);
+        const report = await interviewService.getSummary(stateRef.current.session.session_id);
         dispatch({ type: 'SET_FINAL_REPORT', payload: report });
       } catch (error: any) {
         dispatch({ type: 'SET_ERROR', payload: error.message });
       }
-    },
+    };
 
-    goToNextQuestion: async () => {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      try {
-        const nextQuestion = await controller.goToNextQuestion();
-        console.log('[Store] QUESTION RECEIVED:', nextQuestion);
-        // Clear previous answer so the next question renders fresh.
-        dispatch({ type: 'SET_USER_ANSWER', payload: '' });
-        dispatch({ type: 'SET_EVALUATION', payload: null as unknown as AnswerEvaluation });
-        dispatch({ type: 'SET_QUESTION', payload: nextQuestion });
-      } catch (error: any) {
-        dispatch({ type: 'SET_ERROR', payload: error.message });
-      }
-    },
-
-    submitAnswer: async (answer) => {
-      // Only block truly empty answers. The backend LLM evaluator handles
-      // short/long answers appropriately. A hard 50-char client gate would
-      // reject valid intro-question responses (e.g. "Yes" / "Hi" / short name).
-      if (!answer || !answer.trim()) {
-        dispatch({ type: 'SET_ERROR', payload: 'Please enter an answer before submitting.' });
-        return;
-      }
-
-      const payload = {
-        answer,
-        sessionId: state.session?.session_id,
-        questionNumber: state.currentQuestion?.question_number,
-      };
-      console.log('[Store] SUBMIT ANSWER:', payload);
-
-      dispatch({ type: 'SET_EVALUATING', payload: true });
-      dispatch({ type: 'SET_USER_ANSWER', payload: answer });
-      try {
-        const evaluation = await controller.submitAnswer({ answer });
-        console.log('[Store] EVALUATION RESULT:', evaluation);
-        dispatch({ type: 'SET_EVALUATION', payload: evaluation });
-
-        // If interview completed, fetch report
-        if (evaluation.interview_status === 'completed') {
-          console.log('[Store] Interview completed, fetching final report...');
-          await actions.fetchFinalReport();
-        } else {
-          // Backend controls flow: if not completed, get next question
-          console.log('[Store] Fetching next question...');
-          await actions.goToNextQuestion();
+    return {
+      startInterview: async (params) => {
+        dispatch({ type: 'SET_LOADING', payload: true });
+        try {
+          if (params.mode) {
+            dispatch({ type: 'SET_INTERVIEW_MODE', payload: params.mode as InterviewMode });
+          }
+          const result = await controller.startInterview(params);
+          dispatch({ type: 'SET_SESSION', payload: result.session });
+          dispatch({ type: 'SET_QUESTION', payload: result.firstQuestion });
+        } catch (error: any) {
+          dispatch({ type: 'SET_ERROR', payload: error.message });
         }
-      } catch (error: any) {
-        console.error('[Store] submitAnswer error:', error);
-        dispatch({ type: 'SET_ERROR', payload: error.message });
-      }
-    },
+      },
 
-    updateAnswer: (answer: string) => {
-      dispatch({ type: 'SET_USER_ANSWER', payload: answer });
-    },
+      cancelInterview: () => {
+        controller.cancelInterview();
+        dispatch({ type: 'RESET_STATE' });
+      },
 
-    clearError: () => {
-      dispatch({ type: 'SET_ERROR', payload: '' });
-    },
-  };
+      fetchFinalReport,
+
+      goToNextQuestion: async () => {
+        dispatch({ type: 'SET_LOADING', payload: true });
+        try {
+          const nextQuestion = await controller.goToNextQuestion();
+          dispatch({ type: 'SET_USER_ANSWER', payload: '' });
+          dispatch({ type: 'SET_EVALUATION', payload: null as unknown as AnswerEvaluation });
+          dispatch({ type: 'SET_QUESTION', payload: nextQuestion });
+        } catch (error: any) {
+          dispatch({ type: 'SET_ERROR', payload: error.message });
+        }
+      },
+
+      submitAnswer: async (answer) => {
+        if (!answer || !answer.trim()) {
+          dispatch({ type: 'SET_ERROR', payload: 'Please enter an answer before submitting.' });
+          return;
+        }
+        dispatch({ type: 'SET_EVALUATING', payload: true });
+        dispatch({ type: 'SET_USER_ANSWER', payload: answer });
+        try {
+          const evaluation = await controller.submitAnswer({ answer });
+          dispatch({ type: 'SET_EVALUATION', payload: evaluation });
+          if (evaluation.interview_status === 'completed') {
+            await fetchFinalReport();
+          } else {
+            const nextQuestion = await controller.goToNextQuestion();
+            dispatch({ type: 'SET_USER_ANSWER', payload: '' });
+            dispatch({ type: 'SET_EVALUATION', payload: null as unknown as AnswerEvaluation });
+            dispatch({ type: 'SET_QUESTION', payload: nextQuestion });
+          }
+        } catch (error: any) {
+          dispatch({ type: 'SET_ERROR', payload: error.message });
+        }
+      },
+
+      updateAnswer: (answer: string) => {
+        dispatch({ type: 'SET_USER_ANSWER', payload: answer });
+      },
+
+      clearError: () => {
+        dispatch({ type: 'SET_ERROR', payload: '' });
+      },
+    };
+  }, []);
 
   return (
     <InterviewContext.Provider value={{ state, dispatch, actions }}>

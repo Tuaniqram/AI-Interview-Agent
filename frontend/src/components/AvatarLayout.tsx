@@ -140,7 +140,7 @@ export function AvatarLayout() {
         {/* Bug 2 fix: Evaluation or Question overlay, never both */}
         {state.evaluation ? (
           <div className="absolute bottom-0 left-0 right-0 z-20 p-4">
-            <div className="max-w-2xl mx-auto bg-elevated backdrop-blur-sm rounded-xl p-4 border border-default">
+            <div className="max-w-2xl mx-auto bg-elevated backdrop-blur-sm rounded-xl p-4">
               <div className="flex items-start gap-3">
                 <div className="flex-1 min-w-0">
                   <h4 className="font-semibold text-primary text-sm mb-1">Analysis</h4>
@@ -178,7 +178,7 @@ export function AvatarLayout() {
       </div>
 
       {/* Input Bar - bottom */}
-      <div className="bg-section border-t border-default p-3 z-30">
+      <div className="bg-section p-3 z-30">
         <div className="max-w-2xl mx-auto flex gap-3 items-end">
           {/* Mic Button */}
           <button
@@ -207,7 +207,7 @@ export function AvatarLayout() {
               placeholder={voice.isListening ? 'Listening...' : 'Type your answer...'}
               rows={1}
               disabled={isSending}
-              className="w-full px-4 py-2.5 bg-input text-primary border border-strong rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-transparent disabled:bg-input transition-all text-sm placeholder-muted"
+              className="w-full px-4 py-2.5 bg-input text-primary rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] disabled:bg-input transition-all text-sm placeholder-muted"
             />
             {voice.error && (
               <p className="text-error-text text-xs mt-1">{voice.error}</p>

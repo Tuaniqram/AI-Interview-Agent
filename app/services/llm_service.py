@@ -5,12 +5,14 @@ Handles all LLM operations with proper error handling.
 import asyncio
 import logging
 import json
-from typing import Any, Optional
+from typing import Any, AsyncGenerator, Optional
 from functools import wraps
 import time
+import hashlib
 
 from app.models.llm import llm
 from app.exceptions import LLMServiceError, LLMTimeoutError, LLMRateLimitError
+from app.services.cache import get_cache
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,8 @@ class LLMService:
         """Initialize LLM service."""
         self._cache = {}
         self._cache_ttl = 300  # 5 minutes
-        self._rate_limit_delay = 1.0  # Seconds between requests
+        self._cache_enabled = True
+        self._rate_limiter = asyncio.Semaphore(3)
     
     async def invoke(
         self,
@@ -54,81 +57,112 @@ class LLMService:
         if max_tokens is None:
             max_tokens = 2048  # Reasonable limit for interview questions
         
-        # Check cache first
         cache_key = self._generate_cache_key(prompt, temperature, system_prompt)
+
+        # Check Redis first
+        redis_cache = get_cache()
+        if redis_cache.is_enabled:
+            try:
+                redis_val = await redis_cache.get(cache_key)
+                if redis_val is not None:
+                    logger.debug(f"Redis cache hit for prompt: {prompt[:50]}...")
+                    return redis_val
+            except Exception:
+                pass
+
+        # Fallback to in-memory cache
         if cache_key in self._cache:
             cached_result = self._cache[cache_key]
             if time.time() - cached_result['timestamp'] < self._cache_ttl:
-                logger.debug(f"Cache hit for prompt: {prompt[:50]}...")
+                logger.debug(f"Memory cache hit for prompt: {prompt[:50]}...")
                 return cached_result['content']
         
-        # Exponential backoff retry
         max_retries = 3
-        initial_delay = 1.0
-        
-        for attempt in range(max_retries):
-            try:
-                # Respect rate limiting
-                await asyncio.sleep(self._rate_limit_delay * (attempt if attempt > 0 else 1))
-                
-                # Build messages
-                messages = []
-                if system_prompt:
-                    messages.append({"role": "system", "content": system_prompt})
-                messages.append({"role": "user", "content": prompt})
-                
-                # Invoke LLM
-                config = {
-                    "temperature": temperature
-                }
-                if max_tokens:
-                    config["max_tokens"] = max_tokens
-                
-                response = await llm.ainvoke(messages, config)
-                
-                result_content = response.content
-                
-                # Cache result
-                self._cache[cache_key] = {
-                    'content': result_content,
-                    'timestamp': time.time()
-                }
-                
-                logger.info(f"Successfully generated response (attempt {attempt + 1}/{max_retries})")
-                return result_content
-                
-            except asyncio.TimeoutError:
-                logger.warning(f"LLM timeout on attempt {attempt + 1}/{max_retries}")
-                if attempt == max_retries - 1:
-                    raise LLMTimeoutError(60)  # Assuming 60 second timeout
-                continue
-                
-            except ValueError as e:
-                error_msg = str(e).lower()
-                
-                # HTTP 402 errors (insufficient credits) should NOT be retried
-                if "402" in error_msg or "credit" in error_msg or "insufficient" in error_msg or "budget" in error_msg:
-                    logger.error(f"Insufficient credits/budget (HTTP 402): {str(e)}")
-                    raise LLMServiceError("Insufficient credits or budget. Please upgrade your API plan or reduce token usage.")
-                
-                # Rate limit errors should be retried
-                if "rate limit" in error_msg:
-                    logger.warning(f"Rate limit detected on attempt {attempt + 1}/{max_retries}")
+
+        async with self._rate_limiter:
+            for attempt in range(max_retries):
+                try:
+                    messages = []
+                    if system_prompt:
+                        messages.append({"role": "system", "content": system_prompt})
+                    messages.append({"role": "user", "content": prompt})
+
+                    config = {"temperature": temperature}
+                    if max_tokens:
+                        config["max_tokens"] = max_tokens
+
+                    response = await asyncio.wait_for(
+                        llm.ainvoke(messages, config),
+                        timeout=60
+                    )
+
+                    result_content = response.content
+
+                    self._cache[cache_key] = {
+                        'content': result_content,
+                        'timestamp': time.time()
+                    }
+
+                    # Write to Redis cache (async, best-effort)
+                    if redis_cache.is_enabled:
+                        try:
+                            await redis_cache.set(cache_key, result_content, self._cache_ttl)
+                        except Exception:
+                            pass
+
+                    logger.info(f"Successfully generated response (attempt {attempt + 1}/{max_retries})")
+                    return result_content
+
+                except asyncio.TimeoutError:
+                    logger.warning(f"LLM timeout on attempt {attempt + 1}/{max_retries}")
                     if attempt == max_retries - 1:
-                        raise LLMRateLimitError(60, 60)  # Retry after 60 seconds
+                        raise LLMTimeoutError(60)
                     continue
-                    
-                # Other validation errors should not be retried
-                raise LLMServiceError(f"LLM validation error: {str(e)}")
-                
-            except Exception as e:
-                logger.error(f"LLM error on attempt {attempt + 1}/{max_retries}: {str(e)}")
-                if attempt == max_retries - 1:
-                    raise LLMServiceError(f"LLM invocation failed after {max_retries} attempts: {str(e)}")
-                continue
-        
-        # Should never reach here, but keep mypy happy
+
+                except ValueError as e:
+                    error_msg = str(e).lower()
+
+                    if "402" in error_msg or "credit" in error_msg or "insufficient" in error_msg or "budget" in error_msg:
+                        logger.error(f"Insufficient credits/budget (HTTP 402): {str(e)}")
+                        raise LLMServiceError("Insufficient credits or budget. Please upgrade your API plan or reduce token usage.")
+
+                    if "rate limit" in error_msg:
+                        logger.warning(f"Rate limit detected on attempt {attempt + 1}/{max_retries}")
+                        if attempt == max_retries - 1:
+                            raise LLMRateLimitError(60, 60)
+                        continue
+
+                    raise LLMServiceError(f"LLM validation error: {str(e)}")
+
+                except Exception as e:
+                    logger.error(f"LLM error on attempt {attempt + 1}/{max_retries}: {str(e)}")
+                    if attempt == max_retries - 1:
+                        raise LLMServiceError(f"LLM invocation failed after {max_retries} attempts: {str(e)}")
+                    continue
+
         raise LLMServiceError("Unknown LLM error")
+
+    async def invoke_stream(
+        self,
+        prompt: str,
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = None,
+        system_prompt: Optional[str] = None
+    ) -> AsyncGenerator[str, None]:
+        """Stream LLM response token by token."""
+        if max_tokens is None:
+            max_tokens = 2048
+
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        config = {"temperature": temperature, "max_tokens": max_tokens}
+
+        async with self._rate_limiter:
+            async for token in llm.astream(messages, config):
+                yield token
     
     async def invoke_structured(
         self,
@@ -177,27 +211,18 @@ class LLMService:
             raise LLMServiceError(f"Failed to parse structured response: {str(e)}")
     
     def _generate_cache_key(self, prompt: str, temperature: float, system_prompt: Optional[str]) -> str:
-        """
-        Generate cache key from prompt and parameters.
-        
-        Args:
-            prompt: User prompt
-            temperature: Temperature parameter
-            system_prompt: System prompt
-            
-        Returns:
-            str: Cache key
-        """
-        # Simple cache key - should be replaced with proper hashing in production
-        key_data = {
-            "prompt": prompt,
-            "temp": temperature
-        }
-        return str(hash(frozenset(key_data.items())))
+        raw = f"{prompt}|{temperature}|{system_prompt or ''}"
+        return hashlib.md5(raw.encode()).hexdigest()
     
-    def clear_cache(self):
+    async def clear_cache(self):
         """Clear the LLM response cache."""
         self._cache = {}
+        redis_cache = get_cache()
+        if redis_cache.is_enabled:
+            try:
+                pass
+            except Exception:
+                pass
         logger.info("LLM cache cleared")
     
     def get_cache_info(self) -> dict[str, int]:

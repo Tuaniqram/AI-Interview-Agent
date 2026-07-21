@@ -7,7 +7,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   icon?: ReactNode;
 }
 
-const baseInput = 'w-full bg-input text-primary border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-focus transition-colors placeholder:text-muted disabled:opacity-50 disabled:cursor-not-allowed';
+const baseInput = 'w-full bg-input text-primary rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] transition-colors placeholder:text-muted disabled:opacity-50 disabled:cursor-not-allowed';
 
 export function Input({ label, error, hint, icon, className = '', ...props }: InputProps) {
   return (
@@ -20,7 +20,7 @@ export function Input({ label, error, hint, icon, className = '', ...props }: In
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted">{icon}</span>
         )}
         <input
-          className={`${baseInput} ${icon ? 'pl-9' : ''} ${error ? 'border-error' : 'border-strong'} ${className}`}
+          className={`${baseInput} ${icon ? 'pl-9' : ''} ${className}`}
           {...props}
         />
       </div>
@@ -43,7 +43,7 @@ export function Textarea({ label, error, hint, className = '', ...props }: Texta
         <label className="block text-sm font-medium text-primary">{label}</label>
       )}
       <textarea
-        className={`${baseInput} resize-none rounded-xl px-4 py-2.5 ${error ? 'border-error' : 'border-strong'} ${className}`}
+        className={`${baseInput} resize-none rounded-xl px-4 py-2.5 ${className}`}
         {...props}
       />
       {error && <p className="text-xs text-error">{error}</p>}
@@ -66,7 +66,7 @@ export function Select({ label, error, options, placeholder, className = '', ...
         <label className="block text-sm font-medium text-primary">{label}</label>
       )}
       <select
-        className={`${baseInput} border-strong appearance-none ${error ? 'border-error' : ''} ${className}`}
+        className={`${baseInput} appearance-none ${className}`}
         {...props}
       >
         {placeholder && <option value="">{placeholder}</option>}

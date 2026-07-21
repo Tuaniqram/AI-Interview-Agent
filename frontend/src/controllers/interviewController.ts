@@ -20,6 +20,7 @@
  */
 
 import { interviewService } from '../services/interviewService';
+import { interviewWebSocket } from '../services/interviewWebSocket';
 import { 
   InterviewSession, 
   Question, 
@@ -267,6 +268,112 @@ export class InterviewController {
     this.currentQuestion = null;
     this.isEvaluating = false;
     this.messageHistory = [];
+  }
+
+  // ============================================================================
+  // WebSocket-based interview methods
+  // ============================================================================
+
+  async startInterviewViaWS(params: {
+    companyId: number;
+    jobRole: string;
+    totalQuestions?: number;
+    candidateName?: string;
+    candidateEmail?: string;
+    mode?: string;
+  }): Promise<{ session: InterviewSession; firstQuestion: Question }> {
+    const tempSessionId = 'new';
+    await interviewWebSocket.connect(tempSessionId);
+
+    const session = await interviewWebSocket.startSession({
+      company_id: params.companyId,
+      job_role: params.jobRole,
+      total_questions: params.totalQuestions,
+      candidate_name: params.candidateName,
+      candidate_email: params.candidateEmail,
+      interview_mode: params.mode,
+    });
+
+    this.session = session;
+    this.messageHistory = [];
+
+    const question = await interviewWebSocket.getNextQuestion({
+      session_id: session.session_id,
+      question_number: 0,
+      current_phase: 'intro',
+      difficulty_level: 1,
+    });
+
+    this.currentQuestion = question;
+    return { session, firstQuestion: question };
+  }
+
+  async goToNextQuestionViaWS(): Promise<Question> {
+    if (!this.session) throw new Error('No active interview session');
+
+    const history = [...this.messageHistory];
+    const nextQuestion = await interviewWebSocket.getNextQuestion({
+      session_id: this.session.session_id,
+      conversation_history: history,
+      current_phase: this.session.current_phase,
+      question_number: this.session.question_number ?? 0,
+      difficulty_level: this.session.difficulty_level ?? 1,
+    });
+
+    this.currentQuestion = nextQuestion;
+    this.session.question_number = nextQuestion.question_number;
+    this.session.current_phase = nextQuestion.phase;
+    this.session.difficulty_level = nextQuestion.difficulty_level;
+    return nextQuestion;
+  }
+
+  async submitAnswerViaWS(params: { answer: string }): Promise<AnswerEvaluation> {
+    if (!this.session || !this.currentQuestion) throw new Error('No active session');
+
+    this.isEvaluating = true;
+    try {
+      this.messageHistory.push({ role: 'assistant', content: this.currentQuestion.question });
+
+      const response = await interviewWebSocket.submitAnswer({
+        session_id: this.session.session_id,
+        question_number: this.currentQuestion.question_number,
+        question: this.currentQuestion.question,
+        candidate_answer: params.answer,
+        conversation_history: this.messageHistory,
+        difficulty_level: this.session.difficulty_level ?? 1,
+      });
+
+      this.messageHistory.push({ role: 'user', content: params.answer });
+
+      const evaluation: AnswerEvaluation = {
+        evaluation: response.evaluation?.feedback || '',
+        score: response.evaluation?.score ?? 0,
+        phase: response.next_phase || this.session.current_phase,
+        question_number: response.question_number ?? this.currentQuestion.question_number,
+        difficulty_level: response.next_difficulty ?? this.session.difficulty_level ?? 1,
+        interview_status: response.next_action === 'finish' ? 'completed' : 'active',
+        technical_score: response.evaluation?.technical_score,
+        communication_score: response.evaluation?.communication_score,
+        strengths: response.evaluation?.strengths || [],
+        weaknesses: response.evaluation?.weaknesses || [],
+      };
+
+      this.session.current_phase = evaluation.phase;
+      this.session.question_number = evaluation.question_number;
+      this.session.difficulty_level = evaluation.difficulty_level;
+      if (evaluation.interview_status === 'completed') {
+        this.session.status = 'completed';
+      }
+
+      return evaluation;
+    } finally {
+      this.isEvaluating = false;
+    }
+  }
+
+  cancelInterviewWS(): void {
+    interviewWebSocket.disconnect();
+    this.cancelInterview();
   }
 }
 

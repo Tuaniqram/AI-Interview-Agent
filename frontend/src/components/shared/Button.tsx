@@ -15,7 +15,7 @@ const variants: Record<string, string> = {
   secondary: 'bg-action-ghost-hover text-action-ghost-text hover:bg-action-secondary-hover',
   danger: 'bg-action-danger text-inverse hover:bg-action-danger-hover',
   ghost: 'bg-transparent text-secondary hover:bg-hover',
-  outline: 'bg-transparent text-primary border border-strong hover:bg-hover',
+  outline: 'bg-transparent text-primary hover:bg-hover',
 };
 
 const sizes: Record<string, string> = {

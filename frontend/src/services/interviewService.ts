@@ -105,6 +105,68 @@ export class InterviewService {
   }
 
   // ============================================================================
+  // POST /interviews/{session_id}/questions/next/stream
+  // Stream question generation token-by-token via SSE
+  // ============================================================================
+  async getNextQuestionStream(
+    params: {
+      session_id: string;
+      conversation_history?: Array<{ role: string; content: string }>;
+      current_phase?: string;
+      question_number?: number;
+      difficulty_level?: number;
+      candidate_profile?: Record<string, unknown>;
+    },
+    onToken: (token: string) => void,
+    onDone: (question: string) => void,
+    onError: (error: string) => void
+  ): Promise<AbortController> {
+    const controller = new AbortController();
+    const baseUrl = this.apiClient.getConfig().baseURL || '';
+
+    fetch(`${baseUrl}/interviews/${params.session_id}/questions/next/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conversation_history: params.conversation_history || [],
+        current_phase: params.current_phase || 'intro',
+        question_number: params.question_number || 0,
+        difficulty_level: params.difficulty_level || 1,
+        candidate_profile: params.candidate_profile || {},
+      }),
+      signal: controller.signal,
+    }).then(async (response) => {
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.type === 'token') onToken(data.content);
+              else if (data.type === 'done') onDone(data.question);
+              else if (data.type === 'error') onError(data.detail);
+            } catch {}
+          }
+        }
+      }
+    }).catch((err) => {
+      if (err.name !== 'AbortError') onError(err.message);
+    });
+
+    return controller;
+  }
+
+  // ============================================================================
   // POST /interviews/{session_id}/answers
   // Submit candidate answer for LLM evaluation
   // ============================================================================

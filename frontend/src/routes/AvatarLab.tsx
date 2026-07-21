@@ -28,7 +28,7 @@ export function AvatarLab() {
   // ESC key to go back
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') navigate('/');
+      if (e.key === 'Escape') navigate(-1);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -96,12 +96,12 @@ export function AvatarLab() {
     <div className="fixed inset-0 bg-page flex">
       {/* Floating back button */}
       <button
-        onClick={() => navigate('/')}
-        className="fixed top-4 left-4 z-50 flex items-center gap-2 px-3 py-2 bg-overlay/80 backdrop-blur-sm text-secondary hover:text-primary rounded-lg border border-default hover:border-strong transition-all opacity-60 hover:opacity-100"
+        onClick={() => navigate(-1)}
+        className="fixed top-4 left-4 z-50 flex items-center gap-2 px-3 py-2 bg-overlay/80 backdrop-blur-sm text-secondary hover:text-primary rounded-lg  -default hover:-strong transition-all opacity-60 hover:opacity-100"
       >
         <ArrowLeft className="w-4 h-4" />
         <span className="text-xs font-medium">Back</span>
-        <kbd className="ml-1 text-[10px] text-muted bg-hover px-1.5 py-0.5 rounded border border-default">ESC</kbd>
+        <kbd className="ml-1 text-[10px] text-muted bg-hover px-1.5 py-0.5 rounded  -default">ESC</kbd>
       </button>
 
       <div className="flex-1 relative">

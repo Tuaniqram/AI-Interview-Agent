@@ -4,6 +4,7 @@ Generates adaptive interview questions using LLM and company context.
 CRITICAL: NO HARDCODED TEMPLATES - Always generates via AI.
 """
 import logging
+import time
 from app.graph.interview_state import InterviewState
 from app.exceptions import LLMServiceError
 
@@ -58,7 +59,7 @@ async def question_generation_node(state: InterviewState) -> InterviewState:
                 job_role=job_role,
                 phase=phase,
                 difficulty_level=difficulty,
-                company_context=company_requirements[:1000] if company_requirements else "N/A",
+                company_context=company_requirements[:2000] if company_requirements else "N/A",
                 candidate_profile=candidate_profile[:500] if candidate_profile else "N/A",
                 question_number=question_number,
                 conversation_history=history_summary or "(no previous conversation)"
@@ -95,12 +96,14 @@ async def question_generation_node(state: InterviewState) -> InterviewState:
 
         logger.debug(f"Sending prompt to LLM (system={len(system_prompt)} chars, user={len(user_prompt)} chars)")
 
+        t0 = time.time()
         question = await llm_service.invoke(
             prompt=user_prompt,
             system_prompt=system_prompt,
             temperature=0.8,
             max_tokens=200
         )
+        logger.info(f"LLM call completed in {time.time() - t0:.2f}s (q#{question_number}, phase={phase})")
 
         question = question.strip()
         if question.startswith("Question:"):

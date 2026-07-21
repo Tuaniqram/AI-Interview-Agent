@@ -2,7 +2,9 @@
 Interview Orchestrator - Coordination Layer
 Manages the interview session flow by coordinating between API requests and LangGraph agents.
 """
+import asyncio
 import logging
+import time
 from typing import Dict, Any, Optional, List
 from app.graph.interview_state import InterviewState
 from app.graph.question_workflow import get_question_workflow
@@ -26,6 +28,8 @@ class InterviewOrchestrator:
         self.evaluation_repo = get_evaluation_repo()
         self.question_workflow = None
         self.evaluation_workflow = None
+        self._pregen_cache: dict[str, dict] = {}
+        self._pregen_pending: dict[str, asyncio.Task] = {}
     
     def get_question_workflow(self):
         """
@@ -80,7 +84,7 @@ class InterviewOrchestrator:
             )
             
             logger.info(f"Session created: {session['id']}")
-            
+
             return {
                 "session_id": session["id"],
                 "status": "initialized",
@@ -106,25 +110,49 @@ class InterviewOrchestrator:
         candidate_profile: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
-        Initiate question generation using Question Generation workflow.
-        
-        Args:
-            session_id: Session UUID
-            conversation_history: List of conversation entries
-            current_phase: Current interview phase
-            question_number: Current question number
-            difficulty_level: Current difficulty level
-            candidate_profile: Optional candidate profile data
-            
-        Returns:
-            dict: Generated question and next action
+        Initiate next question — checks pregen cache first, awaits background task if
+        still running, falls back to live generation.
         """
-        logger.info(f"Initiating next question: session={session_id}, phase={current_phase}, q#{question_number}")
+        if session_id in self._pregen_cache:
+            result = self._pregen_cache.pop(session_id)
+            self._pregen_pending.pop(session_id, None)
+            logger.info(f"Using pre-generated question for session {session_id}, q#{result.get('question_number')}")
+            return result
+
+        task = self._pregen_pending.get(session_id)
+        if task is not None and not task.done():
+            logger.info(f"Waiting for background pre-generation for session {session_id}")
+            try:
+                await task
+            except Exception:
+                pass
+            if session_id in self._pregen_cache:
+                return self._pregen_cache.pop(session_id)
+
+        return await self._do_generate_question(
+            session_id, conversation_history, current_phase,
+            question_number, difficulty_level, candidate_profile
+        )
+
+    async def _do_generate_question(
+        self,
+        session_id: str,
+        conversation_history: List[Dict[str, str]],
+        current_phase: str,
+        question_number: int,
+        difficulty_level: int,
+        candidate_profile: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate question using LangGraph workflow (no cache).
+        """
+        logger.info(f"Generating question: session={session_id}, phase={current_phase}, q#{question_number}")
+        _t0 = time.time()
         
         try:
             workflow = self.get_question_workflow()
+            _t1 = time.time()
             
-            # Prepare initial state
             initial_state: InterviewState = {
                 "session_id": session_id,
                 "company_id": None,  # Will be loaded from database
@@ -168,10 +196,15 @@ class InterviewOrchestrator:
             initial_state["job_role"] = session.get("job_role")
             initial_state["interview_type"] = session.get("interview_type", "company")
             initial_state["total_questions"] = session.get("total_questions", 10)
+            _t2 = time.time()
             
             # Execute QUESTION GENERATION workflow only (no evaluation or decision)
             # This will return state after generating ONE question
-            final_state = await workflow.ainvoke(initial_state, config={"recursion_limit": 50})
+            final_state = await workflow.ainvoke(initial_state, config={
+                "recursion_limit": 50,
+                "configurable": {"thread_id": session_id},
+            })
+            _t3 = time.time()
             
             # Extract question and state info
             question = final_state.get("current_question", "")
@@ -181,7 +214,11 @@ class InterviewOrchestrator:
             next_difficulty = final_state.get("next_difficulty", difficulty_level)
             suggested_follow_up = final_state.get("suggested_follow_up", "")
             
-            logger.info(f"Question generated: q#{new_question_number}, action={next_action}")
+            logger.info(
+                f"Question generated: q#{new_question_number}, action={next_action} "
+                f"[workflow_get={_t1-_t0:.2f}s, db_load={_t2-_t1:.2f}s, "
+                f"workflow_run={_t3-_t2:.2f}s, total={_t3-_t0:.2f}s]"
+            )
             
             return {
                 "session_id": session_id,
@@ -199,6 +236,32 @@ class InterviewOrchestrator:
         except Exception as e:
             logger.error(f"Failed to generate next question: {e}")
             raise
+
+    async def _pregen_next_question_bg(
+        self,
+        session_id: str,
+        conversation_history: List[Dict[str, str]],
+        current_phase: str,
+        question_number: int,
+        difficulty_level: int,
+        candidate_profile: Optional[Dict[str, Any]] = None
+    ):
+        """Pre-generate next question in background after evaluation completes."""
+        try:
+            result = await self._do_generate_question(
+                session_id=session_id,
+                conversation_history=conversation_history,
+                current_phase=current_phase,
+                question_number=question_number,
+                difficulty_level=difficulty_level,
+                candidate_profile=candidate_profile
+            )
+            self._pregen_cache[session_id] = result
+            logger.info(f"Pre-generated question cached for session {session_id}, q#{result.get('question_number')}")
+        except Exception as e:
+            logger.warning(f"Pre-generation failed for session {session_id}: {e}")
+        finally:
+            self._pregen_pending.pop(session_id, None)
     
     async def submit_answer(
         self,
@@ -277,7 +340,10 @@ class InterviewOrchestrator:
             
             # Execute EVALUATION workflow only (no question generation)
             # This will return state after evaluating ONE answer
-            final_state = await workflow.ainvoke(initial_state, config={"recursion_limit": 50})
+            final_state = await workflow.ainvoke(initial_state, config={
+                "recursion_limit": 50,
+                "configurable": {"thread_id": session_id},
+            })
             
             # Extract evaluation results
             evaluation_failed = final_state.get('evaluation_failed', False)
@@ -310,16 +376,14 @@ class InterviewOrchestrator:
             
             logger.info(f"Answer evaluated: score={evaluation_score}, technical={technical_score}")
             
-            # 1. Save the question to interview_messages
-            question_msg = await self.message_repo.create_question(
+            # 1-2. Save question and answer in parallel
+            question_task = self.message_repo.create_question(
                 session_id=session_id,
                 question_text=question,
                 question_number=question_number,
                 phase=next_phase
             )
-            
-            # 2. Save the candidate answer to interview_messages
-            answer_msg = await self.message_repo.create_candidate_answer(
+            answer_task = self.message_repo.create_candidate_answer(
                 session_id=session_id,
                 role="candidate",
                 candidate_answer=candidate_answer,
@@ -327,6 +391,8 @@ class InterviewOrchestrator:
                 phase=next_phase,
                 score=evaluation_score
             )
+
+            question_msg, answer_msg = await asyncio.gather(question_task, answer_task)
             
             # 3. Save structured evaluation to interview_evaluations
             try:
@@ -352,6 +418,21 @@ class InterviewOrchestrator:
                     final_feedback=feedback
                 )
                 logger.info(f"Session {session_id} finalized with score={evaluation_score}")
+            else:
+                # Fire-and-forget: pre-generate the next question while candidate reads feedback
+                if session_id not in self._pregen_pending:
+                    task = asyncio.create_task(self._pregen_next_question_bg(
+                        session_id=session_id,
+                        conversation_history=conversation_history + [
+                            {"role": "assistant", "content": question},
+                            {"role": "user", "content": candidate_answer}
+                        ],
+                        current_phase=next_phase,
+                        question_number=question_number + 1,
+                        difficulty_level=next_difficulty,
+                        candidate_profile=candidate_profile
+                    ))
+                    self._pregen_pending[session_id] = task
             
             return {
                 "session_id": session_id,
@@ -386,8 +467,9 @@ class InterviewOrchestrator:
             dict: Session status
         """
         try:
-            session = await self.session_repo.get_session(session_id)
-            messages = await self.message_repo.get_session_messages(session_id)
+            session_task = self.session_repo.get_session(session_id)
+            messages_task = self.message_repo.get_session_messages(session_id)
+            session, messages = await asyncio.gather(session_task, messages_task)
             
             return {
                 "session_id": session_id,
@@ -417,8 +499,9 @@ class InterviewOrchestrator:
             dict: Complete session summary
         """
         try:
-            session = await self.session_repo.get_session(session_id)
-            messages = await self.message_repo.get_session_messages(session_id)
+            session_task = self.session_repo.get_session(session_id)
+            messages_task = self.message_repo.get_session_messages(session_id)
+            session, messages = await asyncio.gather(session_task, messages_task)
             
             # Get structured evaluations from interview_evaluations table
             try:

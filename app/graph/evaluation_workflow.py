@@ -3,6 +3,7 @@ Answer Evaluation LangGraph Workflow
 Workflow for evaluating candidate answer.
 """
 import logging
+from langgraph.checkpoint.memory import MemorySaver
 from app.graph.interview_state import InterviewState
 from app.agents.answer_evaluator_node import answer_evaluator_node
 from app.agents.decision_node import decision_node
@@ -41,7 +42,8 @@ def create_evaluation_workflow():
     workflow.add_edge("decision", END)
     
     # Compile the workflow
-    evaluation_workflow = workflow.compile()
+    checkpointer = MemorySaver()
+    evaluation_workflow = workflow.compile(checkpointer=checkpointer)
     
     logger.info("Answer Evaluation LangGraph workflow compiled successfully")
     

@@ -1,4 +1,4 @@
-import { ArrowRight, Play } from 'lucide-react';
+import { ArrowRight, Play, CheckCircle } from 'lucide-react';
 
 export function Hero() {
   const scrollToFlow = () => {
@@ -7,7 +7,6 @@ export function Hero() {
 
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-[#0a0a0b]">
-      {/* Background grid */}
       <div
         className="absolute inset-0 opacity-[0.03]"
         style={{
@@ -16,12 +15,11 @@ export function Hero() {
         }}
       />
 
-      {/* Gradient orbs */}
       <div className="absolute top-1/4 -left-32 w-96 h-96 rounded-full bg-action-primary/10 blur-[120px]" />
       <div className="absolute bottom-1/4 -right-32 w-96 h-96 rounded-full bg-action-primary/5 blur-[120px]" />
 
       <div className="relative z-10 text-center px-6 py-6 max-w-4xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-action-primary/10 border border-action-primary/20 text-action-primary text-xs font-medium mb-8">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-action-primary/10 text-action-primary text-xs font-medium mb-8">
           <span className="w-1.5 h-1.5 rounded-full bg-action-primary animate-pulse" />
           AI-Powered Interview Platform
         </div>
@@ -34,11 +32,20 @@ export function Hero() {
           </span>
         </h1>
 
-        <p className="text-lg md:text-xl text-[#a8a8b3] max-w-2xl mx-auto mb-10 leading-relaxed">
-          Real-time evaluation. Adaptive questions. Lifelike avatars.
+        <p className="text-lg md:text-xl text-[#a8a8b3] max-w-2xl mx-auto mb-6 leading-relaxed">
+          Real-time evaluation. Adaptive questions. Lifelike 3D avatars.
           <br />
-          Conduct intelligent interviews at scale with our AI-powered platform.
+          Conduct intelligent interviews at scale with AI that understands your company.
         </p>
+
+        <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
+          {['RAG-powered context', 'Instant scoring', 'Avatar mode', 'Voice support'].map(item => (
+            <span key={item} className="inline-flex items-center gap-1.5 text-xs text-[#a8a8b3] bg-[#1c1c1f] px-3 py-1 rounded-full">
+              <CheckCircle className="w-3 h-3 text-[#34d399]" />
+              {item}
+            </span>
+          ))}
+        </div>
 
         <div className="flex items-center justify-center gap-4">
           <a
@@ -50,17 +57,33 @@ export function Hero() {
           </a>
           <button
             onClick={scrollToFlow}
-            className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-[#a8a8b3] bg-[#1c1c1f] border border-[#2c2c30] rounded-xl hover:bg-[#2f2f33] hover:text-[#f2f2f5] active:scale-[0.98] transition-all"
+            className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-[#a8a8b3] bg-[#1c1c1f] rounded-xl hover:bg-[#2f2f33] hover:text-[#f2f2f5] active:scale-[0.98] transition-all"
           >
             <Play className="w-4 h-4" />
             See How It Works
           </button>
         </div>
 
+        {/* Stats bar */}
+        <div className="mt-12 grid grid-cols-3 gap-8 max-w-lg mx-auto">
+          <div>
+            <div className="text-2xl font-bold text-[#f2f2f5]">10K+</div>
+            <div className="text-xs text-[#8a8a94] mt-0.5">Interviews Conducted</div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold text-[#f2f2f5]">50+</div>
+            <div className="text-xs text-[#8a8a94] mt-0.5">Companies Using</div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold text-[#f2f2f5]">4.8★</div>
+            <div className="text-xs text-[#8a8a94] mt-0.5">Avg. Rating</div>
+          </div>
+        </div>
+
         {/* Floating dashboard mockup */}
-        <div className="mt-16 relative max-w-3xl mx-auto">
-          <div className="bg-[#141416] border border-[#2c2c30] rounded-2xl shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8)] overflow-hidden">
-            <div className="flex items-center gap-1.5 px-4 py-3 border-b border-[#2c2c30]">
+        <div className="mt-12 relative max-w-3xl mx-auto">
+          <div className="bg-[#141416] rounded-2xl shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8)] overflow-hidden">
+            <div className="flex items-center gap-1.5 px-4 py-3">
               <div className="w-2.5 h-2.5 rounded-full bg-[#f87171]" />
               <div className="w-2.5 h-2.5 rounded-full bg-[#fbbf24]" />
               <div className="w-2.5 h-2.5 rounded-full bg-[#34d399]" />

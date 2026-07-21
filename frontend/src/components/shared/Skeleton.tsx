@@ -19,7 +19,7 @@ export function Skeleton({ className = '', variant = 'text', width, height }: Sk
 
 export function CardSkeleton() {
   return (
-    <div className="bg-elevated border border-default rounded-xl p-4 space-y-3">
+    <div className="bg-elevated rounded-xl p-4 space-y-3">
       <Skeleton width="60%" />
       <Skeleton width="40%" height="2rem" />
     </div>

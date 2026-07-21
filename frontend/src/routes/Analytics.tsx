@@ -113,10 +113,10 @@ export function Analytics() {
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={trend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--divider)" />
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
                 <YAxis domain={[0, 10]} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
-                <Tooltip contentStyle={{ background: 'var(--bg-section)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }} />
+                <Tooltip contentStyle={{ background: 'var(--bg-section)', borderRadius: 8, fontSize: 12 }} />
                 <Line type="monotone" dataKey="avg_score" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
@@ -131,10 +131,10 @@ export function Analytics() {
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={distribution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--divider)" />
                 <XAxis dataKey="range" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
                 <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
-                <Tooltip contentStyle={{ background: 'var(--bg-section)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }} />
+                <Tooltip contentStyle={{ background: 'var(--bg-section)', borderRadius: 8, fontSize: 12 }} />
                 <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -152,10 +152,10 @@ export function Analytics() {
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={byCompany.slice(0, 8)} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--divider)" />
                 <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
                 <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
-                <Tooltip contentStyle={{ background: 'var(--bg-section)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }} />
+                <Tooltip contentStyle={{ background: 'var(--bg-section)', borderRadius: 8, fontSize: 12 }} />
                 <Bar dataKey="session_count" fill="#22c55e" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -173,7 +173,7 @@ export function Analytics() {
                 <Pie data={byRole.slice(0, 6)} dataKey="count" nameKey="job_role" cx="50%" cy="50%" outerRadius={80} labelLine={false} style={{ fontSize: 10 }}>
                   {byRole.slice(0, 6).map((_entry, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
-                <Tooltip contentStyle={{ background: 'var(--bg-section)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }} />
+                <Tooltip contentStyle={{ background: 'var(--bg-section)', borderRadius: 8, fontSize: 12 }} />
               </PieChart>
             </ResponsiveContainer>
           )}

@@ -31,18 +31,18 @@ export function Dashboard() {
         const scoreData: number[] = [];
         const sessionRows: RecentSessionSummary[] = [];
 
-        for (const c of companies.slice(0, 5)) {
-          try {
-            const companySessions = await apiClient.get<RecentSessionSummary[]>(`/companies/${c.id}/sessions`);
-            if (cancelled) return;
-            for (const s of companySessions) {
-              sessionRows.push({ ...s, company_name: c.name });
+        const sessionResults = await Promise.allSettled(
+          companies.slice(0, 5).map(c => apiClient.get<RecentSessionSummary[]>(`/companies/${c.id}/sessions`))
+        );
+        if (cancelled) return;
+        sessionResults.forEach((result, i) => {
+          if (result.status === 'fulfilled') {
+            for (const s of result.value) {
+              sessionRows.push({ ...s, company_name: companies[i].name });
               if (s.final_score !== null) scoreData.push(s.final_score);
             }
-          } catch {
-            // endpoint may not exist yet
           }
-        }
+        });
 
         setSessions(sessionRows.sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime()));
         setMetrics({
@@ -70,7 +70,7 @@ export function Dashboard() {
       />
 
       {error && (
-        <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-lg bg-error-bg border border-error/20 text-error">
+        <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-lg bg-error-bg text-error">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span className="text-sm">{error}</span>
         </div>

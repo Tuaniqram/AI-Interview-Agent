@@ -41,7 +41,7 @@
 |--------|-------|----------------|
 | `bg-` | Background surface | `--bg-page`, `--bg-elevated`, `--bg-input` |
 | `text-` | Text color | `--text-primary`, `--text-secondary`, `--text-muted` |
-| `border-` | Border | `--border-default`, `--border-strong`, `--border-focus` |
+| `-` |  | `---default`, `---strong`, `---focus` |
 | `action-` | Interactive element | `--action-primary`, `--action-danger`, `--action-ghost-text` |
 | `status-` | Semantic state | `--status-success`, `--status-error-bg`, `--status-warning-text` |
 | `focus-` | Focus indicator | `--focus-ring` |
@@ -113,10 +113,10 @@ All existing `dark:` utility classes automatically respond to `[data-theme="dark
   --text-muted:         #6b7280;
   --text-inverse:       #ffffff;
 
-  /* ── Border & divider ── */
-  --border-default:     #e2e2e8;
-  --border-strong:      #c8c8d0;
-  --border-focus:       #6d4fe8;
+  /* ──  & divider ── */
+  ---default:     #e2e2e8;
+  ---strong:      #c8c8d0;
+  ---focus:       #6d4fe8;
   --divider:            #eaeaf0;
 
   /* ── Action system: 4 variants x 3 states ── */
@@ -186,10 +186,10 @@ All existing `dark:` utility classes automatically respond to `[data-theme="dark
   --text-muted:         #8a8a94;
   --text-inverse:       #1a1a1e;
 
-  /* ── Border & divider ── */
-  --border-default:     #2c2c30;
-  --border-strong:      #3a3a40;
-  --border-focus:       #7c5cfc;
+  /* ──  & divider ── */
+  ---default:     #2c2c30;
+  ---strong:      #3a3a40;
+  ---focus:       #7c5cfc;
   --divider:            #222226;
 
   /* ── Action system ── */
@@ -262,11 +262,11 @@ Each step is >= 35% luminance increase. Always distinguishable.
 |-------|-----|-----------|------|----------|
 | `--bg-page` | #f5f5f7 | 0.930 | — | — |
 | `--bg-section` | #ffffff | 1.000 | +7.5% | Yes |
-| `--bg-elevated` | #ffffff | 1.000 | border | Uses `--border-default` |
+| `--bg-elevated` | #ffffff | 1.000 |  | Uses `---default` |
 | `--bg-input` | #f0f0f2 | 0.888 | -11% | Yes (darker) |
 | `--bg-hover` | #e8e8ec | 0.846 | -5% | Yes |
 
-Light theme uses a combination of brightness steps and border colors for separation (since white-to-white is indistinguishable by luminance alone).
+Light theme uses a combination of brightness steps and  colors for separation (since white-to-white is indistinguishable by luminance alone).
 
 ### Visual Hierarchy Diagram
 
@@ -275,7 +275,7 @@ Light:                           Dark:
   bg-page (#f5f5f7)                bg-page (#0a0a0b)
     bg-section (#ffffff)              bg-section (#141416)
       bg-elevated (#ffffff)             bg-elevated (#1c1c1f)
-        + border-default                  + border-default
+        + -default                  + -default
           bg-input (#f0f0f2)                bg-input (#252528)
             bg-hover (#e8e8ec)                bg-hover (#2f2f33)
 ```
@@ -353,10 +353,10 @@ export default {
         muted:          'var(--text-muted)',
         inverse:        'var(--text-inverse)',
 
-        border: {
-          DEFAULT:      'var(--border-default)',
-          strong:       'var(--border-strong)',
-          focus:        'var(--border-focus)',
+        : {
+          DEFAULT:      'var(---default)',
+          strong:       'var(---strong)',
+          focus:        'var(---focus)',
         },
         divider:        'var(--divider)',
 
@@ -418,9 +418,9 @@ export default {
 | `text-secondary` | `--text-secondary` | Labels, metadata, subtitles |
 | `text-muted` | `--text-muted` | Placeholders, disabled text |
 | `text-inverse` | `--text-inverse` | Text on brand-colored backgrounds |
-| `border` | `--border-default` | Card outlines, panel borders |
-| `border-strong` | `--border-strong` | Input outlines, table headers |
-| `border-focus` | `--border-focus` | Focus ring, active state |
+| `` | `---default` | Card outlines, panel s |
+| `-strong` | `---strong` | Input outlines, table headers |
+| `-focus` | `---focus` | Focus ring, active state |
 | `divider` | `--divider` | Inside cards, between rows |
 | `bg-action-primary` | `--action-primary` | Primary button background |
 | `text-action-primary-text` | `--action-primary-text` | Primary button text |
@@ -486,7 +486,7 @@ All components must use logical properties instead of physical ones for automati
 |----------|---------|
 | `margin-left` / `margin-right` | `margin-inline-start` / `margin-inline-end` |
 | `padding-left` / `padding-right` | `padding-inline-start` / `padding-inline-end` |
-| `border-left` / `border-right` | `border-inline-start` / `border-inline-end` |
+| `-left` / `-right` | `-inline-start` / `-inline-end` |
 | `text-align: left` / `text-align: right` | `text-align: start` / `text-align: end` |
 | `left: 0` / `right: 0` | `inset-inline-start: 0` / `inset-inline-end: 0` |
 | `float: left` / `float: right` | `float: inline-start` / `float: inline-end` |
@@ -524,13 +524,13 @@ Every component consumes semantic tokens only. No hardcoded hex values.
 
 ```tsx
 // Good — semantic tokens
-<div className="bg-elevated border border-default rounded-xl p-4">
+<div className="bg-elevated  -default rounded-xl p-4">
   <h3 className="text-sm font-semibold text-primary">Title</h3>
   <p className="text-sm text-secondary">Content</p>
 </div>
 
 // Bad — hardcoded colors
-<div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+<div className="bg-white dark:bg-gray-900  -gray-200 dark:-gray-800 rounded-xl p-4">
   <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Title</h3>
 </div>
 ```
@@ -541,9 +541,9 @@ Every component consumes semantic tokens only. No hardcoded hex values.
 // Good
 <input
   className="w-full px-3 py-2 text-sm bg-input text-primary
-             border border-strong rounded-lg
+              -strong rounded-lg
              placeholder:text-muted
-             focus:outline-none focus:ring-[3px] focus:ring-[var(--focus-ring)] focus:border-focus
+             focus:outline-none focus:ring-[3px] focus:ring-[var(--focus-ring)] focus:-focus
              disabled:bg-hover disabled:text-muted disabled:cursor-not-allowed"
 />
 
@@ -551,7 +551,7 @@ Every component consumes semantic tokens only. No hardcoded hex values.
 <input
   className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800
              text-gray-900 dark:text-gray-100
-             border border-gray-200 dark:border-gray-700 rounded-lg
+              -gray-200 dark:-gray-700 rounded-lg
              placeholder:text-gray-400"
 />
 ```
@@ -623,7 +623,7 @@ Every component consumes semantic tokens only. No hardcoded hex values.
 ```tsx
 <table className="w-full text-sm">
   <thead>
-    <tr className="border-b border-divider">
+    <tr className=" -divider">
       <th className="text-left text-xs font-medium text-secondary uppercase tracking-wider pb-3">
         Name
       </th>
@@ -634,7 +634,7 @@ Every component consumes semantic tokens only. No hardcoded hex values.
       <tr
         key={row.id}
         onClick={...}
-        className="border-b border-divider cursor-pointer hover:bg-hover transition-colors"
+        className=" -divider cursor-pointer hover:bg-hover transition-colors"
       >
         <td className="py-3 text-primary">{row.name}</td>
       </tr>
@@ -709,8 +709,8 @@ Replace `toggleClass('dark')` with `setAttribute('data-theme', ...)`.
 | `text-gray-900 dark:text-white` | `text-primary` |
 | `text-gray-500 dark:text-gray-400` | `text-secondary` |
 | `text-gray-400 dark:text-gray-500` | `text-muted` |
-| `border-gray-200 dark:border-gray-800` | `border` or `border-default` |
-| `border-gray-200 dark:border-gray-700` | `border-strong` |
+| `-gray-200 dark:-gray-800` | `` or `-default` |
+| `-gray-200 dark:-gray-700` | `-strong` |
 | `bg-purple-500 hover:bg-purple-600` | `bg-action-primary hover:bg-action-primary-hover` |
 | `bg-rose-50 dark:bg-rose-900/20` | `bg-error-bg` |
 | `text-rose-700 dark:text-rose-400` | `text-error-text` |

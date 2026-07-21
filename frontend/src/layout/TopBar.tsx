@@ -43,7 +43,7 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
   }, []);
 
   return (
-    <header className="h-14 bg-section border-b border-default flex items-center justify-between px-4 lg:px-6">
+    <header className="h-14 bg-section shadow-sm flex items-center justify-between px-4 lg:px-6">
       <div className="flex items-center gap-3">
         {onMenuToggle && (
           <button
