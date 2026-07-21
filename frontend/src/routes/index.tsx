@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { AppShell } from '../layout/AppShell';
 import { InterviewShell } from '../layout/InterviewShell';
+import { Landing } from '../pages/Landing';
 import { Dashboard } from './Dashboard';
 import { CompanyList } from './CompanyList';
 import { CompanyDetail } from './CompanyDetail';
@@ -15,8 +16,9 @@ import { Settings } from './Settings';
 export function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<Landing />} />
       <Route element={<AppShell />}>
-        <Route index element={<Dashboard />} />
+        <Route path="dashboard" element={<Dashboard />} />
         <Route path="companies" element={<CompanyList />} />
         <Route path="companies/:id" element={<CompanyDetail />} />
         <Route path="sessions" element={<Sessions />} />

@@ -16,6 +16,10 @@ class EvaluationRepository(BaseRepository):
     Repository for interview evaluations.
     Handles all database operations for interview_evaluations table.
     Stores structured evaluation data (scores, feedback, strengths, weaknesses).
+
+    DB schema (interview_evaluations):
+      id, session_id, message_id, score, technical_score, communication_score,
+      strengths, weaknesses, feedback_detail, evaluated_at, created_at
     """
 
     _table_name = "interview_evaluations"
@@ -31,7 +35,6 @@ class EvaluationRepository(BaseRepository):
         message_id: str,
         technical_score: float,
         communication_score: float,
-        problem_solving_score: Optional[float] = None,
         strengths: Optional[str] = None,
         weaknesses: Optional[str] = None,
         feedback: Optional[str] = None,
@@ -45,11 +48,10 @@ class EvaluationRepository(BaseRepository):
             message_id: Related message ID (candidate answer)
             technical_score: Technical score (0-10)
             communication_score: Communication score (0-10)
-            problem_solving_score: Optional problem-solving score
-            strengths: Candidate strengths
-            weaknesses: Candidate weaknesses
-            feedback: Detailed feedback text
-            overall_score: Overall aggregated score
+            strengths: Candidate strengths (comma-separated)
+            weaknesses: Candidate weaknesses (comma-separated)
+            feedback: Detailed feedback text (stored as feedback_detail in DB)
+            overall_score: Overall aggregated score (stored as score in DB)
 
         Returns:
             dict: Created evaluation record
@@ -61,16 +63,14 @@ class EvaluationRepository(BaseRepository):
             "communication_score": communication_score,
         }
 
-        if problem_solving_score is not None:
-            evaluation_data["problem_solving_score"] = problem_solving_score
         if strengths is not None:
             evaluation_data["strengths"] = strengths
         if weaknesses is not None:
             evaluation_data["weaknesses"] = weaknesses
         if feedback is not None:
-            evaluation_data["feedback"] = feedback
+            evaluation_data["feedback_detail"] = feedback
         if overall_score is not None:
-            evaluation_data["overall_score"] = overall_score
+            evaluation_data["score"] = overall_score
 
         return await self.create(evaluation_data, self._table_name)
 

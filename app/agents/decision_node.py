@@ -73,7 +73,7 @@ async def decision_node(state: InterviewState) -> InterviewState:
         if not conversation_summary:
             conversation_summary = "(no recent conversation)"
 
-        prompt = load_prompt(
+        phase_decision_prompt = load_prompt(
             "interview",
             "phase_decision.md",
             current_phase=phase,
@@ -87,6 +87,27 @@ async def decision_node(state: InterviewState) -> InterviewState:
             weaknesses=", ".join(weaknesses) if weaknesses else "none recorded",
             difficulty_history=str(difficulty_history)
         )
+
+        performance_history = state.get('previous_scores', [score])
+
+        flow_rules = load_prompt(
+            "interview",
+            "interview_flow.md",
+            job_role=state.get('job_role', 'Unknown'),
+            current_phase=phase,
+            current_question_number=question_number,
+            total_questions_in_phase=total_questions,
+            overall_score=score,
+            performance_history=str(performance_history)
+        )
+
+        prompt = f"""{phase_decision_prompt}
+
+---
+
+# Phase Flow Reference
+{flow_rules}
+"""
 
         response = await llm_service.invoke(
             prompt=prompt,

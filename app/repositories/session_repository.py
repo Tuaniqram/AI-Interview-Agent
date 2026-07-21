@@ -6,7 +6,7 @@ from typing import Optional
 from uuid import UUID, uuid4
 
 from app.config.database import get_supabase
-from app.exceptions import SessionNotFoundException
+from app.exceptions import SessionNotFoundException, RecordNotFoundException
 from app.repositories.base_repository import BaseRepository
 
 logger = logging.getLogger(__name__)
@@ -69,7 +69,10 @@ class SessionRepository(BaseRepository):
             SessionNotFoundException: If session not found
             DatabaseException: If retrieval fails
         """
-        return await self.get(session_id, self._table_name)
+        try:
+            return await self.get(session_id, self._table_name)
+        except RecordNotFoundException:
+            raise SessionNotFoundException(session_id)
     
     async def update_phase(
         self,

@@ -14,7 +14,7 @@ Generate ONE interview question for this phase and difficulty level.
 
 **Phase-Specific Guidance**:
 - **intro**: Build rapport, understand background, assess career trajectory
-- **experience**: Evaluate practical experience, methodologies, tools/tools used
+- **experience**: Evaluate practical experience, methodologies, tools used
 - **technical**: Test core technical knowledge, problem-solving, best practices
 - **behavioral**: Assess soft skills, teamwork, conflict resolution, motivation
 - **conclusion**: Final assessment, why this company, career goals
@@ -28,9 +28,9 @@ Generate ONE interview question for this phase and difficulty level.
 - Natural, conversational language
 - About 30-50 words
 - Open-ended (invite detailed responses)
-- Relevant to {job_role}
+- Relevant to the job role
 - 1-3 sentences only
-- Connect to {company_context} if provided
+- Connect to company context if provided
 
 # Constraints
 - Generate exactly ONE question
@@ -40,32 +40,17 @@ Generate ONE interview question for this phase and difficulty level.
 - Don't use corporate language or formality
 
 # Output Format
-```json
-{
-  "question": "The question text",
-  "category": "The skills domain tested (e.g., 'Technical', 'Communication', 'Leadership')",
-  "difficulty": "{1, 2, or 3}"
-}
-```
+Return ONLY the question text, prefixed with "Question: ". No JSON, no explanation.
 
-# Example
-**Input**: job_role="Software Engineer", phase="technical", difficulty_level=2
+Example:
+Question: How would you approach designing a system for handling millions of concurrent users with minimal latency?
 
-**Output**:
-```json
-{
-  "question": "Walk me through how you would approach designing a system for handling millions of concurrent users with minimal latency.",
-  "category": "System Design",
-  "difficulty": "2"
-}
-```
+# Actual Data
 
-**Input**: job_role="Product Manager", phase="behavioral", difficulty_level=1
-
-**Output**:
-```json
-{
-  "question": "Tell me about a time you had a disagreement with a stakeholder. How did you handle it, and what was the outcome?",
-  "category": "Conflict Resolution",
-  "difficulty": "1"
-}
+- **Job Role**: {{job_role}}
+- **Interview Phase**: {{phase}}
+- **Difficulty Level**: {{difficulty_level}}
+- **Company Context**: {{company_context}}
+- **Candidate Profile**: {{candidate_profile}}
+- **Question Number**: {{question_number}}
+- **Conversation History**: {{conversation_history}}

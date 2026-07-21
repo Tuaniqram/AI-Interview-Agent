@@ -8,7 +8,7 @@ Determine the next phase, question count, and difficulty level for the interview
 - current_phase: Current phase (e.g., "intro", "experience", "technical", "behavioral", "conclusion")
 - current_question_number: Current question number (0-indexed)
 - total_questions_in_phase: Questions allocated to this phase
-- overall_score: Average score across questions (0.0 to 2.0)
+- overall_score: Average score across questions (0.0 to 10.0)
 - performance_history: List of scores from this session
 
 # Instructions
@@ -22,8 +22,8 @@ Determine the next interview state and phase transition.
 2. **Experience Phase** → Technical Phase:
    - After 3 questions (indices 2-4)
    - Check performance:
-     - Avg score > 1.5 → High performer
-     - Avg score 0.0-1.5 → Adjust difficulty or skip to next
+     - Avg score > 7.0 → High performer
+     - Avg score 0-7 → Adjust difficulty or skip to next
 
 3. **Technical Phase** → Behavioral Phase:
    - After 5 questions (indices 5-9)
@@ -79,16 +79,24 @@ Determine the next interview state and phase transition.
 }
 ```
 
+# Actual Data
+
+- **Job Role**: {{job_role}}
+- **Current Phase**: {{current_phase}}
+- **Current Question Number**: {{current_question_number}}
+- **Total Questions in Phase**: {{total_questions_in_phase}}
+- **Overall Score**: {{overall_score}}
+- **Performance History**: {{performance_history}}
+
 # Examples
 
 **Example 1 - Normal Progression**:
 **Input**:
-- job_role="Software Engineer",
-- current_phase="intro",
-- current_question_number=1,
-- total_questions_in_phase=2,
-- overall_score=1.2,
-- performance_history=[1.5, 0.9]
+- current_phase="intro"
+- current_question_number=1
+- total_questions_in_phase=2
+- overall_score=6.0
+- performance_history=[7.5, 4.5]
 
 **Output**:
 ```json
@@ -104,12 +112,11 @@ Determine the next interview state and phase transition.
 
 **Example 2 - High Performer**:
 **Input**:
-- job_role="Software Engineer",
-- current_phase="technical",
-- current_question_number=7,
-- total_questions_in_phase=5,
-- overall_score=1.6,
-- performance_history=[0.8, 1.7, 2.0, 1.8, 1.6]
+- current_phase="technical"
+- current_question_number=7
+- total_questions_in_phase=5
+- overall_score=8.0
+- performance_history=[4.0, 8.5, 10.0, 9.0, 8.0]
 
 **Output**:
 ```json
@@ -125,12 +132,11 @@ Determine the next interview state and phase transition.
 
 **Example 3 - Low Performer**:
 **Input**:
-- job_role="Software Engineer",
-- current_phase="technical",
-- current_question_number=5,
-- total_questions_in_phase=5,
-- overall_score=0.5,
-- performance_history=[0.7, 0.3, 0.6, 0.4, 0.5]
+- current_phase="technical"
+- current_question_number=5
+- total_questions_in_phase=5
+- overall_score=2.5
+- performance_history=[3.5, 1.5, 3.0, 2.0, 2.5]
 
 **Output**:
 ```json
@@ -143,44 +149,3 @@ Determine the next interview state and phase transition.
   "should_evaluate_phase": true
 }
 ```
-
-**Example 4 - Beginning of Session**:
-**Input**:
-- job_role="Software Engineer",
-- current_phase="intro",
-- current_question_number=0,
-- total_questions_in_phase=2,
-- overall_score=0.0,
-- performance_history=[]
-
-**Output**:
-```json
-{
-  "next_phase": "experience",
-  "next_phase_question_start": 2,
-  "next_phase_question_count": 3,
-  "next_difficulty_level": "1",
-  "notes": ["Beginning session, starting with easy questions"],
-  "should_evaluate_phase": false
-}
-```
-
-**Example 5 - Phase Complete**:
-**Input**:
-- job_role="Software Engineer",
-- current_phase="technical",
-- current_question_number=9,
-- total_questions_in_phase=5,
-- overall_score=1.3,
-- performance_history=[1.0, 1.2, 1.5, 1.4, 1.3]
-
-**Output**:
-```json
-{
-  "next_phase": "behavioral",
-  "next_phase_question_start": 10,
-  "next_phase_question_count": 3,
-  "next_difficulty_level": "2",
-  "notes": ["Technical phase complete, transitioning to behavioral questions"],
-  "should_evaluate_phase": true
-}

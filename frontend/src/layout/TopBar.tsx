@@ -1,11 +1,11 @@
 import { useLocation } from 'react-router-dom';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Menu } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const THEME_KEY = 'ai-interview-theme';
 
 const pageTitles: Record<string, string> = {
-  '/': 'Dashboard',
+  '/dashboard': 'Dashboard',
   '/companies': 'Companies',
   '/sessions': 'Interview Sessions',
   '/analytics': 'Analytics',
@@ -21,7 +21,11 @@ function getInitialTheme(): boolean {
   return window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
-export function TopBar() {
+interface TopBarProps {
+  onMenuToggle?: () => void;
+}
+
+export function TopBar({ onMenuToggle }: TopBarProps) {
   const location = useLocation();
   const base = '/' + location.pathname.split('/').filter(Boolean)[0] || '/';
   const title = pageTitles[base] || 'AI Interview';
@@ -29,13 +33,29 @@ export function TopBar() {
   const [isDark, setIsDark] = useState(getInitialTheme);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-    localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+    const theme = isDark ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem(THEME_KEY, theme);
   }, [isDark]);
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  }, []);
+
   return (
-    <header className="h-14 bg-section border-b border-default flex items-center justify-between px-6">
-      <h2 className="text-sm font-semibold text-primary">{title}</h2>
+    <header className="h-14 bg-section border-b border-default flex items-center justify-between px-4 lg:px-6">
+      <div className="flex items-center gap-3">
+        {onMenuToggle && (
+          <button
+            onClick={onMenuToggle}
+            className="p-2 rounded-lg text-muted hover:text-secondary hover:bg-hover transition-colors lg:hidden"
+            aria-label="Toggle menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+        <h2 className="text-sm font-semibold text-primary">{title}</h2>
+      </div>
       <button
         onClick={() => setIsDark(prev => !prev)}
         className="p-2 rounded-lg text-muted hover:text-secondary hover:bg-hover transition-colors"

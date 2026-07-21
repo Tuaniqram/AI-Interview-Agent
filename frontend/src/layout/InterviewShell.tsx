@@ -3,7 +3,10 @@ import { Outlet } from 'react-router-dom';
 
 export function InterviewShell() {
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', 'dark');
+    const saved = localStorage.getItem('ai-interview-theme');
+    if (!saved) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
   }, []);
 
   return (

@@ -18,7 +18,11 @@ export function AvatarLab() {
   const [debugInfo, setDebugInfo] = React.useState('No gesture active');
 
   React.useEffect(() => {
+    const prev = document.documentElement.getAttribute('data-theme') || 'light';
     document.documentElement.setAttribute('data-theme', 'dark');
+    return () => {
+      document.documentElement.setAttribute('data-theme', prev);
+    };
   }, []);
 
   // ESC key to go back

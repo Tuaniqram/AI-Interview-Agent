@@ -6,7 +6,7 @@ import { TableSkeleton } from '../components/shared/Skeleton';
 import { DataTable, Column } from '../components/shared/DataTable';
 import { StatusBadge } from '../components/shared/StatusBadge';
 import { ScoreDisplay } from '../components/shared/ScoreDisplay';
-import { ListChecks } from 'lucide-react';
+import { ListChecks, AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { apiClient } from '../services/apiClient';
 
@@ -24,6 +24,7 @@ export function Sessions() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,7 +46,9 @@ export function Sessions() {
         if (!cancelled) {
           setSessions(all.sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime()));
         }
-      } catch {} finally {
+      } catch {
+        if (!cancelled) setError('Failed to load sessions. Please try again.');
+      } finally {
         if (!cancelled) setLoading(false);
       }
     }
@@ -74,6 +77,13 @@ export function Sessions() {
   return (
     <div>
       <PageHeader title="Interview Sessions" description="All interview sessions across companies" />
+
+      {error && (
+        <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-lg bg-error-bg border border-error/20 text-error">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="text-sm">{error}</span>
+        </div>
+      )}
 
       {loading ? (
         <Card><TableSkeleton rows={8} /></Card>

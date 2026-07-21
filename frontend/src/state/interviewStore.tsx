@@ -256,7 +256,7 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
       }
 
       const payload = {
-        answer: answer.substring(0, 100),
+        answer,
         sessionId: state.session?.session_id,
         questionNumber: state.currentQuestion?.question_number,
       };

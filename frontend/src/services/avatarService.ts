@@ -4,10 +4,8 @@
  * CURRENT: Provides interface for future avatar functionality
  */
 
-import { apiClient } from './apiClient';
 import { 
   AvatarState, 
-  AvatarQuestion, 
   AvatarEmotion, 
   SpeakingSpeed 
 } from '../types/avatar';
@@ -26,17 +24,13 @@ import {
  */
 
 export class AvatarService {
-  constructor(private apiClient: typeof import('./apiClient').apiClient = apiClient) {
-    this.apiClient = apiClient;
-  }
-
   // ========== PLACEHOLDER METHODS ==========
   
   /**
    * Load avatar configuration (Future API)
    * POST /avatars/{company_id}/config
    */
-  async loadAvatar(configId: string): Promise<AvatarState> {
+  async loadAvatar(_configId: string): Promise<AvatarState> {
     // TODO: Implement when backend provides avatar configuration API
     console.log('AvatarService: loadAvatar() - Placeholder');
     return {
@@ -75,7 +69,7 @@ export class AvatarService {
    * Get avatar speaking speed (Future API)
    * GET /avatars/{session_id}/voice/speed
    */
-  async getAvatarVoiceSpeed(session_id: string): Promise<SpeakingSpeed> {
+  async getAvatarVoiceSpeed(_session_id: string): Promise<SpeakingSpeed> {
     // TODO: Implement when backend provides voice control API
     console.log('AvatarService: getAvatarVoiceSpeed() - Placeholder');
     return 'normal';
@@ -85,7 +79,7 @@ export class AvatarService {
    * Sync avatar to backend (Future API - for WebSocket/WebRTC)
    * POST /avatars/{session_id}/sync
    */
-  async syncAvatar(session_id: string): Promise<{ synced: boolean }> {
+  async syncAvatar(_session_id: string): Promise<{ synced: boolean }> {
     // TODO: Implement when backend provides avatar sync API
     console.log('AvatarService: syncAvatar() - Placeholder');
     return { synced: true };

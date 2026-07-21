@@ -77,8 +77,6 @@ export function createFallbackTargets(
 ): GestureDefinition {
   const hasLeftShoulder = availableBones.has('leftShoulder')
   const hasRightShoulder = availableBones.has('rightShoulder')
-  const hasLeftHand = availableBones.has('leftHand')
-  const hasRightHand = availableBones.has('rightHand')
 
   const needsFixing = !hasLeftShoulder || !hasRightShoulder ||
     Object.keys(def.phases[0]?.targets ?? {}).some(k =>

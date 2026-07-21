@@ -56,6 +56,8 @@ class BaseRepository:
             
             return response.data[0]
             
+        except RecordNotFoundException:
+            raise
         except Exception as e:
             self.logger.error(
                 f"Database error: {e}",
@@ -177,7 +179,7 @@ class BaseRepository:
             query = self.db.table(table).select("*").eq("session_id", session_id)
             
             if order_by:
-                query = query.order(order_by, ascending=True)
+                query = query.order(order_by)
             
             response = query.execute()
             return response.data if response.data else []

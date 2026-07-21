@@ -222,7 +222,7 @@ export class InterviewController {
         phase: response.next_phase || this.session.current_phase,
         question_number: response.question_number ?? this.currentQuestion.question_number,
         difficulty_level: response.next_difficulty ?? this.session.difficulty_level ?? 1,
-        interview_status: response.next_action === 'complete' ? 'completed' : 'active',
+        interview_status: response.next_action === 'finish' ? 'completed' : 'active',
         technical_score: response.evaluation?.technical_score,
         communication_score: response.evaluation?.communication_score,
         strengths: response.evaluation?.strengths || [],

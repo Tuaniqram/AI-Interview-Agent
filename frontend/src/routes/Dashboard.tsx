@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play } from 'lucide-react';
+import { Play, AlertCircle } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 import { PageHeader } from '../components/shared/PageHeader';
 import { StatRow } from '../components/dashboard/StatRow';
@@ -13,6 +13,7 @@ export function Dashboard() {
   const [metrics, setMetrics] = useState<DashboardMetrics>({ totalCompanies: 0, totalSessions: 0, activeSessions: 0, averageScore: null });
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<RecentSessionSummary[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,7 +52,7 @@ export function Dashboard() {
           averageScore: scoreData.length > 0 ? scoreData.reduce((a, b) => a + b, 0) / scoreData.length : null,
         });
       } catch {
-        // silently handle - UI shows zeros
+        if (!cancelled) setError('Failed to load dashboard data. Please try again.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -67,6 +68,13 @@ export function Dashboard() {
         title="Dashboard"
         description="Overview of your AI Interview platform"
       />
+
+      {error && (
+        <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-lg bg-error-bg border border-error/20 text-error">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="text-sm">{error}</span>
+        </div>
+      )}
 
       <StatRow
         totalCompanies={metrics.totalCompanies}
@@ -93,8 +101,6 @@ export function Dashboard() {
 
         <ScoreDistribution
           data={[
-            { label: 'Technical', score: sessions.length > 0 ? sessions.reduce((a, b) => a + (b.final_score || 0), 0) / sessions.length : null },
-            { label: 'Communication', score: sessions.length > 0 ? sessions.reduce((a, b) => a + (b.final_score || 0), 0) / sessions.length : null },
             { label: 'Overall', score: metrics.averageScore },
           ]}
           loading={loading}

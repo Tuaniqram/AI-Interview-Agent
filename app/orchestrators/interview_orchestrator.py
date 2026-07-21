@@ -429,13 +429,13 @@ class InterviewOrchestrator:
             # Calculate metrics
             answered_questions = len([
                 m for m in messages 
-                if m.get("role") == "candidate" and m.get("question_number") < (session.get("current_question_number") or 0)
+                if m.get("role") == "candidate"
             ])
             total_questions_possible = session.get("total_questions", 10)
             
             # Use evaluations if available, fallback to message scores
             if evaluations:
-                scores = [float(e.get("overall_score", e.get("score", 0))) for e in evaluations]
+                scores = [float(e.get("score", 0)) for e in evaluations]
                 technical_scores = [float(e.get("technical_score", 0)) for e in evaluations if e.get("technical_score")]
                 comm_scores = [float(e.get("communication_score", 0)) for e in evaluations if e.get("communication_score")]
             else:

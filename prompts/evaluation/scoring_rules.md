@@ -15,24 +15,19 @@ Apply these scoring rules consistently to evaluate candidate answers.
 
 ## Scoring Scale
 
-All scores are on a **0.0 to 2.0 scale**, representing **0 to 10** when converted to 1.0-5.0 platform format.
+All scores are on a **0.0 to 10.0 scale**.
 
-**Score Ranges** (0.0-2.0):
-- **2.0**: Excellent/Outstanding (70-100% - represents 7.0-10.0)
-- **1.7-1.9**: Very Good (63-69% - represents 6.3-6.9)
-- **1.4-1.6**: Good (50-62% - represents 5.0-6.2)
-- **1.0-1.3**: Fair/Half (43-49% - represents 4.3-4.9)
-- **0.5-0.9**: Poor (21-42% - represents 2.1-4.2)
-- **0.1-0.4**: Very Poor (1-20% - represents 0.1-2.0)
-- **0.0**: Fail (0% - represents 0.0)
-
-**Conversion** (Platform count out of 50, converts to 1.0-5.0):
-`score_0_10 = overall_score * 5.0`
-`score_0_50 = score_0_10 * 5`
+**Score Ranges** (0.0-10.0):
+- **9.0-10.0**: Excellent/Outstanding - Mastery level
+- **7.0-8.9**: Good - Solid understanding with minor gaps
+- **5.0-6.9**: Fair - Understanding exists but incomplete
+- **3.0-4.9**: Poor - Missing key points, significant gaps
+- **0.1-2.9**: Very Poor - Fundamental misunderstandings
+- **0.0**: Fail
 
 ## Evaluation by Category
 
-### 1. Technical Knowledge (0.0-2.0)
+### 1. Technical Knowledge (0.0-10.0)
 
 **What to Evaluate**:
 - Accuracy of technical understanding
@@ -42,34 +37,34 @@ All scores are on a **0.0 to 2.0 scale**, representing **0 to 10** when converte
 - Industry best practices awareness
 - Practical application vs theoretical knowledge
 
-**Excellent (2.0)**:
+**Excellent (9-10)**:
 - Demonstrates mastery/states with confidence about what they know
 - Provides specific, concrete examples and cases
 - Mentions industry standards, common patterns, and best practices
 - Expresses awareness of limitations and edge cases
 - Shows understanding of how concepts interconnect
 
-**Good (1.5)**:
+**Good (7-8)**:
 - Solid understanding of core concepts
 - Mostly accurate, a few minor inaccuracies
 - Provides some examples/details
 - Understands fundamentals but lacks depth in some areas
 - May not mention edge cases or limitations
 
-**Fair (1.0)**:
+**Fair (5-6)**:
 - Understanding exists but is incomplete or generic
 - Misses key concepts or details
 - Lacks specific examples or case studies
 - Superficial understanding (e.g., just name-dropping)
 - Doesn't connect concepts
 
-**Poor (0.5)**:
+**Poor (3-4)**:
 - Missing critical knowledge areas
 - Fundamental misunderstandings
 - Confuses concepts with similar ones
 - Doesn't have practical experience to base understanding on
 
-### 2. Problem Solving (0.0-2.0)
+### 2. Problem Solving (0.0-10.0)
 
 **What to Evaluate**:
 - Reasoning and logical approach
@@ -79,7 +74,7 @@ All scores are on a **0.0 to 2.0 scale**, representing **0 to 10** when converte
 - Testing/validating solutions
 - Learning from experience
 
-**Excellent (2.0)**:
+**Excellent (9-10)**:
 - Clear, logical reasoning process
 - Systematic approach (define, analyze, propose, validate)
 - Considers multiple approaches and selects best one
@@ -87,28 +82,28 @@ All scores are on a **0.0 to 2.0 scale**, representing **0 to 10** when converte
 - References similar past problems and reusable patterns
 - Validates solution through reasoning
 
-**Good (1.5)**:
+**Good (7-8)**:
 - Logical reasoning with some gaps
 - Generally structured approach
 - Considers reasonable alternatives
 - Some consideration of trade-offs
 - May skip validation step or do it minimally
 
-**Fair (1.0)**:
+**Fair (5-6)**:
 - Reasoning is somewhat unclear or incomplete
 - Solution may seem rushed or haphazard
 - Limited consideration of different approaches
 - Few or no trade-offs/alternatives discussed
 - Might jump to answer without analysis
 
-**Poor (0.5)**:
+**Poor (3-4)**:
 - Incoherent or illogical reasoning
 - No clear approach or method
 - Focuses on details without big picture
 - Doesn't consider validation or testing
 - Doesn't reference past experiences
 
-### 3. Communication (0.0-2.0)
+### 3. Communication (0.0-10.0)
 
 **What to Evaluate**:
 - Clarity and organization of thoughts
@@ -118,7 +113,7 @@ All scores are on a **0.0 to 2.0 scale**, representing **0 to 10** when converte
 - Answering the question asked
 - Listening to follow-ups
 
-**Excellent (2.0)**:
+**Excellent (9-10)**:
 - Crystal clear communication
 - Well-structured, easy to follow
 - Completely answers the question
@@ -126,21 +121,21 @@ All scores are on a **0.0 to 2.0 scale**, representing **0 to 10** when converte
 - Connects parts logically
 - Engaging tone
 
-**Good (1.5)**:
+**Good (7-8)**:
 - Clear communication overall
 - Mostly well-structured
 - Generally answers the question
 - Provides reasonable examples
 - Some organizational issues
 
-**Fair (1.0)**:
+**Fair (5-6)**:
 - Communication is vague or partially unclear
 - Some organization but with gaps
 - Misses parts of the question
 - Limited or generic examples
 - Important details omitted
 
-**Poor (0.5)**:
+**Poor (3-4)**:
 - Communication is incoherent
 - Poor organization that hinders understanding
 - Doesn't answer the question adequately
@@ -149,40 +144,25 @@ All scores are on a **0.0 to 2.0 scale**, representing **0 to 10** when converte
 
 ## Difficulty Level Weighting
 
-**Score Interpretation Adjustments**:
-
 **Difficulty Level 1 (Easy, Foundational)**:
-- Expect most experienced candidates to score 1.5-2.0
-- Expect beginners to score 0.5-1.0
+- Expect most experienced candidates to score 7-10
+- Expect beginners to score 3-5
 - Focus on basic understanding and recognition
-- Lengthier answers expected (more time available)
 
 **Difficulty Level 2 (Medium, Intermediate)**:
-- Most relevant candidates should score 1.0-1.8
-- Strong candidates score 1.8-2.0
-- Weak candidates score 0.5-1.0
+- Most relevant candidates should score 5-9
+- Strong candidates score 8-10
+- Weak candidates score 3-5
 - Focus on application and workflow
-- Brevity is acceptable as there's no time pressure
 
 **Difficulty Level 3 (Hard, Advanced)**:
-- Expect strong candidates to score 1.5-2.0
-- Good candidates score 1.0-1.5
-- Average candidates score 0.5-1.0
-- Weak candidates score 0.0-0.5
+- Expect strong candidates to score 7-10
+- Good candidates score 5-7
+- Average candidates score 3-5
+- Weak candidates score 0-3
 - Focus on edge cases, optimizations, best practices
-- Brevity is expected (advanced topics)
 
 ## Scoring Consistency
-
-**For Pair Review**:
-- Scores within ±0.3 of each other are consistent
-- Scores outside this range need discussion
-- Adjust scores if criteria have been interpreted differently
-
-**For This Session**:
-- Maintain same standards across all candidates
-- Prompt difficulty adjustments should be reflected in scores
-- Performance trends should be tracked over time
 
 **Final Score Calculation**:
 ```python
@@ -200,13 +180,21 @@ overall_score = (
 # Round to 1 decimal
 final_score = round(overall_score, 1)
 
-# Ensure within [0.0, 2.0]
-final_score = max(0.0, min(2.0, final_score))
+# Ensure within [0.0, 10.0]
+final_score = max(0.0, min(10.0, final_score))
 ```
 
 # Constraints
 - Always round to 1 decimal place
-- Never assign scores outside [0.0, 2.0]
+- Never assign scores outside [0.0, 10.0]
 - Weight percentages must sum to 100%
 - Consider difficulty level when assessing consistency
 - Base scores on what was actually said, not what you want to hear
+
+# Actual Data
+
+- **Job Role**: {{job_role}}
+- **Question Type**: {{question_type}}
+- **Candidate Answer**: {{candidate_answer}}
+- **Interview Phase**: {{phase}}
+- **Difficulty Level**: {{difficulty_level}}
