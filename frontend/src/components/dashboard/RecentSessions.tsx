@@ -13,6 +13,7 @@ interface SessionRow {
   status: string;
   final_score: number | null;
   started_at: string;
+  interview_mode?: string;
 }
 
 interface RecentSessionsProps {
@@ -57,6 +58,7 @@ export function RecentSessions({ sessions, loading, emptyAction }: RecentSession
                 {s.started_at ? new Date(s.started_at).toLocaleDateString() : '—'}
               </div>
             </div>
+            <span className="text-xs text-muted">{s.interview_mode === 'typing' ? '⌨' : s.interview_mode === 'voice' ? '🎤' : s.interview_mode === 'avatar' ? '🤖' : ''}</span>
             <StatusBadge status={s.status} />
             <ScoreDisplay score={s.final_score} size="sm" showLabel={false} />
           </div>

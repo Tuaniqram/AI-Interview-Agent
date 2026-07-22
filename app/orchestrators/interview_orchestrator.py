@@ -80,7 +80,8 @@ class InterviewOrchestrator:
                 candidate_email=candidate_email,
                 job_role=job_role,
                 total_questions=total_questions,
-                interview_type=interview_type
+                interview_type=interview_type,
+                interview_mode=interview_mode
             )
             
             logger.info(f"Session created: {session['id']}")
@@ -89,7 +90,7 @@ class InterviewOrchestrator:
                 "session_id": session["id"],
                 "status": "initialized",
                 "current_phase": "intro",
-                "question_number": 0,
+                "question_number": 1,
                 "total_questions": total_questions,
                 "difficulty_level": initial_difficulty,
                 "start_time": session.get("started_at"),
@@ -112,11 +113,13 @@ class InterviewOrchestrator:
         """
         Initiate next question — checks pregen cache first, awaits background task if
         still running, falls back to live generation.
+        Updates session table with current question number and phase.
         """
         if session_id in self._pregen_cache:
             result = self._pregen_cache.pop(session_id)
             self._pregen_pending.pop(session_id, None)
             logger.info(f"Using pre-generated question for session {session_id}, q#{result.get('question_number')}")
+            await self._sync_session_state(session_id, result)
             return result
 
         task = self._pregen_pending.get(session_id)
@@ -127,12 +130,31 @@ class InterviewOrchestrator:
             except Exception:
                 pass
             if session_id in self._pregen_cache:
-                return self._pregen_cache.pop(session_id)
+                result = self._pregen_cache.pop(session_id)
+                await self._sync_session_state(session_id, result)
+                return result
 
-        return await self._do_generate_question(
+        result = await self._do_generate_question(
             session_id, conversation_history, current_phase,
             question_number, difficulty_level, candidate_profile
         )
+        await self._sync_session_state(session_id, result)
+        return result
+
+    async def _sync_session_state(self, session_id: str, result: Dict[str, Any]) -> None:
+        """Persist question_number and phase from generated question to session table.
+
+        Runs DB writes in parallel for performance since they're independent.
+        """
+        qnum = result.get("question_number")
+        phase = result.get("phase")
+        tasks = []
+        if qnum is not None:
+            tasks.append(self.session_repo.update_question_number(session_id, qnum))
+        if phase is not None:
+            tasks.append(self.session_repo.update_phase(session_id, phase))
+        if tasks:
+            await asyncio.gather(*tasks)
 
     async def _do_generate_question(
         self,
@@ -208,7 +230,7 @@ class InterviewOrchestrator:
             
             # Extract question and state info
             question = final_state.get("current_question", "")
-            new_question_number = final_state.get("question_number", question_number + 1)
+            new_question_number = final_state.get("question_number", question_number)
             next_action = final_state.get("next_action", "continue")
             next_phase = final_state.get("next_phase", current_phase)
             next_difficulty = final_state.get("next_difficulty", difficulty_level)
@@ -303,7 +325,7 @@ class InterviewOrchestrator:
                 "conversation_history": conversation_history,
                 "current_phase": "intro",  # Loaded from session below
                 "phase_stage": 0,
-                "question_number": question_number + 1,  # Next question number (already asked)
+                "question_number": question_number,
                 "total_questions": 10,
                 "difficulty_level": difficulty_level,
                 "current_question": question,
@@ -336,6 +358,9 @@ class InterviewOrchestrator:
             initial_state["candidate_id"] = session.get("candidate_id", str(session_id))
             initial_state["job_role"] = session.get("job_role")
             initial_state["interview_type"] = session.get("interview_type", "company")
+            initial_state["current_phase"] = session.get("current_phase", "intro")
+            initial_state["total_questions"] = session.get("total_questions", 10)
+            initial_state["difficulty_level"] = session.get("difficulty_level", difficulty_level)
             initial_state["candidate_profile"] = candidate_profile
             
             # Execute EVALUATION workflow only (no question generation)
@@ -376,19 +401,22 @@ class InterviewOrchestrator:
             
             logger.info(f"Answer evaluated: score={evaluation_score}, technical={technical_score}")
             
+            # Use the current session phase, not next_phase, for storing answered Q&A
+            answered_phase = session.get("current_phase", "intro")
+            
             # 1-2. Save question and answer in parallel
             question_task = self.message_repo.create_question(
                 session_id=session_id,
                 question_text=question,
                 question_number=question_number,
-                phase=next_phase
+                phase=answered_phase
             )
             answer_task = self.message_repo.create_candidate_answer(
                 session_id=session_id,
                 role="candidate",
                 candidate_answer=candidate_answer,
                 question_number=question_number,
-                phase=next_phase,
+                phase=answered_phase,
                 score=evaluation_score
             )
 

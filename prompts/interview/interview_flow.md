@@ -1,78 +1,47 @@
 # Manage Interview Flow
 
 # Purpose
-Determine the next phase, question count, and difficulty level for the interview based on current state and performance tracking.
+Determine the next phase and difficulty level for the interview based on current state and performance tracking.
 
 # Inputs
 - job_role: Target job role (e.g., "Software Engineer")
 - current_phase: Current phase (e.g., "intro", "experience", "technical", "behavioral", "conclusion")
-- current_question_number: Current question number (0-indexed)
-- total_questions_in_phase: Questions allocated to this phase
-- overall_score: Average score across questions (0.0 to 10.0)
-- performance_history: List of scores from this session
+- current_question_number: Current question number (1-indexed)
+- total_questions: Total questions for the entire interview
+- phase_allocation: How many questions are allocated to each phase (e.g., "intro: 2, experience: 3, technical: 3, behavioral: 2")
+- overall_score: Score for the just-evaluated question (0.0 to 10.0)
+- performance_history: List of scores from previous questions in this session
 
 # Instructions
-Determine the next interview state and phase transition.
+Determine the next interview phase and difficulty level based on progress and performance.
 
-**Phase Transitions**:
-1. **Intro Phase** → Experience Phase:
-   - After 2 questions (indices 0-1)
-   - Always transition
+**Phase Allocation**:
+{{phase_allocation}}
 
-2. **Experience Phase** → Technical Phase:
-   - After 3 questions (indices 2-4)
-   - Check performance:
-     - Avg score > 7.0 → High performer
-     - Avg score 0-7 → Adjust difficulty or skip to next
-
-3. **Technical Phase** → Behavioral Phase:
-   - After 5 questions (indices 5-9)
-   - Performance-based adaptation:
-     - Strong performance (avg > 7.0): Move to conclusion early or add more technical
-     - Normal performance: Continue to behavioral
-
-4. **Behavioral Phase** → Conclusion Phase:
-   - Starts with 10 questions (10-19)
-   - Evaluate overall progress
-
-5. **Conclusion Phase**: 
-   - Fill remaining questions (20-22)
-   - Generate context-aware questions about the company and role
+**Transition Rules**:
+- Each phase has an allocated number of questions shown above
+- Use the ratio of questions answered in the current phase vs its allocation to decide transitions
+- If you've answered >= 80% of allocated questions in the current phase, consider advancing to the next phase
+- Adapt based on performance: high scores may justify advancing faster, low scores may justify staying longer
+- Do not skip phases — always follow intro → experience → technical → behavioral → conclusion
 
 **Adaptation Rules**:
+- **High performers** (overall_score > 7.0): Consider advancing to next phase sooner, increase difficulty
+- **Low performers** (overall_score < 5.0): Consider staying in current phase longer, decrease difficulty
+- **Normal performance**: Follow the allocated phase plan
 
-**For High Performers**:
-- Slightly increase difficulty level
-- Consider moving to conclusion earlier (reduce some technical questions)
-- Focus on more specific/experiential questions
-
-**For Low Performers**:
-- Reduce difficulty level
-- Ask more foundational questions
-- Consider staying in technical phase longer if struggling
-
-**Question Number Calculation**:
-- Current question number + 1 = next question index
-- Track cumulative total for progress tracking
-
-**Output Requirements**:
-- Determine next phase
-- Determine next question count
-- Determine appropriate difficulty level (1, 2, or 3)
-- Return evaluation summary
+**Difficulty Levels**: 1 (Easy), 2 (Medium), 3 (Hard)
 
 # Constraints
-- Max question number is 22 (23 questions total: 2+3+5+3+10)
+- Stay within total_questions={{total_questions}} total questions
 - Don't skip phases without reason
 - Base difficulty on performance but don't oscillate wildly
-- Stay within phase bounds (don't enter conclusion too early or technical too late)
+- Keep phase order natural (intro → experience → technical → behavioral → conclusion)
 
 # Output Format
 ```json
 {
   "next_phase": "Name of next phase",
-  "next_phase_question_start": 5,
-  "next_phase_question_count": 3,
   "next_difficulty_level": "1 or 2 or 3",
   "notes": ["Brief observations about performance"],
   "should_evaluate_phase": true
@@ -84,7 +53,7 @@ Determine the next interview state and phase transition.
 - **Job Role**: {{job_role}}
 - **Current Phase**: {{current_phase}}
 - **Current Question Number**: {{current_question_number}}
-- **Total Questions in Phase**: {{total_questions_in_phase}}
+- **Total Questions**: {{total_questions}}
 - **Overall Score**: {{overall_score}}
 - **Performance History**: {{performance_history}}
 
@@ -93,8 +62,9 @@ Determine the next interview state and phase transition.
 **Example 1 - Normal Progression**:
 **Input**:
 - current_phase="intro"
-- current_question_number=1
-- total_questions_in_phase=2
+- current_question_number=2
+- total_questions=10
+- phase_allocation="intro: 2, experience: 3, technical: 3, behavioral: 2"
 - overall_score=6.0
 - performance_history=[7.5, 4.5]
 
@@ -102,50 +72,27 @@ Determine the next interview state and phase transition.
 ```json
 {
   "next_phase": "experience",
-  "next_phase_question_start": 2,
-  "next_phase_question_count": 3,
   "next_difficulty_level": "2",
-  "notes": ["Moderate performance, continuing with medium difficulty"],
+  "notes": ["Moderate performance in intro, advancing to experience with medium difficulty"],
   "should_evaluate_phase": false
 }
 ```
 
-**Example 2 - High Performer**:
-**Input**:
-- current_phase="technical"
-- current_question_number=7
-- total_questions_in_phase=5
-- overall_score=8.0
-- performance_history=[4.0, 8.5, 10.0, 9.0, 8.0]
-
-**Output**:
-```json
-{
-  "next_phase": "behavioral",
-  "next_phase_question_start": 10,
-  "next_phase_question_count": 3,
-  "next_difficulty_level": "3",
-  "notes": ["Consistently strong performance, recommending hard difficulty"],
-  "should_evaluate_phase": true
-}
-```
-
-**Example 3 - Low Performer**:
+**Example 2 - High Performer Advancing Early**:
 **Input**:
 - current_phase="technical"
 - current_question_number=5
-- total_questions_in_phase=5
-- overall_score=2.5
-- performance_history=[3.5, 1.5, 3.0, 2.0, 2.5]
+- total_questions=10
+- phase_allocation="intro: 2, experience: 3, technical: 3, behavioral: 2"
+- overall_score=8.5
+- performance_history=[4.0, 8.5, 10.0, 9.0, 8.5]
 
 **Output**:
 ```json
 {
   "next_phase": "behavioral",
-  "next_phase_question_start": 10,
-  "next_phase_question_count": 3,
-  "next_difficulty_level": "1",
-  "notes": ["Struggling with technical questions, reducing difficulty"],
+  "next_difficulty_level": "3",
+  "notes": ["Consistently strong performance in technical, advancing to behavioral with increased difficulty"],
   "should_evaluate_phase": true
 }
 ```

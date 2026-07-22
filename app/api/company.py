@@ -142,7 +142,7 @@ def get_company_sessions(company_id: int):
         db = get_supabase()
         result = (
             db.table("interview_sessions")
-            .select("id, candidate_id, job_role, status, final_score, started_at, created_at")
+            .select("id, candidate_id, job_role, status, final_score, started_at, created_at, interview_mode")
             .eq("company_id", company_id)
             .order("started_at", desc=True)
             .execute()

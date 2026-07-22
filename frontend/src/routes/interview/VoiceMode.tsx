@@ -51,7 +51,7 @@ export function VoiceMode() {
   }
 
   return (
-    <div className="fixed inset-0 bg-page flex flex-col" data-theme="dark">
+    <div className="flex-1 h-full bg-page flex flex-col" data-theme="dark">
       <BackButton />
 
       <div className="flex-1 flex flex-col items-center justify-center p-6 min-h-0">

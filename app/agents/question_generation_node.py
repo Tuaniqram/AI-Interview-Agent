@@ -37,7 +37,7 @@ async def question_generation_node(state: InterviewState) -> InterviewState:
 
     logger.info(f"Generating adaptive question: Phase={phase}, Difficulty={difficulty}, Q#{question_number}")
 
-    new_question_number = question_number + 1
+    new_question_number = question_number
 
     history_summary = ""
     for h in conversation_history[-5:]:
@@ -48,7 +48,7 @@ async def question_generation_node(state: InterviewState) -> InterviewState:
     try:
         llm_service = get_llm_service()
 
-        if question_number == 0:
+        if question_number == 1:
             system_prompt = load_prompt(
                 "system",
                 "interviewer_system.md"
@@ -62,6 +62,7 @@ async def question_generation_node(state: InterviewState) -> InterviewState:
                 company_context=company_requirements[:2000] if company_requirements else "N/A",
                 candidate_profile=candidate_profile[:500] if candidate_profile else "N/A",
                 question_number=question_number,
+                total_questions=state.get('total_questions', 10),
                 conversation_history=history_summary or "(no previous conversation)"
             )
         else:
@@ -141,7 +142,7 @@ Generate ONE adaptive interview question. Output ONLY the question text.
                 **state.get('rag_metadata', {}),
                 'question_generated_by_ai': True,
                 'question_number': new_question_number,
-                'template_used': 'adaptive_question' if question_number > 0 else 'question_generation',
+                'template_used': 'adaptive_question' if question_number > 1 else 'question_generation',
                 'ai_generation_params': {
                     'temperature': 0.8,
                     'max_tokens': 200
@@ -156,7 +157,7 @@ Generate ONE adaptive interview question. Output ONLY the question text.
         new_state: InterviewState = {
             **state,
             'current_question': None,
-            'question_number': question_number + 1,
+            'question_number': question_number,
             'rag_metadata': {
                 **state.get('rag_metadata', {}),
                 'question_generated_by_ai': False,

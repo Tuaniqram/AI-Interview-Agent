@@ -84,6 +84,18 @@ export interface AnswerSubmitResponse {
   nodes_executed?: string[];
 }
 
+export interface EvaluationHistoryEntry {
+  questionNumber: number;
+  question: string;
+  answer: string;
+  score: number;
+  technicalScore?: number;
+  communicationScore?: number;
+  strengths: string[];
+  weaknesses: string[];
+  feedback: string;
+}
+
 /**
  * AnswerEvaluation - Parsed frontend-friendly version of AnswerSubmitResponse
  * This is what the controller returns to the store/UI

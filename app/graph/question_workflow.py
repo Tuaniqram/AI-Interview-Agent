@@ -6,6 +6,7 @@ import logging
 from langgraph.checkpoint.memory import MemorySaver
 from app.graph.interview_state import InterviewState
 from app.agents.session_init_node import session_init_node
+from app.agents.phase_decision_node import phase_decision_node
 from app.agents.company_context_node import company_context_node
 from app.agents.question_generation_node import question_generation_node
 
@@ -18,9 +19,10 @@ def create_question_workflow():
     
     Flow:
     1. Session Init → Initialize state
-    2. Company Context → Retrieve company documents
-    3. Question Generation → Get AI-generated question
-    4. END (STOP HERE - no evaluation or decision)
+    2. Phase Decision → Determine next phase/difficulty
+    3. Company Context → Retrieve company documents
+    4. Question Generation → Get AI-generated question
+    5. END (STOP HERE - no evaluation or decision)
     
     Returns:
         Compiled StateGraph workflow
@@ -31,6 +33,7 @@ def create_question_workflow():
     
     # Add nodes
     workflow.add_node("session_init", session_init_node)
+    workflow.add_node("phase_decision", phase_decision_node)
     workflow.add_node("company_context", company_context_node)
     workflow.add_node("question_generation", question_generation_node)
     
@@ -38,13 +41,9 @@ def create_question_workflow():
     workflow.set_entry_point("session_init")
     
     # Add edges (deterministic flows)
-    # After session init → always go to company context
-    workflow.add_edge("session_init", "company_context")
-    
-    # After company context → always go to question generation
+    workflow.add_edge("session_init", "phase_decision")
+    workflow.add_edge("phase_decision", "company_context")
     workflow.add_edge("company_context", "question_generation")
-    
-    # After question generation → END (stop here)
     workflow.add_edge("question_generation", END)
     
     # Compile the workflow

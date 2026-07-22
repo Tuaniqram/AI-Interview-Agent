@@ -103,7 +103,7 @@ export function AvatarMode() {
   }
 
   return (
-    <div className="fixed inset-0 bg-page flex flex-col" data-theme="dark">
+    <div className="flex-1 h-full bg-page flex flex-col" data-theme="dark">
       <BackButton />
 
       <div className="relative flex-1 min-h-0">

@@ -70,5 +70,5 @@ def session_init_node(state: InterviewState) -> InterviewState:
         'start_time': start_time
     }
     
-    logger.info(f"Session initialized. Phase: {current_phase}, Type: {interview_type}")
+    logger.info(f"Session initialized. Phase: {current_phase}")
     return new_state

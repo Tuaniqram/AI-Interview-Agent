@@ -32,7 +32,8 @@ class SessionRepository(BaseRepository):
         candidate_name: str = "",
         candidate_email: str = "",
         total_questions: int = 10,
-        interview_type: str = "company"
+        interview_type: str = "company",
+        interview_mode: str = "avatar"
     ) -> dict:
         session_data = {
             "id": uuid4(),
@@ -40,12 +41,13 @@ class SessionRepository(BaseRepository):
             "job_role": job_role,
             "status": "active",
             "current_phase": current_phase,
-            "current_question_number": 0,
+            "current_question_number": 1,
             "total_questions": total_questions,
             "candidate_id": candidate_id,
             "candidate_name": candidate_name,
             "candidate_email": candidate_email,
             "interview_type": interview_type,
+            "interview_mode": interview_mode,
         }
         return await self.create(session_data, self.model_class)
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Bookmark, MessageSquare, Mic, Video, ChevronDown } from 'lucide-react';
+import { Loader2, Bookmark, MessageSquare, Mic, Video, ChevronDown, Check } from 'lucide-react';
 import { Card } from '../components/shared/Card';
 import { PageHeader } from '../components/shared/PageHeader';
 import { apiClient } from '../services/apiClient';
@@ -20,6 +20,8 @@ interface Template {
   job_role: string;
   total_questions: number;
   interview_type: string;
+  candidate_name?: string;
+  candidate_email?: string;
 }
 
 const INPUT = 'w-full px-3 py-1.5 text-sm bg-input text-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] transition-colors';
@@ -41,11 +43,13 @@ export function NewInterview() {
   const [companiesLoading, setCompaniesLoading] = React.useState(true);
 
   const [templates, setTemplates] = React.useState<Template[]>([]);
+  const [templatesLoading, setTemplatesLoading] = React.useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('');
   const [saveAsTemplate, setSaveAsTemplate] = React.useState(false);
   const [templateName, setTemplateName] = React.useState('');
 
   React.useEffect(() => {
+    setCompaniesLoading(true);
     apiClient.get<Company[]>('/companies/')
       .then(data => {
         setCompanies(data);
@@ -56,38 +60,60 @@ export function NewInterview() {
   }, []);
 
   React.useEffect(() => {
-    if (!companyId) return;
+    if (!companyId) {
+      setTemplates([]);
+      setSelectedTemplateId('');
+      return;
+    }
+    setTemplatesLoading(true);
+    setSelectedTemplateId('');
     apiClient.get<Template[]>(`/templates/?company_id=${companyId}`)
       .then(setTemplates)
-      .catch(() => setTemplates([]));
+      .catch(() => setTemplates([]))
+      .finally(() => setTemplatesLoading(false));
   }, [companyId]);
+
+  const selectedTemplate = React.useMemo(
+    () => templates.find(t => t.id === selectedTemplateId),
+    [templates, selectedTemplateId]
+  );
 
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplateId(templateId);
     const t = templates.find(tmp => tmp.id === templateId);
     if (t) {
+      setCompanyId(t.company_id);
       setJobRole(t.job_role);
       setTotalQuestions(t.total_questions);
-      setTemplateName(t.name);
+      setSelectedMode(t.interview_type || 'avatar');
+      if (t.candidate_name) setCandidateName(t.candidate_name);
+      if (t.candidate_email) setCandidateEmail(t.candidate_email);
     }
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!templateName.trim()) return;
+    try {
+      await apiClient.post('/templates/', {
+        company_id: companyId,
+        name: templateName.trim(),
+        job_role: jobRole,
+        total_questions: totalQuestions,
+        interview_type: selectedMode,
+        candidate_name: candidateName,
+        candidate_email: candidateEmail,
+      });
+      setSaveAsTemplate(false);
+      setTemplateName('');
+      const data = await apiClient.get<Template[]>(`/templates/?company_id=${companyId}`);
+      setTemplates(data);
+    } catch {}
   };
 
   const handleStart = async () => {
     setIsStarting(true);
     setError(null);
     try {
-      if (saveAsTemplate && templateName.trim()) {
-        try {
-          await apiClient.post('/templates/', {
-            company_id: companyId,
-            name: templateName.trim(),
-            job_role: jobRole,
-            total_questions: totalQuestions,
-            interview_type: 'company',
-          });
-        } catch {}
-      }
-
       await actions.startInterview({
         companyId,
         jobRole,
@@ -114,14 +140,12 @@ export function NewInterview() {
     <div className="max-w-4xl">
       <PageHeader title="New Interview" description="Configure your AI interview session" />
 
-      {/* Error */}
       {error && (
         <Card className="mb-6 bg-error-bg" padding="sm">
           <p className="text-sm text-error-text">{error}</p>
         </Card>
       )}
 
-      {/* Mode Selection */}
       <Card className="mb-6">
         <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3">Interview Mode</h3>
         <div className="grid grid-cols-3 gap-3">
@@ -132,7 +156,7 @@ export function NewInterview() {
               <button
                 key={m.id}
                 onClick={() => setSelectedMode(m.id)}
-                className={`p-4 rounded-xl text-left transition-all shadow-sm ${
+                className={`p-4 rounded-xl text-left transition-all ${
                   active
                     ? 'bg-input ring-2 ring-action-primary/20'
                     : 'bg-input hover:bg-hover'
@@ -149,86 +173,145 @@ export function NewInterview() {
         </div>
       </Card>
 
-      {/* Two-column form */}
-      <Card className="mb-6" padding="md">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3">Candidate Info</h3>
-            <div className="space-y-3">
-              <div>
-                <label className={LABEL}>Name</label>
-                <input type="text" value={candidateName} onChange={e => setCandidateName(e.target.value)}
-                  placeholder="e.g. John Doe" className={INPUT} />
-              </div>
-              <div>
-                <label className={LABEL}>Email</label>
-                <input type="email" value={candidateEmail} onChange={e => setCandidateEmail(e.target.value)}
-                  placeholder="e.g. john@example.com" className={INPUT} />
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3">Interview Config</h3>
-            <div className="space-y-3">
-              <div>
-                <label className={LABEL}>Company</label>
-                <div className="relative">
-                  <select value={companyId} onChange={e => setCompanyId(Number(e.target.value))}
-                    disabled={companiesLoading} className={SELECT + ' pr-8'}>
-                    {companiesLoading && <option>Loading...</option>}
-                    {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted pointer-events-none" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <Card className="lg:col-span-2" padding="md">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3">Candidate Info</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className={LABEL}>Name</label>
+                  <input type="text" value={candidateName} onChange={e => setCandidateName(e.target.value)}
+                    placeholder="e.g. John Doe" className={INPUT} />
                 </div>
-              </div>
-              <div>
-                <label className={LABEL}>Job Role</label>
-                <input type="text" value={jobRole} onChange={e => setJobRole(e.target.value)} className={INPUT} />
-              </div>
-              <div>
-                <label className={LABEL}>Questions</label>
-                <div className="relative">
-                  <select value={totalQuestions} onChange={e => setTotalQuestions(Number(e.target.value))} className={SELECT + ' pr-8'}>
-                    {[5, 10, 15, 20].map(n => <option key={n} value={n}>{n} questions</option>)}
-                  </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted pointer-events-none" />
+                <div>
+                  <label className={LABEL}>Email</label>
+                  <input type="email" value={candidateEmail} onChange={e => setCandidateEmail(e.target.value)}
+                    placeholder="e.g. john@example.com" className={INPUT} />
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </Card>
 
-      {/* Template section */}
-      {templates.length > 0 && (
-        <Card className="mb-6">
-          <div>
-            <label className={LABEL}>Load Template</label>
-            <div className="relative">
-              <select value={selectedTemplateId} onChange={e => handleTemplateChange(e.target.value)} className={SELECT + ' pr-8'}>
-                <option value="">None (custom)</option>
-                {templates.map(t => <option key={t.id} value={t.id}>{t.name} — {t.job_role}</option>)}
-              </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted pointer-events-none" />
+            <div>
+              <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3">Interview Config</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className={LABEL}>Company</label>
+                  <div className="relative">
+                    <select value={companyId} onChange={e => setCompanyId(Number(e.target.value))}
+                      disabled={companiesLoading} className={SELECT + ' pr-8'}>
+                      {companiesLoading && <option>Loading...</option>}
+                      {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted pointer-events-none" />
+                  </div>
+                </div>
+                <div>
+                  <label className={LABEL}>Job Role</label>
+                  <input type="text" value={jobRole} onChange={e => setJobRole(e.target.value)} className={INPUT} />
+                </div>
+                <div>
+                  <label className={LABEL}>Questions</label>
+                  <div className="relative">
+                    <select value={totalQuestions} onChange={e => setTotalQuestions(Number(e.target.value))} className={SELECT + ' pr-8'}>
+                      {[5, 10, 15, 20].map(n => <option key={n} value={n}>{n} questions</option>)}
+                    </select>
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted pointer-events-none" />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </Card>
-      )}
 
-      {/* Start button + Save template */}
-      <div className="flex items-center justify-end gap-4">
-        <button onClick={() => setSaveAsTemplate(prev => !prev)}
-          className="flex items-center gap-2 shrink-0 text-sm text-secondary hover:text-primary transition-colors">
-          <Bookmark className={`w-4 h-4 ${saveAsTemplate ? 'fill-action-primary text-action-primary' : 'text-muted'}`} />
-          <span className="whitespace-nowrap">Save as template</span>
-        </button>
-        {saveAsTemplate && (
-          <input type="text" value={templateName} onChange={e => setTemplateName(e.target.value)}
-            placeholder="Template name" className="w-48 px-3 py-1.5 text-sm bg-input text-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] transition-colors" />
-        )}
+        <Card padding="md" className="min-h-[210px] flex flex-col">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider">Templates</h3>
+            {templatesLoading && <Loader2 className="w-3 h-3 animate-spin text-muted" />}
+          </div>
+
+          <div className="flex-1">
+            {templates.length > 0 ? (
+              <div>
+                <div className="relative">
+                  <select value={selectedTemplateId} onChange={e => handleTemplateChange(e.target.value)}
+                    className={SELECT + ' pr-8 text-xs'}>
+                    <option value="">Custom setup</option>
+                    {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" />
+                </div>
+
+                {selectedTemplate && (
+                  <div className="mt-2 p-2.5 bg-input rounded-lg space-y-1">
+                    <p className="text-xs font-medium text-primary">{selectedTemplate.name}</p>
+                    <div className="flex items-center gap-2 text-[10px] text-muted">
+                      <span>{selectedTemplate.job_role}</span>
+                      <span>·</span>
+                      <span>{selectedTemplate.total_questions} Q</span>
+                      <span>·</span>
+                      <span className="capitalize">{selectedTemplate.interview_type}</span>
+                    </div>
+                    {(selectedTemplate.candidate_name || selectedTemplate.candidate_email) && (
+                      <p className="text-[10px] text-muted">
+                        {selectedTemplate.candidate_name && <span>{selectedTemplate.candidate_name}</span>}
+                        {selectedTemplate.candidate_name && selectedTemplate.candidate_email && <span> · </span>}
+                        {selectedTemplate.candidate_email && <span>{selectedTemplate.candidate_email}</span>}
+                      </p>
+                    )}
+                    <p className="text-[10px] text-success-text flex items-center gap-1">
+                      <Check className="w-2.5 h-2.5" /> Applied
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col justify-center min-h-[60px]">
+                <p className="text-xs text-muted">
+                  {templatesLoading
+                    ? 'Loading...'
+                    : companyId
+                      ? 'No templates saved for this company.'
+                      : 'Select a company first.'}
+                </p>
+                {!templatesLoading && companyId && (
+                  <p className="text-[10px] text-muted mt-1">
+                    Configure and use "Save as template" below.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-border">
+            {saveAsTemplate ? (
+              <div className="flex items-center gap-2">
+                <input type="text" value={templateName} onChange={e => setTemplateName(e.target.value)}
+                  placeholder="Name this template..."
+                  className="flex-1 min-w-0 px-2.5 py-1.5 text-xs bg-input text-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] transition-colors placeholder:text-muted" />
+                <button onClick={handleSaveTemplate} disabled={!templateName.trim()}
+                  className="px-3 py-1.5 text-xs bg-action-primary text-inverse rounded-lg font-medium hover:bg-action-primary-hover disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0">
+                  Save
+                </button>
+                <button onClick={() => setSaveAsTemplate(false)}
+                  className="px-2 py-1.5 text-xs text-muted hover:text-secondary transition-colors shrink-0">
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setSaveAsTemplate(true)}
+                className="flex items-center gap-1.5 text-xs text-muted hover:text-secondary transition-colors">
+                <Bookmark className="w-3.5 h-3.5" />
+                Save as template
+              </button>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      <div className="flex items-center justify-end">
         <button onClick={handleStart} disabled={isStarting || !companyId}
-          className="px-6 py-2 bg-action-primary text-inverse rounded-lg font-semibold text-sm hover:bg-action-primary-hover active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md whitespace-nowrap">
+          className="px-8 py-2.5 bg-action-primary text-inverse rounded-lg font-semibold text-sm hover:bg-action-primary-hover active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md">
           {isStarting ? (
             <span className="inline-flex items-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin" />

@@ -6,6 +6,7 @@ import logging
 from langgraph.checkpoint.memory import MemorySaver
 from app.graph.interview_state import InterviewState
 from app.agents.answer_evaluator_node import answer_evaluator_node
+from app.agents.interview_flow_node import interview_flow_node
 from app.agents.decision_node import decision_node
 
 logger = logging.getLogger(__name__)
@@ -17,8 +18,8 @@ def create_evaluation_workflow():
     
     Flow:
     1. Answer Evaluation → Score candidate answer and provide feedback
-    2. Decision → Determine next action (continue/finish)
-    3. END (STOP HERE - no more questions)
+    2. Interview Flow → Determine next phase/difficulty based on performance
+    3. Decision → Determine next action (continue/finish) - rule-based safety net
     
     Returns:
         Compiled StateGraph workflow
@@ -29,16 +30,15 @@ def create_evaluation_workflow():
     
     # Add nodes
     workflow.add_node("answer_evaluator", answer_evaluator_node)
+    workflow.add_node("interview_flow", interview_flow_node)
     workflow.add_node("decision", decision_node)
     
     # Set entry point
     workflow.set_entry_point("answer_evaluator")
     
     # Add edges (deterministic flows)
-    # After answer evaluation → always go to decision
-    workflow.add_edge("answer_evaluator", "decision")
-    
-    # After decision → END (stop here)
+    workflow.add_edge("answer_evaluator", "interview_flow")
+    workflow.add_edge("interview_flow", "decision")
     workflow.add_edge("decision", END)
     
     # Compile the workflow

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useInterviewStore } from '../../state/interviewStore';
-import { BackButton, LoadingScreen, QuestionDisplay, InputBar } from './shared';
+import { LoadingScreen, ConversationThread, InputBar } from './shared';
 
 export function TypingMode() {
   const { state, actions } = useInterviewStore();
@@ -32,14 +32,8 @@ export function TypingMode() {
   }
 
   return (
-    <div className="fixed inset-0 bg-page flex flex-col" data-theme="dark">
-      <BackButton />
-
-      <div className="flex-1 flex flex-col items-center justify-center p-6 min-h-0">
-        <div className="w-full max-w-2xl space-y-4">
-          <QuestionDisplay />
-        </div>
-      </div>
+    <div className="flex-1 h-full bg-page flex flex-col min-h-0" data-theme="dark">
+      <ConversationThread />
 
       <InputBar
         input={input}
@@ -47,7 +41,7 @@ export function TypingMode() {
         onSend={handleSend}
         onKeyDown={handleKeyDown}
         isSending={isSending}
-        placeholder="Type your answer here..."
+        placeholder="Type your answer..."
       />
     </div>
   );

@@ -21,7 +21,9 @@ class TemplateCreate(BaseModel):
     name: str
     job_role: str
     total_questions: int = 10
-    interview_type: str = "company"
+    interview_type: str = "typing"
+    candidate_name: str = ""
+    candidate_email: str = ""
 
 
 class TemplateUpdate(BaseModel):
@@ -29,6 +31,8 @@ class TemplateUpdate(BaseModel):
     job_role: Optional[str] = None
     total_questions: Optional[int] = None
     interview_type: Optional[str] = None
+    candidate_name: Optional[str] = None
+    candidate_email: Optional[str] = None
 
 
 @router.get("/")
@@ -57,6 +61,8 @@ def create_template(template: TemplateCreate):
             "job_role": template.job_role,
             "total_questions": template.total_questions,
             "interview_type": template.interview_type,
+            "candidate_name": template.candidate_name,
+            "candidate_email": template.candidate_email,
         }).execute()
         return result.data[0]
     except Exception as e:

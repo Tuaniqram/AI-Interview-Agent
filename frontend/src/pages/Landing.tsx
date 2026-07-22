@@ -1,8 +1,12 @@
 import { Hero } from './landing/Hero';
 import { Stats } from './landing/Stats';
 import AnimatedFlow from './landing/AnimatedFlow';
+import { ProcessFlow } from './landing/ProcessFlow';
+import LangGraphFlow from './landing/LangGraphFlow';
 import { Features } from './landing/Features';
+import { Testimonials } from './landing/Testimonials';
 import { UseCases } from './landing/UseCases';
+import { FAQ } from './landing/FAQ';
 import { CTASection } from './landing/CTASection';
 
 export function Landing() {
@@ -24,8 +28,18 @@ export function Landing() {
         </div>
       </section>
 
+      <ProcessFlow />
+
+      <section id="langgraph" className="py-24 px-6 bg-[#0a0a0b]">
+        <div className="max-w-5xl mx-auto">
+          <LangGraphFlow />
+        </div>
+      </section>
+
       <Features />
+      <Testimonials />
       <UseCases />
+      <FAQ />
       <CTASection />
     </div>
   );

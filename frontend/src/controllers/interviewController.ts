@@ -88,18 +88,19 @@ export class InterviewController {
       this.session = session;
       this.messageHistory = [];
 
-      // Backend auto-generates first question
+      // Backend auto-generates first question (start at question 1)
       const question = await interviewService.getNextQuestion({
         session_id: session.session_id,
-        question_number: session.question_number ?? 0,
+        question_number: 1,
         current_phase: session.current_phase ?? 'intro',
         difficulty_level: session.difficulty_level ?? 1,
       });
 
       console.log('[Controller] startInterview firstQuestion:', question);
 
-      // Store current question
-      this.currentQuestion = question;
+      // Ensure consistent question numbering
+      this.currentQuestion = { ...question, question_number: 1 };
+      this.session.question_number = 1;
 
       return { session, firstQuestion: question };
     } catch (error: any) {
@@ -132,20 +133,22 @@ export class InterviewController {
       // Build conversation history from stored messages
       const history = [...this.messageHistory];
 
-      // Get next question from backend
+      // Get next question from backend (pass current question_number as reference)
       const nextQuestion = await interviewService.getNextQuestion({
         session_id: this.session.session_id,
         conversation_history: history,
         current_phase: this.session.current_phase,
-        question_number: this.session.question_number ?? 0,
+        question_number: this.currentQuestion.question_number,
         difficulty_level: this.session.difficulty_level ?? 1,
       });
 
       console.log('[Controller] goToNextQuestion response:', nextQuestion);
 
-      // Update state from backend response
-      this.currentQuestion = nextQuestion;
-      this.session.question_number = nextQuestion.question_number;
+      // Frontend owns question numbering — increment locally
+      // (backend's pregen cache returns stale numbers due to double-increment)
+      const nextQNumber = (this.currentQuestion.question_number || 0) + 1;
+      this.currentQuestion = { ...nextQuestion, question_number: nextQNumber };
+      this.session.question_number = nextQNumber;
       this.session.current_phase = nextQuestion.phase;
       this.session.difficulty_level = nextQuestion.difficulty_level;
 
@@ -230,9 +233,8 @@ export class InterviewController {
         weaknesses: response.evaluation?.weaknesses || [],
       };
 
-      // Update session with backend's decisions
+      // Update session with backend's phase/difficulty decisions
       this.session.current_phase = evaluation.phase;
-      this.session.question_number = evaluation.question_number;
       this.session.difficulty_level = evaluation.difficulty_level;
 
       // If completed, update status

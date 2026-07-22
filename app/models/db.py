@@ -94,6 +94,7 @@ class InterviewSession(Base):
     candidate_email: Mapped[Optional[str]] = mapped_column(Text, nullable=True, server_default="")
     job_role: Mapped[str] = mapped_column(Text, nullable=False)
     interview_type: Mapped[Optional[str]] = mapped_column(Text, server_default="company")
+    interview_mode: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[Optional[str]] = mapped_column(Text, server_default="active")
     current_phase: Mapped[Optional[str]] = mapped_column(Text, server_default="intro")
     current_question_number: Mapped[Optional[int]] = mapped_column(Integer, server_default="0")
@@ -217,7 +218,9 @@ class InterviewTemplate(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     job_role: Mapped[str] = mapped_column(Text, nullable=False)
     total_questions: Mapped[Optional[int]] = mapped_column(Integer, server_default="10")
-    interview_type: Mapped[Optional[str]] = mapped_column(Text, server_default="company")
+    interview_type: Mapped[Optional[str]] = mapped_column(Text, server_default="typing")
+    candidate_name: Mapped[Optional[str]] = mapped_column(Text, nullable=True, server_default="")
+    candidate_email: Mapped[Optional[str]] = mapped_column(Text, nullable=True, server_default="")
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

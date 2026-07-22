@@ -11,14 +11,25 @@ interface SessionRecord {
   status: string;
   final_score: number | null;
   started_at: string;
+  interview_mode?: string;
 }
 
 export function InterviewHistoryTable({ sessions }: { sessions: SessionRecord[] }) {
   const navigate = useNavigate();
 
+  const modeIcon = (m?: string) => {
+    if (m === 'typing') return '⌨';
+    if (m === 'voice') return '🎤';
+    if (m === 'avatar') return '🤖';
+    return '—';
+  };
+
   const columns = useMemo<Column<SessionRecord>[]>(() => [
     { key: 'candidate_id', header: 'Candidate', render: s => s.candidate_id || 'Anonymous' },
     { key: 'job_role', header: 'Role' },
+    { key: 'interview_mode', header: 'Mode', render: s => (
+      <span className="text-xs">{modeIcon(s.interview_mode)} {s.interview_mode ? s.interview_mode.charAt(0).toUpperCase() + s.interview_mode.slice(1) : '—'}</span>
+    ) },
     { key: 'status', header: 'Status', render: s => <StatusBadge status={s.status} /> },
     { key: 'final_score', header: 'Score', render: s => <ScoreDisplay score={s.final_score} size="sm" showLabel={false} /> },
     { key: 'started_at', header: 'Date', render: s => new Date(s.started_at).toLocaleDateString(), className: 'text-secondary' },

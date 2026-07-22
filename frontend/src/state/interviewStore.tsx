@@ -3,11 +3,12 @@
  * Centralized state management with context API
  */
 
-import React, { createContext, useContext, useReducer, useMemo, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useMemo, useRef, useEffect, ReactNode } from 'react';
 import { 
   InterviewSession, 
   Question, 
   AnswerEvaluation, 
+  EvaluationHistoryEntry,
   InterviewReport,
   InterviewMode
 } from '../types/interview';
@@ -27,6 +28,9 @@ export type InterviewState = {
   
   // Evaluation results (from backend)
   evaluation: AnswerEvaluation | null;
+  evaluationHistory: EvaluationHistoryEntry[];
+  historyIndex: number;
+  cardVisible: boolean;
   finalReport: InterviewReport | null;
   
   // Interview mode
@@ -47,9 +51,13 @@ export type InterviewState = {
 
 type InterviewAction =
   | { type: 'SET_SESSION'; payload: InterviewSession }
+  | { type: 'SET_SESSION_PHASE'; payload: string }
   | { type: 'SET_QUESTION'; payload: Question }
   | { type: 'SET_USER_ANSWER'; payload: string }
   | { type: 'SET_EVALUATION'; payload: AnswerEvaluation }
+  | { type: 'PUSH_EVALUATION'; payload: EvaluationHistoryEntry }
+  | { type: 'SET_HISTORY_INDEX'; payload: number }
+  | { type: 'TOGGLE_CARD' }
   | { type: 'SET_FINAL_REPORT'; payload: InterviewReport }
   | { type: 'SET_INTERVIEW_MODE'; payload: InterviewMode }
   | { type: 'SET_LOADING'; payload: boolean }
@@ -65,8 +73,11 @@ const initialState: InterviewState = {
   currentQuestion: null,
   userAnswer: '',
   evaluation: null,
+  evaluationHistory: [],
+  historyIndex: -1,
+  cardVisible: false,
   finalReport: null,
-  interviewMode: 'avatar',
+  interviewMode: (localStorage.getItem('aiInterviewMode') as InterviewMode) || 'avatar',
   isLoading: false,
   isEvaluating: false,
   error: null,
@@ -80,10 +91,19 @@ const initialState: InterviewState = {
 function interviewReducer(state: InterviewState, action: InterviewAction): InterviewState {
   switch (action.type) {
     case 'SET_SESSION':
+      if (action.payload.interview_mode) {
+        localStorage.setItem('aiInterviewMode', action.payload.interview_mode);
+      }
       return {
         ...state,
         session: action.payload,
         isLoading: false,
+      };
+
+    case 'SET_SESSION_PHASE':
+      return {
+        ...state,
+        session: state.session ? { ...state.session, current_phase: action.payload } : state.session,
       };
 
     case 'SET_QUESTION':
@@ -106,6 +126,25 @@ function interviewReducer(state: InterviewState, action: InterviewAction): Inter
         isEvaluating: false,
       };
 
+    case 'PUSH_EVALUATION':
+      return {
+        ...state,
+        evaluationHistory: [...state.evaluationHistory, action.payload],
+        historyIndex: state.evaluationHistory.length,
+      };
+
+    case 'SET_HISTORY_INDEX':
+      return {
+        ...state,
+        historyIndex: action.payload,
+      };
+
+    case 'TOGGLE_CARD':
+      return {
+        ...state,
+        cardVisible: !state.cardVisible,
+      };
+
     case 'SET_FINAL_REPORT':
       return {
         ...state,
@@ -113,6 +152,7 @@ function interviewReducer(state: InterviewState, action: InterviewAction): Inter
       };
 
     case 'SET_INTERVIEW_MODE':
+      localStorage.setItem('aiInterviewMode', action.payload);
       return {
         ...state,
         interviewMode: action.payload,
@@ -158,6 +198,7 @@ function interviewReducer(state: InterviewState, action: InterviewAction): Inter
       };
 
     case 'RESET_STATE':
+      sessionStorage.removeItem('aiInterviewState');
       return initialState;
 
     default:
@@ -184,6 +225,9 @@ interface InterviewStoreActions {
   goToNextQuestion: () => Promise<void>;
   submitAnswer: (answer: string) => Promise<void>;
   updateAnswer: (answer: string) => void;
+  goToPrevEvaluation: () => void;
+  goToNextEvaluation: () => void;
+  toggleCard: () => void;
   clearError: () => void;
 }
 
@@ -193,12 +237,38 @@ interface InterviewProviderProps {
   children: ReactNode;
 }
 
+function initState(defaultState: InterviewState): InterviewState {
+  try {
+    const saved = sessionStorage.getItem('aiInterviewState');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return { ...defaultState, ...parsed, isLoading: false, isEvaluating: false, error: null };
+    }
+  } catch {}
+  return defaultState;
+}
+
 export function InterviewProvider({ children }: InterviewProviderProps) {
-  const [state, dispatch] = useReducer(interviewReducer, initialState);
+  const [state, dispatch] = useReducer(interviewReducer, initialState, initState);
   const controller = interviewController;
 
   const stateRef = useRef(state);
   stateRef.current = state;
+
+  useEffect(() => {
+    if (!state.session) return;
+    const toSave = {
+      session: state.session,
+      currentQuestion: state.currentQuestion,
+      evaluationHistory: state.evaluationHistory,
+      historyIndex: state.historyIndex,
+      cardVisible: state.cardVisible,
+      interviewMode: state.interviewMode,
+    };
+    try {
+      sessionStorage.setItem('aiInterviewState', JSON.stringify(toSave));
+    } catch {}
+  }, [state.session, state.currentQuestion, state.evaluationHistory, state.historyIndex, state.cardVisible, state.interviewMode]);
 
   const actions = useMemo<InterviewStoreActions>(() => {
     const fetchFinalReport = async () => {
@@ -240,8 +310,10 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
         try {
           const nextQuestion = await controller.goToNextQuestion();
           dispatch({ type: 'SET_USER_ANSWER', payload: '' });
-          dispatch({ type: 'SET_EVALUATION', payload: null as unknown as AnswerEvaluation });
           dispatch({ type: 'SET_QUESTION', payload: nextQuestion });
+          if (nextQuestion.phase) {
+            dispatch({ type: 'SET_SESSION_PHASE', payload: nextQuestion.phase });
+          }
         } catch (error: any) {
           dispatch({ type: 'SET_ERROR', payload: error.message });
         }
@@ -255,9 +327,27 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
         dispatch({ type: 'SET_EVALUATING', payload: true });
         dispatch({ type: 'SET_USER_ANSWER', payload: answer });
         try {
-          const evaluation = await controller.submitAnswer({ answer });
-          dispatch({ type: 'SET_EVALUATION', payload: evaluation });
-          if (evaluation.interview_status === 'completed') {
+          const result = await controller.submitAnswer({ answer });
+          dispatch({ type: 'SET_EVALUATION', payload: result });
+
+          const currentQ = stateRef.current.currentQuestion;
+          const entry: EvaluationHistoryEntry = {
+            questionNumber: result.question_number,
+            question: currentQ?.question || '',
+            answer: answer,
+            score: result.score,
+            technicalScore: result.technical_score,
+            communicationScore: result.communication_score,
+            strengths: result.strengths || [],
+            weaknesses: result.weaknesses || [],
+            feedback: result.evaluation || '',
+          };
+          dispatch({ type: 'PUSH_EVALUATION', payload: entry });
+          if (result.phase) {
+            dispatch({ type: 'SET_SESSION_PHASE', payload: result.phase });
+          }
+
+          if (result.interview_status === 'completed') {
             await fetchFinalReport();
           } else {
             const nextQuestion = await controller.goToNextQuestion();
@@ -276,6 +366,24 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
 
       clearError: () => {
         dispatch({ type: 'SET_ERROR', payload: '' });
+      },
+
+      goToPrevEvaluation: () => {
+        const current = stateRef.current;
+        if (current.historyIndex > 0) {
+          dispatch({ type: 'SET_HISTORY_INDEX', payload: current.historyIndex - 1 });
+        }
+      },
+
+      goToNextEvaluation: () => {
+        const current = stateRef.current;
+        if (current.historyIndex < current.evaluationHistory.length - 1) {
+          dispatch({ type: 'SET_HISTORY_INDEX', payload: current.historyIndex + 1 });
+        }
+      },
+
+      toggleCard: () => {
+        dispatch({ type: 'TOGGLE_CARD' });
       },
     };
   }, []);

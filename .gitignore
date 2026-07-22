@@ -33,7 +33,11 @@ venv/
 ENV/
 env/
 skills-lock.json
+e2e/
+playwright-report/
+test-results/
 .agents/
+tests/
 # IDE
 .vscode/
 .idea/
