@@ -8,7 +8,7 @@ from sqlalchemy import (
     BigInteger, Boolean, CheckConstraint, Date, DateTime, ForeignKey,
     Index, Integer, Numeric, Text, Time, func,
 )
-from sqlalchemy.dialects.postgresql import UUID, INET
+from sqlalchemy.dialects.postgresql import UUID, INET, ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -228,6 +228,7 @@ class InterviewSession(Base):
     )
     final_score: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
     final_feedback: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    engine_version: Mapped[Optional[str]] = mapped_column(Text, server_default="v3")
 
     organization: Mapped[Optional[Organization]] = relationship("Organization")
     department: Mapped[Department] = relationship("Department", back_populates="sessions")
@@ -357,6 +358,7 @@ class CandidateProfile(Base):
     verification_token_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     verification_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     skills: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    profile_data: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict, nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -466,6 +468,7 @@ class PublicInterview(Base):
     )
     max_candidates: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     skills_required: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    style_name: Mapped[Optional[str]] = mapped_column(Text, server_default="STANDARD")
     starts_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(
@@ -647,4 +650,183 @@ class AuditLog(Base):
         Index("idx_audit_user", "user_id"),
         Index("idx_audit_action", "action"),
         Index("idx_audit_created", "created_at"),
+    )
+
+
+# ============================================================================
+# v4 Evidence-Driven Interview Models
+# ============================================================================
+
+
+class EvidenceStore(Base):
+    __tablename__ = "evidence_store"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    competency: Mapped[str] = mapped_column(Text, nullable=False)
+    dimension: Mapped[str] = mapped_column(Text, nullable=False)
+    score: Mapped[float] = mapped_column(nullable=False)
+    confidence: Mapped[float] = mapped_column(nullable=False, default=1.0)
+    evidence_text: Mapped[str] = mapped_column(Text, nullable=False)
+    source_question: Mapped[str] = mapped_column(Text, nullable=False)
+    question_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    hypothesis_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    hypothesis_relevance: Mapped[Optional[float]] = mapped_column(nullable=True)
+    evidence_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("score >= 0 AND score <= 10", name="evidence_score_check"),
+        CheckConstraint("confidence >= 0 AND confidence <= 1", name="evidence_confidence_check"),
+        CheckConstraint(
+            "dimension IN ('technical','communication','reasoning','behavioral','confidence','completeness')",
+            name="evidence_dimension_check",
+        ),
+        Index("idx_evidence_session", "session_id"),
+        Index("idx_evidence_session_competency", "session_id", "competency"),
+        Index("idx_evidence_session_dimension", "session_id", "dimension"),
+        Index("idx_evidence_hypothesis", "hypothesis_id"),
+    )
+
+
+class Hypothesis(Base):
+    __tablename__ = "hypotheses"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    statement: Mapped[str] = mapped_column(Text, nullable=False)
+    direction: Mapped[str] = mapped_column(Text, nullable=False)
+    confidence: Mapped[float] = mapped_column(nullable=False, default=0.0)
+    supporting_evidence: Mapped[Optional[list]] = mapped_column(
+        ARRAY(UUID(as_uuid=True)), default=list, nullable=True
+    )
+    contradicting_evidence: Mapped[Optional[list]] = mapped_column(
+        ARRAY(UUID(as_uuid=True)), default=list, nullable=True
+    )
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="untested")
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    last_updated: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("direction IN ('positive', 'negative')", name="hypothesis_direction_check"),
+        CheckConstraint("confidence >= 0 AND confidence <= 1", name="hypothesis_confidence_check"),
+        CheckConstraint(
+            "status IN ('untested', 'testing', 'confirmed', 'refuted')",
+            name="hypothesis_status_check",
+        ),
+        Index("idx_hypotheses_session", "session_id"),
+        Index("idx_hypotheses_session_status", "session_id", "status"),
+    )
+
+
+class InterviewObjective(Base):
+    __tablename__ = "interview_objectives"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    competency: Mapped[str] = mapped_column(Text, nullable=False)
+    dimension: Mapped[str] = mapped_column(Text, nullable=False)
+    hypothesis_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
+    hypothesis_statement: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    hypothesis_confidence: Mapped[Optional[float]] = mapped_column(nullable=True)
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")
+    evidence_ids: Mapped[Optional[list]] = mapped_column(
+        ARRAY(UUID(as_uuid=True)), default=list, nullable=True
+    )
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'probed', 'satisfied')",
+            name="objective_status_check",
+        ),
+        Index("idx_objectives_session", "session_id"),
+        Index("idx_objectives_session_status", "session_id", "status"),
+    )
+
+
+class ConsistencyCheck(Base):
+    __tablename__ = "consistency_checks"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    dimension: Mapped[str] = mapped_column(Text, nullable=False)
+    answers_compared: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    consistency_score: Mapped[float] = mapped_column(nullable=False)
+    contradictions: Mapped[Optional[dict]] = mapped_column(JSONB, default=list, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "consistency_score >= 0 AND consistency_score <= 1",
+            name="consistency_score_check",
+        ),
+        Index("idx_consistency_session", "session_id"),
+    )
+
+
+class Observation(Base):
+    __tablename__ = "observations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    question_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    type: Mapped[str] = mapped_column(Text, nullable=False)
+    value: Mapped[float] = mapped_column(nullable=False)
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    pattern: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    risk_signal: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("value >= 0 AND value <= 1", name="observation_value_check"),
+        Index("idx_observations_session", "session_id"),
+        Index("idx_observations_session_type", "session_id", "type"),
     )

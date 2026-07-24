@@ -74,3 +74,47 @@ class InterviewState(TypedDict, total=False):
 
     # Event Logging
     nodes_executed: List[str]
+
+    # ========== v4 Evidence-Driven Fields ==========
+
+    # Evidence & Memory
+    evidence_store: List[Dict[str, Any]]
+    candidate_profile: Dict[str, Any]
+    hypotheses: List[Dict[str, Any]]
+    hypothesis_target: Optional[Dict[str, Any]]
+
+    # Competency Planning
+    required_competencies: List[Dict[str, Any]]
+    competency_summary: Dict[str, Dict[str, Any]]
+
+    # Strategy
+    interview_style: Dict[str, Any]
+    interview_strategy: Optional[Dict[str, Any]]
+    strategy_cache_valid: bool
+
+    # Question Objective
+    question_objective: Optional[Dict[str, Any]]
+
+    # Evaluation
+    unified_evaluation: Optional[Dict[str, Any]]
+    evaluator_mode: str
+    extracted_evidence: List[Dict[str, Any]]
+
+    # Observations
+    observations: List[Dict[str, Any]]
+    observation_trends: Dict[str, Any]
+
+    # Consistency
+    consistency_checks: List[Dict[str, Any]]
+    contradictions: List[Dict[str, Any]]
+
+    # Reflection
+    reflection_action: Optional[Dict[str, Any]]
+    hiring_recommendation: Optional[str]
+    evidence_sufficiency: float
+
+    # Persona
+    persona: str
+
+    # Company
+    company_competency_requirements: List[Dict[str, Any]]

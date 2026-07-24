@@ -77,10 +77,12 @@ export interface PracticeStartRequest {
   difficulty: string;
   tech_stack?: string;
   num_questions: number;
+  interview_style?: string;
 }
 
 export interface PracticeStartResponse {
   session_id: string;
   job_role: string;
   total_questions: number;
+  interview_style: string;
 }

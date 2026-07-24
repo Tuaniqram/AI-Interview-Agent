@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 from typing import Any
 from dotenv import load_dotenv
@@ -14,6 +15,13 @@ class FallbackLLM:
     def __init__(self, models: list[ChatOpenAI]):
         self._models = models
 
+    def _sanitize_error(self, error: Exception) -> str:
+        msg = str(error)
+        for key in ("api_key", "apikey", "authorization", "x-api-key"):
+            if key.lower() in msg.lower():
+                msg = re.sub(r'(api_key["\']?\s*[:=]\s*["\']?)[^"\'}\s,]+', r'\1***', msg, flags=re.IGNORECASE)
+        return msg[:500]
+
     async def ainvoke(self, messages: list, config: dict | None = None, **kwargs: Any) -> Any:
         last_error = None
         for model in self._models:
@@ -21,7 +29,7 @@ class FallbackLLM:
                 return await model.ainvoke(messages, config, **kwargs)
             except Exception as e:
                 last_error = e
-                logger.warning("Model %s failed, trying next: %s", model.model_name, e)
+                logger.warning("Model %s failed, trying next: %s", model.model_name, self._sanitize_error(e))
         raise RuntimeError("All models failed") from last_error
 
     async def astream(self, messages, config=None, **kwargs):

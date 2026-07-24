@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>v4 AI Interview Agent</title>
+<style>
+  :root { --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #c9d1d9; --accent: #58a6ff; --green: #3fb950; --orange: #d29922; --red: #f85149; --radius: 8px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 1.5rem; margin-bottom: 8px; }
+  h2 { font-size: 1.1rem; margin-bottom: 12px; color: var(--accent); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .flex { display: flex; gap: 12px; flex-wrap: wrap; }
+  .flex-grow { flex: 1; min-width: 200px; }
+  label { display: block; font-size: .85rem; color: #8b949e; margin-bottom: 4px; }
+  input, textarea, select { width: 100%; padding: 8px 12px; background: #0d1117; border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: .95rem; }
+  textarea { resize: vertical; min-height: 80px; font-family: inherit; }
+  button { padding: 10px 24px; border: none; border-radius: var(--radius); font-size: .95rem; cursor: pointer; font-weight: 600; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { filter: brightness(1.15); }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-secondary { background: #21262d; color: var(--text); border: 1px solid var(--border); }
+  .hidden { display: none !important; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: .75rem; font-weight: 600; }
+  .badge-green { background: #1a3a2a; color: var(--green); }
+  .badge-orange { background: #3a2e1a; color: var(--orange); }
+  .badge-red { background: #3a1a1a; color: var(--red); }
+  .badge-blue { background: #1a2a3a; color: var(--accent); }
+  .score-bar { height: 6px; background: #21262d; border-radius: 3px; margin-top: 4px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+  .dim-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .dim-item { padding: 12px; background: #0d1117; border-radius: var(--radius); border: 1px solid var(--border); }
+  .dim-score { font-size: 1.3rem; font-weight: 700; }
+  .chat-msg { padding: 12px; margin-bottom: 8px; border-radius: var(--radius); }
+  .chat-q { background: #1a2a3a; border-left: 3px solid var(--accent); }
+  .chat-a { background: #1a3a2a; border-left: 3px solid var(--green); }
+  .progress-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: .9rem; }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag { padding: 2px 8px; background: #21262d; border-radius: 4px; font-size: .8rem; }
+  .error { color: var(--red); padding: 8px; background: #3a1a1a; border-radius: var(--radius); margin-bottom: 12px; }
+  @media (max-width: 600px) { .dim-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>v4 Interview Engine</h1>
+  <p style="color:#8b949e;margin-bottom:24px">Evidence-driven, hypothesis-based AI interview</p>
+
+  <!-- Step 1: Start Form -->
+  <div id="step-start" class="card">
+    <h2>Start Interview</h2>
+    <form id="start-form" onsubmit="return startInterview(event)">
+      <div class="flex">
+        <div class="flex-grow">
+          <label>Job Role</label>
+          <input type="text" id="job_role" value="Python Developer" required>
+        </div>
+        <div class="flex-grow">
+          <label>Style</label>
+          <select id="style_name"></select>
+        </div>
+      </div>
+      <div class="flex" style="margin-top:12px">
+        <div class="flex-grow">
+          <label>Candidate Name</label>
+          <input type="text" id="candidate_name" placeholder="Alice Chen">
+        </div>
+        <div class="flex-grow">
+          <label>Headline</label>
+          <input type="text" id="candidate_headline" placeholder="Senior Backend Engineer">
+        </div>
+      </div>
+      <div class="flex" style="margin-top:12px">
+        <div class="flex-grow">
+          <label>Strengths (comma-separated)</label>
+          <input type="text" id="strengths" placeholder="Python, Distributed Systems">
+        </div>
+        <div class="flex-grow">
+          <label>Weaknesses (comma-separated)</label>
+          <input type="text" id="weaknesses" placeholder="DevOps, Frontend">
+        </div>
+      </div>
+      <button type="submit" class="btn-primary" style="margin-top:16px" id="btn-start">Start Interview</button>
+    </form>
+  </div>
+
+  <!-- Step 2: Question & Answer -->
+  <div id="step-interview" class="hidden">
+    <div class="card">
+      <div class="flex" style="justify-content:space-between;align-items:center">
+        <h2>Interview in Progress</h2>
+        <div>
+          <span class="badge badge-blue" id="badge-persona"></span>
+          <span class="badge badge-orange" id="badge-difficulty"></span>
+        </div>
+      </div>
+      <div id="session-info" style="font-size:.85rem;color:#8b949e;margin-bottom:12px"></div>
+    </div>
+
+    <!-- Conversation -->
+    <div class="card" id="conversation-area">
+      <h2>Conversation</h2>
+      <div id="conversation"></div>
+    </div>
+
+    <!-- Answer input -->
+    <div class="card" id="answer-area">
+      <h2>Your Answer</h2>
+      <textarea id="answer-input" placeholder="Type your answer here..."></textarea>
+      <button class="btn-primary" style="margin-top:8px" id="btn-submit" onclick="submitAnswer()">Submit Answer</button>
+    </div>
+
+    <!-- Evaluation Results -->
+    <div class="card hidden" id="evaluation-area">
+      <h2>Latest Evaluation</h2>
+      <div id="evaluation-scores" class="dim-grid"></div>
+      <div style="margin-top:12px">
+        <strong>Composite Score:</strong> <span id="composite-score"></span>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="card">
+      <h2>Progress</h2>
+      <div class="flex">
+        <div class="flex-grow">
+          <h3 style="font-size:.9rem;color:#8b949e">Competency Coverage</h3>
+          <div id="competency-progress"></div>
+        </div>
+        <div class="flex-grow">
+          <h3 style="font-size:.9rem;color:#8b949e">Hypothesis Status</h3>
+          <div id="hypothesis-progress"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Report -->
+  <div id="step-report" class="hidden">
+    <h2>Interview Complete</h2>
+    <div id="report-content"></div>
+  </div>
+
+  <div id="error-container"></div>
+</div>
+
+<script>
+const API = window.location.origin;
+let sessionId = null;
+let state = null;
+
+async function loadStyles() {
+  try {
+    const r = await fetch(`${API}/interviews/v4/styles`);
+    const data = await r.json();
+    const sel = document.getElementById("style_name");
+    sel.innerHTML = data.styles.map(s => `<option value="${s.name}">${s.name} (${s.persona})</option>`).join("");
+  } catch (e) {
+    showError("Failed to load styles");
+  }
+}
+
+async function startInterview(e) {
+  e.preventDefault();
+  document.getElementById("btn-start").disabled = true;
+  hideError();
+
+  const payload = {
+    job_role: document.getElementById("job_role").value,
+    style_name: document.getElementById("style_name").value,
+    candidate_name: document.getElementById("candidate_name").value,
+    candidate_headline: document.getElementById("candidate_headline").value,
+    candidate_strengths: document.getElementById("strengths").value.split(",").map(s => s.trim()).filter(Boolean),
+    candidate_weaknesses: document.getElementById("weaknesses").value.split(",").map(s => s.trim()).filter(Boolean),
+  };
+
+  try {
+    const r = await fetch(`${API}/interviews/v4/start`, {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) { const err = await r.json(); throw new Error(err.detail || r.statusText); }
+    state = await r.json();
+    sessionId = state.session_id;
+    document.getElementById("step-start").classList.add("hidden");
+    document.getElementById("step-interview").classList.remove("hidden");
+    document.getElementById("badge-persona").textContent = state.persona;
+    document.getElementById("badge-difficulty").textContent = `Lvl ${state.difficulty}`;
+    document.getElementById("session-info").textContent = `Session: ${sessionId.slice(0,12)}... | Style: ${payload.style_name} | Role: ${payload.job_role}`;
+    addQuestion(state.question);
+    document.getElementById("answer-input").focus();
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    document.getElementById("btn-start").disabled = false;
+  }
+}
+
+async function submitAnswer() {
+  const input = document.getElementById("answer-input");
+  const answer = input.value.trim();
+  if (!answer) return;
+  input.value = "";
+  document.getElementById("btn-submit").disabled = true;
+  hideError();
+
+  addAnswer(answer);
+
+  try {
+    const r = await fetch(`${API}/interviews/v4/${sessionId}/answer`, {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({answer}),
+    });
+    if (!r.ok) { const err = await r.json(); throw new Error(err.detail || r.statusText); }
+    state = await r.json();
+
+    if (state.interview_complete) {
+      showReport(state);
+      return;
+    }
+
+    const evalArea = document.getElementById("evaluation-area");
+    evalArea.classList.remove("hidden");
+    renderEvaluation(state.evaluation);
+    document.getElementById("composite-score").textContent = state.evaluation.composite?.toFixed(2) ?? "N/A";
+
+    if (state.next_question?.text) {
+      addQuestion(state.next_question);
+    }
+
+    renderCompetencyProgress(state.evidence?.competency_progress || {});
+    renderHypothesisProgress(state.hypothesis_progress || {});
+
+    document.getElementById("answer-input").focus();
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    document.getElementById("btn-submit").disabled = false;
+  }
+}
+
+function addQuestion(q) {
+  const el = document.createElement("div");
+  el.className = "chat-msg chat-q";
+  const comp = q.target_competency ? ` [${q.target_competency}]` : "";
+  el.innerHTML = `<strong>Q${q.number}${comp}:</strong> ${q.text}`;
+  document.getElementById("conversation").appendChild(el);
+  el.scrollIntoView({behavior:"smooth"});
+}
+
+function addAnswer(text) {
+  const el = document.createElement("div");
+  el.className = "chat-msg chat-a";
+  el.innerHTML = `<strong>You:</strong> ${escapeHtml(text)}`;
+  document.getElementById("conversation").appendChild(el);
+  el.scrollIntoView({behavior:"smooth"});
+}
+
+function renderEvaluation(evalData) {
+  const container = document.getElementById("evaluation-scores");
+  container.innerHTML = "";
+  for (const [dim, data] of Object.entries(evalData.scores || {})) {
+    const pct = (data.score / 10 * 100).toFixed(0);
+    const color = data.score >= 7 ? "var(--green)" : data.score >= 5 ? "var(--orange)" : "var(--red)";
+    const el = document.createElement("div");
+    el.className = "dim-item";
+    el.innerHTML = `
+      <div style="display:flex;justify-content:space-between">
+        <span>${dim}</span>
+        <span class="dim-score" style="color:${color}">${data.score.toFixed(1)}</span>
+      </div>
+      <div class="score-bar"><div class="score-fill" style="width:${pct}%;background:${color}"></div></div>
+      <div style="font-size:.8rem;color:#8b949e;margin-top:4px">${escapeHtml(data.evidence?.slice(0,80) || "")}</div>
+      ${data.strengths?.length ? `<div class="tags" style="margin-top:4px">${data.strengths.map(s => `<span class="tag" style="border:1px solid var(--green);color:var(--green)">${escapeHtml(s)}</span>`).join("")}</div>` : ""}
+      ${data.weaknesses?.length ? `<div class="tags" style="margin-top:4px">${data.weaknesses.map(s => `<span class="tag" style="border:1px solid var(--red);color:var(--red)">${escapeHtml(s)}</span>`).join("")}</div>` : ""}
+    `;
+    container.appendChild(el);
+  }
+}
+
+function renderCompetencyProgress(progress) {
+  const container = document.getElementById("competency-progress");
+  container.innerHTML = "";
+  for (const [comp, data] of Object.entries(progress)) {
+    const pct = ((data.gap != null ? 1 - data.gap : 0) * 100).toFixed(0);
+    const color = data.gap <= 0.3 ? "var(--green)" : data.gap <= 0.6 ? "var(--orange)" : "var(--red)";
+    const el = document.createElement("div");
+    el.className = "progress-item";
+    el.innerHTML = `
+      <span>${comp}</span>
+      <span>
+        <span class="badge badge-blue">${data.evidence_count}x</span>
+        <span>${data.average_score?.toFixed(1) ?? "-"}/10</span>
+        <span class="score-bar" style="width:60px;display:inline-block;vertical-align:middle">
+          <div class="score-fill" style="width:${pct}%;background:${color};display:block"></div>
+        </span>
+      </span>`;
+    container.appendChild(el);
+  }
+}
+
+function renderHypothesisProgress(hypData) {
+  const container = document.getElementById("hypothesis-progress");
+  const statuses = hypData.statuses || {};
+  const total = hypData.total || 0;
+  container.innerHTML = `
+    <div class="progress-item"><span>Total</span><span>${total}</span></div>
+    <div class="progress-item"><span class="badge badge-green">Confirmed</span><span>${statuses.confirmed || 0}</span></div>
+    <div class="progress-item"><span class="badge badge-orange">Testing</span><span>${statuses.testing || 0}</span></div>
+    <div class="progress-item"><span class="badge badge-red">Refuted</span><span>${statuses.refuted || 0}</span></div>
+    <div class="progress-item"><span class="badge badge-blue">Untested</span><span>${statuses.untested || 0}</span></div>
+    <div class="progress-item"><span>Contradictions</span><span>${hypData.contradictions ?? state?.contradictions ?? 0}</span></div>
+  `;
+}
+
+function showReport(data) {
+  document.getElementById("step-interview").classList.add("hidden");
+  document.getElementById("step-report").classList.remove("hidden");
+  const rec = data.hiring_recommendation || {};
+  const comp = data.competency_summary || {};
+  document.getElementById("report-content").innerHTML = `
+    <div class="card">
+      <h2>Verdict: <span class="badge ${rec.verdict === 'hire' ? 'badge-green' : rec.verdict === 'no_hire' ? 'badge-red' : 'badge-orange'}" style="font-size:1rem">${rec.verdict}</span></h2>
+      <p>Confidence: ${(rec.confidence * 100).toFixed(1)}% | Composite: ${rec.composite_score?.toFixed(2) ?? "N/A"} | Coverage: ${(rec.coverage_ratio * 100).toFixed(0)}%</p>
+    </div>
+    <div class="card">
+      <h2>Competency Summary</h2>
+      ${Object.entries(comp).map(([c, d]) => `
+        <div class="progress-item">
+          <span>${c}</span>
+          <span>Score: ${d.average_score?.toFixed(1) ?? "-"} | Evidence: ${d.evidence_count} | Gap: ${(d.gap * 100).toFixed(0)}%</span>
+        </div>`).join("")}
+    </div>
+    <div class="card">
+      <h2>Statistics</h2>
+      <p>Questions Asked: ${data.questions_asked}</p>
+      <p>Evidence Collected: ${data.evidence_collected}</p>
+      <p>Hypothesis Outcomes: ${data.hypothesis_outcomes?.confirmed ?? 0} confirmed, ${data.hypothesis_outcomes?.refuted ?? 0} refuted</p>
+    </div>
+    <button class="btn-primary" onclick="location.reload()">Start New Interview</button>
+  `;
+}
+
+function showError(msg) {
+  const container = document.getElementById("error-container");
+  container.innerHTML = `<div class="error">${escapeHtml(msg)}</div>`;
+}
+
+function hideError() {
+  document.getElementById("error-container").innerHTML = "";
+}
+
+function escapeHtml(s) {
+  if (!s) return "";
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+loadStyles();
+</script>
+</body>
+</html>

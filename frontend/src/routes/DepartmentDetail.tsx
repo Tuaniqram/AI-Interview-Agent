@@ -18,6 +18,22 @@ import { TagInput } from '../components/shared/TagInput';
 import { useToast } from '../components/shared/Toast';
 import type { OrgPublicListing } from '../types/marketplace';
 
+const INTERVIEW_STYLES = [
+  { value: 'STANDARD', label: 'Standard', desc: 'Balanced across all competencies' },
+  { value: 'FRESH_GRAD', label: 'Fresh Grad', desc: 'Entry-level, core + DSA + learning, mentor persona' },
+  { value: 'JUNIOR', label: 'Junior', desc: '1-3yr exp, framework + teamwork, friendly persona' },
+  { value: 'MID_LEVEL', label: 'Mid-Level', desc: '3-5yr exp, system design + ownership' },
+  { value: 'SENIOR', label: 'Senior', desc: '5-8yr exp, architecture + leadership, formal persona' },
+  { value: 'TECH_LEAD', label: 'Tech Lead', desc: 'Lead/Staff, leadership + people' },
+  { value: 'EM', label: 'Engineering Manager', desc: 'Process + strategy' },
+  { value: 'FAANG', label: 'FAANG', desc: 'Algorithm-heavy, deep probes' },
+  { value: 'FAANG_LITE', label: 'FAANG Lite', desc: 'FAANG approach cost-optimized' },
+  { value: 'STARTUP', label: 'Startup', desc: 'Full-stack, adaptability, speed' },
+  { value: 'CONTRACT', label: 'Contract', desc: 'Domain depth, delivery, independence' },
+  { value: 'EXECUTIVE', label: 'Executive', desc: 'C-level, strategy + vision' },
+  { value: 'STRESS_TEST', label: 'Stress Test', desc: 'Resilience under pressure' },
+];
+
 type Tab = 'overview' | 'documents' | 'history' | 'listings';
 
 export function DepartmentDetail() {
@@ -39,6 +55,7 @@ export function DepartmentDetail() {
   const [fInterviewMode, setFInterviewMode] = useState('typing');
   const [fMaxCandidates, setFMaxCandidates] = useState('');
   const [fSkills, setFSkills] = useState('');
+  const [fStyle, setFStyle] = useState('STANDARD');
   const [fStartsAt, setFStartsAt] = useState('');
   const [fExpiresAt, setFExpiresAt] = useState('');
   const [saving, setSaving] = useState(false);
@@ -106,6 +123,7 @@ export function DepartmentDetail() {
     setFInterviewMode('typing');
     setFMaxCandidates('');
     setFSkills('');
+    setFStyle('STANDARD');
     setFStartsAt('');
     setFExpiresAt('');
     setEditing(null);
@@ -119,6 +137,7 @@ export function DepartmentDetail() {
     setFInterviewMode(listing.interview_mode);
     setFMaxCandidates(listing.max_candidates?.toString() || '');
     setFSkills(listing.skills_required || '');
+    setFStyle(listing.style_name || 'STANDARD');
     setFStartsAt(listing.starts_at ? listing.starts_at.slice(0, 16) : '');
     setFExpiresAt(listing.expires_at ? listing.expires_at.slice(0, 16) : '');
     setShowForm(true);
@@ -143,6 +162,7 @@ export function DepartmentDetail() {
           interview_mode: fInterviewMode,
           max_candidates: fMaxCandidates ? parseInt(fMaxCandidates) : undefined,
           skills_required: fSkills.trim() || undefined,
+          style_name: fStyle,
           starts_at: fStartsAt ? new Date(fStartsAt).toISOString() : undefined,
           expires_at: fExpiresAt ? new Date(fExpiresAt).toISOString() : undefined,
         });
@@ -155,6 +175,7 @@ export function DepartmentDetail() {
           interview_mode: fInterviewMode,
           max_candidates: fMaxCandidates ? parseInt(fMaxCandidates) : undefined,
           skills_required: fSkills.trim() || undefined,
+          style_name: fStyle,
           starts_at: fStartsAt ? new Date(fStartsAt).toISOString() : undefined,
           expires_at: fExpiresAt ? new Date(fExpiresAt).toISOString() : undefined,
         });
@@ -355,6 +376,18 @@ export function DepartmentDetail() {
                   </select>
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Interview Style</label>
+                  <select value={fStyle} onChange={e => setFStyle(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]">
+                    {INTERVIEW_STYLES.map(s => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted mt-1">{INTERVIEW_STYLES.find(s => s.value === fStyle)?.desc}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Max Candidates</label>
                   <input type="number" value={fMaxCandidates} onChange={e => setFMaxCandidates(e.target.value)} min={1}
                     placeholder="Unlimited"
@@ -421,6 +454,11 @@ export function DepartmentDetail() {
                           <span className="text-xs px-2 py-0.5 rounded bg-action-primary/10 text-action-primary">
                             {listing.interview_mode}
                           </span>
+                          {listing.style_name && listing.style_name !== 'STANDARD' && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-500">
+                              {listing.style_name}
+                            </span>
+                          )}
                           {skills.map(s => (
                             <span key={s} className="text-xs px-2 py-0.5 rounded bg-page text-muted border border-border-color">
                               {s}

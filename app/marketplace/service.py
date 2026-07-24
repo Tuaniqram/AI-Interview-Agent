@@ -29,6 +29,9 @@ from app.models.db import (
 )
 from app.services.audit_log import AuditLogService
 from app.services.marketplace_generator import generate_rich_description
+from app.services.v4_session_store import get_v4_session_store
+from app.config.interview_styles import get_style
+from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
 
 
 async def list_organizations(
@@ -106,7 +109,12 @@ async def get_org_profile(org_slug: str, db: AsyncSession) -> dict:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
 
     interviews_result = await db.execute(
-        select(PublicInterview).where(
+        select(
+            PublicInterview,
+            Department.name.label("dept_name"),
+        ).outerjoin(
+            Department, PublicInterview.department_id == Department.id
+        ).where(
             PublicInterview.org_id == org.id,
             PublicInterview.is_open == True,
             (PublicInterview.starts_at == None) | (PublicInterview.starts_at <= now),
@@ -114,15 +122,7 @@ async def get_org_profile(org_slug: str, db: AsyncSession) -> dict:
         )
     )
     interviews = []
-    for pi in interviews_result.scalars().all():
-        dept_name = ""
-        if pi.department_id:
-            dept_result = await db.execute(
-                select(Department).where(Department.id == pi.department_id)
-            )
-            dept = dept_result.scalar_one_or_none()
-            dept_name = dept.name if dept else ""
-
+    for pi, dept_name in interviews_result.all():
         interviews.append(
             PublicInterviewResponse(
                 id=pi.id,
@@ -132,8 +132,9 @@ async def get_org_profile(org_slug: str, db: AsyncSession) -> dict:
                 rich_description=pi.rich_description,
                 interview_mode=pi.interview_mode,
                 org_name=org.name,
-                department_name=dept_name,
+                department_name=dept_name or "",
                 skills_required=pi.skills_required,
+                style_name=pi.style_name or "STANDARD",
                 starts_at=pi.starts_at,
                 expires_at=pi.expires_at,
             )
@@ -188,6 +189,7 @@ async def get_public_interview(interview_id: str, db: AsyncSession) -> PublicInt
         org_name=org.name if org else None,
         department_name=dept_name,
         skills_required=pi.skills_required,
+        style_name=pi.style_name or "STANDARD",
         starts_at=pi.starts_at,
         expires_at=pi.expires_at,
     )
@@ -213,6 +215,7 @@ async def start_public_interview(
         job_role=pi.title,
         session_type="public",
         interaction_mode=pi.interview_mode,
+        engine_version="v4",
     )
 
     # G4: link to existing candidate profile if email matches
@@ -220,11 +223,62 @@ async def start_public_interview(
         select(CandidateProfile).where(CandidateProfile.email == req.candidate_email).limit(1)
     )
     candidate = candidate_result.scalar_one_or_none()
+    profile_data = None
     if candidate:
         session.candidate_profile_id = candidate.id
+        profile_data = candidate.profile_data
 
     db.add(session)
     await db.flush()
+
+    # Seed v4 state with the listing's style and candidate profile data
+    style = get_style(pi.style_name or "STANDARD")
+    store = get_v4_session_store()
+    state = {
+        "session_id": str(session.id),
+        "job_role": pi.title or "Software Engineer",
+        "department_id": pi.department_id,
+        "interview_style": style,
+        "persona": style.get("persona", "friendly"),
+        "difficulty_level": style.get("difficulty_range", (1, 3))[0],
+        "candidate_profile": {
+            "full_name": req.candidate_name or "Candidate",
+            "headline": "",
+            "strengths": list(profile_data.get("strengths", [])) if profile_data else [],
+            "weaknesses": list(profile_data.get("weaknesses", [])) if profile_data else [],
+        },
+        "required_competencies": [c["id"] for c in COMPETENCY_TAXONOMY],
+        "conversation_history": [],
+        "question_number": 0,
+        "current_question": "",
+        "candidate_answer": "",
+        "flow_type": "v4_evidence_driven",
+        "nodes_executed": [],
+        "start_time": datetime.now(timezone.utc).isoformat(),
+        "hypotheses": [],
+        "hypothesis_target": None,
+        "evidence_store": [],
+        "competency_summary": {},
+        "unified_evaluation": {},
+        "evaluation_score": None,
+        "observations": [],
+        "competency_plan": [],
+        "next_competency": None,
+        "interview_strategy": {},
+        "reflection_action": "probe",
+        "evidence_sufficiency": {},
+        "hiring_recommendation": {},
+        "contradictions": [],
+        "consistency_checks": [],
+        "extracted_evidence": [],
+        "max_questions": style.get("max_questions", 20),
+        "questions_asked": [],
+        "question_objective": {},
+        "skip_evaluation": False,
+        "evaluator_mode": style.get("evaluator_mode", "unified"),
+        "strategy_cache_valid": False,
+    }
+    store.set(str(session.id), state)
 
     token = uuid.uuid4().hex
     submission = PublicInterviewSubmission(
@@ -258,6 +312,7 @@ async def create_public_interview(
         interview_mode=req.interview_mode,
         max_candidates=req.max_candidates,
         skills_required=req.skills_required,
+        style_name=req.style_name,
         starts_at=req.starts_at,
         expires_at=req.expires_at,
         token=uuid.uuid4().hex,
@@ -300,21 +355,19 @@ async def list_org_public_interviews(
     db: AsyncSession,
 ) -> list[OrgPublicInterviewResponse]:
     result = await db.execute(
-        select(PublicInterview)
-        .where(PublicInterview.org_id == org_id)
-        .order_by(PublicInterview.created_at.desc())
+        select(
+            PublicInterview,
+            Department.name.label("dept_name"),
+        ).outerjoin(
+            Department, PublicInterview.department_id == Department.id
+        ).where(
+            PublicInterview.org_id == org_id
+        ).order_by(PublicInterview.created_at.desc())
     )
     items = []
-    for pi in result.scalars().all():
-        dept_name = ""
-        if pi.department_id:
-            dept_result = await db.execute(
-                select(Department).where(Department.id == pi.department_id)
-            )
-            dept = dept_result.scalar_one_or_none()
-            dept_name = dept.name if dept else ""
+    for pi, dept_name in result.all():
         resp = OrgPublicInterviewResponse.model_validate(pi)
-        resp.department_name = dept_name
+        resp.department_name = dept_name or ""
         items.append(resp)
     return items
 

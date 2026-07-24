@@ -161,5 +161,6 @@ async def start_practice_endpoint(
         req.difficulty,
         req.tech_stack,
         req.num_questions,
+        req.interview_style,
         db,
     )

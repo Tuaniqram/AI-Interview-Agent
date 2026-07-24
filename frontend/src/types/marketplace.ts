@@ -18,6 +18,7 @@ export interface PublicInterview {
   org_name: string | null;
   department_name: string | null;
   skills_required: string | null;
+  style_name: string | null;
   starts_at: string | null;
   expires_at: string | null;
 }
@@ -36,6 +37,7 @@ export interface OrgPublicListing {
   max_candidates: number | null;
   token_expires_at: string | null;
   skills_required: string | null;
+  style_name: string | null;
   starts_at: string | null;
   expires_at: string | null;
   created_at: string | null;
@@ -48,6 +50,7 @@ export interface CreateListingRequest {
   interview_mode?: string;
   max_candidates?: number;
   skills_required?: string;
+  style_name?: string;
   starts_at?: string;
   expires_at?: string;
 }
@@ -60,6 +63,7 @@ export interface UpdateListingRequest {
   is_open?: boolean;
   max_candidates?: number;
   skills_required?: string;
+  style_name?: string;
   starts_at?: string;
   expires_at?: string;
 }

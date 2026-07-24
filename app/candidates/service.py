@@ -30,6 +30,9 @@ from app.models.db import (
     Department,
     InterviewSession,
 )
+from app.services.v4_session_store import get_v4_session_store
+from app.config.interview_styles import get_style
+from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
 
 
 async def register(req: CandidateRegisterRequest, db: AsyncSession) -> CandidateAuthResponse:
@@ -220,6 +223,7 @@ async def start_practice(
     difficulty: str,
     tech_stack: Optional[str],
     num_questions: int,
+    interview_style: str,
     db: AsyncSession,
 ) -> PracticeStartResponse:
     session = InterviewSession(
@@ -229,6 +233,7 @@ async def start_practice(
         session_type="mock",
         interaction_mode="typing",
         total_questions=num_questions,
+        engine_version="v4",
     )
     db.add(session)
     await db.flush()
@@ -239,12 +244,70 @@ async def start_practice(
         session_id=session.id,
     )
     db.add(cs)
+
+    # Read profile_data for v4 state seed
+    candidate_result = await db.execute(
+        select(CandidateProfile).where(CandidateProfile.id == candidate_id)
+    )
+    candidate = candidate_result.scalar_one_or_none()
+    profile_data = candidate.profile_data if candidate else None
+
     await db.commit()
+
+    # Seed v4 state with the chosen style and candidate profile
+    style = get_style(interview_style or "STANDARD")
+    store = get_v4_session_store()
+    state = {
+        "session_id": str(session.id),
+        "job_role": job_role,
+        "department_id": None,
+        "interview_style": style,
+        "persona": style.get("persona", "friendly"),
+        "difficulty_level": style.get("difficulty_range", (1, 3))[0],
+        "candidate_profile": {
+            "full_name": candidate.name if candidate else "Candidate",
+            "headline": "",
+            "strengths": list(profile_data.get("strengths", [])) if profile_data else [],
+            "weaknesses": list(profile_data.get("weaknesses", [])) if profile_data else [],
+        },
+        "required_competencies": [c["id"] for c in COMPETENCY_TAXONOMY],
+        "conversation_history": [],
+        "question_number": 0,
+        "current_question": "",
+        "candidate_answer": "",
+        "flow_type": "v4_evidence_driven",
+        "nodes_executed": [],
+        "start_time": datetime.now(timezone.utc).isoformat(),
+        "hypotheses": [],
+        "hypothesis_target": None,
+        "evidence_store": [],
+        "competency_summary": {},
+        "unified_evaluation": {},
+        "evaluation_score": None,
+        "observations": [],
+        "competency_plan": [],
+        "next_competency": None,
+        "interview_strategy": {},
+        "reflection_action": "probe",
+        "evidence_sufficiency": {},
+        "hiring_recommendation": {},
+        "contradictions": [],
+        "consistency_checks": [],
+        "extracted_evidence": [],
+        "max_questions": style.get("max_questions", 20),
+        "questions_asked": [],
+        "question_objective": {},
+        "skip_evaluation": False,
+        "evaluator_mode": style.get("evaluator_mode", "unified"),
+        "strategy_cache_valid": False,
+    }
+    store.set(str(session.id), state)
 
     return PracticeStartResponse(
         session_id=session.id,
         job_role=job_role,
         total_questions=num_questions,
+        interview_style=interview_style,
     )
 
 

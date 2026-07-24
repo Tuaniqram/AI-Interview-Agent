@@ -47,6 +47,7 @@ docs/
 *~
 
 # Project specific
+data/
 documents/*.pdf
 documents/*.txt
 documents/*.docx

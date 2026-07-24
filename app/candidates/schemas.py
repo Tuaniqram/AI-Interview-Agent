@@ -73,12 +73,14 @@ class PracticeStartRequest(BaseModel):
     difficulty: str = "mid"
     tech_stack: Optional[str] = None
     num_questions: int = 5
+    interview_style: str = "STANDARD"
 
 
 class PracticeStartResponse(BaseModel):
     session_id: UUID
     job_role: str
     total_questions: int
+    interview_style: str = "STANDARD"
 
 
 class GoogleAuthRequest(BaseModel):

@@ -18,6 +18,7 @@ from app.api.v1.invitations import router as invitations_router
 from app.api.v1.departments import router as departments_v1_router
 from app.api.v1.analytics import router as analytics_v1_router
 from app.api.v1.public import router as public_router
+from app.api.interview_v4 import router as interview_v4_router
 
 
 logging.basicConfig(level=logging.INFO)
@@ -41,9 +42,11 @@ async def lifespan(app: FastAPI):
     # Pre-warm LangGraph workflows to avoid first-request compilation cost
     from app.graph.question_workflow import get_question_workflow
     from app.graph.evaluation_workflow import get_evaluation_workflow
+    from app.graph.interview_graph import build_interview_graph
     get_question_workflow()
     get_evaluation_workflow()
-    logger.info("LangGraph workflows pre-warmed")
+    build_interview_graph()
+    logger.info("LangGraph workflows pre-warmed (v3 + v4)")
 
     # Pre-load prompt templates into cache
     from app.services.prompt_loader import load_prompt as _warm
@@ -59,6 +62,11 @@ async def lifespan(app: FastAPI):
     cleanup_handle = start_cleanup_task()
 
     yield
+
+    # Shutdown: flush v4 session store to disk
+    from app.services.v4_session_store import get_v4_session_store
+    get_v4_session_store().flush()
+    logger.info("v4 session store flushed")
 
     # Shutdown: dispose async engine
     if eng:
@@ -86,6 +94,7 @@ app.include_router(invitations_router, prefix="/api/v1")
 app.include_router(departments_v1_router, prefix="/api/v1")
 app.include_router(analytics_v1_router, prefix="/api/v1")
 app.include_router(public_router, prefix="/api/v1")
+app.include_router(interview_v4_router)
 
 
 # ✅ CORS Configuration - Must be FIRST middleware
@@ -111,14 +120,15 @@ class NgrokMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(NgrokMiddleware)
 
-# Rate limiting on auth + public endpoints (60 req/min per IP)
+# Rate limiting on auth + public + v4 endpoints (60 req/min per IP)
 app.add_middleware(
     RateLimitMiddleware,
     max_requests=60,
     window_seconds=60,
     paths=["/api/v1/candidates/login", "/api/v1/candidates/register",
            "/api/v1/auth/login", "/api/v1/auth/register",
-           "/api/v1/public/"],
+           "/api/v1/public/",
+           "/interviews/v4/start", "/interviews/v4/"],
 )
 
 

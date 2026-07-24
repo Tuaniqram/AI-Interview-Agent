@@ -10,12 +10,28 @@ const DIFFICULTIES = [
   { value: 'mid', label: 'Mid-Level' },
   { value: 'senior', label: 'Senior' },
 ];
+const INTERVIEW_STYLES = [
+  { value: 'STANDARD', label: 'Standard', desc: 'Balanced across all competencies' },
+  { value: 'FRESH_GRAD', label: 'Fresh Grad', desc: 'Entry-level, core + DSA + learning, mentor persona' },
+  { value: 'JUNIOR', label: 'Junior', desc: '1-3yr exp, framework + teamwork, friendly persona' },
+  { value: 'MID_LEVEL', label: 'Mid-Level', desc: '3-5yr exp, system design + ownership' },
+  { value: 'SENIOR', label: 'Senior', desc: '5-8yr exp, architecture + leadership, formal persona' },
+  { value: 'TECH_LEAD', label: 'Tech Lead', desc: 'Lead/Staff, leadership + people' },
+  { value: 'EM', label: 'Engineering Manager', desc: 'Process + strategy' },
+  { value: 'FAANG', label: 'FAANG', desc: 'Algorithm-heavy, deep probes' },
+  { value: 'FAANG_LITE', label: 'FAANG Lite', desc: 'FAANG approach cost-optimized' },
+  { value: 'STARTUP', label: 'Startup', desc: 'Full-stack, adaptability, speed' },
+  { value: 'CONTRACT', label: 'Contract', desc: 'Domain depth, delivery, independence' },
+  { value: 'EXECUTIVE', label: 'Executive', desc: 'C-level, strategy + vision' },
+  { value: 'STRESS_TEST', label: 'Stress Test', desc: 'Resilience under pressure' },
+];
 
 export default function CandidatePractice() {
   const navigate = useNavigate();
   const [jobRole, setJobRole] = useState('Software Engineer');
   const [difficulty, setDifficulty] = useState('mid');
   const [techStack, setTechStack] = useState('');
+  const [fStyle, setFStyle] = useState('STANDARD');
   const [numQuestions, setNumQuestions] = useState(5);
   const [loading, setLoading] = useState(false);
 
@@ -28,6 +44,7 @@ export default function CandidatePractice() {
         difficulty,
         tech_stack: techStack || undefined,
         num_questions: numQuestions,
+        interview_style: fStyle,
       });
       navigate(`/interview/${res.session_id}`);
     } catch (err) {
@@ -85,6 +102,17 @@ export default function CandidatePractice() {
             placeholder="e.g. Python, React, AWS"
             className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Interview Style</label>
+          <select value={fStyle} onChange={e => setFStyle(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]">
+            {INTERVIEW_STYLES.map(s => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+          <p className="text-xs text-[var(--text-muted)] mt-1">{INTERVIEW_STYLES.find(s => s.value === fStyle)?.desc}</p>
         </div>
 
         <div>

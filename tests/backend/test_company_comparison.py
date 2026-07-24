@@ -62,6 +62,27 @@ requires_llm = pytest.mark.skipif(
     reason="LLM not available (no credits / local model down)"
 )
 
+_RAG_AVAILABLE = None
+
+def _is_rag_available():
+    global _RAG_AVAILABLE
+    if _RAG_AVAILABLE is not None:
+        return _RAG_AVAILABLE
+    try:
+        from app.rag.pinecone_store import get_company_retriever
+        _RAG_AVAILABLE = callable(get_company_retriever)
+    except (ImportError, AttributeError):
+        _RAG_AVAILABLE = False
+    if not _RAG_AVAILABLE:
+        logger.warning("Pinecone RAG not available — company comparison tests SKIPPED")
+    return _RAG_AVAILABLE
+
+
+requires_rag = pytest.mark.skipif(
+    not _is_rag_available(),
+    reason="Pinecone RAG not available (get_company_retriever not importable)"
+)
+
 
 def _get_rag_context(company_id: int, job_role: str) -> str:
     """Query Pinecone for a company's RAG context."""
@@ -106,6 +127,7 @@ def _generate_question(company_id: int, job_role: str, company_requirements: str
 # ---------------------------------------------------------------------------
 
 @requires_llm
+@requires_rag
 class TestCompanyComparison:
     """Verify AI generates different questions for different companies."""
 

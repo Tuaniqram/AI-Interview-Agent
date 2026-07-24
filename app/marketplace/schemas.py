@@ -29,6 +29,7 @@ class PublicInterviewResponse(BaseModel):
     org_name: Optional[str] = None
     department_name: Optional[str] = None
     skills_required: Optional[str] = None
+    style_name: Optional[str] = "STANDARD"
     starts_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
 
@@ -49,6 +50,7 @@ class OrgPublicInterviewResponse(BaseModel):
     max_candidates: Optional[int] = None
     token_expires_at: Optional[datetime] = None
     skills_required: Optional[str] = None
+    style_name: Optional[str] = "STANDARD"
     starts_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
@@ -63,6 +65,7 @@ class CreatePublicInterviewRequest(BaseModel):
     interview_mode: str = "typing"
     max_candidates: Optional[int] = None
     skills_required: Optional[str] = None
+    style_name: str = "STANDARD"
     starts_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
 
@@ -75,6 +78,7 @@ class UpdatePublicInterviewRequest(BaseModel):
     is_open: Optional[bool] = None
     max_candidates: Optional[int] = None
     skills_required: Optional[str] = None
+    style_name: Optional[str] = None
     starts_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
 

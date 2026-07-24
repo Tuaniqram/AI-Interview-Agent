@@ -82,6 +82,11 @@ export default function InterviewDetail() {
         <span className="text-xs px-3 py-1 rounded-full bg-[var(--action-primary)]/10 text-[var(--action-primary)] font-medium">
           {interview.interview_mode}
         </span>
+        {interview.style_name && interview.style_name !== 'STANDARD' && (
+          <span className="text-xs px-3 py-1 rounded-full bg-purple-500/10 text-purple-500 font-medium">
+            {interview.style_name}
+          </span>
+        )}
         {skills.map(skill => (
           <span key={skill} className="text-xs px-3 py-1 rounded-full bg-[var(--bg-section)] text-[var(--text-muted)] border border-[var(--border-color)] flex items-center gap-1">
             <Tag className="w-3 h-3" /> {skill}
