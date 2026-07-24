@@ -103,4 +103,4 @@ alembic==1.18.5
 redis==8.0.1
 hiredis==3.4.0
 pinecone==7.3.0
-langchain-pinecone==0.2.13
+langchain-pinecone>=0.2.0
