@@ -80,11 +80,13 @@ export class InterviewService {
     question_number?: number;
     difficulty_level?: number;
     candidate_profile?: Record<string, unknown>;
+    is_follow_up?: boolean;
   }): Promise<Question> {
     console.log('[InterviewService] getNextQuestion:', {
       session_id: params.session_id,
       qnum: params.question_number,
       phase: params.current_phase,
+      follow_up: params.is_follow_up,
     });
     return await this.apiClient.post<Question>(
       `/interviews/${params.session_id}/questions/next`,
@@ -94,6 +96,7 @@ export class InterviewService {
         question_number: params.question_number || 0,
         difficulty_level: params.difficulty_level || 1,
         candidate_profile: params.candidate_profile || {},
+        is_follow_up: params.is_follow_up ?? false,
       }
     );
   }
@@ -110,11 +113,13 @@ export class InterviewService {
     conversation_history?: Array<{ role: string; content: string }>;
     candidate_profile?: Record<string, unknown>;
     difficulty_level?: number;
+    is_follow_up?: boolean;
   }): Promise<AnswerSubmitResponse> {
     console.log('[InterviewService] submitAnswer:', {
       session_id: params.session_id,
       qnum: params.question_number,
       answer_len: params.candidate_answer.length,
+      follow_up: params.is_follow_up,
     });
     return await this.apiClient.post<AnswerSubmitResponse>(
       `/interviews/${params.session_id}/answers`,
@@ -125,6 +130,7 @@ export class InterviewService {
         conversation_history: params.conversation_history || [],
         candidate_profile: params.candidate_profile || {},
         difficulty_level: params.difficulty_level || 1,
+        is_follow_up: params.is_follow_up ?? false,
       }
     );
   }

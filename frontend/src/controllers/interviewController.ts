@@ -1,65 +1,18 @@
-/**
- * Interview Controller - Business Logic Layer
- * 
- * Responsibilities:
- * - Orchestrate service calls
- * - Handle state transitions
- * - Coordinate interview flow
- * - NO hardcoded logic (all flows come from backend responses)
- * 
- * Architecture:
- * UI Component (interview.tsx)
- *     ↓
- * InterviewStore (actions)
- *     ↓
- * InterviewController (Business Logic) ← This file
- *     ↓
- * InterviewService (API Calls)
- *     ↓
- * API Client (HTTP)
- */
-
 import { interviewService } from '../services/interviewService';
 import { interviewWebSocket } from '../services/interviewWebSocket';
-import { 
-  InterviewSession, 
-  Question, 
+import {
+  InterviewSession,
+  Question,
   AnswerEvaluation,
 } from '../types/interview';
-
-/**
- * Interview Controller - Tier 3: Business Logic Layer
- * 
- * KEY PRINCIPLE:
- * - All interview flow is CONTROLLED by backend responses
- * - NO hardcoded phase transitions
- * - NO hardcoded question counts
- * - NO hardcoded difficulty ranges
- * - Frontend ONLY displays and sends data
- * 
- * API Contract (from app/api/interview_agent.py):
- *   POST /interviews                          → session info
- *   POST /interviews/{id}/questions/next     → question
- *   POST /interviews/{id}/answers            → evaluation
- *   GET  /interviews/{id}/status             → status
- *   GET  /interviews/{id}/summary            → full report
- */
 
 export class InterviewController {
   private session: InterviewSession | null = null;
   private currentQuestion: Question | null = null;
   private isEvaluating = false;
   private messageHistory: Array<{ role: string; content: string }> = [];
+  private isProbing = false;
 
-  /**
-   * Initialize and start a new interview session
-   * 
-   * Flow:
-   * 1. Controller calls startSession()
-   * 2. Backend returns session with totalQuestions, phase, etc.
-   * 3. Controller saves session state
-   * 4. Controller calls getNextQuestion() for first question
-   */
   async startInterview(params: {
     departmentId?: number;
     jobRole: string;
@@ -79,13 +32,10 @@ export class InterviewController {
         session_type: params.departmentId ? 'department' : 'practice',
       });
 
-      console.log('[Controller] startInterview session:', session);
-
-      // Store session state
       this.session = session;
       this.messageHistory = [];
+      this.isProbing = false;
 
-      // Backend auto-generates first question (start at question 1)
       const question = await interviewService.getNextQuestion({
         session_id: session.session_id,
         question_number: 1,
@@ -93,9 +43,6 @@ export class InterviewController {
         difficulty_level: session.difficulty_level ?? 1,
       });
 
-      console.log('[Controller] startInterview firstQuestion:', question);
-
-      // Ensure consistent question numbering
       this.currentQuestion = { ...question, question_number: 1 };
       this.session.question_number = 1;
 
@@ -106,48 +53,29 @@ export class InterviewController {
     }
   }
 
-  /**
-   * Get next question
-   * 
-   * IMPORTANT: The backend decides everything:
-   * - Next question number
-   * - Phase transitions
-   * - Difficulty adaptation
-   * - Conversation context
-   */
   async goToNextQuestion(): Promise<Question> {
     if (!this.session || !this.currentQuestion) {
       throw new Error('No active interview session');
     }
 
     try {
-      console.log('[Controller] goToNextQuestion:', {
-        session_id: this.session.session_id,
-        question_number: this.session.question_number,
-        phase: this.session.current_phase,
-      });
-
-      // Build conversation history from stored messages
       const history = [...this.messageHistory];
 
-      // Get next question from backend (pass current question_number as reference)
       const nextQuestion = await interviewService.getNextQuestion({
         session_id: this.session.session_id,
         conversation_history: history,
         current_phase: this.session.current_phase,
         question_number: this.currentQuestion.question_number,
         difficulty_level: this.session.difficulty_level ?? 1,
+        is_follow_up: false,
       });
 
-      console.log('[Controller] goToNextQuestion response:', nextQuestion);
-
-      // Frontend owns question numbering — increment locally
-      // (backend's pregen cache returns stale numbers due to double-increment)
       const nextQNumber = (this.currentQuestion.question_number || 0) + 1;
       this.currentQuestion = { ...nextQuestion, question_number: nextQNumber };
       this.session.question_number = nextQNumber;
       this.session.current_phase = nextQuestion.phase;
       this.session.difficulty_level = nextQuestion.difficulty_level;
+      this.isProbing = false;
 
       return nextQuestion;
     } catch (error: any) {
@@ -156,17 +84,6 @@ export class InterviewController {
     }
   }
 
-  /**
-   * Submit answer for evaluation
-   * 
-   * Backend controls:
-   * - Scoring (LLM-based)
-   * - Difficulty adjustment
-   * - Phase transition
-   * - Next action decision
-   * 
-   * Frontend only sends: question, answer, and session context
-   */
   async submitAnswer(params: {
     answer: string;
   }): Promise<AnswerEvaluation> {
@@ -178,24 +95,14 @@ export class InterviewController {
       throw new Error('Answer cannot be empty');
     }
 
-    // Set evaluating state
     this.isEvaluating = true;
 
     try {
-      console.log('[Controller] submitAnswer:', {
-        session_id: this.session.session_id,
-        question: this.currentQuestion.question.substring(0, 80),
-        answer_length: params.answer.length,
-        number: this.currentQuestion.question_number,
-      });
-
-      // Add current Q&A to conversation history before sending
       this.messageHistory.push({
         role: 'assistant',
         content: this.currentQuestion.question,
       });
 
-      // Submit answer via service - matches new API
       const response = await interviewService.submitAnswer({
         session_id: this.session.session_id,
         question_number: this.currentQuestion.question_number,
@@ -203,20 +110,55 @@ export class InterviewController {
         candidate_answer: params.answer,
         conversation_history: this.messageHistory,
         difficulty_level: this.session.difficulty_level ?? 1,
+        is_follow_up: this.isProbing,
       });
 
-      console.log('[Controller] submitAnswer response:', response);
-
-      // Add answer to history
       this.messageHistory.push({
         role: 'user',
         content: params.answer,
       });
 
-      // The response structure from the new API has:
-      // { session_id, question_number, evaluation: { score, technical_score, ... },
-      //   next_phase, next_difficulty, next_action }
-      // We need to map it to the frontend's AnswerEvaluation type
+      // Handle probe flow: backend wants to dig deeper
+      if (response.next_action === 'probe' && response.inquisitor_action === 'probe') {
+        this.isProbing = true;
+
+        // Fetch the probe question from backend
+        const probeQuestion = await interviewService.getNextQuestion({
+          session_id: this.session.session_id,
+          conversation_history: this.messageHistory,
+          current_phase: this.session.current_phase,
+          question_number: this.currentQuestion.question_number,
+          difficulty_level: this.session.difficulty_level ?? 1,
+          is_follow_up: true,
+        });
+
+        this.currentQuestion = {
+          ...probeQuestion,
+          question_number: this.currentQuestion.question_number,
+        };
+
+        const evaluation: AnswerEvaluation = {
+          evaluation: response.evaluation?.feedback || '',
+          score: response.evaluation?.score ?? 0,
+        phase: response.next_phase || this.session!.current_phase,
+        question_number: response.question_number ?? this.currentQuestion!.question_number,
+        difficulty_level: response.next_difficulty ?? this.session!.difficulty_level ?? 1,
+          interview_status: 'active',
+          technical_score: response.evaluation?.technical_score,
+          communication_score: response.evaluation?.communication_score,
+          strengths: response.evaluation?.strengths || [],
+          weaknesses: response.evaluation?.weaknesses || [],
+          is_follow_up: true,
+          probe_angle: response.probe_angle || '',
+          probing_active: true,
+        };
+
+        return evaluation;
+      }
+
+      // Normal flow (saturate / continue / finish)
+      this.isProbing = false;
+
       const evaluation: AnswerEvaluation = {
         evaluation: response.evaluation?.feedback || '',
         score: response.evaluation?.score ?? 0,
@@ -228,13 +170,13 @@ export class InterviewController {
         communication_score: response.evaluation?.communication_score,
         strengths: response.evaluation?.strengths || [],
         weaknesses: response.evaluation?.weaknesses || [],
+        is_follow_up: false,
+        probing_active: false,
       };
 
-      // Update session with backend's phase/difficulty decisions
       this.session.current_phase = evaluation.phase;
       this.session.difficulty_level = evaluation.difficulty_level;
 
-      // If completed, update status
       if (evaluation.interview_status === 'completed') {
         this.session.status = 'completed';
       }
@@ -248,30 +190,24 @@ export class InterviewController {
     }
   }
 
-  /**
-   * Get current session info
-   */
-  getSession(): { session: InterviewSession | null; currentQuestion: Question | null; isEvaluating: boolean } {
+  getSession(): { session: InterviewSession | null; currentQuestion: Question | null; isEvaluating: boolean; isProbing: boolean } {
     return {
       session: this.session,
       currentQuestion: this.currentQuestion,
       isEvaluating: this.isEvaluating,
+      isProbing: this.isProbing,
     };
   }
 
-  /**
-   * Abandon interview (client-side only, no server cancel endpoint)
-   */
   cancelInterview(): void {
     this.session = null;
     this.currentQuestion = null;
     this.isEvaluating = false;
+    this.isProbing = false;
     this.messageHistory = [];
   }
 
-  // ============================================================================
-  // WebSocket-based interview methods
-  // ============================================================================
+  // ── WebSocket variants ──
 
   async startInterviewViaWS(params: {
     departmentId?: number;
@@ -294,6 +230,7 @@ export class InterviewController {
 
     this.session = session;
     this.messageHistory = [];
+    this.isProbing = false;
 
     const question = await interviewWebSocket.getNextQuestion({
       session_id: session.session_id,
@@ -322,6 +259,7 @@ export class InterviewController {
     this.session.question_number = nextQuestion.question_number;
     this.session.current_phase = nextQuestion.phase;
     this.session.difficulty_level = nextQuestion.difficulty_level;
+    this.isProbing = false;
     return nextQuestion;
   }
 
@@ -343,24 +281,47 @@ export class InterviewController {
 
       this.messageHistory.push({ role: 'user', content: params.answer });
 
+      const isProbeResponse = response.next_action === 'probe';
+
+      if (isProbeResponse) {
+        this.isProbing = true;
+        const probeQuestion = await interviewWebSocket.getNextQuestion({
+          session_id: this.session.session_id,
+          conversation_history: this.messageHistory,
+          current_phase: this.session.current_phase,
+          question_number: this.currentQuestion.question_number,
+          difficulty_level: this.session.difficulty_level ?? 1,
+        });
+        this.currentQuestion = {
+          ...probeQuestion,
+          question_number: this.currentQuestion.question_number,
+        };
+      } else {
+        this.isProbing = false;
+      }
+
       const evaluation: AnswerEvaluation = {
         evaluation: response.evaluation?.feedback || '',
         score: response.evaluation?.score ?? 0,
         phase: response.next_phase || this.session.current_phase,
-        question_number: response.question_number ?? this.currentQuestion.question_number,
+        question_number: response.question_number ?? this.currentQuestion!.question_number,
         difficulty_level: response.next_difficulty ?? this.session.difficulty_level ?? 1,
         interview_status: response.next_action === 'finish' ? 'completed' : 'active',
         technical_score: response.evaluation?.technical_score,
         communication_score: response.evaluation?.communication_score,
         strengths: response.evaluation?.strengths || [],
         weaknesses: response.evaluation?.weaknesses || [],
+        is_follow_up: isProbeResponse,
+        probing_active: isProbeResponse,
       };
 
-      this.session.current_phase = evaluation.phase;
-      this.session.question_number = evaluation.question_number;
-      this.session.difficulty_level = evaluation.difficulty_level;
-      if (evaluation.interview_status === 'completed') {
-        this.session.status = 'completed';
+      if (!isProbeResponse && this.session) {
+        this.session.current_phase = evaluation.phase;
+        this.session.question_number = evaluation.question_number;
+        this.session.difficulty_level = evaluation.difficulty_level;
+        if (evaluation.interview_status === 'completed') {
+          this.session.status = 'completed';
+        }
       }
 
       return evaluation;
@@ -375,5 +336,4 @@ export class InterviewController {
   }
 }
 
-// Export singleton instance
 export const interviewController = new InterviewController();

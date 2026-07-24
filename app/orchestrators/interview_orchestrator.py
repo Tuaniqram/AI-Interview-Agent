@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import time
 from typing import Dict, Any, Optional, List
@@ -582,6 +583,18 @@ Output ONLY the question text, no prefix, no explanation."""
                     final_feedback=feedback
                 )
                 logger.info(f"Session {session_id} finalized with score={evaluation_score}")
+
+                # Generate holistic synthesis
+                try:
+                    from app.agents.synthesis_node import synthesis_node
+                    synthesis_state = await synthesis_node(final_state)
+                    final_report = synthesis_state.get('final_report', {})
+                    await self.session_repo.update_feedback(
+                        session_id, json.dumps(final_report)
+                    )
+                    logger.info(f"Holistic synthesis generated for session {session_id}")
+                except Exception as synth_err:
+                    logger.warning(f"Synthesis generation failed: {synth_err}")
             else:
                 if session_id not in self._pregen_pending:
                     task = asyncio.create_task(self._pregen_next_question_bg(

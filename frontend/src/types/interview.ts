@@ -98,6 +98,10 @@ export interface AnswerSubmitResponse {
   next_phase: string;
   next_difficulty: number;
   next_action: string;
+  inquisitor_action?: string;
+  probe_angle?: string;
+  is_follow_up?: boolean;
+  evaluation_failed?: boolean;
   rag_context_used?: boolean;
   nodes_executed?: string[];
 }
@@ -119,16 +123,19 @@ export interface EvaluationHistoryEntry {
  * This is what the controller returns to the store/UI
  */
 export interface AnswerEvaluation {
-  evaluation: string;  // Backend feedback text
+  evaluation: string;
   score: number;
   technical_score?: number;
   communication_score?: number;
   strengths: string[];
   weaknesses: string[];
-  phase: string;           // Map from next_phase
+  phase: string;
   question_number: number;
-  difficulty_level: number; // Map from next_difficulty
-  interview_status: InterviewStatus;  // Map from next_action ("complete" → "completed")
+  difficulty_level: number;
+  interview_status: InterviewStatus;
+  is_follow_up?: boolean;
+  probe_angle?: string;
+  probing_active?: boolean;
 }
 
 /**
