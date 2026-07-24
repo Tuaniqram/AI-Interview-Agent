@@ -49,6 +49,7 @@ class QuestionInitiateRequest(BaseModel):
     question_number: int = 0
     difficulty_level: int = 1
     candidate_profile: Dict[str, Any] = {}
+    is_follow_up: bool = False
 
 
 class AnswerSubmitRequest(BaseModel):
@@ -59,6 +60,7 @@ class AnswerSubmitRequest(BaseModel):
     conversation_history: List[Dict[str, str]] = []
     candidate_profile: Dict[str, Any] = {}
     difficulty_level: int = 1
+    is_follow_up: bool = False
 
 
 # ============================================================================
@@ -153,7 +155,8 @@ async def initiate_next_question(
             current_phase=request.current_phase,
             question_number=request.question_number,
             difficulty_level=request.difficulty_level,
-            candidate_profile=request.candidate_profile
+            candidate_profile=request.candidate_profile,
+            is_follow_up=request.is_follow_up
         )
         
         logger.info(
@@ -204,7 +207,8 @@ async def submit_answer(
             candidate_answer=request.candidate_answer,
             conversation_history=request.conversation_history,
             candidate_profile=request.candidate_profile,
-            difficulty_level=request.difficulty_level
+            difficulty_level=request.difficulty_level,
+            is_follow_up=request.is_follow_up
         )
         
         logger.info(

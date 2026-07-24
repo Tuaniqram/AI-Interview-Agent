@@ -1,8 +1,3 @@
-"""
-Question Generation Node - LangGraph Node Agent
-Generates adaptive interview questions using LLM and company context.
-CRITICAL: NO HARDCODED TEMPLATES - Always generates via AI.
-"""
 import logging
 import time
 from app.graph.interview_state import InterviewState
@@ -13,16 +8,9 @@ logger = logging.getLogger(__name__)
 
 async def question_generation_node(state: InterviewState) -> InterviewState:
     """
-    Generate the next interview question using AI.
-    Uses template system:
-    - Question #1: interviewer_system + question_generation
-    - Question #2+: followup_system + adaptive_question
-
-    Args:
-        state: Current interview state
-
-    Returns:
-        Updated state with generated question
+    Generate interview question using AI.
+    - Main questions: interviewer_system + question_generation / adaptive_question
+    - Probe follow-ups: followup_system + probe generation prompt
     """
     from app.services.llm_service import get_llm_service
     from app.services.prompt_loader import load_prompt
@@ -35,7 +23,13 @@ async def question_generation_node(state: InterviewState) -> InterviewState:
     candidate_profile = state.get('candidate_profile', '{}')
     question_number = state.get('question_number', 0)
 
-    logger.info(f"Generating adaptive question: Phase={phase}, Difficulty={difficulty}, Q#{question_number}")
+    is_probe = state.get('inquisitor_action') == 'probe' or state.get('is_follow_up', False)
+    probe_angle = state.get('probe_angle', '')
+    probing_history = state.get('probing_history', [])
+    main_question = state.get('main_question', state.get('current_question', ''))
+
+    logger.info(f"Generating {'probe' if is_probe else 'main'} question: "
+                f"Phase={phase}, Difficulty={difficulty}, Q#{question_number}")
 
     new_question_number = question_number
 
@@ -48,14 +42,40 @@ async def question_generation_node(state: InterviewState) -> InterviewState:
     try:
         llm_service = get_llm_service()
 
-        if question_number == 1:
-            system_prompt = load_prompt(
-                "system",
-                "interviewer_system.md"
-            )
+        if is_probe:
+            system_prompt = load_prompt("system", "followup_system.md")
+
+            last_answer = ""
+            for h in reversed(conversation_history):
+                if h.get('role') == 'user' and not last_answer:
+                    last_answer = h.get('content', '')
+                    break
+
+            probe_context = f"""
+You need to ask a PROBE / FOLLOW-UP question to dig deeper.
+
+Main question: {main_question}
+Probe angle: {probe_angle}
+Candidate's last answer: {last_answer[:500] if last_answer else 'N/A'}
+Previous probes on this topic:
+{chr(10).join(f"- Q: {p.get('question', '')[:100]}" for p in probing_history[-3:])}
+
+Rules for this probe:
+1. It must connect to the candidate's previous answer on this topic
+2. It should be a natural follow-up, not a new topic
+3. 1-2 sentences, conversational, open-ended
+4. Stay on the SAME topic as the main question
+5. Don't repeat questions already asked in previous probes
+6. If the candidate is struggling, ask a simpler clarifying question
+
+Output ONLY the question text.
+"""
+            user_prompt = probe_context
+
+        elif question_number == 1:
+            system_prompt = load_prompt("system", "interviewer_system.md")
             user_prompt = load_prompt(
-                "interview",
-                "question_generation.md",
+                "interview", "question_generation.md",
                 job_role=job_role,
                 phase=phase,
                 difficulty_level=difficulty,
@@ -66,6 +86,8 @@ async def question_generation_node(state: InterviewState) -> InterviewState:
                 conversation_history=history_summary or "(no previous conversation)"
             )
         else:
+            system_prompt = load_prompt("system", "followup_system.md")
+
             previous_question = ""
             previous_answer = ""
             for h in reversed(conversation_history):
@@ -79,13 +101,8 @@ async def question_generation_node(state: InterviewState) -> InterviewState:
             scores = state.get('previous_scores', [])
             scores_str = str(scores) if scores else "[]"
 
-            system_prompt = load_prompt(
-                "system",
-                "followup_system.md"
-            )
             user_prompt = load_prompt(
-                "interview",
-                "adaptive_question.md",
+                "interview", "adaptive_question.md",
                 job_role=job_role,
                 phase=phase,
                 previous_question=previous_question or "(first question)",
@@ -132,17 +149,26 @@ Generate ONE adaptive interview question. Output ONLY the question text.
                 logger.error("LLM returned empty question after retry")
                 raise LLMServiceError("LLM failed to generate a valid question after retry")
 
-        logger.info(f"Generated adaptive question: {question[:100]}...")
+        logger.info(f"Generated {'probe' if is_probe else 'main'} question: {question[:100]}...")
+
+        depth = state.get('question_depth', 0)
+        new_depth = depth + 1 if is_probe else 0
 
         new_state: InterviewState = {
             **state,
             'current_question': question,
             'question_number': new_question_number,
+            'question_depth': new_depth,
+            'is_follow_up': is_probe,
+            'main_question': main_question,
             'rag_metadata': {
                 **state.get('rag_metadata', {}),
                 'question_generated_by_ai': True,
                 'question_number': new_question_number,
-                'template_used': 'adaptive_question' if question_number > 1 else 'question_generation',
+                'is_probe': is_probe,
+                'probe_angle': probe_angle if is_probe else '',
+                'question_depth': new_depth,
+                'template_used': 'probe' if is_probe else ('adaptive_question' if question_number > 1 else 'question_generation'),
                 'ai_generation_params': {
                     'temperature': 0.8,
                     'max_tokens': 200

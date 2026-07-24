@@ -29,7 +29,8 @@ class MessageRepository(BaseRepository):
         content: str,
         question_number: int,
         phase: str,
-        score: Optional[float] = None
+        score: Optional[float] = None,
+        follow_up_number: Optional[int] = None,
     ) -> dict:
         from uuid import UUID, uuid4
         message_data = {
@@ -43,22 +44,30 @@ class MessageRepository(BaseRepository):
         }
         if score is not None:
             message_data["score"] = score
+        if follow_up_number is not None and follow_up_number > 0:
+            message_data["message_type"] = f"follow_up_{message_type}"
         return await self.create(message_data, self.model_class)
 
     async def create_candidate_answer(
         self, session_id: str, role: str, candidate_answer: str,
-        question_number: int, phase: str, score: float
+        question_number: int, phase: str, score: float,
+        is_follow_up: bool = False, follow_up_number: int = 0,
     ) -> dict:
         return await self.create_message(
             session_id=session_id, role=role, message_type="candidate_answer",
             content=candidate_answer, question_number=question_number,
-            phase=phase, score=score
+            phase=phase, score=score, follow_up_number=follow_up_number if is_follow_up else None,
         )
 
-    async def create_question(self, session_id: str, question_text: str, question_number: int, phase: str) -> dict:
+    async def create_question(
+        self, session_id: str, question_text: str,
+        question_number: int, phase: str,
+        is_follow_up: bool = False, follow_up_number: int = 0,
+    ) -> dict:
         return await self.create_message(
             session_id=session_id, role="interviewer", message_type="question",
-            content=question_text, question_number=question_number, phase=phase
+            content=question_text, question_number=question_number, phase=phase,
+            follow_up_number=follow_up_number if is_follow_up else None,
         )
 
     async def get_session_messages(self, session_id: str, order_by: str = "created_at") -> list[dict]:
