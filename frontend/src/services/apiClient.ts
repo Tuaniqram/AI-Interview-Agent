@@ -11,7 +11,7 @@ class ApiClient {
   private instance: AxiosInstance;
   private config: ApiConfig;
 
-  constructor(config: ApiConfig = { baseURL: 'http://localhost:8000' }) {
+  constructor(config: ApiConfig = { baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000' }) {
     this.config = config;
 
     this.instance = axios.create({

@@ -61,6 +61,10 @@ logs/
 Thumbs.db
 scripts/
 
+# Frontend build artifacts
+.vite/
+frontend/.vite/
+
 # Pytest
 .pytest_cache/
 .coverage
