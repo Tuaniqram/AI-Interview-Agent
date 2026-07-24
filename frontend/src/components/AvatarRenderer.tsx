@@ -251,7 +251,7 @@ function buildProceduralHead(): THREE.Group {
   shoulders.position.set(0, -1.2, 0);
   group.add(shoulders);
 
-  group.position.set(0, -0.5, 0);
+  group.position.set(0, 2.5, 0);
   return group;
 }
 
@@ -432,7 +432,7 @@ export function AvatarRenderer({
       const glbTimeout = setTimeout(() => {
         console.warn('[Avatar] GLB load timed out — falling back to procedural');
         fallbackToProcedural();
-      }, 10000);
+      }, 30000);
       loader.load(
         GLB_PATH,
         (gltf) => {
