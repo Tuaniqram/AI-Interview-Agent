@@ -39,7 +39,8 @@ export function AvatarLab() {
       const lc = getLipSyncController();
       if (lc) {
         clearInterval(id);
-        lc.connect('anim-lab-session', import.meta.env.VITE_API_BASE_URL || 'localhost:8000');
+        const wsUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/^https?:\/\//, '');
+        lc.connect('anim-lab-session', wsUrl);
         lc.onConnected = () => setConnected(true);
       }
     }, 100);
