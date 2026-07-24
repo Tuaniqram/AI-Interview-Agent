@@ -1,11 +1,14 @@
+import { getCandidateToken } from '../utils/candidateToken'
 import type { Mesh } from 'three'
 import type { VisemeEvent, ExpressionEvent, GestureEvent, WsMessage, LipSyncState } from './types'
 import type { GestureType } from '../animator/types'
+import type { AvatarEmotion } from '../types/avatar'
 import { VisemeEngine } from './VisemeEngine'
 import { AudioSync } from './AudioSync'
 import { MorphTargetController } from './MorphTargetController'
 import { ExpressionController } from './ExpressionController'
 import { BodyAnimator } from '../animator/BodyAnimator'
+import { mapGestureHint } from './gestureMapper'
 
 export class LipSyncController {
   readonly visemeEngine: VisemeEngine
@@ -62,7 +65,7 @@ export class LipSyncController {
     return this.bodyAnimator?.gestureLayer.isAnyGestureActive() ?? false
   }
 
-  setExpression(emotion: 'neutral' | 'laughing' | 'considering' | 'excited' | 'thoughtful', intensity = 1): void {
+  setExpression(emotion: AvatarEmotion, intensity = 1): void {
     this.expressionController.setEmotion(emotion, intensity)
   }
 
@@ -78,7 +81,10 @@ export class LipSyncController {
 
     const host = baseUrl ?? window.location.host
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const url = `${protocol}//${host}/ws/avatar/${sessionId}`
+    const token = getCandidateToken()
+    const url = token
+      ? `${protocol}//${host}/ws/avatar/${sessionId}?token=${token}`
+      : `${protocol}//${host}/ws/avatar/${sessionId}`
 
     this.ws = new WebSocket(url)
 
@@ -271,9 +277,11 @@ export class LipSyncController {
   }
 
   private handleGesture(data: Record<string, unknown>): void {
+    const hint = mapGestureHint(data['gesture'] as string)
+    if (!hint) return
     this.gestureQueue.push({
       time: data['time'] as number,
-      gesture: data['gesture'] as string,
+      gesture: hint,
       intensity: (data['intensity'] as number) ?? 0.5,
     })
   }
@@ -282,7 +290,7 @@ export class LipSyncController {
     while (this.expressionQueue.length > 0 && this.expressionQueue[0].time <= elapsed) {
       const expr = this.expressionQueue.shift()!
       this.expressionController.setEmotion(
-        expr.emotion as 'neutral' | 'laughing' | 'considering' | 'excited' | 'thoughtful',
+        expr.emotion as AvatarEmotion,
         expr.intensity,
       )
     }
@@ -291,9 +299,7 @@ export class LipSyncController {
   private checkGestures(elapsed: number): void {
     while (this.gestureQueue.length > 0 && this.gestureQueue[0].time <= elapsed) {
       const gest = this.gestureQueue.shift()!
-      this.bodyAnimator?.gestureLayer.triggerGesture(
-        gest.gesture as 'openPalm' | 'singleHandEmphasis' | 'bothHandsOpen' | 'forearmLift' | 'palmUpward' | 'smallPointing' | 'shoulderEmphasis' | 'chestEmphasis' | 'fingerEmphasis' | 'handRotation' | 'smallShrug' | 'questionEmphasis' | 'agreementNod' | 'explanationGesture' | 'closingGesture',
-      )
+      this.bodyAnimator?.gestureLayer.triggerGesture(gest.gesture as any)
     }
   }
 

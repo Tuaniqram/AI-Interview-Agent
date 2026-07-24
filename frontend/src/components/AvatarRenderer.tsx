@@ -397,11 +397,44 @@ export function AvatarRenderer({
 
       const clock = new THREE.Clock();
 
+      const fallbackToProcedural = () => {
+        if (disposed) return;
+        const headGroup = buildProceduralHead();
+        scene.add(headGroup);
+
+        const morphMeshes: THREE.Mesh[] = [];
+        headGroup.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.morphTargetDictionary) {
+            morphMeshes.push(child);
+          }
+        });
+
+        const fallbackBones = getBonesMap(headGroup);
+        const bodyAnimator = new BodyAnimator(fallbackBones);
+
+        _globalLipSync?.setMeshes(morphMeshes)
+        _globalLipSync?.setBodyAnimator(bodyAnimator)
+        debugLog('[PIPELINE] meshes set on LipSyncController (procedural)', morphMeshes.length)
+
+        sceneRef.current = {
+          scene, camera, renderer, model: headGroup, morphMeshes,
+          bodyAnimator, clock,
+        };
+
+        setModelType('procedural');
+        setLoading(false);
+      };
+
       const loader = new GLTFLoader();
+      const glbTimeout = setTimeout(() => {
+        console.warn('[Avatar] GLB load timed out — falling back to procedural');
+        fallbackToProcedural();
+      }, 10000);
       loader.load(
         GLB_PATH,
         (gltf) => {
           if (disposed) return;
+          clearTimeout(glbTimeout);
           const model = gltf.scene;
           centerAndScaleModel(model);
           scene.add(model);
@@ -435,31 +468,10 @@ export function AvatarRenderer({
         },
         undefined,
         () => {
+          clearTimeout(glbTimeout);
           if (disposed) return;
-          const headGroup = buildProceduralHead();
-          scene.add(headGroup);
-
-          const morphMeshes: THREE.Mesh[] = [];
-          headGroup.traverse((child) => {
-            if (child instanceof THREE.Mesh && child.morphTargetDictionary) {
-              morphMeshes.push(child);
-            }
-          });
-
-          const fallbackBones = getBonesMap(headGroup);
-          const bodyAnimator = new BodyAnimator(fallbackBones);
-
-          _globalLipSync?.setMeshes(morphMeshes)
-          _globalLipSync?.setBodyAnimator(bodyAnimator)
-          debugLog('[PIPELINE] meshes set on LipSyncController (procedural)', morphMeshes.length)
-
-          sceneRef.current = {
-            scene, camera, renderer, model: headGroup, morphMeshes,
-            bodyAnimator, clock,
-          };
-
-          setModelType('procedural');
-          setLoading(false);
+          console.warn('[Avatar] GLB load failed — falling back to procedural');
+          fallbackToProcedural();
         },
       );
 

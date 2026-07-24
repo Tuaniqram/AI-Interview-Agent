@@ -1,15 +1,24 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 import logging
-from app.api.company import router as company_router
-from app.api.knowledge import router as knowledge_router
+import traceback
 from app.api.interview_agent import router as interview_agent
 from app.api.interview_ws import router as interview_ws_router
 from app.api.avatar_ws import router as avatar_ws_router
-from app.api.templates import router as templates_router
-from app.api.analytics import router as analytics_router
+from app.api.v1.auth import router as auth_router
+from app.api.v1.orgs import router as orgs_router
+from app.api.v1.marketplace import router as marketplace_router
+from app.api.v1.scheduling import router as scheduling_router
+from app.api.v1.admin import router as admin_router
+from app.api.v1.candidates import router as candidates_router
+from app.api.v1.invitations import router as invitations_router
+from app.api.v1.departments import router as departments_v1_router
+from app.api.v1.analytics import router as analytics_v1_router
+from app.api.v1.public import router as public_router
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -42,7 +51,7 @@ async def lifespan(app: FastAPI):
     _warm("system", "followup_system.md")
     _warm("system", "evaluator_system.md")
     _warm("interview", "question_generation.md", job_role="warmup", phase="intro", difficulty_level=1,
-          company_context="N/A", candidate_profile="N/A", question_number=0, conversation_history="(warmup)")
+          department_context="N/A", candidate_profile="N/A", question_number=0, conversation_history="(warmup)")
     logger.info("Prompt cache pre-warmed")
 
     # Start WebSocket stale-connection cleanup
@@ -62,13 +71,22 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-app.include_router(company_router)
-app.include_router(knowledge_router)
 app.include_router(interview_agent)
 app.include_router(avatar_ws_router)
-app.include_router(templates_router)
-app.include_router(analytics_router)
 app.include_router(interview_ws_router)
+
+# v1 API routes
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(orgs_router, prefix="/api/v1")
+app.include_router(marketplace_router, prefix="/api/v1")
+app.include_router(scheduling_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
+app.include_router(candidates_router, prefix="/api/v1")
+app.include_router(invitations_router, prefix="/api/v1")
+app.include_router(departments_v1_router, prefix="/api/v1")
+app.include_router(analytics_v1_router, prefix="/api/v1")
+app.include_router(public_router, prefix="/api/v1")
+
 
 # ✅ CORS Configuration - Must be FIRST middleware
 app.add_middleware(
@@ -82,6 +100,7 @@ app.add_middleware(
 
 # ✅ Custom middleware to handle ngrok-specific headers
 from starlette.middleware.base import BaseHTTPMiddleware
+from app.middleware.rate_limit import RateLimitMiddleware
 
 class NgrokMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
@@ -91,6 +110,26 @@ class NgrokMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(NgrokMiddleware)
+
+# Rate limiting on auth + public endpoints (60 req/min per IP)
+app.add_middleware(
+    RateLimitMiddleware,
+    max_requests=60,
+    window_seconds=60,
+    paths=["/api/v1/candidates/login", "/api/v1/candidates/register",
+           "/api/v1/auth/login", "/api/v1/auth/register",
+           "/api/v1/public/"],
+)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception on {request.method} {request.url}: {exc}")
+    logger.error(traceback.format_exc())
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {type(exc).__name__}: {exc}"},
+    )
 
 
 @app.get("/")

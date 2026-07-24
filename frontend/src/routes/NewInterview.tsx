@@ -3,26 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2, Bookmark, MessageSquare, Mic, Video, ChevronDown, Check } from 'lucide-react';
 import { Card } from '../components/shared/Card';
 import { PageHeader } from '../components/shared/PageHeader';
-import { apiClient } from '../services/apiClient';
+import { departmentService, type Department, type Template } from '../services/departmentService';
 import { useInterviewStore } from '../state/interviewStore';
-
-interface Company {
-  id: number;
-  name: string;
-  website?: string;
-  description?: string;
-}
-
-interface Template {
-  id: string;
-  company_id: number;
-  name: string;
-  job_role: string;
-  total_questions: number;
-  interview_type: string;
-  candidate_name?: string;
-  candidate_email?: string;
-}
+import { useToast } from '../components/shared/Toast';
 
 const INPUT = 'w-full px-3 py-1.5 text-sm bg-input text-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] transition-colors';
 const SELECT = INPUT + ' appearance-none';
@@ -32,15 +15,15 @@ export function NewInterview() {
   const navigate = useNavigate();
   const { actions } = useInterviewStore();
   const [selectedMode, setSelectedMode] = React.useState('avatar');
-  const [companyId, setCompanyId] = React.useState<number>(0);
+  const [departmentId, setCompanyId] = React.useState<number>(0);
   const [jobRole, setJobRole] = React.useState('Software Engineer');
   const [totalQuestions, setTotalQuestions] = React.useState(10);
-  const [candidateName, setCandidateName] = React.useState('');
-  const [candidateEmail, setCandidateEmail] = React.useState('');
+
   const [isStarting, setIsStarting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [companies, setCompanies] = React.useState<Company[]>([]);
+  const [companies, setCompanies] = React.useState<Department[]>([]);
   const [companiesLoading, setCompaniesLoading] = React.useState(true);
+  const toast = useToast();
 
   const [templates, setTemplates] = React.useState<Template[]>([]);
   const [templatesLoading, setTemplatesLoading] = React.useState(false);
@@ -50,7 +33,7 @@ export function NewInterview() {
 
   React.useEffect(() => {
     setCompaniesLoading(true);
-    apiClient.get<Company[]>('/companies/')
+    departmentService.listDepartments()
       .then(data => {
         setCompanies(data);
         if (data.length > 0) setCompanyId(data[0].id);
@@ -60,18 +43,18 @@ export function NewInterview() {
   }, []);
 
   React.useEffect(() => {
-    if (!companyId) {
+    if (!departmentId) {
       setTemplates([]);
       setSelectedTemplateId('');
       return;
     }
     setTemplatesLoading(true);
     setSelectedTemplateId('');
-    apiClient.get<Template[]>(`/templates/?company_id=${companyId}`)
+    departmentService.listTemplates(departmentId)
       .then(setTemplates)
       .catch(() => setTemplates([]))
       .finally(() => setTemplatesLoading(false));
-  }, [companyId]);
+  }, [departmentId]);
 
   const selectedTemplate = React.useMemo(
     () => templates.find(t => t.id === selectedTemplateId),
@@ -82,32 +65,29 @@ export function NewInterview() {
     setSelectedTemplateId(templateId);
     const t = templates.find(tmp => tmp.id === templateId);
     if (t) {
-      setCompanyId(t.company_id);
+      setCompanyId(t.department_id);
       setJobRole(t.job_role);
       setTotalQuestions(t.total_questions);
-      setSelectedMode(t.interview_type || 'avatar');
-      if (t.candidate_name) setCandidateName(t.candidate_name);
-      if (t.candidate_email) setCandidateEmail(t.candidate_email);
+      setSelectedMode('avatar');
     }
   };
 
   const handleSaveTemplate = async () => {
     if (!templateName.trim()) return;
     try {
-      await apiClient.post('/templates/', {
-        company_id: companyId,
+      await departmentService.createTemplate(departmentId, {
         name: templateName.trim(),
         job_role: jobRole,
         total_questions: totalQuestions,
-        interview_type: selectedMode,
-        candidate_name: candidateName,
-        candidate_email: candidateEmail,
       });
+      toast.success('Template saved');
       setSaveAsTemplate(false);
       setTemplateName('');
-      const data = await apiClient.get<Template[]>(`/templates/?company_id=${companyId}`);
+      const data = await departmentService.listTemplates(departmentId);
       setTemplates(data);
-    } catch {}
+    } catch {
+      toast.error('Failed to save template');
+    }
   };
 
   const handleStart = async () => {
@@ -115,11 +95,9 @@ export function NewInterview() {
     setError(null);
     try {
       await actions.startInterview({
-        companyId,
+        departmentId,
         jobRole,
         totalQuestions,
-        candidateName,
-        candidateEmail,
         mode: selectedMode,
       });
       navigate('/interview/active');
@@ -177,28 +155,12 @@ export function NewInterview() {
         <Card className="lg:col-span-2" padding="md">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3">Candidate Info</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className={LABEL}>Name</label>
-                  <input type="text" value={candidateName} onChange={e => setCandidateName(e.target.value)}
-                    placeholder="e.g. John Doe" className={INPUT} />
-                </div>
-                <div>
-                  <label className={LABEL}>Email</label>
-                  <input type="email" value={candidateEmail} onChange={e => setCandidateEmail(e.target.value)}
-                    placeholder="e.g. john@example.com" className={INPUT} />
-                </div>
-              </div>
-            </div>
-
-            <div>
               <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3">Interview Config</h3>
               <div className="space-y-3">
                 <div>
-                  <label className={LABEL}>Company</label>
+                  <label className={LABEL}>Department</label>
                   <div className="relative">
-                    <select value={companyId} onChange={e => setCompanyId(Number(e.target.value))}
+                    <select value={departmentId} onChange={e => setCompanyId(Number(e.target.value))}
                       disabled={companiesLoading} className={SELECT + ' pr-8'}>
                       {companiesLoading && <option>Loading...</option>}
                       {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -249,16 +211,7 @@ export function NewInterview() {
                       <span>{selectedTemplate.job_role}</span>
                       <span>·</span>
                       <span>{selectedTemplate.total_questions} Q</span>
-                      <span>·</span>
-                      <span className="capitalize">{selectedTemplate.interview_type}</span>
                     </div>
-                    {(selectedTemplate.candidate_name || selectedTemplate.candidate_email) && (
-                      <p className="text-[10px] text-muted">
-                        {selectedTemplate.candidate_name && <span>{selectedTemplate.candidate_name}</span>}
-                        {selectedTemplate.candidate_name && selectedTemplate.candidate_email && <span> · </span>}
-                        {selectedTemplate.candidate_email && <span>{selectedTemplate.candidate_email}</span>}
-                      </p>
-                    )}
                     <p className="text-[10px] text-success-text flex items-center gap-1">
                       <Check className="w-2.5 h-2.5" /> Applied
                     </p>
@@ -270,11 +223,11 @@ export function NewInterview() {
                 <p className="text-xs text-muted">
                   {templatesLoading
                     ? 'Loading...'
-                    : companyId
-                      ? 'No templates saved for this company.'
+                    : departmentId
+                      ? 'No templates saved for this department.'
                       : 'Select a company first.'}
                 </p>
-                {!templatesLoading && companyId && (
+                {!templatesLoading && departmentId && (
                   <p className="text-[10px] text-muted mt-1">
                     Configure and use "Save as template" below.
                   </p>
@@ -287,7 +240,7 @@ export function NewInterview() {
             {saveAsTemplate ? (
               <div className="flex items-center gap-2">
                 <input type="text" value={templateName} onChange={e => setTemplateName(e.target.value)}
-                  placeholder="Name this template..."
+                  placeholder="Name this template..." aria-label="Template name"
                   className="flex-1 min-w-0 px-2.5 py-1.5 text-xs bg-input text-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] transition-colors placeholder:text-muted" />
                 <button onClick={handleSaveTemplate} disabled={!templateName.trim()}
                   className="px-3 py-1.5 text-xs bg-action-primary text-inverse rounded-lg font-medium hover:bg-action-primary-hover disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0">
@@ -310,7 +263,7 @@ export function NewInterview() {
       </div>
 
       <div className="flex items-center justify-end">
-        <button onClick={handleStart} disabled={isStarting || !companyId}
+        <button onClick={handleStart} disabled={isStarting || !departmentId}
           className="px-8 py-2.5 bg-action-primary text-inverse rounded-lg font-semibold text-sm hover:bg-action-primary-hover active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md">
           {isStarting ? (
             <span className="inline-flex items-center gap-2">

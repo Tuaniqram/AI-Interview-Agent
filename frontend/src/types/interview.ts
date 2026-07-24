@@ -11,7 +11,27 @@
  */
 
 export type InterviewMode = 'typing' | 'voice' | 'avatar' | 'realtime';
-export type InterviewStatus = 'initiating' | 'active' | 'completed' | 'initialized';
+
+/** Backend session status values */
+export type SessionStatus = 'initiating' | 'active' | 'completed' | 'initialized';
+
+/**
+ * Full frontend interview state machine (10 states)
+ * Maps backend status + UI transitions into a single state for components.
+ */
+export type InterviewStatus =
+  | 'initiating'        // Session being created, loading
+  | 'intro'             // First question displayed (phase: intro)
+  | 'answering'         // Question visible, user typing
+  | 'evaluating'        // Answer submitted, waiting for evaluation
+  | 'evaluation_display'// Score + feedback shown
+  | 'preparing_next'    // Next question generating in background
+  | 'question_ready'    // New question arrived, displayed
+  | 'avatar_speaking'   // Avatar delivering question via TTS
+  | 'avatar_listening'  // Avatar waiting, mic open
+  | 'completed'         // Interview finished
+  | 'active'            // Legacy backend session status
+  | 'initialized';      // Legacy backend session status
 
 /**
  * POST /interviews Response
@@ -28,9 +48,7 @@ export interface InterviewSession {
   total_questions: number;
   difficulty_level?: number;
   start_time?: string;
-  candidate_name?: string;
-  candidate_email?: string;
-  interview_mode?: InterviewMode;
+  interaction_mode?: InterviewMode;
 }
 
 /**
@@ -134,16 +152,14 @@ export interface InterviewStatusResponse {
 /**
  * GET /interviews/{session_id}/summary Response
  * {
- *   session_id, company_id, job_role, status, current_phase, question_number,
+ *   session_id, department_id, job_role, status, current_phase, question_number,
  *   total_questions, final_score, answered_ratio, total_questions_answered,
  *   messages_count, evaluations_count, interview_complete, messages, evaluations
  * }
  */
 export interface InterviewReport {
   session_id: string;
-  company_id?: number;
-  candidate_name?: string;
-  candidate_email?: string;
+  department_id?: number;
   job_role?: string;
   status: InterviewStatus;
   final_score: number | null;

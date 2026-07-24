@@ -51,27 +51,21 @@ export class InterviewService {
   // Start a new interview session
   // ============================================================================
   async startSession(params: {
-    company_id: number;
+    department_id?: number;
     job_role: string;
-    candidate_id?: string;
-    candidate_name?: string;
-    candidate_email?: string;
     total_questions?: number;
     initial_difficulty?: number;
-    interview_type?: string;
-    interview_mode?: string;
+    session_type?: string;
+    interaction_mode?: string;
   }): Promise<InterviewSession> {
     console.log('[InterviewService] startSession:', params);
     return await this.apiClient.post<InterviewSession>('/interviews', {
-      company_id: params.company_id,
+      ...(params.department_id !== undefined && { department_id: params.department_id }),
       job_role: params.job_role,
-      candidate_id: params.candidate_id || '',
-      candidate_name: params.candidate_name || '',
-      candidate_email: params.candidate_email || '',
       total_questions: params.total_questions ?? 10,
       initial_difficulty: params.initial_difficulty ?? 1,
-      interview_type: params.interview_type || 'company',
-      interview_mode: params.interview_mode || 'avatar',
+      session_type: params.session_type || 'practice',
+      interaction_mode: params.interaction_mode || 'avatar',
     });
   }
 
@@ -102,68 +96,6 @@ export class InterviewService {
         candidate_profile: params.candidate_profile || {},
       }
     );
-  }
-
-  // ============================================================================
-  // POST /interviews/{session_id}/questions/next/stream
-  // Stream question generation token-by-token via SSE
-  // ============================================================================
-  async getNextQuestionStream(
-    params: {
-      session_id: string;
-      conversation_history?: Array<{ role: string; content: string }>;
-      current_phase?: string;
-      question_number?: number;
-      difficulty_level?: number;
-      candidate_profile?: Record<string, unknown>;
-    },
-    onToken: (token: string) => void,
-    onDone: (question: string) => void,
-    onError: (error: string) => void
-  ): Promise<AbortController> {
-    const controller = new AbortController();
-    const baseUrl = this.apiClient.getConfig().baseURL || '';
-
-    fetch(`${baseUrl}/interviews/${params.session_id}/questions/next/stream`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        conversation_history: params.conversation_history || [],
-        current_phase: params.current_phase || 'intro',
-        question_number: params.question_number || 0,
-        difficulty_level: params.difficulty_level || 1,
-        candidate_profile: params.candidate_profile || {},
-      }),
-      signal: controller.signal,
-    }).then(async (response) => {
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.type === 'token') onToken(data.content);
-              else if (data.type === 'done') onDone(data.question);
-              else if (data.type === 'error') onError(data.detail);
-            } catch {}
-          }
-        }
-      }
-    }).catch((err) => {
-      if (err.name !== 'AbortError') onError(err.message);
-    });
-
-    return controller;
   }
 
   // ============================================================================
@@ -225,12 +157,12 @@ export class InterviewService {
   // ============================================================================
   async getRagStatus(session_id: string): Promise<{
     rag_available: boolean;
-    rag_details: { company_id: string | number; company_requirements: boolean };
+    rag_details: { department_id: string | number; department_requirements: boolean };
   }> {
     console.log('[InterviewService] getRagStatus:', { session_id });
     return await this.apiClient.get<{
       rag_available: boolean;
-      rag_details: { company_id: string | number; company_requirements: boolean };
+      rag_details: { department_id: string | number; department_requirements: boolean };
     }>(`/interviews/${session_id}/rag-status`);
   }
 }

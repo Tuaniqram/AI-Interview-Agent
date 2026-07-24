@@ -57,31 +57,27 @@ class InterviewOrchestrator:
     
     async def start_interview(
         self,
-        company_id: int,
-        job_role: str,
-        candidate_id: Optional[str] = None,
-        candidate_name: str = "",
-        candidate_email: str = "",
+        department_id: Optional[int] = None,
+        job_role: str = "",
         total_questions: int = 10,
         initial_difficulty: int = 1,
-        interview_type: str = "company",
-        interview_mode: str = "avatar"
+        session_type: str = "department",
+        interaction_mode: str = "avatar",
+        candidate_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Start a new interview session.
         """
-        logger.info(f"Starting interview: company_id={company_id}, job_role={job_role}")
+        logger.info(f"Starting interview: department_id={department_id}, job_role={job_role}")
         
         try:
             session = await self.session_repo.create_session(
-                company_id=company_id,
-                candidate_id=candidate_id,
-                candidate_name=candidate_name,
-                candidate_email=candidate_email,
+                department_id=department_id,
                 job_role=job_role,
                 total_questions=total_questions,
-                interview_type=interview_type,
-                interview_mode=interview_mode
+                session_type=session_type,
+                interaction_mode=interaction_mode,
+                candidate_profile_id=candidate_id,
             )
             
             logger.info(f"Session created: {session['id']}")
@@ -94,7 +90,7 @@ class InterviewOrchestrator:
                 "total_questions": total_questions,
                 "difficulty_level": initial_difficulty,
                 "start_time": session.get("started_at"),
-                "interview_mode": interview_mode
+                "interaction_mode": interaction_mode
             }
             
         except Exception as e:
@@ -177,19 +173,19 @@ class InterviewOrchestrator:
             
             initial_state: InterviewState = {
                 "session_id": session_id,
-                "company_id": None,  # Will be loaded from database
-                "candidate_id": str(session_id),  # Use session_id as temp candidate_id
-                "job_role": None,  # Will be loaded from database
-                "interview_type": None,  # Will be loaded from database
+                "department_id": None,
+                "candidate_id": str(session_id),
+                "job_role": None,
+                "flow_type": None,
                 "conversation_history": conversation_history,
                 "current_phase": current_phase,
                 "phase_stage": 0,
                 "question_number": question_number,
-                "total_questions": 10,  # Default, overrides later
+                "total_questions": 10,
                 "difficulty_level": difficulty_level,
                 "current_question": "",
-                "company_context": [],
-                "company_requirements": "",
+                "department_context": [],
+                "department_requirements": "",
                 "rag_metadata": {},
                 "candidate_answer": "",
                 "evaluation_score": None,
@@ -211,12 +207,11 @@ class InterviewOrchestrator:
                 "nodes_executed": []
             }
             
-            # Load session data for context
             session = await self.session_repo.get_session(session_id)
-            initial_state["company_id"] = session.get("company_id")
+            initial_state["department_id"] = session.get("department_id")
             initial_state["candidate_id"] = session.get("candidate_id", str(session_id))
             initial_state["job_role"] = session.get("job_role")
-            initial_state["interview_type"] = session.get("interview_type", "company")
+            initial_state["flow_type"] = session.get("session_type", "department")
             initial_state["total_questions"] = session.get("total_questions", 10)
             _t2 = time.time()
             
@@ -250,7 +245,7 @@ class InterviewOrchestrator:
                 "difficulty_level": next_difficulty,
                 "next_action": next_action,
                 "suggested_follow_up": suggested_follow_up,
-                "rag_context_available": bool(final_state.get("company_requirements")),
+                "rag_context_available": bool(final_state.get("department_requirements")),
                 "nodes_executed": final_state.get("nodes_executed", []),
                 "rag_metadata": final_state.get("rag_metadata", {})
             }
@@ -318,19 +313,19 @@ class InterviewOrchestrator:
             # Prepare state for answer submission cycle
             initial_state: InterviewState = {
                 "session_id": session_id,
-                "company_id": None,
+                "department_id": None,
                 "candidate_id": str(session_id),
                 "job_role": None,
-                "interview_type": None,
+                "flow_type": None,
                 "conversation_history": conversation_history,
-                "current_phase": "intro",  # Loaded from session below
+                "current_phase": "intro",
                 "phase_stage": 0,
                 "question_number": question_number,
                 "total_questions": 10,
                 "difficulty_level": difficulty_level,
                 "current_question": question,
-                "company_context": [],
-                "company_requirements": "",
+                "department_context": [],
+                "department_requirements": "",
                 "rag_metadata": {},
                 "candidate_answer": candidate_answer,
                 "evaluation_score": None,
@@ -352,12 +347,11 @@ class InterviewOrchestrator:
                 "nodes_executed": []
             }
             
-            # Load session data
             session = await self.session_repo.get_session(session_id)
-            initial_state["company_id"] = session.get("company_id")
+            initial_state["department_id"] = session.get("department_id")
             initial_state["candidate_id"] = session.get("candidate_id", str(session_id))
             initial_state["job_role"] = session.get("job_role")
-            initial_state["interview_type"] = session.get("interview_type", "company")
+            initial_state["flow_type"] = session.get("session_type", "department")
             initial_state["current_phase"] = session.get("current_phase", "intro")
             initial_state["total_questions"] = session.get("total_questions", 10)
             initial_state["difficulty_level"] = session.get("difficulty_level", difficulty_level)
@@ -476,7 +470,7 @@ class InterviewOrchestrator:
                 "next_phase": next_phase,
                 "next_difficulty": next_difficulty,
                 "next_action": next_action,
-                "rag_context_used": bool(final_state.get("company_requirements")),
+                "rag_context_used": bool(final_state.get("department_requirements")),
                 "nodes_executed": final_state.get("nodes_executed", [])
             }
             
@@ -570,9 +564,7 @@ class InterviewOrchestrator:
             
             return {
                 "session_id": session_id,
-                "company_id": session.get("company_id"),
-                "candidate_name": session.get("candidate_name", ""),
-                "candidate_email": session.get("candidate_email", ""),
+                "department_id": session.get("department_id"),
                 "job_role": session.get("job_role"),
                 "status": session.get("status"),
                 "current_phase": session.get("current_phase"),

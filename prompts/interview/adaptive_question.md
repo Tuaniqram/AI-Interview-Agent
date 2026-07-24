@@ -52,4 +52,4 @@ Question: Can you describe a specific project where you used that approach, and 
 - **Candidate Answer**: {{candidate_answer}}
 - **Difficulty Level**: {{difficulty_level}}
 - **Previous Scores**: {{previous_scores}}
-- **Company Context**: {{company_context}}
+- **Department Context**: {{department_context}}

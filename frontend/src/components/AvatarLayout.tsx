@@ -207,6 +207,7 @@ export function AvatarLayout() {
               placeholder={voice.isListening ? 'Listening...' : 'Type your answer...'}
               rows={1}
               disabled={isSending}
+              aria-label="Type your answer"
               className="w-full px-4 py-2.5 bg-input text-primary rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] disabled:bg-input transition-all text-sm placeholder-muted"
             />
             {voice.error && (

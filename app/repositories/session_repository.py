@@ -23,33 +23,30 @@ class SessionRepository(BaseRepository):
     def __init__(self):
         super().__init__()
 
-    async def create_session(
-        self,
-        company_id: int,
-        job_role: str,
-        current_phase: str = "intro",
-        candidate_id: Optional[str] = None,
-        candidate_name: str = "",
-        candidate_email: str = "",
-        total_questions: int = 10,
-        interview_type: str = "company",
-        interview_mode: str = "avatar"
-    ) -> dict:
-        session_data = {
-            "id": uuid4(),
-            "company_id": company_id,
-            "job_role": job_role,
-            "status": "active",
-            "current_phase": current_phase,
-            "current_question_number": 1,
-            "total_questions": total_questions,
-            "candidate_id": candidate_id,
-            "candidate_name": candidate_name,
-            "candidate_email": candidate_email,
-            "interview_type": interview_type,
-            "interview_mode": interview_mode,
-        }
-        return await self.create(session_data, self.model_class)
+async def create_session(
+    self,
+    department_id: Optional[int] = None,
+    job_role: str = "",
+    current_phase: str = "intro",
+    total_questions: int = 10,
+    session_type: str = "department",
+    interaction_mode: str = "avatar",
+    candidate_profile_id: Optional[str] = None,
+) -> dict:
+    session_data = {
+        "id": uuid4(),
+        "department_id": department_id,
+        "job_role": job_role,
+        "status": "active",
+        "current_phase": current_phase,
+        "current_question_number": 1,
+        "total_questions": total_questions,
+        "session_type": session_type,
+        "interaction_mode": interaction_mode,
+    }
+    if candidate_profile_id is not None:
+        session_data["candidate_profile_id"] = candidate_profile_id
+    return await self.create(session_data, self.model_class)
 
     async def get_session(self, session_id: str) -> dict:
         try:
@@ -117,13 +114,13 @@ class SessionRepository(BaseRepository):
             ])
             return {
                 "id": session["id"],
-                "company_id": session["company_id"],
+                "department_id": session["department_id"],
                 "job_role": session["job_role"],
                 "status": session["status"],
                 "current_phase": session["current_phase"],
                 "current_question_number": session["current_question_number"],
                 "total_questions": session["total_questions"],
-                "interview_type": session.get("interview_type", "company"),
+                "session_type": session.get("session_type", "company"),
                 "final_score": session.get("final_score"),
                 "ended_at": session.get("ended_at"),
                 "messages_count": len(messages),

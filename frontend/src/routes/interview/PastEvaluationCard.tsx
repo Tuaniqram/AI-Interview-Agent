@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightIcon, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightIcon, X, Star, AlertTriangle, MessageSquare } from 'lucide-react';
 import { useInterviewStore } from '../../state/interviewStore';
 
 type Section = 'strengths' | 'weaknesses' | 'feedback';
 
-const sectionMeta: Record<Section, { label: string; icon: string; color: string; dotColor: string }> = {
-  strengths:   { label: 'Strengths',   icon: '✦', color: 'text-success',      dotColor: 'text-success' },
-  weaknesses:  { label: 'Weaknesses',  icon: '⚠', color: 'text-warning',      dotColor: 'text-warning' },
-  feedback:    { label: 'Feedback',    icon: '💬', color: 'text-action-primary', dotColor: 'text-action-primary' },
+const sectionMeta: Record<Section, { label: string; icon: React.ReactNode; color: string; dotColor: string }> = {
+  strengths:   { label: 'Strengths',   icon: <Star size={14} />, color: 'text-success',      dotColor: 'text-success' },
+  weaknesses:  { label: 'Weaknesses',  icon: <AlertTriangle size={14} />, color: 'text-warning',      dotColor: 'text-warning' },
+  feedback:    { label: 'Feedback',    icon: <MessageSquare size={14} />, color: 'text-action-primary', dotColor: 'text-action-primary' },
 };
 
 export function PastEvaluationCard() {
@@ -116,7 +116,7 @@ export function PastEvaluationCard() {
                       <ul className="space-y-1">
                         {entry.strengths.map((item, i) => (
                           <li key={i} className="text-[11px] text-secondary flex items-start gap-1.5 leading-snug">
-                            <span className="text-success shrink-0 mt-0.5">✦</span> {item}
+                            <Star size={11} className="text-success shrink-0 mt-0.5" /> {item}
                           </li>
                         ))}
                       </ul>
@@ -125,7 +125,7 @@ export function PastEvaluationCard() {
                       <ul className="space-y-1">
                         {entry.weaknesses.map((item, i) => (
                           <li key={i} className="text-[11px] text-secondary flex items-start gap-1.5 leading-snug">
-                            <span className="text-warning shrink-0 mt-0.5">⚠</span> {item}
+                            <AlertTriangle size={11} className="text-warning shrink-0 mt-0.5" /> {item}
                           </li>
                         ))}
                       </ul>

@@ -10,12 +10,12 @@ class InterviewState(TypedDict, total=False):
     
     # Session Metadata
     session_id: str
-    company_id: int
+    department_id: int
     candidate_id: str
     
     # Interview Context
     job_role: str
-    interview_type: str  # "company", "skill", "adaptive"
+    flow_type: str  # "department", "skill", "adaptive"
     
     # Conversation State
     conversation_history: List[Dict[str, str]]
@@ -29,8 +29,8 @@ class InterviewState(TypedDict, total=False):
     difficulty_level: int  # 1=Easy, 2=Medium, 3=Hard
     
     # RAG Context
-    company_context: List[Dict[str, str]]  # Retrieved documents
-    company_requirements: str  # Parsed requirements summary
+    department_context: List[Dict[str, str]]  # Retrieved documents
+    department_requirements: str  # Parsed requirements summary
     rag_metadata: Dict[str, Any]  # Retrieval metadata
     
     # Evaluation Data

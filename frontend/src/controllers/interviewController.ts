@@ -61,11 +61,9 @@ export class InterviewController {
    * 4. Controller calls getNextQuestion() for first question
    */
   async startInterview(params: {
-    companyId: number;
+    departmentId?: number;
     jobRole: string;
     totalQuestions?: number;
-    candidateName?: string;
-    candidateEmail?: string;
     mode?: string;
   }): Promise<{ session: InterviewSession; firstQuestion: Question }> {
     if (!params.jobRole.trim()) {
@@ -74,12 +72,11 @@ export class InterviewController {
 
     try {
       const session = await interviewService.startSession({
-        company_id: params.companyId,
+        department_id: params.departmentId,
         job_role: params.jobRole,
         total_questions: params.totalQuestions,
-        candidate_name: params.candidateName,
-        candidate_email: params.candidateEmail,
-        interview_mode: params.mode,
+        interaction_mode: params.mode,
+        session_type: params.departmentId ? 'department' : 'practice',
       });
 
       console.log('[Controller] startInterview session:', session);
@@ -277,7 +274,7 @@ export class InterviewController {
   // ============================================================================
 
   async startInterviewViaWS(params: {
-    companyId: number;
+    departmentId?: number;
     jobRole: string;
     totalQuestions?: number;
     candidateName?: string;
@@ -288,12 +285,11 @@ export class InterviewController {
     await interviewWebSocket.connect(tempSessionId);
 
     const session = await interviewWebSocket.startSession({
-      company_id: params.companyId,
+      department_id: params.departmentId,
       job_role: params.jobRole,
       total_questions: params.totalQuestions,
-      candidate_name: params.candidateName,
-      candidate_email: params.candidateEmail,
-      interview_mode: params.mode,
+      interaction_mode: params.mode,
+      session_type: params.departmentId ? 'department' : 'practice',
     });
 
     this.session = session;

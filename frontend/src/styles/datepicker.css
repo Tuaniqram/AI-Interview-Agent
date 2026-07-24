@@ -1,0 +1,95 @@
+.react-datepicker-popper {
+  z-index: 9999 !important;
+}
+
+.react-datepicker {
+  font-family: inherit;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 0.75rem !important;
+  background: var(--bg-elevated) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+  overflow: hidden;
+}
+
+.react-datepicker__header {
+  background: var(--bg-section) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  padding-top: 0.5rem;
+}
+
+.react-datepicker__current-month {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+  font-size: 0.85rem !important;
+}
+
+.react-datepicker__day-name {
+  color: var(--text-secondary) !important;
+  font-size: 0.75rem !important;
+}
+
+.react-datepicker__day {
+  color: var(--text-primary) !important;
+  border-radius: 0.5rem !important;
+  font-size: 0.8rem !important;
+}
+
+.react-datepicker__day:hover {
+  background: var(--bg-hover) !important;
+}
+
+.react-datepicker__day--selected {
+  background: var(--action-primary) !important;
+  color: white !important;
+}
+
+.react-datepicker__day--keyboard-selected {
+  background: var(--action-primary) !important;
+  color: white !important;
+}
+
+.react-datepicker__day--today {
+  font-weight: 700 !important;
+}
+
+.react-datepicker__day--outside-month {
+  color: var(--text-muted) !important;
+  opacity: 0.4;
+}
+
+.react-datepicker__navigation-icon::before {
+  border-color: var(--text-secondary) !important;
+}
+
+.react-datepicker__time-container {
+  border-left: 1px solid var(--border-color) !important;
+}
+
+.react-datepicker__time-container .react-datepicker__time {
+  background: var(--bg-elevated) !important;
+}
+
+.react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box {
+  width: 100% !important;
+}
+
+.react-datepicker__time-list-item {
+  color: var(--text-primary) !important;
+  font-size: 0.8rem !important;
+  line-height: 2rem !important;
+  height: 2rem !important;
+}
+
+.react-datepicker__time-list-item:hover {
+  background: var(--bg-hover) !important;
+}
+
+.react-datepicker__time-list-item--selected {
+  background: var(--action-primary) !important;
+  color: white !important;
+}
+
+.react-datepicker__close-icon::after {
+  background: var(--text-muted) !important;
+  font-size: 0.8rem !important;
+}

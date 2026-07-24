@@ -21,13 +21,25 @@ from app.database.base import Base
 
 # Import all models so Alembic can autodetect them
 from app.models import (  # noqa: F401
-    Company,
-    CompanyDocument,
-    InterviewSession,
-    InterviewMessage,
+    AuditLog,
+    Booking,
+    CandidateInvitation,
+    CandidateProfile,
+    CandidateSession,
+    Department,
+    DepartmentDocument,
     InterviewEvaluation,
+    InterviewMessage,
+    InterviewSession,
+    InterviewSlot,
     InterviewTemplate,
-    UserProgress,
+    Organization,
+    OrgUser,
+    PublicInterview,
+    PublicInterviewSubmission,
+    RefreshToken,
+    SlotAvailability,
+    User,
 )
 
 config = context.config

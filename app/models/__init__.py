@@ -2,21 +2,31 @@
 ORM models — import from here for type hints and Alembic autodetect.
 """
 from app.models.db import (
-    Company,
-    CompanyDocument,
-    InterviewSession,
-    InterviewMessage,
+    AuditLog,
+    Booking,
+    CandidateInvitation,
+    CandidateProfile,
+    CandidateSession,
+    Department,
+    DepartmentDocument,
     InterviewEvaluation,
+    InterviewMessage,
+    InterviewSession,
+    InterviewSlot,
     InterviewTemplate,
-    UserProgress,
+    Organization,
+    OrgUser,
+    PublicInterview,
+    PublicInterviewSubmission,
+    RefreshToken,
+    SlotAvailability,
+    User,
 )
 
 __all__ = [
-    "Company",
-    "CompanyDocument",
-    "InterviewSession",
-    "InterviewMessage",
-    "InterviewEvaluation",
-    "InterviewTemplate",
-    "UserProgress",
+    "AuditLog", "Booking", "CandidateInvitation", "CandidateProfile", "CandidateSession",
+    "Department", "DepartmentDocument", "InterviewEvaluation", "InterviewMessage",
+    "InterviewSession", "InterviewSlot", "InterviewTemplate",
+    "Organization", "OrgUser", "PublicInterview", "PublicInterviewSubmission",
+    "RefreshToken", "SlotAvailability", "User",
 ]

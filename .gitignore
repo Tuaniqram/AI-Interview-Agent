@@ -38,6 +38,7 @@ playwright-report/
 test-results/
 .agents/
 tests/
+docs/
 # IDE
 .vscode/
 .idea/
@@ -57,6 +58,7 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+scripts/
 
 # Pytest
 .pytest_cache/

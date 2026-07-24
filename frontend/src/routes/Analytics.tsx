@@ -1,52 +1,26 @@
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { apiClient } from '../services/apiClient';
 import { PageHeader } from '../components/shared/PageHeader';
 import { Card } from '../components/shared/Card';
 import { MetricCard } from '../components/shared/MetricCard';
 import { CardSkeleton } from '../components/shared/Skeleton';
 import { Building2, ListChecks, TrendingUp, Target } from 'lucide-react';
+import {
+  analyticsService,
+  type OverviewData as Overview,
+  type TrendPoint,
+  type DistributionPoint,
+  type DepartmentData,
+  type RoleData,
+} from '../services/analyticsService';
 
 const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
-
-interface Overview {
-  total_companies: number;
-  total_sessions: number;
-  active_sessions: number;
-  completed_sessions: number;
-  average_score: number | null;
-  completion_rate: number;
-}
-
-interface TrendPoint {
-  date: string;
-  avg_score: number;
-  count: number;
-}
-
-interface DistributionPoint {
-  range: string;
-  count: number;
-}
-
-interface CompanyData {
-  company_id: number;
-  name: string;
-  session_count: number;
-  avg_score: number | null;
-}
-
-interface RoleData {
-  job_role: string;
-  count: number;
-  avg_score: number | null;
-}
 
 export function Analytics() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [distribution, setDistribution] = useState<DistributionPoint[]>([]);
-  const [byCompany, setByCompany] = useState<CompanyData[]>([]);
+  const [byDepartment, setByDepartment] = useState<DepartmentData[]>([]);
   const [byRole, setByRole] = useState<RoleData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -56,17 +30,17 @@ export function Analytics() {
       setLoading(true);
       try {
         const [o, t, d, c, r] = await Promise.allSettled([
-          apiClient.get<Overview>('/analytics/overview'),
-          apiClient.get<TrendPoint[]>('/analytics/scores/trend'),
-          apiClient.get<DistributionPoint[]>('/analytics/scores/distribution'),
-          apiClient.get<CompanyData[]>('/analytics/sessions/by-company'),
-          apiClient.get<RoleData[]>('/analytics/sessions/by-role'),
+          analyticsService.getOverview(),
+          analyticsService.getScoreTrend(),
+          analyticsService.getScoreDistribution(),
+          analyticsService.getSessionsByDepartment(),
+          analyticsService.getSessionsByRole(),
         ]);
         if (cancelled) return;
         if (o.status === 'fulfilled') setOverview(o.value);
         if (t.status === 'fulfilled') setTrend(t.value);
         if (d.status === 'fulfilled') setDistribution(d.value);
-        if (c.status === 'fulfilled') setByCompany(c.value);
+        if (c.status === 'fulfilled') setByDepartment(c.value);
         if (r.status === 'fulfilled') setByRole(r.value);
       } catch {} finally {
         if (!cancelled) setLoading(false);
@@ -100,7 +74,7 @@ export function Analytics() {
         <MetricCard label="Total Sessions" value={overview?.total_sessions ?? 0} icon={<ListChecks className="w-4 h-4" />} />
         <MetricCard label="Avg Score" value={overview?.average_score != null ? overview.average_score.toFixed(1) : '—'} icon={<TrendingUp className="w-4 h-4" />} />
         <MetricCard label="Completion Rate" value={`${overview?.completion_rate ?? 0}%`} icon={<Target className="w-4 h-4" />} />
-        <MetricCard label="Companies" value={overview?.total_companies ?? 0} icon={<Building2 className="w-4 h-4" />} />
+        <MetricCard label="Departments" value={overview?.total_departments ?? 0} icon={<Building2 className="w-4 h-4" />} />
       </div>
 
       {/* Charts Row */}
@@ -144,14 +118,14 @@ export function Analytics() {
 
       {/* Second Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Sessions by Company */}
+        {/* Sessions by Department */}
         <Card>
-          <h3 className="text-sm font-medium text-primary mb-4">Sessions by Company</h3>
-          {byCompany.length === 0 ? (
+          <h3 className="text-sm font-medium text-primary mb-4">Sessions by Department</h3>
+          {byDepartment.length === 0 ? (
             <p className="text-xs text-muted text-center py-8">No data yet</p>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={byCompany.slice(0, 8)} layout="vertical">
+              <BarChart data={byDepartment.slice(0, 8)} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--divider)" />
                 <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
                 <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />

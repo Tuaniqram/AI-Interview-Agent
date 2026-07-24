@@ -4,7 +4,7 @@ import { useCamera } from '../hooks/useCamera';
 import { voiceService } from '../services/voiceService';
 import { apiClient } from '../services/apiClient';
 
-interface Company {
+interface Department {
   id: number;
   name: string;
   website?: string;
@@ -12,9 +12,9 @@ interface Company {
 }
 
 interface AvatarPlaceholderProps {
-  onInterviewStart: (params: { companyId: number; jobRole: string; interviewMode: string; totalQuestions: number }) => Promise<void>;
-  modeConfig: { companyId: number; jobRole: string; apiURL: string };
-  onModeConfigChange: (config: { companyId: number; jobRole: string; apiURL: string }) => void;
+  onInterviewStart: (params: { departmentId: number; jobRole: string; interviewMode: string; totalQuestions: number }) => Promise<void>;
+  modeConfig: { departmentId: number; jobRole: string; apiURL: string };
+  onModeConfigChange: (config: { departmentId: number; jobRole: string; apiURL: string }) => void;
 }
 
 export function AvatarPlaceholder({
@@ -27,17 +27,17 @@ export function AvatarPlaceholder({
   const camera = useCamera();
   const [micTested, setMicTested] = React.useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const videoRef = React.useRef<HTMLVideoElement>(null);
-  const [companies, setCompanies] = React.useState<Company[]>([]);
+  const [companies, setCompanies] = React.useState<Department[]>([]);
   const [companiesLoading, setCompaniesLoading] = React.useState(true);
 
   React.useEffect(() => {
-    apiClient.get<Company[]>('/companies/')
+    apiClient.get<Department[]>('/api/v1/departments/')
       .then((data) => {
         setCompanies(data);
-        if (data.length > 0 && modeConfig.companyId === 1001) {
-          const match = data.find(c => c.id === modeConfig.companyId);
+        if (data.length > 0 && modeConfig.departmentId === 1001) {
+          const match = data.find(c => c.id === modeConfig.departmentId);
           if (!match) {
-            onModeConfigChange({ ...modeConfig, companyId: data[0].id });
+            onModeConfigChange({ ...modeConfig, departmentId: data[0].id });
           }
         }
       })
@@ -66,7 +66,7 @@ export function AvatarPlaceholder({
     setIsSimulating(true);
     try {
       await onInterviewStart({
-        companyId: modeConfig.companyId,
+        departmentId: modeConfig.departmentId,
         jobRole: modeConfig.jobRole,
         interviewMode: 'avatar',
         totalQuestions
@@ -169,16 +169,16 @@ export function AvatarPlaceholder({
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-secondary mb-2">
-              Company
+              Department
             </label>
             <select
-              value={modeConfig.companyId}
-              onChange={(e) => onModeConfigChange({ ...modeConfig, companyId: Number(e.target.value) })}
+              value={modeConfig.departmentId}
+              onChange={(e) => onModeConfigChange({ ...modeConfig, departmentId: Number(e.target.value) })}
               disabled={companiesLoading}
               className="w-full px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] transition-all bg-input text-primary"
             >
               {companiesLoading && <option value="">Loading companies...</option>}
-              {!companiesLoading && companies.length === 0 && <option value="">No companies found</option>}
+              {!companiesLoading && companies.length === 0 && <option value="">No departments found</option>}
               {companies.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}

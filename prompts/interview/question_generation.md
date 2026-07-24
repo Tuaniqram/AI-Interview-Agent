@@ -7,7 +7,7 @@ Generate a professional interview question based on the interview phase and job 
 - job_role: Target job role (e.g., "Software Engineer", "Data Scientist")
 - phase: Current interview phase (e.g., "intro", "experience", "technical", "behavioral", "conclusion")
 - difficulty_level: Current difficulty level (1=easy, 2=medium, 3=hard)
-- company_context: Company requirements and domain (optional)
+- department_context: Department requirements and domain (optional)
 
 # Instructions
 Generate ONE interview question for this phase and difficulty level.
@@ -50,7 +50,7 @@ Question: How would you approach designing a system for handling millions of con
 - **Job Role**: {{job_role}}
 - **Interview Phase**: {{phase}}
 - **Difficulty Level**: {{difficulty_level}}
-- **Company Context**: {{company_context}}
+- **Department Context**: {{department_context}}
 - **Candidate Profile**: {{candidate_profile}}
 - **Question Number**: {{question_number}}
 - **Conversation History**: {{conversation_history}}

@@ -31,7 +31,7 @@ async def question_generation_node(state: InterviewState) -> InterviewState:
     phase = state.get('current_phase')
     difficulty = state.get('difficulty_level', 1)
     conversation_history = state.get('conversation_history', [])
-    company_requirements = state.get('company_requirements', '')
+    department_requirements = state.get('department_requirements', '')
     candidate_profile = state.get('candidate_profile', '{}')
     question_number = state.get('question_number', 0)
 
@@ -59,7 +59,7 @@ async def question_generation_node(state: InterviewState) -> InterviewState:
                 job_role=job_role,
                 phase=phase,
                 difficulty_level=difficulty,
-                company_context=company_requirements[:2000] if company_requirements else "N/A",
+                department_context=department_requirements[:2000] if department_requirements else "N/A",
                 candidate_profile=candidate_profile[:500] if candidate_profile else "N/A",
                 question_number=question_number,
                 total_questions=state.get('total_questions', 10),
@@ -92,7 +92,7 @@ async def question_generation_node(state: InterviewState) -> InterviewState:
                 candidate_answer=previous_answer or "(no answer yet)",
                 difficulty_level=difficulty,
                 previous_scores=scores_str,
-                company_context=company_requirements[:1000] if company_requirements else "N/A"
+                department_context=department_requirements[:1000] if department_requirements else "N/A"
             )
 
         logger.debug(f"Sending prompt to LLM (system={len(system_prompt)} chars, user={len(user_prompt)} chars)")
@@ -115,7 +115,7 @@ async def question_generation_node(state: InterviewState) -> InterviewState:
             simplified_prompt = f"""
 You are an interviewer for the role: {job_role}.
 Phase: {phase}. Difficulty: {difficulty}.
-Company context: {company_requirements[:500] if company_requirements else 'N/A'}
+Department context: {department_requirements[:500] if department_requirements else 'N/A'}
 
 Generate ONE adaptive interview question. Output ONLY the question text.
 """

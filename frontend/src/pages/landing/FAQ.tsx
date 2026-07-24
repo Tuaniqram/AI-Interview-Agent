@@ -32,11 +32,11 @@ export function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section className="py-24 px-6 bg-[#0a0a0b]">
+    <section className="py-24 px-6 bg-page">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-14">
-          <h2 className="text-3xl md:text-4xl font-bold text-[#f2f2f5] mb-4">Frequently asked questions</h2>
-          <p className="text-[#a8a8b3] text-lg">
+          <h2 className="text-3xl md:text-4xl font-bold text-primary mb-4">Frequently asked questions</h2>
+          <p className="text-secondary text-lg">
             Everything you need to know about the platform.
           </p>
         </div>
@@ -50,23 +50,23 @@ export function FAQ() {
                 className="rounded-xl overflow-hidden transition-all duration-200"
                 style={{
                   background: isOpen ? 'rgba(28,28,31,0.8)' : 'rgba(28,28,31,0.4)',
-                  boxShadow: '0 0 0 1px rgba(255,255,255,0.04)',
+                  boxShadow: '0 0 0 1px var(--border-color)',
                 }}
               >
                 <button
                   onClick={() => setOpenIndex(isOpen ? null : i)}
                   className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left"
                 >
-                  <span className="text-sm font-medium text-[#f2f2f5]">{faq.q}</span>
+                  <span className="text-sm font-medium text-primary">{faq.q}</span>
                   <ChevronDown
-                    className={`w-4 h-4 text-[#6f6f7a] shrink-0 transition-transform duration-200 ${
+                    className={`w-4 h-4 text-tertiary shrink-0 transition-transform duration-200 ${
                       isOpen ? 'rotate-180' : ''
                     }`}
                   />
                 </button>
                 {isOpen && (
                   <div className="px-5 pb-4">
-                    <p className="text-sm text-[#a8a8b3] leading-relaxed">{faq.a}</p>
+                    <p className="text-sm text-secondary leading-relaxed">{faq.a}</p>
                   </div>
                 )}
               </div>

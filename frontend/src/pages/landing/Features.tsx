@@ -53,11 +53,11 @@ const features = [
 
 export function Features() {
   return (
-    <section className="py-24 px-6 bg-[#141416]">
+    <section className="py-24 px-6 bg-section">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-[#f2f2f5] mb-4">Everything you need</h2>
-          <p className="text-[#a8a8b3] text-lg max-w-xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-primary mb-4">Everything you need</h2>
+          <p className="text-secondary text-lg max-w-xl mx-auto">
             From avatar interviews to deep analytics — a complete AI interview platform.
           </p>
         </div>
@@ -66,14 +66,14 @@ export function Features() {
           {features.map((f) => (
             <div
               key={f.title}
-              className="group p-5 rounded-2xl bg-[#1c1c1f] hover:bg-[#1c1c1f]/80 transition-all duration-300"
+              className="group p-5 rounded-2xl bg-elevated hover:bg-elevated/80 transition-all duration-300"
             >
               <div className="w-9 h-9 rounded-xl bg-action-primary/10 flex items-center justify-center mb-3 group-hover:bg-action-primary/20 transition-colors">
                 <f.icon className="w-4.5 h-4.5 text-action-primary" />
               </div>
-              <h3 className="text-sm font-semibold text-[#f2f2f5] mb-1.5">{f.title}</h3>
-              <p className="text-xs text-[#a8a8b3] leading-relaxed mb-3">{f.description}</p>
-              <span className="text-[10px] font-medium text-[#6f6f7a] uppercase tracking-wider">{f.highlight}</span>
+              <h3 className="text-sm font-semibold text-primary mb-1.5">{f.title}</h3>
+              <p className="text-xs text-secondary leading-relaxed mb-3">{f.description}</p>
+              <span className="text-[10px] font-medium text-tertiary uppercase tracking-wider">{f.highlight}</span>
             </div>
           ))}
         </div>

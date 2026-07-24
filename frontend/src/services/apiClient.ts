@@ -5,6 +5,7 @@
 
 import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
 import { ErrorResponse, ApiConfig } from '../types/api';
+import { getCandidateToken } from '../utils/candidateToken';
 
 class ApiClient {
   private instance: AxiosInstance;
@@ -21,94 +22,41 @@ class ApiClient {
       },
     });
 
-    // Request interceptor for logging and token management
     this.instance.interceptors.request.use(
       (config) => {
-        console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`, config.data);
+        const token = this.getAccessToken();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        const orgId = this.getActiveOrgId();
+        if (orgId) {
+          config.headers['X-Org-Id'] = orgId;
+        }
         return config;
       },
-      (error) => {
-        console.error('Request Error:', error);
-        return Promise.reject(error);
-      }
+      (error) => Promise.reject(error)
     );
 
-    // Response interceptor for error handling and token refresh
     this.instance.interceptors.response.use(
-      (response) => {
-        console.log(`API Response: ${response.config.url}`, response);
-        return response;
-      },
+      (response) => response,
       async (error: AxiosError<ErrorResponse>) => {
-        console.error('API Error:', error.response?.status, error.response?.data);
-        
-        // Handle specific error scenarios
-        await this.handleErrorResponse(error);
-        
+        const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+          try {
+            const newToken = await this.refreshToken();
+            if (newToken && originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${newToken}`;
+              return this.instance.request(originalRequest);
+            }
+          } catch {
+            this.onAuthFailure?.();
+            this.onCandidateAuthFailure?.();
+          }
+        }
         return Promise.reject(error);
       }
     );
-  }
-
-  /**
-   * Centralized error handling for different scenarios
-   */
-  private async handleErrorResponse(error: AxiosError<ErrorResponse>): Promise<void> {
-    const status = error.response?.status;
-
-    switch (status) {
-      case 401:
-        // Session expired/invalid - redirect to start or logout
-        console.error('Unauthorized - Session expired');
-        // TODO: Implement session refresh or redirect
-        break;
-      case 403:
-        // Permission denied
-        console.error('Forbidden - Insufficient permissions');
-        break;
-      case 404:
-        // Not found
-        console.error('Not found - Resource not available');
-        break;
-      case 422:
-        // Validation error
-        console.error('Validation error:', error.response?.data);
-        break;
-      case 429:
-        // Rate limit
-        console.error('Too many requests - Rate limited');
-        break;
-      case 500:
-      case 502:
-      case 503:
-      case 504:
-        // Server errors with retry logic
-        console.error('Server error - Attempting retry');
-        await this.retryRequest(error.config);
-        break;
-      default:
-        // Unknown errors
-        console.error('Unknown API error');
-    }
-  }
-
-  /**
-   * Retry logic for transient network failures
-   */
-  private async retryRequest(config: AxiosRequestConfig | undefined, attempts = 1): Promise<void> {
-    if (!config || attempts >= 3) return;
-
-    const delay = Math.pow(2, attempts) * 1000; // Exponential backoff
-
-    console.log(`Retry ${attempts} in ${delay}ms...`);
-    await new Promise(resolve => setTimeout(resolve, delay));
-
-    try {
-      await this.instance.request(config);
-    } catch (retryError) {
-      console.error(`Retry ${attempts} failed`);
-      await this.retryRequest(config, attempts + 1);
-    }
   }
 
   /**
@@ -179,13 +127,96 @@ class ApiClient {
     this.instance.defaults.baseURL = url;
   }
 
-  /**
-   * Get current config
-   */
+  async patch<T>(url: string, data?: any): Promise<T> {
+    const config: AxiosRequestConfig = {
+      method: 'PATCH',
+      url,
+      data,
+    };
+    return await this.request<T>(config);
+  }
+
   getConfig(): ApiConfig {
     return { ...this.config };
   }
+
+  private tokenSource: 'candidate' | 'org' | null = null;
+
+  private getAccessToken(): string | null {
+    const candidate = getCandidateToken();
+    if (candidate) {
+      this.tokenSource = 'candidate';
+      return candidate;
+    }
+    const org = this._getOrgUserToken();
+    if (org) {
+      this.tokenSource = 'org';
+      return org;
+    }
+    this.tokenSource = null;
+    return null;
+  }
+
+  private _getOrgUserToken(): string | null {
+    try {
+      const stored = localStorage.getItem('auth_tokens');
+      if (stored) {
+        const tokens = JSON.parse(stored);
+        return tokens.access_token || null;
+      }
+    } catch { /* ignore */ }
+    return null;
+  }
+
+  private getActiveOrgId(): string | null {
+    if (this.tokenSource === 'candidate') return null;
+    try {
+      return localStorage.getItem('active_org_id');
+    } catch { /* ignore */ }
+    return null;
+  }
+
+  private async refreshToken(): Promise<string | null> {
+    if (this.tokenSource === 'candidate') {
+      return this._refreshCandidateToken();
+    }
+    return this._refreshOrgUserToken();
+  }
+
+  private async _refreshCandidateToken(): Promise<string | null> {
+    try {
+      const stored = localStorage.getItem('candidate_tokens');
+      if (!stored) return null;
+      const tokens = JSON.parse(stored);
+      const res = await axios.post(`${this.config.baseURL}/api/v1/candidates/refresh`, {
+        refresh_token: tokens.refresh_token,
+      });
+      const newTokens = res.data;
+      localStorage.setItem('candidate_tokens', JSON.stringify(newTokens));
+      return newTokens.access_token;
+    } catch {
+      return null;
+    }
+  }
+
+  private async _refreshOrgUserToken(): Promise<string | null> {
+    try {
+      const stored = localStorage.getItem('auth_tokens');
+      if (!stored) return null;
+      const tokens = JSON.parse(stored);
+      const res = await axios.post(`${this.config.baseURL}/api/v1/auth/refresh`, {
+        refresh_token: tokens.refresh_token,
+      });
+      const newTokens = res.data;
+      localStorage.setItem('auth_tokens', JSON.stringify(newTokens));
+      return newTokens.access_token;
+    } catch {
+      return null;
+    }
+  }
+
+  onAuthFailure: (() => void) | null = null;
+  onCandidateAuthFailure: (() => void) | null = null;
 }
 
-// Export singleton instance
 export const apiClient = new ApiClient();

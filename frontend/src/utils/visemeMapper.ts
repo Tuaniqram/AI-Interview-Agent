@@ -97,6 +97,28 @@ const CUSTOM_EMOTION_MAP: Record<AvatarEmotion, Record<string, number>> = {
     mouthStretchLeft: 0.1, mouthStretchRight: 0.1,
     mouthPressLeft: 0.1, mouthPressRight: 0.1,
   },
+  happy: {
+    mouthSmileLeft: 0.8, mouthSmileRight: 0.8,
+    cheekSquintLeft: 0.4, cheekSquintRight: 0.4,
+  },
+  concerned: {
+    browDownLeft: 0.5, browDownRight: 0.5,
+    browInnerUp: 0.2,
+    eyeSquintLeft: 0.3, eyeSquintRight: 0.3,
+    mouthFrownLeft: 0.3, mouthFrownRight: 0.3,
+  },
+  confident: {
+    browInnerUp: 0.2,
+    eyeWideLeft: 0.3, eyeWideRight: 0.3,
+    mouthSmileLeft: 0.5, mouthSmileRight: 0.5,
+    jawOpen: 0.1,
+  },
+  surprised: {
+    browInnerUp: 0.8, browDownLeft: 0.2, browDownRight: 0.2,
+    eyeWideLeft: 0.8, eyeWideRight: 0.8,
+    jawOpen: 0.6,
+    mouthStretchLeft: 0.3, mouthStretchRight: 0.3,
+  },
 };
 
 export function visemeToBlendShapes(viseme: VisemeFrame): BlendShapeWeights {

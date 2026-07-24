@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Hero } from './landing/Hero';
 import { Stats } from './landing/Stats';
 import AnimatedFlow from './landing/AnimatedFlow';
@@ -12,6 +13,35 @@ import { CTASection } from './landing/CTASection';
 export function Landing() {
   return (
     <div className="min-h-screen bg-[#0a0a0b]">
+      {/* Top Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0b]/80 backdrop-blur-lg border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+          <Link to="/" className="text-lg font-bold text-[#f2f2f5]">
+            AI Interview Agent
+          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/candidate/login"
+              className="text-sm text-[#a8a8b3] hover:text-[#f2f2f5] transition-colors"
+            >
+              Candidate Login
+            </Link>
+            <Link
+              to="/login"
+              className="text-sm text-[#a8a8b3] hover:text-[#f2f2f5] transition-colors"
+            >
+              Sign In
+            </Link>
+            <Link
+              to="/register"
+              className="text-sm px-4 py-1.5 rounded-lg bg-[#8b6ff5] text-white font-medium hover:bg-[#a08aff] transition-colors"
+            >
+              Get Started
+            </Link>
+          </div>
+        </div>
+      </nav>
+
       <Hero />
 
       <Stats />

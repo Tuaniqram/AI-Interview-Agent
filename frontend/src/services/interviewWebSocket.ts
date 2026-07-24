@@ -7,6 +7,8 @@
  * Server → Client: { type, ...data }
  */
 
+import { getCandidateToken } from '../utils/candidateToken';
+
 export class InterviewWebSocket {
   private ws: WebSocket | null = null;
   private baseUrl: string;
@@ -22,7 +24,10 @@ export class InterviewWebSocket {
   }
 
   async connect(sessionId: string): Promise<void> {
-    const url = `${this.baseUrl}/ws/interview/${sessionId}`;
+    const token = getCandidateToken();
+    const url = token
+      ? `${this.baseUrl}/ws/interview/${sessionId}?token=${token}`
+      : `${this.baseUrl}/ws/interview/${sessionId}`;
     this.ws = new WebSocket(url);
 
     return new Promise((resolve, reject) => {
@@ -84,15 +89,12 @@ export class InterviewWebSocket {
   }
 
   async startSession(params: {
-    company_id: number;
+    department_id?: number;
     job_role: string;
-    candidate_id?: string;
-    candidate_name?: string;
-    candidate_email?: string;
     total_questions?: number;
     initial_difficulty?: number;
-    interview_type?: string;
-    interview_mode?: string;
+    session_type?: string;
+    interaction_mode?: string;
   }): Promise<any> {
     return this.sendAndWait('start_interview', params as Record<string, unknown>);
   }

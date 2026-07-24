@@ -203,6 +203,7 @@ export function InputBar({ input, onInputChange, onSend, onKeyDown, isSending, p
             placeholder={isSending ? 'Waiting for response...' : placeholder}
             rows={1}
             disabled={isSending}
+            aria-label="Type your answer"
             className="w-full px-4 py-2.5 pr-12 bg-input text-primary rounded-xl resize-none border-0 focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] disabled:opacity-50 transition-all text-sm placeholder-muted leading-relaxed"
           />
           <div className="absolute right-2 bottom-2 flex items-center gap-1">

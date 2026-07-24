@@ -9,7 +9,7 @@ export type InterviewView =
   | 'question';  // Active question display
 
 export interface InterviewFormData {
-  companyId: number;
+  departmentId: number;
   jobRole: string;
   interviewMode: 'typing' | 'voice' | 'avatar' | 'realtime';
 }

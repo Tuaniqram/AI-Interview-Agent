@@ -34,11 +34,11 @@ def session_init_node(state: InterviewState) -> InterviewState:
     # Get question number
     question_number = state.get('question_number', 0)
     
-    # Get interview type
-    interview_type = state.get('interview_type', 'company')
+    # Get interview flow type
+    flow_type = state.get('flow_type', 'department')
     
     # Initialize RAG context
-    company_context = state.get('company_context', [])
+    department_context = state.get('department_context', [])
     
     # Initialize technical evaluation data
     technical_score = None
@@ -59,8 +59,8 @@ def session_init_node(state: InterviewState) -> InterviewState:
         'conversation_history': history,
         'current_phase': current_phase,
         'question_number': question_number,
-        'interview_type': interview_type,
-        'company_context': company_context,
+        'flow_type': flow_type,
+        'department_context': department_context,
         'rag_metadata': state.get('rag_metadata', {}),
         'technical_score': technical_score,
         'communication_score': communication_score,

@@ -41,8 +41,8 @@ def get_index():
     return get_pinecone_client().Index(INDEX_NAME)
 
 
-def store_company_knowledge(chunks, company_id, doc_id=None):
-    namespace = f"company_{company_id}"
+def store_department_knowledge(chunks, department_id, doc_id=None):
+    namespace = f"department_{department_id}"
     if doc_id:
         for chunk in chunks:
             chunk.metadata["doc_id"] = str(doc_id)
@@ -55,11 +55,10 @@ def store_company_knowledge(chunks, company_id, doc_id=None):
     return vector_store
 
 
-def delete_company_knowledge(company_id, doc_id):
-    """Delete all vectors for a specific document from Pinecone."""
+def delete_department_knowledge(department_id, doc_id):
     try:
         index = get_index()
-        namespace = f"company_{company_id}"
+        namespace = f"department_{department_id}"
         index.delete(
             filter={"doc_id": str(doc_id)},
             namespace=namespace
@@ -69,8 +68,8 @@ def delete_company_knowledge(company_id, doc_id):
         logger.warning(f"Failed to delete vectors from Pinecone: {e}")
 
 
-def get_company_retriever(company_id):
-    namespace = f"company_{company_id}"
+def get_department_retriever(department_id):
+    namespace = f"department_{department_id}"
     vector_store = PineconeVectorStore(
         index_name=INDEX_NAME,
         embedding=get_embedding(),
@@ -78,4 +77,4 @@ def get_company_retriever(company_id):
     )
     return vector_store.as_retriever(
         search_kwargs={"k": 5}
-    )   
+    )

@@ -9,7 +9,7 @@ const stats = [
 
 export function Stats() {
   return (
-    <section className="py-16 px-6 bg-[#0a0a0b]">
+    <section className="py-16 px-6 bg-page">
       <div className="max-w-5xl mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           {stats.map(s => {
@@ -19,8 +19,8 @@ export function Stats() {
                 <div className="w-10 h-10 rounded-xl bg-action-primary/10 flex items-center justify-center mx-auto mb-3">
                   <Icon className="w-5 h-5 text-action-primary" />
                 </div>
-                <div className="text-2xl font-bold text-[#f2f2f5]">{s.value}</div>
-                <div className="text-xs text-[#8a8a94] mt-1">{s.label}</div>
+                <div className="text-2xl font-bold text-primary">{s.value}</div>
+                <div className="text-xs text-muted mt-1">{s.label}</div>
               </div>
             );
           })}

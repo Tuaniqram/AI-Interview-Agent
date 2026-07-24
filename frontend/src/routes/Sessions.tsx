@@ -1,4 +1,7 @@
 import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useMemo } from 'react';
+import { ListChecks, AlertCircle, Keyboard, Mic, Bot } from 'lucide-react';
+import { departmentService, type SessionRecord } from '../services/departmentService';
 import { PageHeader } from '../components/shared/PageHeader';
 import { Card } from '../components/shared/Card';
 import { EmptyState } from '../components/shared/EmptyState';
@@ -6,20 +9,6 @@ import { TableSkeleton } from '../components/shared/Skeleton';
 import { DataTable, Column } from '../components/shared/DataTable';
 import { StatusBadge } from '../components/shared/StatusBadge';
 import { ScoreDisplay } from '../components/shared/ScoreDisplay';
-import { ListChecks, AlertCircle } from 'lucide-react';
-import { useEffect, useState, useMemo } from 'react';
-import { apiClient } from '../services/apiClient';
-
-interface SessionRecord {
-  id: string;
-  candidate_id?: string;
-  job_role: string;
-  status: string;
-  final_score: number | null;
-  started_at: string;
-  company_name?: string;
-  interview_mode?: string;
-}
 
 export function Sessions() {
   const navigate = useNavigate();
@@ -32,16 +21,16 @@ export function Sessions() {
 
     async function load() {
       try {
-        const companies = await apiClient.get<Array<{ id: number; name: string }>>('/companies/');
+        const departments = await departmentService.listDepartments();
         const all: SessionRecord[] = [];
 
         const sessionResults = await Promise.allSettled(
-          companies.map(c => apiClient.get<SessionRecord[]>(`/companies/${c.id}/sessions`))
+          departments.map(c => departmentService.listSessions(c.id))
         );
         sessionResults.forEach((result, i) => {
           if (result.status === 'fulfilled') {
             for (const s of result.value) {
-              all.push({ ...s, company_name: companies[i].name });
+              all.push({ ...s, department_name: departments[i].name });
             }
           }
         });
@@ -61,18 +50,17 @@ export function Sessions() {
   }, []);
 
   const modeIcon = (m?: string) => {
-    if (m === 'typing') return '⌨';
-    if (m === 'voice') return '🎤';
-    if (m === 'avatar') return '🤖';
-    return '—';
+    if (m === 'typing') return <Keyboard size={14} className="inline" />;
+    if (m === 'voice') return <Mic size={14} className="inline" />;
+    if (m === 'avatar') return <Bot size={14} className="inline" />;
+    return <span className="text-xs">—</span>;
   };
 
   const columns = useMemo<Column<SessionRecord>[]>(() => [
-    { key: 'company_name', header: 'Company', render: s => s.company_name || '—' },
-    { key: 'candidate_id', header: 'Candidate', render: s => s.candidate_id || 'Anonymous' },
+    { key: 'department_name', header: 'Department', render: s => s.department_name || '—' },
     { key: 'job_role', header: 'Role' },
-    { key: 'interview_mode', header: 'Mode', render: s => (
-      <span className="text-xs">{modeIcon(s.interview_mode)} {s.interview_mode ? s.interview_mode.charAt(0).toUpperCase() + s.interview_mode.slice(1) : '—'}</span>
+    { key: 'interaction_mode', header: 'Mode', render: s => (
+      <span className="text-xs">{modeIcon(s.interaction_mode)} {s.interaction_mode ? s.interaction_mode.charAt(0).toUpperCase() + s.interaction_mode.slice(1) : '—'}</span>
     ) },
     { key: 'status', header: 'Status', render: s => <StatusBadge status={s.status} /> },
     { key: 'final_score', header: 'Score', render: s => <ScoreDisplay score={s.final_score} size="sm" showLabel={false} /> },

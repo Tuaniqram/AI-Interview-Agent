@@ -2,13 +2,17 @@
 AI Interview Agent API - Clean Production API Endpoints
 Provides modern, RESTful API for AI Interview Agent workflow.
 """
-import json
 import logging
-from typing import List, Dict, Any
-from fastapi import APIRouter, HTTPException, Body
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from typing import List, Dict, Any, Optional
+from uuid import UUID
 
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import select
+
+from app.candidates.auth import optional_candidate_auth
+from app.database.session import get_session_factory
+from app.models.db import CandidateProfile, InterviewSession
 from app.orchestrators.interview_orchestrator import InterviewOrchestrator
 from app.exceptions import SessionNotFoundException
 
@@ -30,16 +34,12 @@ orchestrator = InterviewOrchestrator()
 # ============================================================================
 
 class InterviewStartRequest(BaseModel):
-    """Request model for starting a new interview."""
-    company_id: int
-    job_role: str
-    candidate_id: str = ""
-    candidate_name: str = ""
-    candidate_email: str = ""
+    department_id: Optional[int] = None
+    job_role: str = ""
     total_questions: int = 10
     initial_difficulty: int = 1
-    interview_type: str = "company"
-    interview_mode: str = "avatar"
+    session_type: str = "department"
+    interaction_mode: str = "avatar"
 
 
 class QuestionInitiateRequest(BaseModel):
@@ -62,6 +62,29 @@ class AnswerSubmitRequest(BaseModel):
 
 
 # ============================================================================
+# HELPERS
+# ============================================================================
+
+async def _verify_session_access(
+    session_id: str,
+    current_candidate: Optional[CandidateProfile],
+) -> InterviewSession:
+    async with get_session_factory()() as db:
+        result = await db.execute(
+            select(InterviewSession).where(InterviewSession.id == UUID(session_id))
+        )
+        session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.candidate_profile_id is not None:
+        if not current_candidate:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        if str(session.candidate_profile_id) != str(current_candidate.id):
+            raise HTTPException(status_code=403, detail="You don't own this session")
+    return session
+
+
+# ============================================================================
 # ENDPOINTS
 # ============================================================================
 
@@ -71,30 +94,27 @@ async def start_interview(request: InterviewStartRequest):
     Start a new AI Interview Agent session.
     
     Body:
-        company_id: Company ID
+        department_id: Department ID
         job_role: Job role for interview
         candidate_id: Candidate identifier (optional)
         total_questions: Total questions to ask (default 10)
         initial_difficulty: Initial difficulty level 1-3 (default 1)
-        interview_type: Type of interview ("company", "skill", "adaptive")
+        session_type: Type of session ("department", "public", "mock")
     
     Returns:
         Session initialization with session_id, phase, progress, etc.
     """
     try:
         result = await orchestrator.start_interview(
-            company_id=request.company_id,
+            department_id=request.department_id,
             job_role=request.job_role,
-            candidate_id=request.candidate_id or str(request.company_id),
-            candidate_name=request.candidate_name,
-            candidate_email=request.candidate_email,
             total_questions=request.total_questions,
             initial_difficulty=request.initial_difficulty,
-            interview_type=request.interview_type,
-            interview_mode=request.interview_mode
+            session_type=request.session_type,
+            interaction_mode=request.interaction_mode
         )
         
-        logger.info(f"Created interview session: company_id={request.company_id}, session_id={result['session_id']}")
+        logger.info(f"Created interview session: department_id={request.department_id}, session_id={result['session_id']}")
         return result
         
     except Exception as e:
@@ -105,7 +125,8 @@ async def start_interview(request: InterviewStartRequest):
 @router.post("/interviews/{session_id}/questions/next")
 async def initiate_next_question(
     session_id: str,
-    request: QuestionInitiateRequest
+    request: QuestionInitiateRequest,
+    current_candidate: Optional[CandidateProfile] = Depends(optional_candidate_auth),
 ):
     """
     Initiate the next question using LangGraph workflow.
@@ -124,6 +145,7 @@ async def initiate_next_question(
     Returns:
         Generated question, next action, phase evolution, difficulty adjustment
     """
+    await _verify_session_access(session_id, current_candidate)
     try:
         result = await orchestrator.initiate_next_question(
             session_id=session_id,
@@ -148,66 +170,11 @@ async def initiate_next_question(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/interviews/{session_id}/questions/next/stream")
-async def initiate_next_question_stream(
-    session_id: str,
-    request: QuestionInitiateRequest
-):
-    """
-    Stream question generation token-by-token via SSE.
-    """
-    async def event_stream():
-        try:
-            llm_service = get_llm_service()
-            system_prompt = load_prompt("system", "interviewer_system.md")
-            job_role = request.candidate_profile.get("job_role", "the role")
-            phase = request.current_phase
-            difficulty = request.difficulty_level
-
-            user_prompt = load_prompt(
-                "interview",
-                "question_generation.md",
-                job_role=job_role,
-                phase=phase,
-                difficulty_level=difficulty,
-                company_context="N/A",
-                candidate_profile="N/A",
-                question_number=request.question_number,
-                conversation_history="(new interview)"
-            )
-
-            yield f"data: {json.dumps({'type': 'meta', 'session_id': session_id})}\n\n"
-
-            full_text = ""
-            async for token in llm_service.invoke_stream(
-                prompt=user_prompt,
-                system_prompt=system_prompt,
-                temperature=0.8,
-                max_tokens=200
-            ):
-                full_text += token
-                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
-
-            yield f"data: {json.dumps({'type': 'done', 'question': full_text.strip()})}\n\n"
-
-        except Exception as e:
-            yield f"data: {json.dumps({'type': 'error', 'detail': str(e)})}\n\n"
-
-    return StreamingResponse(
-        event_stream(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        }
-    )
-
-
 @router.post("/interviews/{session_id}/answers")
 async def submit_answer(
     session_id: str,
-    request: AnswerSubmitRequest
+    request: AnswerSubmitRequest,
+    current_candidate: Optional[CandidateProfile] = Depends(optional_candidate_auth),
 ):
     """
     Submit candidate answer for evaluation using LangGraph workflow.
@@ -228,6 +195,7 @@ async def submit_answer(
         Evaluation results with scores, strengths, weaknesses, feedback,
         and suggested next_action
     """
+    await _verify_session_access(session_id, current_candidate)
     try:
         result = await orchestrator.submit_answer(
             session_id=session_id,
@@ -254,7 +222,10 @@ async def submit_answer(
 
 
 @router.get("/interviews/{session_id}/status")
-async def get_session_status(session_id: str):
+async def get_session_status(
+    session_id: str,
+    current_candidate: Optional[CandidateProfile] = Depends(optional_candidate_auth),
+):
     """
     Get current session status.
     
@@ -264,6 +235,7 @@ async def get_session_status(session_id: str):
     Returns:
         Current state: phase, progress, difficulty, elapsed time, etc.
     """
+    await _verify_session_access(session_id, current_candidate)
     try:
         result = await orchestrator.get_session_status(session_id)
         return result
@@ -277,7 +249,10 @@ async def get_session_status(session_id: str):
 
 
 @router.get("/interviews/{session_id}/summary")
-async def get_session_summary(session_id: str):
+async def get_session_summary(
+    session_id: str,
+    current_candidate: Optional[CandidateProfile] = Depends(optional_candidate_auth),
+):
     """
     Get comprehensive session summary.
     Returns all questions, evaluations, and metrics.
@@ -288,6 +263,7 @@ async def get_session_summary(session_id: str):
     Returns:
         Complete summary with messages, evaluations, scores, recommendations
     """
+    await _verify_session_access(session_id, current_candidate)
     try:
         result = await orchestrator.get_session_summary(session_id)
         return result
@@ -301,7 +277,10 @@ async def get_session_summary(session_id: str):
 
 
 @router.get("/interviews/{session_id}/rag-status")
-async def get_rag_status(session_id: str):
+async def get_rag_status(
+    session_id: str,
+    current_candidate: Optional[CandidateProfile] = Depends(optional_candidate_auth),
+):
     """
     Get RAG (Retrieval-Augmented Generation) metadata for session.
     Shows what company context was retrieved and how it was used.
@@ -312,6 +291,7 @@ async def get_rag_status(session_id: str):
     Returns:
         RAG metadata, namespace, documents retrieved, usage statistics
     """
+    await _verify_session_access(session_id, current_candidate)
     try:
         result = await orchestrator.get_session_status(session_id)
         
@@ -319,8 +299,8 @@ async def get_rag_status(session_id: str):
         rag_info = {
             "rag_available": bool(result.get("rag_context_used")),
             "rag_details": {
-                "company_id": result.get("rag_context_used"),
-                "company_requirements": True
+                "department_id": result.get("rag_context_used"),
+                "department_requirements": True
             }
         }
         

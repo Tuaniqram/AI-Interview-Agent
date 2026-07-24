@@ -1,49 +1,29 @@
-"""
-Question Generation LangGraph Workflow
-Workflow for generating exactly ONE interview question.
-"""
 import logging
 from langgraph.checkpoint.memory import MemorySaver
 from app.graph.interview_state import InterviewState
 from app.agents.session_init_node import session_init_node
 from app.agents.phase_decision_node import phase_decision_node
-from app.agents.company_context_node import company_context_node
+from app.agents.company_context_node import department_context_node
 from app.agents.question_generation_node import question_generation_node
 
 logger = logging.getLogger(__name__)
 
 
 def create_question_workflow():
-    """
-    Create the question generation LangGraph workflow.
-    
-    Flow:
-    1. Session Init → Initialize state
-    2. Phase Decision → Determine next phase/difficulty
-    3. Company Context → Retrieve company documents
-    4. Question Generation → Get AI-generated question
-    5. END (STOP HERE - no evaluation or decision)
-    
-    Returns:
-        Compiled StateGraph workflow
-    """
     from langgraph.graph import StateGraph, END
     
     workflow = StateGraph(InterviewState)
     
-    # Add nodes
     workflow.add_node("session_init", session_init_node)
     workflow.add_node("phase_decision", phase_decision_node)
-    workflow.add_node("company_context", company_context_node)
+    workflow.add_node("department_context", department_context_node)
     workflow.add_node("question_generation", question_generation_node)
     
-    # Set entry point
     workflow.set_entry_point("session_init")
     
-    # Add edges (deterministic flows)
     workflow.add_edge("session_init", "phase_decision")
-    workflow.add_edge("phase_decision", "company_context")
-    workflow.add_edge("company_context", "question_generation")
+    workflow.add_edge("phase_decision", "department_context")
+    workflow.add_edge("department_context", "question_generation")
     workflow.add_edge("question_generation", END)
     
     # Compile the workflow

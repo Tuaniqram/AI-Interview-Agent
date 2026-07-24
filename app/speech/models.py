@@ -68,6 +68,9 @@ class EmotionType(str, Enum):
     concerned = "concerned"
     confident = "confident"
     surprised = "surprised"
+    laughing = "laughing"
+    considering = "considering"
+    excited = "excited"
 
 
 class GestureHint(str, Enum):

@@ -6,10 +6,15 @@ import asyncio
 import json
 import logging
 import time as time_module
-from typing import Any
+from typing import Any, Optional
+from uuid import UUID
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from sqlalchemy import select
 
+from app.auth.jwt import decode_token
+from app.database.session import get_session_factory
+from app.models.db import InterviewSession
 from app.orchestrators.interview_orchestrator import InterviewOrchestrator
 from app.exceptions import SessionNotFoundException
 
@@ -40,8 +45,40 @@ async def _cleanup_loop():
             _connection_timestamps.pop(sid, None)
 
 
+async def _resolve_candidate_from_token(token: Optional[str]) -> Optional[str]:
+    """Validate candidate JWT token and return candidate_id string, or None."""
+    if not token:
+        return None
+    try:
+        payload = decode_token(token)
+        if payload.get("type") != "candidate_access":
+            return None
+        return payload.get("sub")
+    except ValueError:
+        return None
+
+
+async def _verify_ws_session_access(session_id: str, candidate_id: Optional[str]) -> bool:
+    """Verify the candidate owns the session (conditional — skip if no candidate_id)."""
+    if candidate_id is None:
+        return True  # org session, out of scope
+    async with get_session_factory()() as db:
+        result = await db.execute(
+            select(InterviewSession).where(InterviewSession.id == UUID(session_id))
+        )
+        session = result.scalar_one_or_none()
+    if not session:
+        return False
+    if session.candidate_profile_id is not None:
+        return str(session.candidate_profile_id) == candidate_id
+    return True  # unowned session, allow
+
+
 @router.websocket("/ws/interview/{session_id}")
 async def interview_websocket(websocket: WebSocket, session_id: str):
+    token = websocket.query_params.get("token")
+    candidate_id = await _resolve_candidate_from_token(token)
+
     await websocket.accept()
     orchestrator = InterviewOrchestrator()
 
@@ -53,6 +90,7 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
         "question_number": 0,
         "difficulty_level": 1,
         "candidate_profile": {},
+        "candidate_id": candidate_id,
     }
     _connections[session_id] = conn_state
     _connection_timestamps[session_id] = time_module.time()
@@ -74,26 +112,38 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                 await websocket.send_json({"type": "pong"})
 
             elif msg_type == "start_interview":
-                result = await orchestrator.start_interview(
-                    company_id=data["company_id"],
-                    job_role=data["job_role"],
-                    candidate_id=data.get("candidate_id", ""),
-                    candidate_name=data.get("candidate_name", ""),
-                    candidate_email=data.get("candidate_email", ""),
-                    total_questions=data.get("total_questions", 10),
-                    initial_difficulty=data.get("initial_difficulty", 1),
-                    interview_type=data.get("interview_type", "company"),
-                    interview_mode=data.get("interview_mode", "typing"),
-                )
-                conn_state["session_id"] = result["session_id"]
-                _connections[result["session_id"]] = conn_state
-
-                await websocket.send_json({
-                    "type": "session_created",
-                    **result,
-                })
+                existing_session_id = data.get("session_id")
+                if existing_session_id:
+                    if not await _verify_ws_session_access(existing_session_id, candidate_id):
+                        await websocket.send_json({"type": "error", "detail": "Session access denied"})
+                        continue
+                    conn_state["session_id"] = existing_session_id
+                    _connections[existing_session_id] = conn_state
+                    await websocket.send_json({
+                        "type": "session_created",
+                        "session_id": existing_session_id,
+                    })
+                else:
+                    result = await orchestrator.start_interview(
+                        department_id=data.get("department_id"),
+                        job_role=data["job_role"],
+                        total_questions=data.get("total_questions", 10),
+                        initial_difficulty=data.get("initial_difficulty", 1),
+                        session_type=data.get("session_type", "department"),
+                        interaction_mode=data.get("interaction_mode", "typing"),
+                        candidate_id=candidate_id,
+                    )
+                    conn_state["session_id"] = result["session_id"]
+                    _connections[result["session_id"]] = conn_state
+                    await websocket.send_json({
+                        "type": "session_created",
+                        **result,
+                    })
 
             elif msg_type == "request_question":
+                if not await _verify_ws_session_access(conn_state["session_id"], candidate_id):
+                    await websocket.send_json({"type": "error", "detail": "Session access denied"})
+                    continue
                 result = await orchestrator.initiate_next_question(
                     session_id=conn_state["session_id"],
                     conversation_history=conn_state["conversation_history"],
@@ -113,6 +163,9 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                 })
 
             elif msg_type == "submit_answer":
+                if not await _verify_ws_session_access(conn_state["session_id"], candidate_id):
+                    await websocket.send_json({"type": "error", "detail": "Session access denied"})
+                    continue
                 question_number = data["question_number"]
                 question = data["question"]
                 candidate_answer = data["candidate_answer"]
@@ -140,6 +193,9 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                 })
 
             elif msg_type == "get_status":
+                if not await _verify_ws_session_access(conn_state["session_id"], candidate_id):
+                    await websocket.send_json({"type": "error", "detail": "Session access denied"})
+                    continue
                 try:
                     status = await orchestrator.get_session_status(conn_state["session_id"])
                     await websocket.send_json({"type": "status", **status})

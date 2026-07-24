@@ -5,7 +5,7 @@
 
 import { Question } from './interview';
 
-export type AvatarEmotion = 'neutral' | 'laughing' | 'considering' | 'excited' | 'thoughtful';
+export type AvatarEmotion = 'neutral' | 'happy' | 'thoughtful' | 'concerned' | 'confident' | 'surprised' | 'laughing' | 'considering' | 'excited';
 
 export type SpeakingSpeed = 'slow' | 'normal' | 'fast';
 

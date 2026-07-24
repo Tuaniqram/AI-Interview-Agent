@@ -4,16 +4,15 @@ import { ScoreDisplay } from '../shared/ScoreDisplay';
 import { Card } from '../shared/Card';
 import { EmptyState } from '../shared/EmptyState';
 import { TableSkeleton } from '../shared/Skeleton';
-import { ListChecks } from 'lucide-react';
+import { ListChecks, Keyboard, Mic, Bot } from 'lucide-react';
 
 interface SessionRow {
   session_id: string;
-  candidate_id?: string;
   job_role: string;
   status: string;
   final_score: number | null;
   started_at: string;
-  interview_mode?: string;
+  interaction_mode?: string;
 }
 
 interface RecentSessionsProps {
@@ -52,13 +51,13 @@ export function RecentSessions({ sessions, loading, emptyAction }: RecentSession
           >
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium text-primary truncate">
-                {s.candidate_id || 'Anonymous'} · {s.job_role}
+                {s.job_role}
               </div>
               <div className="text-xs text-muted mt-0.5">
                 {s.started_at ? new Date(s.started_at).toLocaleDateString() : '—'}
               </div>
             </div>
-            <span className="text-xs text-muted">{s.interview_mode === 'typing' ? '⌨' : s.interview_mode === 'voice' ? '🎤' : s.interview_mode === 'avatar' ? '🤖' : ''}</span>
+            <span className="text-xs text-muted">{s.interaction_mode === 'typing' ? <Keyboard size={14} className="inline" /> : s.interaction_mode === 'voice' ? <Mic size={14} className="inline" /> : s.interaction_mode === 'avatar' ? <Bot size={14} className="inline" /> : ''}</span>
             <StatusBadge status={s.status} />
             <ScoreDisplay score={s.final_score} size="sm" showLabel={false} />
           </div>

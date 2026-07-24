@@ -65,4 +65,4 @@ Evaluate the candidate's answer as if you're providing honest, constructive feed
 - **Difficulty Level**: {{difficulty_level}}
 - **Question Asked**: {{question}}
 - **Candidate Answer**: {{candidate_answer}}
-- **Company Context**: {{company_context}}
+- **Department Context**: {{department_context}}

@@ -29,33 +29,33 @@ const steps = [
 
 export function ProcessFlow() {
   return (
-    <section className="py-24 px-6 bg-[#141416]">
+    <section className="py-24 px-6 bg-section">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-[#f2f2f5] mb-4">From setup to results in minutes</h2>
-          <p className="text-[#a8a8b3] text-lg max-w-xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-primary mb-4">From setup to results in minutes</h2>
+          <p className="text-secondary text-lg max-w-xl mx-auto">
             Four simple steps to run your first AI-powered interview.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 relative">
           {/* Connector line */}
-          <div className="hidden md:block absolute top-16 left-[12.5%] right-[12.5%] h-px bg-gradient-to-r from-[#8b6ff5] via-[#8b6ff5]/50 to-transparent" />
+          <div className="hidden md:block absolute top-16 left-[12.5%] right-[12.5%] h-px bg-gradient-to-r from-action-primary via-action-primary/50 to-transparent" />
 
           {steps.map((step, i) => {
             const Icon = step.icon;
             return (
               <div key={step.title} className="relative">
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-14 h-14 rounded-2xl bg-[#8b6ff5]/15 flex items-center justify-center mb-4 relative z-10">
-                    <Icon className="w-6 h-6 text-[#8b6ff5]" />
+                  <div className="w-14 h-14 rounded-2xl bg-action-primary/15 flex items-center justify-center mb-4 relative z-10">
+                    <Icon className="w-6 h-6 text-action-primary" />
                   </div>
-                  <div className="w-8 h-8 rounded-full bg-[#8b6ff5] text-white text-sm font-bold flex items-center justify-center absolute -top-1 -right-1 z-20 shadow-lg">
+                  <div className="w-8 h-8 rounded-full bg-action-primary text-inverse text-sm font-bold flex items-center justify-center absolute -top-1 -right-1 z-20 shadow-lg">
                     {i + 1}
                   </div>
-                  <h3 className="text-sm font-semibold text-[#f2f2f5] mb-2">{step.title}</h3>
-                  <p className="text-xs text-[#a8a8b3] leading-relaxed mb-2">{step.desc}</p>
-                  <span className="text-[10px] text-[#6f6f7a] font-medium">{step.detail}</span>
+                  <h3 className="text-sm font-semibold text-primary mb-2">{step.title}</h3>
+                  <p className="text-xs text-secondary leading-relaxed mb-2">{step.desc}</p>
+                  <span className="text-[10px] text-tertiary font-medium">{step.detail}</span>
                 </div>
               </div>
             );

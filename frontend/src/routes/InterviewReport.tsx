@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Briefcase, Mail, User, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, Calendar, Briefcase, TrendingUp, TrendingDown } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 import { Card } from '../components/shared/Card';
 import { StatusBadge } from '../components/shared/StatusBadge';
@@ -104,12 +104,6 @@ export function InterviewReportPage() {
       <div className="mb-6">
         <h1 className="text-xl font-bold text-primary mb-1">Interview Report</h1>
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
-          {report.candidate_name && (
-            <span className="flex items-center gap-1"><User className="w-3.5 h-3.5" /> {report.candidate_name}</span>
-          )}
-          {report.candidate_email && (
-            <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> {report.candidate_email}</span>
-          )}
           {report.job_role && (
             <span className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5" /> {report.job_role}</span>
           )}

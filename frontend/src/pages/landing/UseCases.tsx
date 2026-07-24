@@ -29,11 +29,11 @@ const cases = [
 
 export function UseCases() {
   return (
-    <section className="py-24 px-6 bg-[#0a0a0b]">
+    <section className="py-24 px-6 bg-page">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-[#f2f2f5] mb-4">Built for every scenario</h2>
-          <p className="text-[#a8a8b3] text-lg max-w-xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-primary mb-4">Built for every scenario</h2>
+          <p className="text-secondary text-lg max-w-xl mx-auto">
             From startups to enterprises — flexible enough for any hiring workflow.
           </p>
         </div>
@@ -42,17 +42,17 @@ export function UseCases() {
           {cases.map(c => {
             const Icon = c.icon;
             return (
-              <div key={c.title} className="p-6 rounded-2xl bg-[#141416] hover:bg-[#1c1c1f] transition-colors">
+              <div key={c.title} className="p-6 rounded-2xl bg-section hover:bg-elevated transition-colors">
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-xl bg-action-primary/10 flex items-center justify-center shrink-0">
                     <Icon className="w-5 h-5 text-action-primary" />
                   </div>
                   <div>
-                    <h3 className="text-base font-semibold text-[#f2f2f5] mb-1.5">{c.title}</h3>
-                    <p className="text-sm text-[#a8a8b3] leading-relaxed mb-3">{c.description}</p>
+                    <h3 className="text-base font-semibold text-primary mb-1.5">{c.title}</h3>
+                    <p className="text-sm text-secondary leading-relaxed mb-3">{c.description}</p>
                     <div className="flex flex-wrap gap-2">
                       {c.topics.map(t => (
-                        <span key={t} className="text-[11px] text-[#6f6f7a] bg-[#1c1c1f] px-2.5 py-1 rounded-full">{t}</span>
+                        <span key={t} className="text-[11px] text-tertiary bg-elevated px-2.5 py-1 rounded-full">{t}</span>
                       ))}
                     </div>
                   </div>

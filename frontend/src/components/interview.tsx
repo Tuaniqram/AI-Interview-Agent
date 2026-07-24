@@ -79,6 +79,7 @@ export function InterviewLayout({ mode = 'typing' }: { mode?: InterviewMode }) {
             : 'Type your answer here...'}
           disabled={!state.currentQuestion || isSending}
           rows={6}
+          aria-label="Type your answer"
           className="w-full px-4 py-3 bg-input text-primary rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] disabled:bg-hover disabled:text-muted transition-all text-sm placeholder-muted"
         />
       </div>

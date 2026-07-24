@@ -26,7 +26,7 @@ async def answer_evaluator_node(state: InterviewState) -> InterviewState:
     job_role = state.get('job_role')
     question = state.get('current_question', '')
     candidate_answer = state.get('candidate_answer', '')
-    company_requirements = state.get('company_requirements', '')
+    department_requirements = state.get('department_requirements', '')
     difficulty = state.get('difficulty_level', 1)
     phase = state.get('current_phase')
 
@@ -48,7 +48,7 @@ async def answer_evaluator_node(state: InterviewState) -> InterviewState:
             candidate_answer=candidate_answer,
             phase=phase,
             difficulty_level=difficulty,
-            company_context=company_requirements[:1000] if company_requirements else "N/A"
+            department_context=department_requirements[:1000] if department_requirements else "N/A"
         )
 
         scoring_rules = load_prompt(

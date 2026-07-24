@@ -4,7 +4,7 @@ const workflows = [
   {
     title: 'Question Generation',
     desc: 'LangGraph workflow that generates one interview question per run',
-    color: '#8b6ff5',
+    color: 'var(--action-primary)',
     nodes: [
       { id: 'init', label: 'Session Init', icon: Cog, sub: 'Initialize state & load session' },
       { id: 'phase', label: 'Phase Decision', icon: GitBranch, sub: 'Determine phase & difficulty' },
@@ -32,9 +32,9 @@ function FlowChart({ workflow }: { workflow: typeof workflows[0] }) {
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <div className="w-3 h-3 rounded-full" style={{ background: color }} />
-          <h3 className="text-lg font-bold text-[#f2f2f5]">{title}</h3>
+          <h3 className="text-lg font-bold text-primary">{title}</h3>
         </div>
-        <p className="text-sm text-[#a8a8b3]">{desc}</p>
+        <p className="text-sm text-secondary">{desc}</p>
       </div>
 
       <div className="relative">
@@ -84,16 +84,16 @@ export default function LangGraphFlow() {
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4"
           style={{
             background: 'rgba(139,111,245,.15)',
-            color: '#8b6ff5',
+color: 'var(--action-primary)',
           }}
         >
           <Brain size={14} />
           LangGraph Architecture
         </div>
-        <h2 className="text-3xl md:text-4xl font-bold text-[#f2f2f5] mb-3">
+        <h2 className="text-3xl md:text-4xl font-bold text-primary mb-3">
           Two Separate Workflows
         </h2>
-        <p className="text-[#a8a8b3] text-lg max-w-2xl mx-auto">
+        <p className="text-secondary text-lg max-w-2xl mx-auto">
           The interview runs as two independent LangGraph state machines — one generates questions,
           the other evaluates answers. Each is a deterministic DAG that executes in a single pass.
         </p>
@@ -115,8 +115,8 @@ export default function LangGraphFlow() {
             boxShadow: '0 0 0 1px rgba(255,255,255,.04)',
           }}
         >
-          <p className="text-[#a8a8b3] mb-3">
-            <span className="font-semibold text-[#e4e4e7]">Single-pass execution:</span> Each workflow has no branching,
+          <p className="text-secondary mb-3">
+            <span className="font-semibold text-primary">Single-pass execution:</span> Each workflow has no branching,
             conditional edges, or cycles — it runs start-to-end every time.
           </p>
           <div className="flex flex-wrap gap-3 text-xs">
@@ -133,7 +133,7 @@ export default function LangGraphFlow() {
               >
                 <div className="w-2 h-2 rounded-full shrink-0" style={{ background: item.color }} />
                 <div>
-                  <span className="font-medium text-[#e4e4e7]">{item.label}</span>
+                  <span className="font-medium text-primary">{item.label}</span>
                   <span className="text-zinc-400 ml-1">— {item.desc}</span>
                 </div>
               </div>

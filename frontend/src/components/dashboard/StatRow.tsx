@@ -2,14 +2,14 @@ import { MetricCard } from '../shared/MetricCard';
 import { Building2, ListChecks, Activity, Brain } from 'lucide-react';
 
 interface StatRowProps {
-  totalCompanies: number;
+  totalDepartments: number;
   totalSessions: number;
   activeSessions: number;
   averageScore: number | null;
   loading?: boolean;
 }
 
-export function StatRow({ totalCompanies, totalSessions, activeSessions, averageScore, loading }: StatRowProps) {
+export function StatRow({ totalDepartments, totalSessions, activeSessions, averageScore, loading }: StatRowProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -25,7 +25,7 @@ export function StatRow({ totalCompanies, totalSessions, activeSessions, average
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      <MetricCard label="Companies" value={totalCompanies} icon={<Building2 className="w-4 h-4" />} />
+      <MetricCard label="Departments" value={totalDepartments} icon={<Building2 className="w-4 h-4" />} />
       <MetricCard label="Total Sessions" value={totalSessions} icon={<ListChecks className="w-4 h-4" />} />
       <MetricCard label="Active" value={activeSessions} icon={<Activity className="w-4 h-4" />} />
       <MetricCard

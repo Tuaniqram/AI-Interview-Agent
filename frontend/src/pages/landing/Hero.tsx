@@ -1,4 +1,4 @@
-import { ArrowRight, Play, CheckCircle } from 'lucide-react';
+import { ArrowRight, Play, CheckCircle, Star } from 'lucide-react';
 
 export function Hero() {
   const scrollToFlow = () => {
@@ -6,7 +6,7 @@ export function Hero() {
   };
 
   return (
-    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-[#0a0a0b]">
+    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-page">
       <div
         className="absolute inset-0 opacity-[0.03]"
         style={{
@@ -24,7 +24,7 @@ export function Hero() {
           AI-Powered Interview Platform
         </div>
 
-        <h1 className="text-5xl md:text-7xl font-bold text-[#f2f2f5] leading-tight mb-6 tracking-tight">
+        <h1 className="text-5xl md:text-7xl font-bold text-primary leading-tight mb-6 tracking-tight">
           AI Interview
           <br />
           <span className="bg-gradient-to-r from-[#8b6ff5] to-[#a08aff] bg-clip-text text-transparent">
@@ -32,15 +32,15 @@ export function Hero() {
           </span>
         </h1>
 
-        <p className="text-lg md:text-xl text-[#a8a8b3] max-w-2xl mx-auto mb-6 leading-relaxed">
-          Real-time evaluation. Adaptive questions. Lifelike 3D avatars.
+        <p className="text-lg md:text-xl text-secondary max-w-2xl mx-auto mb-6 leading-relaxed">
+          Practice interviews with AI. Or run them at scale for your company.
           <br />
-          Conduct intelligent interviews at scale with AI that understands your company.
+          Real-time evaluation. Adaptive questions. Lifelike 3D avatars.
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
           {['RAG-powered context', 'Instant scoring', 'Avatar mode', 'Voice support'].map(item => (
-            <span key={item} className="inline-flex items-center gap-1.5 text-xs text-[#a8a8b3] bg-[#1c1c1f] px-3 py-1 rounded-full">
+            <span key={item} className="inline-flex items-center gap-1.5 text-xs text-secondary bg-elevated px-3 py-1 rounded-full">
               <CheckCircle className="w-3 h-3 text-[#34d399]" />
               {item}
             </span>
@@ -49,15 +49,21 @@ export function Hero() {
 
         <div className="flex items-center justify-center gap-4">
           <a
-            href="/new-interview"
-            className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-[#1a1a1e] bg-[#8b6ff5] rounded-xl hover:bg-[#a08aff] active:scale-[0.98] transition-all shadow-lg shadow-action-primary/25"
+            href="/candidate/register"
+            className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-inverse bg-action-primary rounded-xl hover:bg-action-primary-hover active:scale-[0.98] transition-all shadow-lg shadow-action-primary/25"
           >
-            Start Free
+            Practice Interview
             <ArrowRight className="w-4 h-4" />
+          </a>
+          <a
+            href="/register"
+            className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-secondary bg-elevated rounded-xl hover:bg-elevated hover:text-primary active:scale-[0.98] transition-all"
+          >
+            For Companies
           </a>
           <button
             onClick={scrollToFlow}
-            className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-[#a8a8b3] bg-[#1c1c1f] rounded-xl hover:bg-[#2f2f33] hover:text-[#f2f2f5] active:scale-[0.98] transition-all"
+            className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-secondary hover:text-primary active:scale-[0.98] transition-all"
           >
             <Play className="w-4 h-4" />
             See How It Works
@@ -67,27 +73,27 @@ export function Hero() {
         {/* Stats bar */}
         <div className="mt-12 grid grid-cols-3 gap-8 max-w-lg mx-auto">
           <div>
-            <div className="text-2xl font-bold text-[#f2f2f5]">10K+</div>
-            <div className="text-xs text-[#8a8a94] mt-0.5">Interviews Conducted</div>
+            <div className="text-2xl font-bold text-primary">10K+</div>
+            <div className="text-xs text-muted mt-0.5">Interviews Conducted</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-[#f2f2f5]">50+</div>
-            <div className="text-xs text-[#8a8a94] mt-0.5">Companies Using</div>
+            <div className="text-2xl font-bold text-primary">50+</div>
+            <div className="text-xs text-muted mt-0.5">Companies Using</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-[#f2f2f5]">4.8★</div>
-            <div className="text-xs text-[#8a8a94] mt-0.5">Avg. Rating</div>
+            <div className="text-2xl font-bold text-primary">4.8 <Star size={20} className="inline text-warning align-text-top" /></div>
+            <div className="text-xs text-muted mt-0.5">Avg. Rating</div>
           </div>
         </div>
 
         {/* Floating dashboard mockup */}
         <div className="mt-12 relative max-w-3xl mx-auto">
-          <div className="bg-[#141416] rounded-2xl shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8)] overflow-hidden">
+          <div className="bg-section rounded-2xl shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8)] overflow-hidden">
             <div className="flex items-center gap-1.5 px-4 py-3">
               <div className="w-2.5 h-2.5 rounded-full bg-[#f87171]" />
               <div className="w-2.5 h-2.5 rounded-full bg-[#fbbf24]" />
               <div className="w-2.5 h-2.5 rounded-full bg-[#34d399]" />
-              <span className="ml-3 text-xs text-[#8a8a94] font-mono">AI Interview Agent — Dashboard</span>
+              <span className="ml-3 text-xs text-muted font-mono">AI Interview Agent — Dashboard</span>
             </div>
             <div className="p-5 grid grid-cols-2 gap-4">
               <div className="space-y-3">

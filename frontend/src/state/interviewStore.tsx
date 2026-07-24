@@ -91,8 +91,8 @@ const initialState: InterviewState = {
 function interviewReducer(state: InterviewState, action: InterviewAction): InterviewState {
   switch (action.type) {
     case 'SET_SESSION':
-      if (action.payload.interview_mode) {
-        localStorage.setItem('aiInterviewMode', action.payload.interview_mode);
+      if (action.payload.interaction_mode) {
+        localStorage.setItem('aiInterviewMode', action.payload.interaction_mode);
       }
       return {
         ...state,
@@ -219,7 +219,7 @@ const InterviewContext = createContext<InterviewContextType | undefined>(undefin
 // ========== ACTIONS ==========
 
 interface InterviewStoreActions {
-  startInterview: (params: { companyId: number; jobRole: string; totalQuestions?: number; candidateName?: string; candidateEmail?: string; mode?: string }) => Promise<void>;
+  startInterview: (params: { departmentId?: number; jobRole: string; totalQuestions?: number; candidateName?: string; candidateEmail?: string; mode?: string }) => Promise<void>;
   cancelInterview: () => void;
   fetchFinalReport: () => Promise<void>;
   goToNextQuestion: () => Promise<void>;

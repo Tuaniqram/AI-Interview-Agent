@@ -28,7 +28,7 @@ export class AvatarService {
   
   /**
    * Load avatar configuration (Future API)
-   * POST /avatars/{company_id}/config
+   * POST /avatars/{department_id}/config
    */
   async loadAvatar(_configId: string): Promise<AvatarState> {
     // TODO: Implement when backend provides avatar configuration API

@@ -1,5 +1,5 @@
 export interface DashboardMetrics {
-  totalCompanies: number;
+  totalDepartments: number;
   totalSessions: number;
   activeSessions: number;
   averageScore: number | null;
@@ -12,5 +12,5 @@ export interface RecentSessionSummary {
   status: string;
   final_score: number | null;
   started_at: string;
-  company_name?: string;
+  department_name?: string;
 }

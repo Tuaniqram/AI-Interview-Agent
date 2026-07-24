@@ -8,7 +8,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'system-ui', 'sans-serif'],
+        sans: ['Open Sans', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'system-ui', 'sans-serif'],
+        heading: ['Poppins', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', 'monospace'],
         cjk: ['Noto Sans CJK SC', 'Source Han Sans', 'sans-serif'],
         arabic: ['Noto Sans Arabic', 'sans-serif'],
@@ -23,10 +24,11 @@ export default {
 
         primary:   'var(--text-primary)',
         secondary: 'var(--text-secondary)',
+        tertiary:  'var(--text-tertiary)',
         muted:     'var(--text-muted)',
         inverse:   'var(--text-inverse)',
-
         divider: 'var(--divider)',
+        border:    'var(--border-color)',
 
         action: {
           primary:        'var(--action-primary)',

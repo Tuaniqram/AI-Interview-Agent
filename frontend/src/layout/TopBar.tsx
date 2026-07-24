@@ -6,7 +6,7 @@ const THEME_KEY = 'ai-interview-theme';
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
-  '/companies': 'Companies',
+  '/departments': 'Departments',
   '/sessions': 'Interview Sessions',
   '/analytics': 'Analytics',
   '/avatar-lab': 'Avatar Lab',

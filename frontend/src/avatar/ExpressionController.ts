@@ -1,9 +1,35 @@
 import { damp } from '../animator/utils/Damp'
-
-type AvatarEmotion = 'neutral' | 'laughing' | 'considering' | 'excited' | 'thoughtful'
+import type { AvatarEmotion } from '../types/avatar'
 
 const EMOTION_MORPHS: Record<string, Record<string, number>> = {
   neutral: {},
+  happy: {
+    browInnerUp: 0.3,
+    mouthSmile: 0.7,
+    cheekSquint: 0.4,
+    eyeBlink: 0.1,
+  },
+  thoughtful: {
+    browDown: 0.3,
+    eyeLookUp: 0.4,
+    mouthStretch: 0.2,
+    mouthPress: 0.3,
+  },
+  concerned: {
+    browDown: 0.5,
+    eyeSquint: 0.3,
+    mouthPress: 0.3,
+  },
+  confident: {
+    browInnerUp: 0.3,
+    mouthSmile: 0.4,
+    jawOpen: 0.1,
+  },
+  surprised: {
+    browInnerUp: 0.8,
+    eyeWide: 0.7,
+    jawOpen: 0.5,
+  },
   laughing: {
     mouthSmile: 0.7,
     cheekSquint: 0.5,
@@ -20,12 +46,6 @@ const EMOTION_MORPHS: Record<string, Record<string, number>> = {
     eyeWide: 0.5,
     mouthSmile: 0.6,
     jawOpen: 0.2,
-  },
-  thoughtful: {
-    browDown: 0.3,
-    eyeLookUp: 0.4,
-    mouthStretch: 0.2,
-    mouthPress: 0.3,
   },
 }
 

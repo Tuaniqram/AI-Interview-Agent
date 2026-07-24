@@ -1,7 +1,9 @@
 import time
 import uuid
+from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.auth.jwt import decode_token
 from app.speech.websocket_manager import get_connection_manager
 from app.speech.tts_service import get_tts_service
 from app.speech.speech_timeline import build_speech_timeline
@@ -14,6 +16,16 @@ router = APIRouter(tags=["avatar"])
 async def avatar_websocket(websocket: WebSocket, session_id: str):
     manager = get_connection_manager()
     tts = get_tts_service()
+
+    # Optional candidate token — validate if present, but allow anonymous
+    token = websocket.query_params.get("token")
+    if token:
+        try:
+            payload = decode_token(token)
+            if payload.get("type") == "candidate_access":
+                pass  # Valid candidate token, no action needed for avatar WS
+        except ValueError:
+            pass
 
     await manager.connect(session_id, websocket)
     response_id = str(uuid.uuid4())

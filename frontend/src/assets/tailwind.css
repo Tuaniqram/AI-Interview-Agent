@@ -1,8 +1,38 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.25s ease-out;
+  }
+  .animate-stagger {
+    animation: staggerIn 0.35s ease-out both;
+  }
+  .animate-stagger-1 { animation-delay: 0.05s; }
+  .animate-stagger-2 { animation-delay: 0.1s; }
+  .animate-stagger-3 { animation-delay: 0.15s; }
+  .animate-stagger-4 { animation-delay: 0.2s; }
+  .animate-stagger-5 { animation-delay: 0.25s; }
+  .animate-stagger-6 { animation-delay: 0.3s; }
+  .card-hover {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(124, 58, 237, 0.1), 0 2px 8px rgba(124, 58, 237, 0.06);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes staggerIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 @layer base {
   :root {
@@ -17,11 +47,14 @@
     /* ── Text ── */
     --text-primary:       #1a1a1e;
     --text-secondary:     #54545c;
+    --text-tertiary:      #6f6f7a;
     --text-muted:         #6b7280;
     --text-inverse:       #ffffff;
 
-    /* ── Divider ── */
+    /* ── Divider + Borders ── */
     --divider:            #eaeaf0;
+    --border-color:       #e2e2e8;
+    --border-strong:      #d4d4db;
 
     /* ── Action system ── */
     --action-primary:           #6d4fe8;
@@ -71,10 +104,13 @@
 
     --text-primary:       #f2f2f5;
     --text-secondary:     #a8a8b3;
+    --text-tertiary:      #6f6f7a;
     --text-muted:         #8a8a94;
     --text-inverse:       #1a1a1e;
 
     --divider:            #222226;
+    --border-color:       #2d2d32;
+    --border-strong:      #3f3f46;
 
     --action-primary:           #8b6ff5;
     --action-primary-hover:     #a08aff;
