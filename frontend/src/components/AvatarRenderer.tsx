@@ -364,7 +364,10 @@ export function AvatarRenderer({
       if (disposed) return;
       const width = container.clientWidth;
       const height = container.clientHeight;
-      if (width === 0 || height === 0) return;
+      if (width === 0 || height === 0) {
+        requestAnimationFrame(boot);
+        return;
+      }
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x1a1a2e);
