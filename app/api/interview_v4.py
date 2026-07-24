@@ -119,7 +119,7 @@ async def _verify_v4_access(
         )
         db_session = result.scalar_one_or_none()
     if not db_session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        return
     if db_session.candidate_profile_id is not None:
         if not current_candidate:
             raise HTTPException(status_code=401, detail="Authentication required")
