@@ -46,7 +46,7 @@ async def register(req: CandidateRegisterRequest, db: AsyncSession) -> Candidate
         name=req.name,
         password_hash=hash_password(req.password),
         is_registered=True,
-        is_verified=False,
+        is_verified=True,
     )
     db.add(candidate)
     await db.commit()
