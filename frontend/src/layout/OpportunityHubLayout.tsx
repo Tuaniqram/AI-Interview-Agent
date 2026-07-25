@@ -38,9 +38,7 @@ export function OpportunityHubLayout() {
           </button>
 
           <Link to="/opportunity-hub" className="flex items-center gap-2.5 shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#7C3AED] to-[#A78BFA] flex items-center justify-center">
-              <span className="text-white font-bold text-sm">OH</span>
-            </div>
+            <img src="/favicon.svg" className="w-7 h-7" alt="" />
             <span className="font-semibold text-primary hidden sm:inline font-heading">Opportunity Hub</span>
           </Link>
 
