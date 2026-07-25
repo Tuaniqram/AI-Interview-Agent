@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useCandidateAuth } from '../contexts/CandidateAuthContext';
 import { OpportunityHubSidebar } from '../components/opportunity-hub/OpportunityHubSidebar';
 import type { HubFilters } from '../components/opportunity-hub/OpportunityHubSidebar';
 import { Menu, Search, LogIn, UserPlus, LayoutDashboard } from 'lucide-react';
 
 export function OpportunityHubLayout() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user, logout } = useAuth();
+  const { isAuthenticated: isCandidateAuth, isLoading: isCandidateLoading, logout: candidateLogout, candidate } = useCandidateAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -56,15 +58,42 @@ export function OpportunityHubLayout() {
           </form>
 
           <nav className="flex items-center gap-3 ms-auto">
-            {isLoading ? null : isAuthenticated ? (
-              <Link
-                to="/dashboard"
-                className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg text-secondary hover:text-primary hover:bg-hover transition-colors"
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                <span className="hidden sm:inline">Dashboard</span>
-              </Link>
-            ) : (
+            {!isLoading && !isCandidateLoading && (isAuthenticated || isCandidateAuth) ? (
+              <>
+                {isAuthenticated ? (
+                  <Link
+                    to="/dashboard"
+                    className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg text-secondary hover:text-primary hover:bg-hover transition-colors"
+                  >
+                    <LayoutDashboard className="w-4 h-4" />
+                    <span className="hidden sm:inline">Dashboard</span>
+                  </Link>
+                ) : (
+                  <Link
+                    to="/candidate/dashboard"
+                    className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg text-secondary hover:text-primary hover:bg-hover transition-colors"
+                  >
+                    <LayoutDashboard className="w-4 h-4" />
+                    <span className="hidden sm:inline">Dashboard</span>
+                  </Link>
+                )}
+                <div className="flex items-center gap-2 pl-2 border-l border-[var(--border-color)]">
+                  <div className="w-6 h-6 rounded-full bg-[#7C3AED] flex items-center justify-center text-white text-xs font-medium">
+                    {(isAuthenticated ? user?.name : candidate?.name)?.charAt(0)?.toUpperCase() || '?'}
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (isAuthenticated) logout();
+                      else candidateLogout();
+                      navigate('/');
+                    }}
+                    className="text-xs text-red-500 hover:text-red-600"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </>
+            ) : isCandidateLoading || isLoading ? null : (
               <>
                 <Link
                   to="/login"
