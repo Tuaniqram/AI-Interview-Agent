@@ -7,6 +7,7 @@ import { CandidateShell } from '../layout/CandidateShell';
 import { OpportunityHubLayout } from '../layout/OpportunityHubLayout';
 import { ProtectedRoute } from '../components/auth/ProtectedRoute';
 import { ProtectedCandidateRoute } from '../components/candidate/ProtectedCandidateRoute';
+import { ContentSkeleton } from '../components/shared/ContentSkeleton';
 
 const Landing = React.lazy(() => import('../pages/Landing').then(m => ({ default: m.Landing })));
 const DepartmentList = React.lazy(() => import('./DepartmentList').then(m => ({ default: m.DepartmentList })));
@@ -48,58 +49,52 @@ const LoadingFallback = () => (
 
 export function AppRoutes() {
   return (
-    <Suspense fallback={<LoadingFallback />}>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/org-select" element={<OrgSelect />} />
-        <Route path="/public-interview/:token" element={<PublicInterviewPage />} />
-        <Route path="/invite/:token" element={<AcceptInvitation />} />
+    <Routes>
+      <Route path="/" element={<Suspense fallback={<LoadingFallback />}><Landing /></Suspense>} />
+      <Route path="/login" element={<Suspense fallback={<LoadingFallback />}><Login /></Suspense>} />
+      <Route path="/register" element={<Suspense fallback={<LoadingFallback />}><Register /></Suspense>} />
+      <Route path="/org-select" element={<Suspense fallback={<LoadingFallback />}><OrgSelect /></Suspense>} />
+      <Route path="/public-interview/:token" element={<Suspense fallback={<LoadingFallback />}><PublicInterviewPage /></Suspense>} />
+      <Route path="/invite/:token" element={<Suspense fallback={<LoadingFallback />}><AcceptInvitation /></Suspense>} />
 
-        <Route element={<OpportunityHubLayout />}>
-          <Route path="opportunity-hub" element={<OpportunityHubHome />} />
-          <Route path="opportunity-hub/organizations/:slug" element={<OppHubOrgProfile />} />
-          <Route path="opportunity-hub/interviews/:interviewId" element={<OppHubInterviewDetail />} />
-        </Route>
+      <Route element={<OpportunityHubLayout />}>
+        <Route path="opportunity-hub" element={<Suspense fallback={<ContentSkeleton />}><OpportunityHubHome /></Suspense>} />
+        <Route path="opportunity-hub/organizations/:slug" element={<Suspense fallback={<ContentSkeleton />}><OppHubOrgProfile /></Suspense>} />
+        <Route path="opportunity-hub/interviews/:interviewId" element={<Suspense fallback={<ContentSkeleton />}><OppHubInterviewDetail /></Suspense>} />
+      </Route>
 
-        {/* Candidate routes */}
-        <Route path="/candidate/login" element={<CandidateLogin />} />
-        <Route path="/candidate/register" element={<CandidateRegister />} />
-        <Route element={<ProtectedCandidateRoute><CandidateShell /></ProtectedCandidateRoute>}>
-          <Route path="/candidate/dashboard" element={<CandidateDashboard />} />
-          <Route path="/candidate/interviews" element={<CandidateInterviews />} />
-          <Route path="/candidate/interviews/:interviewId" element={<CandidateInterviewDetail />} />
-          <Route path="/candidate/practice" element={<CandidatePractice />} />
-          <Route path="/candidate/profile" element={<CandidateProfile />} />
-        </Route>
+      <Route path="/candidate/login" element={<Suspense fallback={<LoadingFallback />}><CandidateLogin /></Suspense>} />
+      <Route path="/candidate/register" element={<Suspense fallback={<LoadingFallback />}><CandidateRegister /></Suspense>} />
+      <Route element={<ProtectedCandidateRoute><CandidateShell /></ProtectedCandidateRoute>}>
+        <Route path="/candidate/dashboard" element={<Suspense fallback={<ContentSkeleton />}><CandidateDashboard /></Suspense>} />
+        <Route path="/candidate/interviews" element={<Suspense fallback={<ContentSkeleton />}><CandidateInterviews /></Suspense>} />
+        <Route path="/candidate/interviews/:interviewId" element={<Suspense fallback={<ContentSkeleton />}><CandidateInterviewDetail /></Suspense>} />
+        <Route path="/candidate/practice" element={<Suspense fallback={<ContentSkeleton />}><CandidatePractice /></Suspense>} />
+        <Route path="/candidate/profile" element={<Suspense fallback={<ContentSkeleton />}><CandidateProfile /></Suspense>} />
+      </Route>
 
-        {/* Org user routes */}
-        <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
-          <Route path="dashboard" element={<Navigate to="/org" replace />} />
-          <Route path="departments" element={<DepartmentList />} />
-          <Route path="departments/:id" element={<DepartmentDetail />} />
-          <Route path="sessions" element={<Sessions />} />
-          <Route path="analytics" element={<Analytics />} />
-          <Route path="interview/:id/report" element={<InterviewReportPage />} />
-          <Route path="avatar-lab" element={<AvatarLab />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="org" element={<OrgDashboard />} />
-          <Route path="org/members" element={<OrgMembers />} />
-        </Route>
+      <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
+        <Route path="dashboard" element={<Navigate to="/org" replace />} />
+        <Route path="departments" element={<Suspense fallback={<ContentSkeleton />}><DepartmentList /></Suspense>} />
+        <Route path="departments/:id" element={<Suspense fallback={<ContentSkeleton />}><DepartmentDetail /></Suspense>} />
+        <Route path="sessions" element={<Suspense fallback={<ContentSkeleton />}><Sessions /></Suspense>} />
+        <Route path="analytics" element={<Suspense fallback={<ContentSkeleton />}><Analytics /></Suspense>} />
+        <Route path="interview/:id/report" element={<Suspense fallback={<ContentSkeleton />}><InterviewReportPage /></Suspense>} />
+        <Route path="avatar-lab" element={<Suspense fallback={<ContentSkeleton />}><AvatarLab /></Suspense>} />
+        <Route path="settings" element={<Suspense fallback={<ContentSkeleton />}><Settings /></Suspense>} />
+        <Route path="org" element={<Suspense fallback={<ContentSkeleton />}><OrgDashboard /></Suspense>} />
+        <Route path="org/members" element={<Suspense fallback={<ContentSkeleton />}><OrgMembers /></Suspense>} />
+      </Route>
 
-        {/* Admin routes */}
-        <Route element={<ProtectedRoute><AdminShell /></ProtectedRoute>}>
-          <Route path="admin" element={<AdminDashboard />} />
-          <Route path="admin/organizations" element={<AdminOrgs />} />
-          <Route path="admin/users" element={<AdminUsers />} />
-        </Route>
+      <Route element={<ProtectedRoute><AdminShell /></ProtectedRoute>}>
+        <Route path="admin" element={<Suspense fallback={<ContentSkeleton />}><AdminDashboard /></Suspense>} />
+        <Route path="admin/organizations" element={<Suspense fallback={<ContentSkeleton />}><AdminOrgs /></Suspense>} />
+        <Route path="admin/users" element={<Suspense fallback={<ContentSkeleton />}><AdminUsers /></Suspense>} />
+      </Route>
 
-        {/* Interview room (shared across all user types) */}
-        <Route element={<InterviewShell />}>
-          <Route path="interview/:id" element={<InterviewRoom />} />
-        </Route>
-      </Routes>
-    </Suspense>
+      <Route element={<InterviewShell />}>
+        <Route path="interview/:id" element={<Suspense fallback={<LoadingFallback />}><InterviewRoom /></Suspense>} />
+      </Route>
+    </Routes>
   );
 }
