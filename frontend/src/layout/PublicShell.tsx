@@ -40,8 +40,13 @@ export function PublicShell() {
         <Outlet />
       </main>
       <footer className="border-t border-[var(--border-color)] py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-[var(--text-secondary)]">
-          AI Interview Agent. All rights reserved.
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <span className="text-sm text-[var(--text-secondary)]">AI Interview Agent. All rights reserved.</span>
+          <nav className="flex items-center gap-6">
+            <Link to="/contact" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+              Contact Us
+            </Link>
+          </nav>
         </div>
       </footer>
     </div>

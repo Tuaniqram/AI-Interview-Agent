@@ -28,6 +28,8 @@ const OpportunityHubHome = React.lazy(() => import('../pages/opportunity-hub/Opp
 const OppHubOrgProfile = React.lazy(() => import('../pages/opportunity-hub/OrgProfile'));
 const OppHubInterviewDetail = React.lazy(() => import('../pages/opportunity-hub/InterviewDetail'));
 const PublicInterviewPage = React.lazy(() => import('../pages/public-interview/PublicInterview'));
+const NotFound = React.lazy(() => import('../pages/NotFound'));
+const ContactUs = React.lazy(() => import('../pages/ContactUs'));
 const OrgDashboard = React.lazy(() => import('../pages/org/OrgDashboard'));
 const OrgMembers = React.lazy(() => import('../pages/org/Members'));
 const AdminDashboard = React.lazy(() => import('../pages/admin/AdminDashboard'));
@@ -62,6 +64,7 @@ export function AppRoutes() {
       <Route path="/public-interview/:token" element={<Suspense fallback={<LoadingFallback />}><PublicInterviewPage /></Suspense>} />
       <Route path="/invite/:token" element={<Suspense fallback={<LoadingFallback />}><AcceptInvitation /></Suspense>} />
       <Route path="/accept-org-invite/:token" element={<Suspense fallback={<LoadingFallback />}><AcceptOrgInvite /></Suspense>} />
+      <Route path="/contact" element={<Suspense fallback={<LoadingFallback />}><ContactUs /></Suspense>} />
 
       <Route element={<OpportunityHubLayout />}>
         <Route path="opportunity-hub" element={<Suspense fallback={<ContentSkeleton />}><OpportunityHubHome /></Suspense>} />
@@ -101,6 +104,8 @@ export function AppRoutes() {
       <Route element={<InterviewShell />}>
         <Route path="interview/:id" element={<Suspense fallback={<LoadingFallback />}><InterviewRoom /></Suspense>} />
       </Route>
+
+      <Route path="*" element={<Suspense fallback={<LoadingFallback />}><NotFound /></Suspense>} />
     </Routes>
   );
 }
