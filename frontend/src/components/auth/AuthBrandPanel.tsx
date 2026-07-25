@@ -31,7 +31,7 @@ export function AuthBrandPanel({ role }: AuthBrandPanelProps) {
     : 'Practice interviews with AI. Get real-time feedback and improve faster.';
 
   return (
-    <div className="relative flex flex-col justify-between h-full p-8 lg:p-12">
+    <div className="relative flex flex-col justify-between min-h-screen p-8 lg:p-12">
       <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1] via-[#4f46e5] to-[#7C3AED]" />
       <div className="absolute inset-0 opacity-[0.06]" style={{
         backgroundImage: `linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)`,
