@@ -8,8 +8,9 @@ export function PublicShell() {
     <div className="min-h-screen bg-[var(--bg-page)] flex flex-col">
       <header className="border-b border-[var(--border-color)] bg-[var(--bg-section)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="text-xl font-bold text-[var(--text-primary)]">
-            AI Interview Agent
+          <Link to="/" className="flex items-center gap-2">
+            <img src="/favicon.svg" className="w-7 h-7" alt="" />
+            <span className="text-xl font-bold text-[var(--text-primary)]">AI Interview Agent</span>
           </Link>
           <nav className="flex items-center gap-4">
             {isLoading ? null : isAuthenticated ? (

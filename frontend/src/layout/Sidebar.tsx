@@ -68,7 +68,10 @@ export function Sidebar({
       `}>
         <div className="h-14 flex items-center px-4 border-b border-hover">
           {!collapsed && (
-            <span className="text-sm font-semibold text-primary truncate">{brand}</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <img src="/favicon.svg" className="w-6 h-6 shrink-0" alt="" />
+              <span className="text-sm font-semibold text-primary truncate">{brand}</span>
+            </div>
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
