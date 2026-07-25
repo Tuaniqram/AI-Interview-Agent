@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.deps import get_db
 from app.models.db import Organization, OrgUser, User
 from app.orgs.schemas import (
+    AddMemberByEmailRequest,
     AddMemberRequest,
     OrganizationCreate,
     OrganizationResponse,
@@ -111,6 +112,46 @@ async def add_member(org_id: UUID, req: AddMemberRequest, user: User, db: AsyncS
         id=uuid.uuid4(),
         org_id=org_id,
         user_id=req.user_id,
+        role=req.role,
+        invited_by=user.id,
+    )
+    db.add(ou)
+    await db.commit()
+    await db.refresh(ou)
+
+    return OrgMemberResponse(
+        id=ou.id,
+        user_id=target_user.id,
+        email=target_user.email,
+        name=target_user.name,
+        role=ou.role,
+        joined_at=ou.joined_at,
+    )
+
+
+async def add_member_by_email(
+    org_id: UUID, req: AddMemberByEmailRequest, user: User, db: AsyncSession
+) -> OrgMemberResponse:
+    await _require_org_role(org_id, user.id, ["owner"], db)
+
+    user_result = await db.execute(select(User).where(User.email == req.email))
+    target_user = user_result.scalar_one_or_none()
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No user found with that email. They must register first.",
+        )
+
+    existing = await db.execute(
+        select(OrgUser).where(OrgUser.org_id == org_id, OrgUser.user_id == target_user.id)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User already a member")
+
+    ou = OrgUser(
+        id=uuid.uuid4(),
+        org_id=org_id,
+        user_id=target_user.id,
         role=req.role,
         invited_by=user.id,
     )

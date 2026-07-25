@@ -40,6 +40,11 @@ class AddMemberRequest(BaseModel):
     role: str = "member"
 
 
+class AddMemberByEmailRequest(BaseModel):
+    email: str
+    role: str = "member"
+
+
 class UpdateMemberRoleRequest(BaseModel):
     role: str
 

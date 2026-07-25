@@ -8,6 +8,7 @@ from app.auth.rbac import require_admin, require_org_role_path
 from app.database.deps import get_db
 from app.models.db import User
 from app.orgs.schemas import (
+    AddMemberByEmailRequest,
     AddMemberRequest,
     OrganizationCreate,
     OrganizationResponse,
@@ -17,6 +18,7 @@ from app.orgs.schemas import (
 )
 from app.orgs.service import (
     add_member,
+    add_member_by_email,
     create_org,
     get_org,
     list_members,
@@ -77,6 +79,17 @@ async def add_member_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     return await add_member(org_id, req, user, db)
+
+
+@router.post("/{org_id}/members/by-email", response_model=OrgMemberResponse)
+async def add_member_by_email_endpoint(
+    org_id: UUID,
+    req: AddMemberByEmailRequest,
+    user: User = Depends(authenticate),
+    _: None = Depends(require_org_role_path(["owner"])),
+    db: AsyncSession = Depends(get_db),
+):
+    return await add_member_by_email(org_id, req, user, db)
 
 
 @router.patch("/{org_id}/members/{member_id}", response_model=OrgMemberResponse)

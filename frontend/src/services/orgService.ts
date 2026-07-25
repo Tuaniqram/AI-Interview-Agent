@@ -22,6 +22,10 @@ export const orgService = {
     return apiClient.post<OrgMember>(`/api/v1/orgs/${orgId}/members`, { user_id: userId, role });
   },
 
+  async addMemberByEmail(orgId: string, email: string, role: string = 'member'): Promise<OrgMember> {
+    return apiClient.post<OrgMember>(`/api/v1/orgs/${orgId}/members/by-email`, { email, role });
+  },
+
   async updateMemberRole(orgId: string, memberId: string, role: string): Promise<OrgMember> {
     return apiClient.patch<OrgMember>(`/api/v1/orgs/${orgId}/members/${memberId}`, { role });
   },
