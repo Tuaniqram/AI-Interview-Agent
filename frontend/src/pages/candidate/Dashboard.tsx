@@ -73,8 +73,8 @@ export default function CandidateDashboard() {
           <h3 className="font-semibold text-[var(--text-primary)]">Practice Interview</h3>
           <p className="text-sm text-[var(--text-secondary)] mt-1">Create a self-service mock interview to practice</p>
         </Link>
-        <Link to="/marketplace" className="p-6 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[var(--action-primary)] transition-colors">
-          <h3 className="font-semibold text-[var(--text-primary)]">Browse Marketplace</h3>
+        <Link to="/opportunity-hub" className="p-6 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[var(--action-primary)] transition-colors">
+          <h3 className="font-semibold text-[var(--text-primary)]">Opportunity Hub</h3>
           <p className="text-sm text-[var(--text-secondary)] mt-1">Find open interviews from companies</p>
         </Link>
       </div>

@@ -3,6 +3,7 @@ import { useCandidateAuth } from '../../contexts/CandidateAuthContext';
 import { candidateService } from '../../services/candidateService';
 import { Button } from '../../components/shared/Button';
 import { PageHeader } from '../../components/shared/PageHeader';
+import { ChipInput } from '../../components/shared/ChipInput';
 
 export default function CandidateProfile() {
   const { candidate, updateProfile: updateContext } = useCandidateAuth();
@@ -46,7 +47,8 @@ export default function CandidateProfile() {
         </div>
         <div>
           <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Skills</label>
-          <textarea value={skills} onChange={(e) => setSkills(e.target.value)} rows={3} placeholder="e.g. Python, React, AWS, System Design" className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]" />
+          <ChipInput value={skills} onChange={setSkills} placeholder="Type a skill and press Enter" />
+          <p className="text-xs text-[var(--text-muted)] mt-1">Press Enter or comma to add a skill. Click &times; to remove.</p>
         </div>
         <Button type="submit" loading={saving}>
           {saved ? 'Saved!' : 'Save Changes'}
