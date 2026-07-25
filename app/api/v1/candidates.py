@@ -33,14 +33,37 @@ from app.candidates.service import (
     update_profile,
 )
 from app.database.deps import get_db
-from app.models.db import CandidateProfile
+from app.models.db import CandidatePasswordResetToken, CandidateProfile
+from app.auth.password import hash_password
+from app.config import settings
 
 router = APIRouter(prefix="/candidates", tags=["candidates"])
 
 
 @router.post("/register", response_model=CandidateAuthResponse)
 async def register_endpoint(req: CandidateRegisterRequest, db: AsyncSession = Depends(get_db)):
-    return await register(req, db)
+    result = await register(req, db)
+
+    from app.services.email import send_email
+    candidate_id = result.candidate.id
+    profile_result = await db.execute(select(CandidateProfile).where(CandidateProfile.id == candidate_id))
+    profile = profile_result.scalar_one_or_none()
+    if profile and not profile.is_verified:
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        profile.verification_token_hash = token_hash
+        profile.verification_sent_at = __import__('datetime').datetime.now(__import__('datetime').timezone.utc)
+        await db.commit()
+        verify_url = f"{settings.APP_URL}/candidate/verify?token={token}"
+        await send_email(
+            to=profile.email,
+            subject="Verify your email — AI Interview Agent",
+            template_name="verification.html",
+            VERIFY_URL=verify_url,
+            APP_URL=settings.APP_URL,
+        )
+
+    return result
 
 
 @router.post("/login", response_model=CandidateAuthResponse)
@@ -68,9 +91,18 @@ async def send_verification(
     candidate.verification_token_hash = token_hash
     candidate.verification_sent_at = __import__('datetime').datetime.now(__import__('datetime').timezone.utc)
     await db.commit()
-    # TODO: send actual email — for now, log token to console
-    print(f"[VERIFICATION] Token for {candidate.email}: {token}")
-    return {"message": "Verification email sent", "token_preview": token[:8] + "..."}
+
+    from app.services.email import send_email
+    verify_url = f"{settings.APP_URL}/candidate/verify?token={token}"
+    await send_email(
+        to=candidate.email,
+        subject="Verify your email — AI Interview Agent",
+        template_name="verification.html",
+        VERIFY_URL=verify_url,
+        APP_URL=settings.APP_URL,
+    )
+
+    return {"message": "Verification email sent"}
 
 
 @router.post("/verify")
@@ -164,3 +196,67 @@ async def start_practice_endpoint(
         req.interview_style,
         db,
     )
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    req: CandidateLoginRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(CandidateProfile).where(CandidateProfile.email == req.email))
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        return {"message": "If that email exists, a reset link has been sent."}
+
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    reset = CandidatePasswordResetToken(
+        id=uuid.uuid4(),
+        candidate_id=candidate.id,
+        token_hash=token_hash,
+        expires_at=__import__('datetime').datetime.now(__import__('datetime').timezone.utc) + __import__('datetime').timedelta(hours=1),
+    )
+    db.add(reset)
+    await db.commit()
+
+    from app.services.email import send_email
+    reset_url = f"{settings.APP_URL}/candidate/reset-password?token={token}"
+    await send_email(
+        to=candidate.email,
+        subject="Reset your password — AI Interview Agent",
+        template_name="password_reset.html",
+        RESET_URL=reset_url,
+        APP_URL=settings.APP_URL,
+    )
+
+    return {"message": "If that email exists, a reset link has been sent."}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    token: str = Query(...),
+    new_password: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    result = await db.execute(
+        select(CandidatePasswordResetToken).where(
+            CandidatePasswordResetToken.token_hash == token_hash,
+            CandidatePasswordResetToken.used == False,
+            CandidatePasswordResetToken.expires_at > __import__('datetime').datetime.now(__import__('datetime').timezone.utc),
+        )
+    )
+    reset = result.scalar_one_or_none()
+    if not reset:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+
+    candidate_result = await db.execute(select(CandidateProfile).where(CandidateProfile.id == reset.candidate_id))
+    candidate = candidate_result.scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found")
+
+    candidate.password_hash = hash_password(new_password)
+    reset.used = True
+    await db.commit()
+
+    return {"message": "Password reset successfully"}

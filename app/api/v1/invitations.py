@@ -10,8 +10,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.rbac import require_org_role, resolve_org_id
+from app.config import settings
 from app.database.deps import get_db
-from app.models.db import CandidateInvitation, CandidateProfile, Department, InterviewSession, User
+from app.models.db import CandidateInvitation, CandidateProfile, Department, InterviewSession, Organization, User
 
 router = APIRouter(prefix="/invitations", tags=["invitations"])
 
@@ -67,6 +68,23 @@ async def create_invitation(
     db.add(invitation)
     await db.commit()
     await db.refresh(invitation)
+
+    from app.services.email import send_email
+    org_result = await db.execute(select(Organization).where(Organization.id == org_id))
+    org = org_result.scalar_one_or_none()
+    org_name = org.name if org else "an organization"
+    accept_url = f"{settings.APP_URL}/invite/{invitation.token}"
+    await send_email(
+        to=invitation.candidate_email,
+        subject=f"Interview invitation: {req.job_role} at {org_name}",
+        template_name="invitation.html",
+        INVITER_NAME=user.name,
+        ORG_NAME=org_name,
+        JOB_ROLE=req.job_role,
+        CANDIDATE_NAME=req.candidate_name,
+        ACCEPT_URL=accept_url,
+        APP_URL=settings.APP_URL,
+    )
 
     return InvitationResponse(
         id=str(invitation.id),

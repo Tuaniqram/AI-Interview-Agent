@@ -131,6 +131,42 @@ class OrgUser(Base):
     )
 
 
+class OrgInvitation(Base):
+    __tablename__ = "org_invitations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    inviter_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False, server_default="member")
+    token: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    organization: Mapped[Organization] = relationship("Organization")
+    inviter: Mapped[User] = relationship("User", foreign_keys=[inviter_id])
+
+    __table_args__ = (
+        CheckConstraint("status IN ('pending','accepted','expired')",
+                        name="org_invitations_status_check"),
+        Index("idx_org_invitations_token", "token"),
+        Index("idx_org_invitations_email", "email"),
+    )
+
+
 class Department(Base):
     __tablename__ = "departments"
 
@@ -406,6 +442,58 @@ class CandidateInvitation(Base):
                         name="invitations_status_check"),
         Index("idx_invitations_token", "token"),
         Index("idx_invitations_department", "department_id"),
+    )
+
+
+class CandidatePasswordResetToken(Base):
+    __tablename__ = "candidate_password_reset_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    candidate_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("candidate_profiles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    candidate: Mapped[CandidateProfile] = relationship("CandidateProfile")
+
+    __table_args__ = (
+        Index("idx_candidate_reset_tokens_hash", "token_hash"),
+        Index("idx_candidate_reset_tokens_candidate", "candidate_id"),
+    )
+
+
+class UserPasswordResetToken(Base):
+    __tablename__ = "user_password_reset_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    user: Mapped[User] = relationship("User")
+
+    __table_args__ = (
+        Index("idx_user_reset_tokens_hash", "token_hash"),
+        Index("idx_user_reset_tokens_user", "user_id"),
     )
 
 

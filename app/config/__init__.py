@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str | None = None
     GOOGLE_CLIENT_SECRET: str | None = None
 
+    RESEND_API_KEY: str | None = None
+    MAIL_FROM_ADDRESS: str = "noreply@aiinterviewagent.com"
+    MAIL_FROM_NAME: str = "AI Interview Agent"
+    APP_URL: str = "http://localhost:5173"
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 

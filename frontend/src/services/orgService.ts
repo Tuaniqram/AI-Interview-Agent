@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { Organization, OrgMember, OrganizationCreate, OrganizationUpdate } from '../types/org';
+import type { Organization, OrgMember, OrganizationCreate, OrganizationUpdate, OrgInvitationVerifyResponse } from '../types/org';
 
 export const orgService = {
   async create(data: OrganizationCreate): Promise<Organization> {
@@ -32,5 +32,17 @@ export const orgService = {
 
   async removeMember(orgId: string, memberId: string): Promise<void> {
     await apiClient.delete(`/api/v1/orgs/${orgId}/members/${memberId}`);
+  },
+
+  async inviteMember(orgId: string, email: string, role: string = 'member'): Promise<{ id: string; email: string; role: string; status: string; expires_at: string }> {
+    return apiClient.post(`/api/v1/orgs/${orgId}/invite`, { email, role });
+  },
+
+  async verifyOrgInvitation(token: string): Promise<OrgInvitationVerifyResponse> {
+    return apiClient.get<OrgInvitationVerifyResponse>(`/api/v1/orgs/invitations/${token}`);
+  },
+
+  async acceptOrgInvitation(token: string): Promise<OrgMember> {
+    return apiClient.post<OrgMember>(`/api/v1/orgs/invitations/${token}/accept`);
   },
 };

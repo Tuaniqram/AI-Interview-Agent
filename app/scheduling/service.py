@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database.deps import get_db
 from app.models.db import Booking, InterviewSlot, Organization, SlotAvailability, User
 from app.scheduling.calendar import generate_slots
@@ -115,6 +116,21 @@ async def book_slot(req: BookSlotRequest, db: AsyncSession) -> BookingResponse:
     db.add(booking)
     await db.commit()
     await db.refresh(booking)
+
+    from app.services.email import send_email
+    await send_email(
+        to=booking.candidate_email,
+        subject="Interview Scheduled! — AI Interview Agent",
+        template_name="booking_confirmation.html",
+        ORG_NAME=slot.title or "Organization",
+        JOB_ROLE=slot.title or "Interview",
+        SCHEDULED_AT=f"{avail.date} at {avail.start_time}",
+        DASHBOARD_URL=f"{settings.APP_URL}/candidate/dashboard",
+        APP_URL=settings.APP_URL,
+    )
+    booking.confirmation_sent = True
+    await db.commit()
+
     return BookingResponse.model_validate(booking)
 
 

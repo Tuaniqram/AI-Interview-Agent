@@ -10,6 +10,9 @@ from app.models.db import User
 from app.orgs.schemas import (
     AddMemberByEmailRequest,
     AddMemberRequest,
+    InviteMemberRequest,
+    InviteMemberResponse,
+    OrgInvitationVerifyResponse,
     OrganizationCreate,
     OrganizationResponse,
     OrganizationUpdate,
@@ -17,14 +20,17 @@ from app.orgs.schemas import (
     UpdateMemberRoleRequest,
 )
 from app.orgs.service import (
+    accept_org_invitation,
     add_member,
     add_member_by_email,
     create_org,
     get_org,
+    invite_member,
     list_members,
     remove_member,
     update_member_role,
     update_org,
+    verify_org_invitation,
 )
 
 router = APIRouter(prefix="/orgs", tags=["orgs"])
@@ -113,3 +119,30 @@ async def remove_member_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     await remove_member(org_id, member_id, user, db)
+
+
+@router.post("/{org_id}/invite", response_model=InviteMemberResponse)
+async def invite_member_endpoint(
+    org_id: UUID,
+    req: InviteMemberRequest,
+    user: User = Depends(authenticate),
+    db: AsyncSession = Depends(get_db),
+):
+    return await invite_member(org_id, req, user, db)
+
+
+@router.get("/invitations/{token}", response_model=OrgInvitationVerifyResponse)
+async def verify_org_invitation_endpoint(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    return await verify_org_invitation(token, db)
+
+
+@router.post("/invitations/{token}/accept", response_model=OrgMemberResponse)
+async def accept_org_invitation_endpoint(
+    token: str,
+    user: User = Depends(authenticate),
+    db: AsyncSession = Depends(get_db),
+):
+    return await accept_org_invitation(token, user, db)

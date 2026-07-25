@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import secrets
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -8,11 +10,15 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database.deps import get_db
-from app.models.db import Organization, OrgUser, User
+from app.models.db import Organization, OrgInvitation, OrgUser, User
 from app.orgs.schemas import (
     AddMemberByEmailRequest,
     AddMemberRequest,
+    InviteMemberRequest,
+    InviteMemberResponse,
+    OrgInvitationVerifyResponse,
     OrganizationCreate,
     OrganizationResponse,
     OrganizationUpdate,
@@ -217,6 +223,151 @@ async def update_member_role(
         user_id=target_user.id,
         email=target_user.email,
         name=target_user.name,
+        role=ou.role,
+        joined_at=ou.joined_at,
+    )
+
+
+async def invite_member(
+    org_id: UUID, req: InviteMemberRequest, user: User, db: AsyncSession
+) -> InviteMemberResponse:
+    await _require_org_role(org_id, user.id, ["owner"], db)
+
+    org_result = await db.execute(select(Organization).where(Organization.id == org_id))
+    org = org_result.scalar_one_or_none()
+    if not org:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+
+    existing_user = await db.execute(select(User).where(User.email == req.email))
+    target_user = existing_user.scalar_one_or_none()
+    if target_user:
+        already = await db.execute(
+            select(OrgUser).where(OrgUser.org_id == org_id, OrgUser.user_id == target_user.id)
+        )
+        if already.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User is already a member")
+
+    pending = await db.execute(
+        select(OrgInvitation).where(
+            OrgInvitation.org_id == org_id,
+            OrgInvitation.email == req.email,
+            OrgInvitation.status == "pending",
+        )
+    )
+    if pending.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A pending invitation already exists for this email",
+        )
+
+    token = secrets.token_urlsafe(32)
+    invitation = OrgInvitation(
+        id=uuid.uuid4(),
+        org_id=org_id,
+        inviter_id=user.id,
+        email=req.email,
+        role=req.role,
+        token=token,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+    )
+    db.add(invitation)
+    await db.commit()
+    await db.refresh(invitation)
+
+    from app.services.email import send_email
+    accept_url = f"{settings.APP_URL}/accept-org-invite/{invitation.token}"
+    await send_email(
+        to=invitation.email,
+        subject=f"Join {org.name} on AI Interview Agent",
+        template_name="org_invitation.html",
+        INVITER_NAME=user.name,
+        ORG_NAME=org.name,
+        ROLE=invitation.role,
+        ACCEPT_URL=accept_url,
+        APP_URL=settings.APP_URL,
+    )
+
+    return InviteMemberResponse.model_validate(invitation)
+
+
+async def verify_org_invitation(token: str, db: AsyncSession) -> OrgInvitationVerifyResponse:
+    result = await db.execute(
+        select(OrgInvitation).where(
+            OrgInvitation.token == token,
+            OrgInvitation.status == "pending",
+        )
+    )
+    invitation = result.scalar_one_or_none()
+    if not invitation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid or expired invitation")
+
+    if invitation.expires_at < datetime.now(timezone.utc):
+        invitation.status = "expired"
+        await db.commit()
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Invitation has expired")
+
+    org_result = await db.execute(select(Organization).where(Organization.id == invitation.org_id))
+    org = org_result.scalar_one_or_none()
+    inviter_result = await db.execute(select(User).where(User.id == invitation.inviter_id))
+    inviter = inviter_result.scalar_one_or_none()
+
+    return OrgInvitationVerifyResponse(
+        valid=True,
+        org_name=org.name if org else "Unknown",
+        org_slug=org.slug if org else "",
+        inviter_name=inviter.name if inviter else "Someone",
+        email=invitation.email,
+        role=invitation.role,
+    )
+
+
+async def accept_org_invitation(token: str, user: User, db: AsyncSession) -> OrgMemberResponse:
+    result = await db.execute(
+        select(OrgInvitation).where(
+            OrgInvitation.token == token,
+            OrgInvitation.status == "pending",
+        )
+    )
+    invitation = result.scalar_one_or_none()
+    if not invitation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid or expired invitation")
+
+    if invitation.expires_at < datetime.now(timezone.utc):
+        invitation.status = "expired"
+        await db.commit()
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Invitation has expired")
+
+    if invitation.email != user.email:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This invitation was sent to a different email address",
+        )
+
+    existing = await db.execute(
+        select(OrgUser).where(OrgUser.org_id == invitation.org_id, OrgUser.user_id == user.id)
+    )
+    if existing.scalar_one_or_none():
+        invitation.status = "accepted"
+        await db.commit()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You are already a member")
+
+    ou = OrgUser(
+        id=uuid.uuid4(),
+        org_id=invitation.org_id,
+        user_id=user.id,
+        role=invitation.role,
+        invited_by=invitation.inviter_id,
+    )
+    db.add(ou)
+    invitation.status = "accepted"
+    await db.commit()
+    await db.refresh(ou)
+
+    return OrgMemberResponse(
+        id=ou.id,
+        user_id=user.id,
+        email=user.email,
+        name=user.name,
         role=ou.role,
         joined_at=ou.joined_at,
     )

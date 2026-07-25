@@ -21,6 +21,8 @@ const Settings = React.lazy(() => import('./Settings').then(m => ({ default: m.S
 
 const Login = React.lazy(() => import('../pages/auth/Login'));
 const Register = React.lazy(() => import('../pages/auth/Register'));
+const ForgotPassword = React.lazy(() => import('../pages/auth/ForgotPassword'));
+const ResetPassword = React.lazy(() => import('../pages/auth/ResetPassword'));
 const OrgSelect = React.lazy(() => import('../pages/auth/OrgSelect'));
 const OpportunityHubHome = React.lazy(() => import('../pages/opportunity-hub/OpportunityHubHome'));
 const OppHubOrgProfile = React.lazy(() => import('../pages/opportunity-hub/OrgProfile'));
@@ -40,6 +42,7 @@ const CandidateInterviewDetail = React.lazy(() => import('../pages/candidate/Int
 const CandidatePractice = React.lazy(() => import('../pages/candidate/Practice'));
 const CandidateProfile = React.lazy(() => import('../pages/candidate/Profile'));
 const AcceptInvitation = React.lazy(() => import('../pages/invite/AcceptInvitation'));
+const AcceptOrgInvite = React.lazy(() => import('../pages/invite/AcceptOrgInvite'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen bg-app flex items-center justify-center">
@@ -53,9 +56,12 @@ export function AppRoutes() {
       <Route path="/" element={<Suspense fallback={<LoadingFallback />}><Landing /></Suspense>} />
       <Route path="/login" element={<Suspense fallback={<LoadingFallback />}><Login /></Suspense>} />
       <Route path="/register" element={<Suspense fallback={<LoadingFallback />}><Register /></Suspense>} />
+      <Route path="/forgot-password" element={<Suspense fallback={<LoadingFallback />}><ForgotPassword /></Suspense>} />
+      <Route path="/reset-password" element={<Suspense fallback={<LoadingFallback />}><ResetPassword /></Suspense>} />
       <Route path="/org-select" element={<Suspense fallback={<LoadingFallback />}><OrgSelect /></Suspense>} />
       <Route path="/public-interview/:token" element={<Suspense fallback={<LoadingFallback />}><PublicInterviewPage /></Suspense>} />
       <Route path="/invite/:token" element={<Suspense fallback={<LoadingFallback />}><AcceptInvitation /></Suspense>} />
+      <Route path="/accept-org-invite/:token" element={<Suspense fallback={<LoadingFallback />}><AcceptOrgInvite /></Suspense>} />
 
       <Route element={<OpportunityHubLayout />}>
         <Route path="opportunity-hub" element={<Suspense fallback={<ContentSkeleton />}><OpportunityHubHome /></Suspense>} />

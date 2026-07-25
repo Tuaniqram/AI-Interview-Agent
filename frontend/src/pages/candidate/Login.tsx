@@ -72,6 +72,9 @@ export default function CandidateLogin() {
             )}
             <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <div className="text-right">
+              <Link to="/candidate/forgot-password" className="text-xs text-[var(--action-primary)] hover:underline">Forgot password?</Link>
+            </div>
             <Button type="submit" loading={loading} className="w-full">
               Sign In
             </Button>

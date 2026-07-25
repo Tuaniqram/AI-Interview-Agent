@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Input } from '../shared/Input';
 import { Button } from '../shared/Button';
@@ -51,6 +52,9 @@ export function LoginForm({ redirectOnSuccess }: LoginFormProps) {
         placeholder="Enter your password"
         required
       />
+      <div className="text-right">
+        <Link to="/forgot-password" className="text-xs text-[var(--action-primary)] hover:underline">Forgot password?</Link>
+      </div>
       <Button type="submit" loading={loading} className="w-full">
         Sign In
       </Button>

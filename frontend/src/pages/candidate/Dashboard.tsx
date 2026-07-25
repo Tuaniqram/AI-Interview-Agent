@@ -7,10 +7,12 @@ import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import type { CandidateStats, CandidateInterview } from '../../types/candidate';
 
 export default function CandidateDashboard() {
-  const { candidate } = useCandidateAuth();
+  const { candidate, sendVerification } = useCandidateAuth();
   const [stats, setStats] = useState<CandidateStats | null>(null);
   const [recent, setRecent] = useState<CandidateInterview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyMsg, setVerifyMsg] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -23,10 +25,37 @@ export default function CandidateDashboard() {
     .finally(() => setLoading(false));
   }, []);
 
+  const handleVerify = async () => {
+    setVerifying(true);
+    try {
+      await sendVerification();
+      setVerifyMsg('Verification email sent! Check your inbox.');
+    } catch {
+      setVerifyMsg('Failed to send verification. Try again.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
 
   return (
     <div className="space-y-6">
+      {candidate && !candidate.is_verified && (
+        <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Verify your email</p>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">Some features are locked until you verify your email address.</p>
+          </div>
+          <button onClick={handleVerify} disabled={verifying} className="shrink-0 px-4 py-2 text-xs font-medium rounded-lg bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 transition-colors">
+            {verifying ? 'Sending...' : 'Resend verification'}
+          </button>
+        </div>
+      )}
+      {verifyMsg && (
+        <div className="text-sm text-center text-[var(--text-secondary)]">{verifyMsg}</div>
+      )}
+
       <div>
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">Welcome, {candidate?.name}</h1>
         <p className="text-[var(--text-secondary)] mt-1">Your interview dashboard</p>

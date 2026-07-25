@@ -21,6 +21,15 @@ export interface OrgMember {
 
 export type OrgRole = 'owner' | 'member' | 'viewer';
 
+export interface OrgInvitationVerifyResponse {
+  valid: boolean;
+  org_name: string;
+  org_slug: string;
+  inviter_name: string;
+  email: string;
+  role: string;
+}
+
 export interface OrganizationCreate {
   name: string;
   slug: string;

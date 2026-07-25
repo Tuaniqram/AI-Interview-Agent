@@ -49,6 +49,7 @@ interface CandidateAuthContextType extends CandidateAuthState {
   googleLogin: (credential: string) => Promise<void>;
   logout: () => void;
   updateProfile: (profile: CandidateProfile) => void;
+  sendVerification: () => Promise<void>;
 }
 
 const CandidateAuthContext = createContext<CandidateAuthContextType | undefined>(undefined);
@@ -103,8 +104,12 @@ export function CandidateAuthProvider({ children }: { children: React.ReactNode 
     dispatch({ type: 'UPDATE_PROFILE', payload: profile });
   }, []);
 
+  const sendVerification = useCallback(async () => {
+    await candidateService.sendVerification();
+  }, []);
+
   return (
-    <CandidateAuthContext.Provider value={{ ...state, login, register, googleLogin, logout, updateProfile }}>
+    <CandidateAuthContext.Provider value={{ ...state, login, register, googleLogin, logout, updateProfile, sendVerification }}>
       {children}
     </CandidateAuthContext.Provider>
   );

@@ -50,6 +50,18 @@ export const candidateService = {
     return apiClient.get<CandidateStats>('/api/v1/candidates/stats');
   },
 
+  async sendVerification(): Promise<{ message: string }> {
+    return apiClient.post<{ message: string }>('/api/v1/candidates/send-verification');
+  },
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    return apiClient.post<{ message: string }>('/api/v1/candidates/forgot-password', { email });
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    return apiClient.post<{ message: string }>(`/api/v1/candidates/reset-password?token=${token}&new_password=${newPassword}`);
+  },
+
   async startPractice(data: PracticeStartRequest): Promise<PracticeStartResponse> {
     return apiClient.post<PracticeStartResponse>('/api/v1/candidates/practice/start', data);
   },

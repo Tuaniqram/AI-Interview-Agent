@@ -49,6 +49,30 @@ class UpdateMemberRoleRequest(BaseModel):
     role: str
 
 
+class InviteMemberRequest(BaseModel):
+    email: str
+    role: str = "member"
+
+
+class InviteMemberResponse(BaseModel):
+    id: UUID
+    email: str
+    role: str
+    status: str
+    expires_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class OrgInvitationVerifyResponse(BaseModel):
+    valid: bool
+    org_name: str
+    org_slug: str
+    inviter_name: str
+    email: str
+    role: str
+
+
 class OrgMemberResponse(BaseModel):
     id: UUID
     user_id: UUID

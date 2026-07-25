@@ -48,6 +48,15 @@ class OrgMembershipResponse(BaseModel):
     role: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
 class GoogleAuthRequest(BaseModel):
     credential: str
 

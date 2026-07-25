@@ -37,7 +37,7 @@ function AddMemberModal({ open, onClose, onAdd }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay/50">
       <div className="bg-elevated rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="font-semibold text-primary">Add Member</h3>
+          <h3 className="font-semibold text-primary">Invite Member</h3>
           <button onClick={onClose} className="text-muted hover:text-secondary p-1"><X className="w-4 h-4" /></button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -71,7 +71,7 @@ function AddMemberModal({ open, onClose, onAdd }: {
             <button type="submit" disabled={adding}
               className="px-4 py-2 text-sm font-medium text-inverse bg-action-primary rounded-lg hover:bg-action-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-2">
               {adding && <Loader2 className="w-4 h-4 animate-spin" />}
-              Add Member
+              Send Invitation
             </button>
           </div>
         </form>
@@ -108,11 +108,11 @@ export default function Members() {
   const handleAddMember = useCallback(async (email: string, role: string) => {
     if (!activeOrg) return;
     try {
-      await orgService.addMemberByEmail(activeOrg.id, email, role);
-      toast.success(`Member added`);
+      await orgService.inviteMember(activeOrg.id, email, role);
+      toast.success(`Invitation sent to ${email}`);
       loadMembers();
     } catch (err: any) {
-      const msg = err?.response?.data?.detail || 'Failed to add member';
+      const msg = err?.response?.data?.detail || 'Failed to invite member';
       toast.error(msg);
       throw err;
     }
@@ -155,7 +155,7 @@ export default function Members() {
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-inverse bg-action-primary rounded-lg hover:bg-action-primary-hover transition-colors"
           >
             <UserPlus className="w-4 h-4" />
-            Add Member
+            Invite Member
           </button>
         )}
       </div>
