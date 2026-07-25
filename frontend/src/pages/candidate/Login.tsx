@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { AuthLayout } from '../../components/auth/AuthLayout';
 import { useCandidateAuth } from '../../contexts/CandidateAuthContext';
 import { useGoogleLogin } from '@react-oauth/google';
+import { Input } from '../../components/shared/Input';
+import { Button } from '../../components/shared/Button';
 
 export default function CandidateLogin() {
   const navigate = useNavigate();
@@ -38,8 +41,8 @@ export default function CandidateLogin() {
   });
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--bg-page)] px-4">
-      <div className="w-full max-w-md space-y-8">
+    <AuthLayout role="candidate">
+      <div className="space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-[var(--text-primary)]">Candidate Sign In</h1>
           <p className="mt-2 text-[var(--text-secondary)]">Access your interview history and practice</p>
@@ -62,18 +65,16 @@ export default function CandidateLogin() {
             <div className="relative flex justify-center text-xs"><span className="bg-[var(--bg-section)] px-2 text-[var(--text-secondary)]">or</span></div>
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <div className="text-sm text-red-500">{error}</div>}
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]" required />
-            </div>
-            <button type="submit" disabled={loading} className="w-full px-4 py-2 rounded-lg bg-[var(--action-primary)] text-white font-medium hover:opacity-90 disabled:opacity-50">
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
+            {error && (
+              <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">
+                {error}
+              </div>
+            )}
+            <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <Button type="submit" loading={loading} className="w-full">
+              Sign In
+            </Button>
           </form>
         </div>
         <p className="text-center text-sm text-[var(--text-secondary)]">
@@ -86,6 +87,6 @@ export default function CandidateLogin() {
           </Link>
         </p>
       </div>
-    </div>
+    </AuthLayout>
   );
 }

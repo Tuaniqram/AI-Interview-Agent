@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { AuthLayout } from '../../components/auth/AuthLayout';
 import { useAuth } from '../../contexts/AuthContext';
 import { useGoogleLogin } from '@react-oauth/google';
 import { Input } from '../../components/shared/Input';
@@ -42,8 +43,8 @@ export default function Register() {
   });
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--bg-page)] px-4">
-      <div className="w-full max-w-md space-y-8">
+    <AuthLayout role="org">
+      <div className="space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-[var(--text-primary)]">Create Account</h1>
           <p className="mt-2 text-[var(--text-secondary)]">
@@ -89,6 +90,6 @@ export default function Register() {
           </Link>
         </p>
       </div>
-    </div>
+    </AuthLayout>
   );
 }
