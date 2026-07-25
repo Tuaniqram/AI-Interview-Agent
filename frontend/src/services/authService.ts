@@ -10,6 +10,10 @@ export const authService = {
     return apiClient.post<AuthResponse>('/api/v1/auth/login', data);
   },
 
+  async googleLogin(credential: string): Promise<AuthResponse> {
+    return apiClient.post<AuthResponse>('/api/v1/auth/google', { credential });
+  },
+
   async refresh(refreshToken: string): Promise<Tokens> {
     return apiClient.post<Tokens>('/api/v1/auth/refresh', { refresh_token: refreshToken });
   },

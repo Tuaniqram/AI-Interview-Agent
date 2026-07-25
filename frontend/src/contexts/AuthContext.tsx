@@ -45,6 +45,7 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 interface AuthContextType extends AuthState {
   login: (req: LoginRequest) => Promise<void>;
   register: (req: RegisterRequest) => Promise<void>;
+  googleLogin: (credential: string) => Promise<void>;
   logout: () => void;
   updateUser: (user: User) => void;
 }
@@ -112,13 +113,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'LOGIN_SUCCESS', payload: res });
   }, []);
 
+  const googleLogin = useCallback(async (credential: string) => {
+    const res = await authService.googleLogin(credential);
+    localStorage.setItem('auth_tokens', JSON.stringify(res.tokens));
+    if (res.memberships.length > 0) {
+      localStorage.setItem('active_org_id', res.memberships[0].org_id);
+    }
+    dispatch({ type: 'LOGIN_SUCCESS', payload: res });
+  }, []);
+
   const updateUser = useCallback((user: User) => {
     dispatch({ type: 'UPDATE_USER', payload: user });
   }, []);
 
   return (
     <AuthContext.Provider
-      value={{ ...state, login, register, logout, updateUser }}
+      value={{ ...state, login, register, googleLogin, logout, updateUser }}
     >
       {children}
     </AuthContext.Provider>
