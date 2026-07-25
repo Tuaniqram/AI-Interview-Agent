@@ -114,7 +114,7 @@ class V4SessionStore:
         from sqlalchemy import text
         stmt = text("""
             INSERT INTO v4_session_state (session_id, state, updated_at)
-            VALUES (:sid, :state::jsonb, now())
+            VALUES (:sid, CAST(:state AS jsonb), now())
             ON CONFLICT (session_id)
             DO UPDATE SET state = EXCLUDED.state, updated_at = now()
         """)
