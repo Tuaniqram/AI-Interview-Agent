@@ -12,6 +12,7 @@ import type {
   CompetencyScore,
   PracticeStartRequest,
   PracticeStartResponse,
+  SavedListing,
 } from '../types/candidate';
 
 export const candidateService = {
@@ -69,5 +70,17 @@ export const candidateService = {
 
   async getCompetencyScores(): Promise<CompetencyScore[]> {
     return apiClient.get<CompetencyScore[]>('/api/v1/candidates/competency-scores');
+  },
+
+  async saveListing(listingId: number): Promise<{ message: string }> {
+    return apiClient.post(`/api/v1/candidates/saved-listings/${listingId}`);
+  },
+
+  async unsaveListing(listingId: number): Promise<{ message: string }> {
+    return apiClient.delete(`/api/v1/candidates/saved-listings/${listingId}`);
+  },
+
+  async getSavedListings(): Promise<SavedListing[]> {
+    return apiClient.get<SavedListing[]>('/api/v1/candidates/saved-listings');
   },
 };

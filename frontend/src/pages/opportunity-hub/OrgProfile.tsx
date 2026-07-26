@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { marketplaceService } from '../../services/marketplaceService';
+import { candidateService } from '../../services/candidateService';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { EmptyState } from '../../components/shared/EmptyState';
+import { BookmarkButton } from '../../components/candidate/BookmarkButton';
 import { ArrowLeft, Clock, Globe } from 'lucide-react';
 import type { OrgListing, PublicInterview } from '../../types/marketplace';
 
@@ -10,18 +12,21 @@ export default function OrgProfile() {
   const { slug } = useParams<{ slug: string }>();
   const [org, setOrg] = useState<OrgListing | null>(null);
   const [interviews, setInterviews] = useState<PublicInterview[]>([]);
+  const [savedIds, setSavedIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!slug) return;
     setLoading(true);
-    marketplaceService.getOrgProfile(slug)
-      .then((data) => {
-        setOrg(data.org);
-        setInterviews(data.interviews);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    Promise.all([
+      marketplaceService.getOrgProfile(slug),
+      candidateService.getSavedListings().catch(() => [] as any[]),
+    ]).then(([data, saved]) => {
+      setOrg(data.org);
+      setInterviews(data.interviews);
+      setSavedIds(new Set(saved.map((s: any) => s.id)));
+    }).catch(console.error)
+    .finally(() => setLoading(false));
   }, [slug]);
 
   if (loading) return <LoadingSpinner message="Loading organization..." />;
@@ -80,12 +85,20 @@ export default function OrgProfile() {
                 : null;
 
               return (
-                <Link
-                  key={interview.id}
-                  to={`/opportunity-hub/interviews/${interview.id}`}
-                  className="p-5 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[#7C3AED]/40 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all group"
-                >
-                  <h3 className="font-semibold text-primary group-hover:text-[#7C3AED] transition-colors font-heading">{interview.title}</h3>
+                <div key={interview.id} className="relative p-5 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[#7C3AED]/40 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all group">
+                  <div className="absolute top-3 right-3">
+                    <BookmarkButton
+                      listingId={Number(interview.id)}
+                      initiallySaved={savedIds.has(Number(interview.id))}
+                      onToggle={(s) => {
+                        const id = Number(interview.id);
+                        if (s) savedIds.add(id);
+                        else savedIds.delete(id);
+                      }}
+                    />
+                  </div>
+                  <Link to={`/opportunity-hub/interviews/${interview.id}`}>
+                    <h3 className="font-semibold text-primary group-hover:text-[#7C3AED] transition-colors font-heading">{interview.title}</h3>
                   {interview.department_name && (
                     <p className="text-xs text-muted mt-0.5">{interview.department_name}</p>
                   )}
@@ -112,9 +125,10 @@ export default function OrgProfile() {
                       </span>
                     ) : null}
                   </div>
-                </Link>
-              );
-            })}
+                  </Link>
+                  </div>
+                );
+              })}
           </div>
         )}
       </section>

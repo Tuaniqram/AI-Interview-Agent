@@ -34,7 +34,7 @@ from app.candidates.service import (
     update_profile,
 )
 from app.database.deps import get_db
-from app.models.db import CandidatePasswordResetToken, CandidateProfile
+from app.models.db import CandidatePasswordResetToken, CandidateProfile, CandidateSavedListing, PublicInterview, Organization
 from app.auth.password import hash_password
 from app.config import settings
 
@@ -188,6 +188,80 @@ async def competency_scores_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     return await get_competency_scores(candidate.id, db)
+
+
+@router.post("/saved-listings/{listing_id}")
+async def save_listing(
+    listing_id: int,
+    candidate: CandidateProfile = Depends(require_verified_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    existing = await db.execute(
+        select(CandidateSavedListing).where(
+            CandidateSavedListing.candidate_id == candidate.id,
+            CandidateSavedListing.listing_id == listing_id,
+        )
+    )
+    if existing.scalar_one_or_none():
+        return {"message": "Already saved"}
+    saved = CandidateSavedListing(
+        id=__import__('uuid').uuid4(),
+        candidate_id=candidate.id,
+        listing_id=listing_id,
+    )
+    db.add(saved)
+    await db.commit()
+    return {"message": "Listing saved"}
+
+
+@router.delete("/saved-listings/{listing_id}")
+async def unsave_listing(
+    listing_id: int,
+    candidate: CandidateProfile = Depends(require_verified_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CandidateSavedListing).where(
+            CandidateSavedListing.candidate_id == candidate.id,
+            CandidateSavedListing.listing_id == listing_id,
+        )
+    )
+    saved = result.scalar_one_or_none()
+    if not saved:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not saved")
+    await db.delete(saved)
+    await db.commit()
+    return {"message": "Listing unsaved"}
+
+
+@router.get("/saved-listings")
+async def list_saved_listings(
+    candidate: CandidateProfile = Depends(require_verified_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CandidateSavedListing, PublicInterview, Organization)
+        .join(PublicInterview, CandidateSavedListing.listing_id == PublicInterview.id)
+        .join(Organization, PublicInterview.org_id == Organization.id)
+        .where(CandidateSavedListing.candidate_id == candidate.id)
+        .order_by(CandidateSavedListing.created_at.desc())
+    )
+    listings = []
+    for saved, pi, org in result.all():
+        listings.append({
+            "id": pi.id,
+            "title": pi.title,
+            "org_name": org.name,
+            "org_slug": org.slug,
+            "department_name": pi.department_name,
+            "interview_mode": pi.interview_mode,
+            "description": pi.description,
+            "skills_required": pi.skills_required,
+            "starts_at": pi.starts_at.isoformat() if pi.starts_at else None,
+            "expires_at": pi.expires_at.isoformat() if pi.expires_at else None,
+            "is_open": pi.is_open,
+        })
+    return listings
 
 
 @router.post("/practice/start", response_model=PracticeStartResponse)

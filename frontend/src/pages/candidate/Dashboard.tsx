@@ -6,13 +6,14 @@ import { MetricCard } from '../../components/shared/MetricCard';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { useToast } from '../../components/shared/Toast';
 import { CompetencyRadar } from '../../components/candidate/CompetencyRadar';
-import type { CandidateStats, CandidateInterview, CompetencyScore } from '../../types/candidate';
+import type { CandidateStats, CandidateInterview, CompetencyScore, SavedListing } from '../../types/candidate';
 
 export default function CandidateDashboard() {
   const { candidate, sendVerification } = useCandidateAuth();
   const [stats, setStats] = useState<CandidateStats | null>(null);
   const [recent, setRecent] = useState<CandidateInterview[]>([]);
   const [competencyScores, setCompetencyScores] = useState<CompetencyScore[]>([]);
+  const [savedListings, setSavedListings] = useState<SavedListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
   const [verifyMsg, setVerifyMsg] = useState('');
@@ -23,10 +24,12 @@ export default function CandidateDashboard() {
       candidateService.getStats(),
       candidateService.getInterviews(),
       candidateService.getCompetencyScores(),
-    ]).then(([s, i, c]) => {
+      candidateService.getSavedListings().catch(() => []),
+    ]).then(([s, i, c, sl]) => {
       setStats(s);
       setRecent(i.slice(0, 5));
       setCompetencyScores(c);
+      setSavedListings(sl as SavedListing[]);
     }).catch(() => toast.error('Failed to load dashboard'))
     .finally(() => setLoading(false));
   }, []);
@@ -120,6 +123,31 @@ export default function CandidateDashboard() {
                   </span>
                   <span className="text-xs text-[var(--text-secondary)]">
                     {interview.started_at ? new Date(interview.started_at).toLocaleDateString() : ''}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {savedListings.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Saved Opportunities</h2>
+          <div className="space-y-2">
+            {savedListings.map((listing) => (
+              <Link
+                key={listing.id}
+                to={`/opportunity-hub/interviews/${listing.id}`}
+                className="block p-4 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[var(--action-primary)] transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-medium text-[var(--text-primary)]">{listing.title}</span>
+                    <span className="text-sm text-[var(--text-secondary)] ml-2">@{listing.org_name}</span>
+                  </div>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--action-primary)]/10 text-[var(--action-primary)]">
+                    {listing.interview_mode}
                   </span>
                 </div>
               </Link>

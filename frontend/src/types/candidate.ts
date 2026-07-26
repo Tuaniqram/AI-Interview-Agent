@@ -94,3 +94,17 @@ export interface PracticeStartResponse {
   total_questions: number;
   interview_style: string;
 }
+
+export interface SavedListing {
+  id: number;
+  title: string;
+  org_name: string;
+  org_slug: string;
+  department_name: string | null;
+  interview_mode: string;
+  description: string | null;
+  skills_required: string | null;
+  starts_at: string | null;
+  expires_at: string | null;
+  is_open: boolean;
+}

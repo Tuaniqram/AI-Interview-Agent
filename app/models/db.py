@@ -6,7 +6,7 @@ from typing import Optional
 
 from sqlalchemy import (
     BigInteger, Boolean, CheckConstraint, Date, DateTime, ForeignKey,
-    Index, Integer, Numeric, Text, Time, func,
+    Index, Integer, Numeric, Text, Time, UniqueConstraint, func,
 )
 from sqlalchemy.dialects.postgresql import UUID, INET, ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -917,4 +917,30 @@ class Observation(Base):
         CheckConstraint("value >= 0 AND value <= 1", name="observation_value_check"),
         Index("idx_observations_session", "session_id"),
         Index("idx_observations_session_type", "session_id", "type"),
+    )
+
+
+class CandidateSavedListing(Base):
+    __tablename__ = "candidate_saved_listings"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    candidate_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("candidate_profiles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    listing_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("public_interviews.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint("candidate_id", "listing_id", name="uq_candidate_listing"),
+        Index("idx_saved_listings_candidate", "candidate_id"),
     )
