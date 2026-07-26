@@ -3,18 +3,23 @@ import { useParams } from 'react-router-dom';
 import { candidateService } from '../../services/candidateService';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { EmptyState } from '../../components/shared/EmptyState';
+import { useToast } from '../../components/shared/Toast';
 import type { CandidateInterviewDetail as Detail } from '../../types/candidate';
 
 export default function CandidateInterviewDetail() {
   const { interviewId } = useParams<{ interviewId: string }>();
   const [interview, setInterview] = useState<Detail | null>(null);
   const [loading, setLoading] = useState(true);
+  const toast = useToast();
 
   useEffect(() => {
-    if (!interviewId) return;
+    if (!interviewId) {
+      setLoading(false);
+      return;
+    }
     candidateService.getInterviewDetail(interviewId)
       .then(setInterview)
-      .catch(console.error)
+      .catch(() => toast.error('Failed to load interview details'))
       .finally(() => setLoading(false));
   }, [interviewId]);
 

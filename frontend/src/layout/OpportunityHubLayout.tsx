@@ -83,9 +83,13 @@ export function OpportunityHubLayout() {
                   </div>
                   <button
                     onClick={() => {
-                      if (isAuthenticated) logout();
-                      else candidateLogout();
-                      navigate('/');
+                      try {
+                        if (isAuthenticated) logout();
+                        else candidateLogout();
+                        navigate('/');
+                      } catch {
+                        // logout failed
+                      }
                     }}
                     className="text-xs text-red-500 hover:text-red-600"
                   >

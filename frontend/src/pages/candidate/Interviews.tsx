@@ -3,16 +3,18 @@ import { Link } from 'react-router-dom';
 import { candidateService } from '../../services/candidateService';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { EmptyState } from '../../components/shared/EmptyState';
+import { useToast } from '../../components/shared/Toast';
 import type { CandidateInterview } from '../../types/candidate';
 
 export default function CandidateInterviews() {
   const [interviews, setInterviews] = useState<CandidateInterview[]>([]);
   const [loading, setLoading] = useState(true);
+  const toast = useToast();
 
   useEffect(() => {
     candidateService.getInterviews()
       .then(setInterviews)
-      .catch(console.error)
+      .catch(() => toast.error('Failed to load interviews'))
       .finally(() => setLoading(false));
   }, []);
 

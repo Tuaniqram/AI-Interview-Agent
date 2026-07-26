@@ -4,18 +4,20 @@ import { PageHeader } from '../../components/shared/PageHeader';
 import { SearchInput } from '../../components/shared/SearchInput';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { EmptyState } from '../../components/shared/EmptyState';
+import { useToast } from '../../components/shared/Toast';
 import type { AdminUser } from '../../types/admin';
 
 export default function UserManagement() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const toast = useToast();
 
   useEffect(() => {
     setLoading(true);
     adminService.listUsers(search || undefined)
       .then(setUsers)
-      .catch(console.error)
+      .catch(() => toast.error('Failed to load users'))
       .finally(() => setLoading(false));
   }, [search]);
 

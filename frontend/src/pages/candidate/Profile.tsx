@@ -4,6 +4,7 @@ import { candidateService } from '../../services/candidateService';
 import { Button } from '../../components/shared/Button';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { ChipInput } from '../../components/shared/ChipInput';
+import { useToast } from '../../components/shared/Toast';
 
 export default function CandidateProfile() {
   const { candidate, updateProfile: updateContext } = useCandidateAuth();
@@ -12,6 +13,7 @@ export default function CandidateProfile() {
   const [skills, setSkills] = useState(candidate?.skills || '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const toast = useToast();
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +24,7 @@ export default function CandidateProfile() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
-      console.error(err);
+      toast.error('Failed to save profile');
     } finally {
       setSaving(false);
     }

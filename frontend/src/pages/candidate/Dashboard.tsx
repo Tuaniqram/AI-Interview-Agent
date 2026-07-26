@@ -4,6 +4,7 @@ import { candidateService } from '../../services/candidateService';
 import { useCandidateAuth } from '../../contexts/CandidateAuthContext';
 import { MetricCard } from '../../components/shared/MetricCard';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
+import { useToast } from '../../components/shared/Toast';
 import type { CandidateStats, CandidateInterview } from '../../types/candidate';
 
 export default function CandidateDashboard() {
@@ -13,6 +14,7 @@ export default function CandidateDashboard() {
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
   const [verifyMsg, setVerifyMsg] = useState('');
+  const toast = useToast();
 
   useEffect(() => {
     Promise.all([
@@ -21,7 +23,7 @@ export default function CandidateDashboard() {
     ]).then(([s, i]) => {
       setStats(s);
       setRecent(i.slice(0, 5));
-    }).catch(console.error)
+    }).catch(() => toast.error('Failed to load dashboard'))
     .finally(() => setLoading(false));
   }, []);
 

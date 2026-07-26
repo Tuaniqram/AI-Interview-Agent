@@ -7,6 +7,7 @@ import { departmentService, type Department } from '../../services/departmentSer
 import { useOrg } from '../../contexts/OrgContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Copy, Plus, Pencil, Trash2, ExternalLink, Clock } from 'lucide-react';
+import { useToast } from '../../components/shared/Toast';
 import type { OrgPublicListing } from '../../types/marketplace';
 
 export default function PublicListings() {
@@ -27,6 +28,7 @@ export default function PublicListings() {
   const [expiresAt, setExpiresAt] = useState('');
   const [saving, setSaving] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const toast = useToast();
 
   const orgId = activeOrg?.id;
 
@@ -105,10 +107,11 @@ export default function PublicListings() {
           expires_at: expiresAt ? new Date(expiresAt).toISOString() : undefined,
         });
       }
+      toast.success(editing ? 'Listing updated' : 'Listing created');
       resetForm();
       await loadListings();
     } catch (err) {
-      console.error('Failed to save listing:', err);
+      toast.error('Failed to save listing');
     } finally {
       setSaving(false);
     }
@@ -118,9 +121,10 @@ export default function PublicListings() {
     if (!confirm('Are you sure you want to close this listing?')) return;
     try {
       await marketplaceService.deleteListing(id);
+      toast.success('Listing closed');
       await loadListings();
     } catch (err) {
-      console.error('Failed to delete listing:', err);
+      toast.error('Failed to close listing');
     }
   };
 

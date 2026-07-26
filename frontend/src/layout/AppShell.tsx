@@ -34,8 +34,12 @@ export function AppShell() {
   }, [activeOrg, memberships]);
 
   const handleLogout = () => {
-    logout();
-    navigate('/login');
+    try {
+      logout();
+      navigate('/login');
+    } catch {
+      // logout failed — user stays on page
+    }
   };
 
   return (

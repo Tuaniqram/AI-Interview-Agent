@@ -5,26 +5,33 @@ import { SearchInput } from '../../components/shared/SearchInput';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Button } from '../../components/shared/Button';
+import { useToast } from '../../components/shared/Toast';
 import type { AdminOrg } from '../../types/admin';
 
 export default function OrgManagement() {
   const [orgs, setOrgs] = useState<AdminOrg[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const toast = useToast();
 
   const fetchOrgs = () => {
     setLoading(true);
     adminService.listOrganizations(search || undefined)
       .then(setOrgs)
-      .catch(console.error)
+      .catch(() => toast.error('Failed to load organizations'))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { fetchOrgs(); }, [search]);
 
   const handleToggleSuspend = async (orgId: string) => {
-    await adminService.toggleSuspend(orgId);
-    fetchOrgs();
+    try {
+      await adminService.toggleSuspend(orgId);
+      toast.success('Organization status updated');
+      fetchOrgs();
+    } catch {
+      toast.error('Failed to update organization status');
+    }
   };
 
   if (loading) return <LoadingSpinner />;

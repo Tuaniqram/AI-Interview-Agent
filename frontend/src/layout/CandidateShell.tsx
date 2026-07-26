@@ -15,8 +15,12 @@ export function CandidateShell() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout();
-    navigate('/');
+    try {
+      logout();
+      navigate('/');
+    } catch {
+      // logout failed — user stays on page
+    }
   };
 
   return (

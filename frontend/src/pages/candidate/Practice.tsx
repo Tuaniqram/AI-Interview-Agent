@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { candidateService } from '../../services/candidateService';
 import { Button } from '../../components/shared/Button';
 import { PageHeader } from '../../components/shared/PageHeader';
+import { useToast } from '../../components/shared/Toast';
 
 const ROLES = ['Software Engineer', 'Frontend Developer', 'Backend Developer', 'Data Scientist', 'Product Manager', 'DevOps Engineer', 'ML Engineer', 'Designer'];
 const DIFFICULTIES = [
@@ -34,6 +35,7 @@ export default function CandidatePractice() {
   const [fStyle, setFStyle] = useState('STANDARD');
   const [numQuestions, setNumQuestions] = useState(5);
   const [loading, setLoading] = useState(false);
+  const toast = useToast();
 
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +50,7 @@ export default function CandidatePractice() {
       });
       navigate(`/interview/${res.session_id}`);
     } catch (err) {
-      console.error(err);
+      toast.error('Failed to start practice interview');
     } finally {
       setLoading(false);
     }

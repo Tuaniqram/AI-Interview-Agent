@@ -8,6 +8,7 @@ import { CardSkeleton } from '../../components/shared/Skeleton';
 import { analyticsService, type OverviewData } from '../../services/analyticsService';
 import { marketplaceService } from '../../services/marketplaceService';
 import { Users, ListChecks, Store, TrendingUp, Target, Building2, ArrowRight } from 'lucide-react';
+import { useToast } from '../../components/shared/Toast';
 
 export default function OrgDashboard() {
   const { activeOrg, members } = useOrg();
@@ -15,6 +16,7 @@ export default function OrgDashboard() {
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [listingCount, setListingCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const toast = useToast();
 
   useEffect(() => {
     if (!activeOrg?.id) return;
@@ -24,6 +26,7 @@ export default function OrgDashboard() {
       marketplaceService.listOrgListings(activeOrg.id),
     ]).then(([o, l]) => {
       if (o.status === 'fulfilled') setOverview(o.value);
+      else toast.error('Failed to load analytics');
       if (l.status === 'fulfilled') setListingCount(l.value.length);
     }).finally(() => setLoading(false));
   }, [activeOrg?.id]);

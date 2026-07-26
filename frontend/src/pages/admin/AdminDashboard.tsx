@@ -3,16 +3,18 @@ import { adminService } from '../../services/adminService';
 import { MetricCard } from '../../components/shared/MetricCard';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
+import { useToast } from '../../components/shared/Toast';
 import type { PlatformStats } from '../../types/admin';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const toast = useToast();
 
   useEffect(() => {
     adminService.getStats()
       .then(setStats)
-      .catch(console.error)
+      .catch(() => toast.error('Failed to load admin stats'))
       .finally(() => setLoading(false));
   }, []);
 
