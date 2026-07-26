@@ -5,7 +5,7 @@ import { useOrg } from '../contexts/OrgContext';
 import { DashboardShell } from './DashboardShell';
 import {
   LayoutDashboard, Building2, ListChecks, BarChart3, FlaskConical, Settings,
-  Users, ClipboardList, Trophy, FileText,
+  Users, ClipboardList, Trophy, FileText, ScrollText, Cpu, Mail, HeartPulse,
 } from 'lucide-react';
 import type { OrgRole } from '../types/org';
 
@@ -23,6 +23,10 @@ const orgNavItems = [
   { to: '/org/candidates', icon: Trophy, label: 'Candidates', roles: ['owner'] as OrgRole[] },
   { to: '/org/templates', icon: FileText, label: 'Templates', roles: ['owner'] as OrgRole[] },
   { to: '/org/scorecards', icon: ClipboardList, label: 'Scorecards', roles: ['owner'] as OrgRole[] },
+  { to: '/org/audit-logs', icon: ScrollText, label: 'Audit Logs', roles: ['owner'] as OrgRole[] },
+  { to: '/org/llm', icon: Cpu, label: 'LLM', roles: ['owner'] as OrgRole[] },
+  { to: '/org/email-templates', icon: Mail, label: 'Emails', roles: ['owner'] as OrgRole[] },
+  { to: '/org/health', icon: HeartPulse, label: 'Health', roles: ['owner'] as OrgRole[] },
 ];
 
 export function AppShell() {

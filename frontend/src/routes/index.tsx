@@ -35,6 +35,10 @@ const OrgMembers = React.lazy(() => import('../pages/org/Members'));
 const OrgScorecards = React.lazy(() => import('../pages/org/Scorecards'));
 const OrgCandidateRanking = React.lazy(() => import('../pages/org/CandidateRanking'));
 const OrgTemplates = React.lazy(() => import('../pages/org/Templates'));
+const OrgAuditLogs = React.lazy(() => import('../pages/org/AuditLogs'));
+const OrgLLMDashboard = React.lazy(() => import('../pages/org/LLMDashboard'));
+const OrgEmailTemplates = React.lazy(() => import('../pages/org/EmailTemplates'));
+const OrgSystemHealth = React.lazy(() => import('../pages/org/SystemHealth'));
 const AdminDashboard = React.lazy(() => import('../pages/admin/AdminDashboard'));
 const AdminOrgs = React.lazy(() => import('../pages/admin/OrgManagement'));
 const AdminUsers = React.lazy(() => import('../pages/admin/UserManagement'));
@@ -99,6 +103,10 @@ export function AppRoutes() {
         <Route path="org/scorecards" element={<Suspense fallback={<ContentSkeleton />}><OrgScorecards /></Suspense>} />
         <Route path="org/candidates" element={<Suspense fallback={<ContentSkeleton />}><OrgCandidateRanking /></Suspense>} />
         <Route path="org/templates" element={<Suspense fallback={<ContentSkeleton />}><OrgTemplates /></Suspense>} />
+        <Route path="org/audit-logs" element={<Suspense fallback={<ContentSkeleton />}><OrgAuditLogs /></Suspense>} />
+        <Route path="org/llm" element={<Suspense fallback={<ContentSkeleton />}><OrgLLMDashboard /></Suspense>} />
+        <Route path="org/email-templates" element={<Suspense fallback={<ContentSkeleton />}><OrgEmailTemplates /></Suspense>} />
+        <Route path="org/health" element={<Suspense fallback={<ContentSkeleton />}><OrgSystemHealth /></Suspense>} />
       </Route>
 
       <Route element={<ProtectedRoute><AdminShell /></ProtectedRoute>}>

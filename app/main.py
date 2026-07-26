@@ -20,6 +20,8 @@ from app.api.v1.analytics import router as analytics_v1_router
 from app.api.v1.public import router as public_router
 from app.api.v1.scorecards import router as scorecards_router
 from app.api.v1.candidate_ranking import router as candidate_ranking_router
+from app.api.v1.audit_logs import router as audit_logs_router
+from app.api.v1.system import router as system_router
 from app.api.interview_v4 import router as interview_v4_router
 
 
@@ -98,6 +100,8 @@ app.include_router(analytics_v1_router, prefix="/api/v1")
 app.include_router(public_router, prefix="/api/v1")
 app.include_router(scorecards_router, prefix="/api/v1")
 app.include_router(candidate_ranking_router, prefix="/api/v1")
+app.include_router(audit_logs_router, prefix="/api/v1")
+app.include_router(system_router)
 app.include_router(interview_v4_router)
 
 

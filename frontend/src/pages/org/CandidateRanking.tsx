@@ -4,10 +4,11 @@ import { useOrg } from '../../contexts/OrgContext';
 import { apiClient } from '../../services/apiClient';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { Card } from '../../components/shared/Card';
+import { Button } from '../../components/shared/Button';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { useToast } from '../../components/shared/Toast';
-import { Trophy, Search } from 'lucide-react';
+import { Trophy, Search, Download } from 'lucide-react';
 import { ScoreDisplay } from '../../components/shared/ScoreDisplay';
 
 interface CandidateRank {
@@ -68,7 +69,16 @@ export default function CandidateRanking() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Candidate Rankings" description="Ranked interview results across your organization" />
+      <PageHeader title="Candidate Rankings" description="Ranked interview results across your organization"
+        actions={
+          <Button variant="secondary" onClick={() => {
+            if (!activeOrg?.id) return;
+            window.open(`/api/v1/orgs/${activeOrg.id}/candidates/export`, '_blank');
+          }}>
+            <Download className="w-4 h-4 mr-1" /> Export CSV
+          </Button>
+        }
+      />
 
       {/* Summary Cards */}
       {summary.length > 0 && (
