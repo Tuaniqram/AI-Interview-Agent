@@ -22,6 +22,7 @@ from app.candidates.schemas import (
 )
 from app.services.audit_log import AuditLogService
 from app.candidates.service import (
+    get_competency_scores,
     get_interview_detail,
     get_interviews,
     get_profile,
@@ -179,6 +180,14 @@ async def stats_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     return await get_stats(candidate.id, db)
+
+
+@router.get("/competency-scores")
+async def competency_scores_endpoint(
+    candidate: CandidateProfile = Depends(require_verified_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    return await get_competency_scores(candidate.id, db)
 
 
 @router.post("/practice/start", response_model=PracticeStartResponse)

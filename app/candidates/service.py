@@ -7,7 +7,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt import create_access_token, decode_token
@@ -33,6 +33,7 @@ from app.models.db import (
 from app.services.v4_session_store import get_v4_session_store
 from app.config.interview_styles import get_style
 from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
+from app.models.db import EvidenceStore
 
 
 async def register(req: CandidateRegisterRequest, db: AsyncSession) -> CandidateAuthResponse:
@@ -215,6 +216,38 @@ async def get_stats(candidate_id: UUID, db: AsyncSession) -> dict:
         "active_interviews": active,
         "average_score": float(avg_score) if avg_score else None,
     }
+
+
+async def get_competency_scores(candidate_id: UUID, db: AsyncSession) -> list[dict]:
+    session_ids = (
+        select(InterviewSession.id)
+        .where(InterviewSession.candidate_profile_id == candidate_id)
+    )
+    result = await db.execute(
+        select(
+            EvidenceStore.competency,
+            func.avg(EvidenceStore.score).label("avg_score"),
+            func.count(EvidenceStore.id).label("evidence_count"),
+        )
+        .where(EvidenceStore.session_id.in_(session_ids))
+        .group_by(EvidenceStore.competency)
+    )
+    rows = result.all()
+
+    taxonomy_map = {c["id"]: c for c in COMPETENCY_TAXONOMY}
+    scores = []
+    for competency, avg_score, evidence_count in rows:
+        info = taxonomy_map.get(competency, {})
+        scores.append({
+            "competency": competency,
+            "name": info.get("name", competency),
+            "category": info.get("category", "other"),
+            "average_score": round(float(avg_score), 1),
+            "evidence_count": evidence_count,
+        })
+
+    scores.sort(key=lambda x: x["average_score"])
+    return scores
 
 
 async def start_practice(

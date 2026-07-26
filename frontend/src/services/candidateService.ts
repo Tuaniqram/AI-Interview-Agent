@@ -9,6 +9,7 @@ import type {
   CandidateInterview,
   CandidateInterviewDetail,
   CandidateStats,
+  CompetencyScore,
   PracticeStartRequest,
   PracticeStartResponse,
 } from '../types/candidate';
@@ -64,5 +65,9 @@ export const candidateService = {
 
   async startPractice(data: PracticeStartRequest): Promise<PracticeStartResponse> {
     return apiClient.post<PracticeStartResponse>('/api/v1/candidates/practice/start', data);
+  },
+
+  async getCompetencyScores(): Promise<CompetencyScore[]> {
+    return apiClient.get<CompetencyScore[]>('/api/v1/candidates/competency-scores');
   },
 };

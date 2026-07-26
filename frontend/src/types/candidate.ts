@@ -72,6 +72,14 @@ export interface CandidateStats {
   average_score: number | null;
 }
 
+export interface CompetencyScore {
+  competency: string;
+  name: string;
+  category: string;
+  average_score: number;
+  evidence_count: number;
+}
+
 export interface PracticeStartRequest {
   job_role: string;
   difficulty: string;

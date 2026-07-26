@@ -5,12 +5,14 @@ import { useCandidateAuth } from '../../contexts/CandidateAuthContext';
 import { MetricCard } from '../../components/shared/MetricCard';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { useToast } from '../../components/shared/Toast';
-import type { CandidateStats, CandidateInterview } from '../../types/candidate';
+import { CompetencyRadar } from '../../components/candidate/CompetencyRadar';
+import type { CandidateStats, CandidateInterview, CompetencyScore } from '../../types/candidate';
 
 export default function CandidateDashboard() {
   const { candidate, sendVerification } = useCandidateAuth();
   const [stats, setStats] = useState<CandidateStats | null>(null);
   const [recent, setRecent] = useState<CandidateInterview[]>([]);
+  const [competencyScores, setCompetencyScores] = useState<CompetencyScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
   const [verifyMsg, setVerifyMsg] = useState('');
@@ -20,9 +22,11 @@ export default function CandidateDashboard() {
     Promise.all([
       candidateService.getStats(),
       candidateService.getInterviews(),
-    ]).then(([s, i]) => {
+      candidateService.getCompetencyScores(),
+    ]).then(([s, i, c]) => {
       setStats(s);
       setRecent(i.slice(0, 5));
+      setCompetencyScores(c);
     }).catch(() => toast.error('Failed to load dashboard'))
     .finally(() => setLoading(false));
   }, []);
@@ -69,6 +73,14 @@ export default function CandidateDashboard() {
         <MetricCard label="In Progress" value={stats?.active_interviews ?? 0} />
         <MetricCard label="Avg Score" value={stats?.average_score != null ? `${stats.average_score.toFixed(1)}/10` : '-'} />
       </div>
+
+      {competencyScores.length > 0 && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-1">
+            <CompetencyRadar scores={competencyScores} />
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Link to="/candidate/practice" className="p-6 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[var(--action-primary)] transition-colors">
