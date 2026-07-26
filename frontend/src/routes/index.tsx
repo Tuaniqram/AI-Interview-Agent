@@ -33,6 +33,7 @@ const ContactUs = React.lazy(() => import('../pages/ContactUs'));
 const OrgDashboard = React.lazy(() => import('../pages/org/OrgDashboard'));
 const OrgMembers = React.lazy(() => import('../pages/org/Members'));
 const OrgScorecards = React.lazy(() => import('../pages/org/Scorecards'));
+const OrgCandidateRanking = React.lazy(() => import('../pages/org/CandidateRanking'));
 const AdminDashboard = React.lazy(() => import('../pages/admin/AdminDashboard'));
 const AdminOrgs = React.lazy(() => import('../pages/admin/OrgManagement'));
 const AdminUsers = React.lazy(() => import('../pages/admin/UserManagement'));
@@ -95,6 +96,7 @@ export function AppRoutes() {
         <Route path="org" element={<Suspense fallback={<ContentSkeleton />}><OrgDashboard /></Suspense>} />
         <Route path="org/members" element={<Suspense fallback={<ContentSkeleton />}><OrgMembers /></Suspense>} />
         <Route path="org/scorecards" element={<Suspense fallback={<ContentSkeleton />}><OrgScorecards /></Suspense>} />
+        <Route path="org/candidates" element={<Suspense fallback={<ContentSkeleton />}><OrgCandidateRanking /></Suspense>} />
       </Route>
 
       <Route element={<ProtectedRoute><AdminShell /></ProtectedRoute>}>
