@@ -1,8 +1,9 @@
 import hashlib
+import json
 import secrets
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,6 +34,7 @@ from app.candidates.service import (
     start_practice,
     update_profile,
 )
+from app.candidates.resume_service import save_resume_file, extract_text, parse_resume, ALLOWED_EXTENSIONS
 from app.database.deps import get_db
 from app.models.db import CandidatePasswordResetToken, CandidateProfile, CandidateSavedListing, PublicInterview, Organization
 from app.auth.password import hash_password
@@ -343,3 +345,35 @@ async def reset_password(
     await db.commit()
 
     return {"message": "Password reset successfully"}
+
+
+@router.post("/me/resume", response_model=CandidateProfileResponse)
+async def upload_resume(
+    file: UploadFile = File(...),
+    candidate: CandidateProfile = Depends(authenticate_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    import os
+    _, ext = os.path.splitext(file.filename or "")
+    if ext.lower() not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"Only PDF files are supported")
+
+    filepath = save_resume_file(candidate.id, file)
+    text = extract_text(filepath)
+
+    profile_data = candidate.profile_data or {}
+    parsed = await parse_resume(text)
+    profile_data["resume_parsed"] = parsed
+
+    skills_list = parsed.get("skills", [])
+    if skills_list:
+        existing_skills = set(s.strip().lower() for s in (candidate.skills or "").split(",") if s.strip())
+        existing_skills.update(s.lower() for s in skills_list)
+        candidate.skills = ", ".join(sorted(existing_skills))
+
+    candidate.resume_url = filepath
+    candidate.profile_data = profile_data
+    await db.commit()
+    await db.refresh(candidate)
+
+    return CandidateProfileResponse.model_validate(candidate)

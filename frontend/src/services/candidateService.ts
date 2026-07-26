@@ -83,4 +83,10 @@ export const candidateService = {
   async getSavedListings(): Promise<SavedListing[]> {
     return apiClient.get<SavedListing[]>('/api/v1/candidates/saved-listings');
   },
+
+  async uploadResume(file: File): Promise<CandidateProfile> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiClient.post<CandidateProfile>('/api/v1/candidates/me/resume', formData);
+  },
 };
