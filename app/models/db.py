@@ -944,3 +944,59 @@ class CandidateSavedListing(Base):
         UniqueConstraint("candidate_id", "listing_id", name="uq_candidate_listing"),
         Index("idx_saved_listings_candidate", "candidate_id"),
     )
+
+
+class ScorecardTemplate(Base):
+    __tablename__ = "scorecard_templates"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    competencies: Mapped[dict] = mapped_column(JSONB, nullable=False, default=list)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    organization: Mapped[Organization] = relationship("Organization")
+
+    __table_args__ = (
+        Index("idx_scorecard_templates_org", "org_id"),
+    )
+
+
+class ScorecardResult(Base):
+    __tablename__ = "scorecard_results"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    template_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("scorecard_templates.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    scores: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    weighted_score: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    session: Mapped[InterviewSession] = relationship("InterviewSession")
+
+    __table_args__ = (
+        Index("idx_scorecard_results_session", "session_id"),
+    )

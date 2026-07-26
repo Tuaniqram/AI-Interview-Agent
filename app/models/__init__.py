@@ -24,6 +24,8 @@ from app.models.db import (
     PublicInterview,
     PublicInterviewSubmission,
     RefreshToken,
+    ScorecardResult,
+    ScorecardTemplate,
     SlotAvailability,
     User,
 )
@@ -33,5 +35,6 @@ __all__ = [
     "ConsistencyCheck", "Department", "DepartmentDocument", "EvidenceStore", "Hypothesis",
     "InterviewEvaluation", "InterviewMessage", "InterviewObjective", "InterviewSession",
     "InterviewSlot", "InterviewTemplate", "Observation", "Organization", "OrgUser",
-    "PublicInterview", "PublicInterviewSubmission", "RefreshToken", "SlotAvailability", "User",
+    "PublicInterview", "PublicInterviewSubmission", "RefreshToken", "ScorecardResult",
+    "ScorecardTemplate", "SlotAvailability", "User",
 ]
