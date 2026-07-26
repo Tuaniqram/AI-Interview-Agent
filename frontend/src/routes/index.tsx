@@ -34,6 +34,7 @@ const OrgDashboard = React.lazy(() => import('../pages/org/OrgDashboard'));
 const OrgMembers = React.lazy(() => import('../pages/org/Members'));
 const OrgScorecards = React.lazy(() => import('../pages/org/Scorecards'));
 const OrgCandidateRanking = React.lazy(() => import('../pages/org/CandidateRanking'));
+const OrgTemplates = React.lazy(() => import('../pages/org/Templates'));
 const AdminDashboard = React.lazy(() => import('../pages/admin/AdminDashboard'));
 const AdminOrgs = React.lazy(() => import('../pages/admin/OrgManagement'));
 const AdminUsers = React.lazy(() => import('../pages/admin/UserManagement'));
@@ -97,6 +98,7 @@ export function AppRoutes() {
         <Route path="org/members" element={<Suspense fallback={<ContentSkeleton />}><OrgMembers /></Suspense>} />
         <Route path="org/scorecards" element={<Suspense fallback={<ContentSkeleton />}><OrgScorecards /></Suspense>} />
         <Route path="org/candidates" element={<Suspense fallback={<ContentSkeleton />}><OrgCandidateRanking /></Suspense>} />
+        <Route path="org/templates" element={<Suspense fallback={<ContentSkeleton />}><OrgTemplates /></Suspense>} />
       </Route>
 
       <Route element={<ProtectedRoute><AdminShell /></ProtectedRoute>}>

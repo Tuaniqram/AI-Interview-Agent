@@ -1,12 +1,13 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.middleware import authenticate
 from app.auth.rbac import require_admin, require_org_role_path
 from app.database.deps import get_db
-from app.models.db import User
+from app.models.db import Department, InterviewTemplate, Organization, User, ScorecardTemplate, ScorecardResult
 from app.orgs.schemas import (
     AddMemberByEmailRequest,
     AddMemberRequest,
@@ -119,6 +120,41 @@ async def remove_member_endpoint(
     db: AsyncSession = Depends(get_db),
 ):
     await remove_member(org_id, member_id, user, db)
+
+
+@router.get("/{org_id}/templates")
+async def list_org_templates(
+    org_id: UUID,
+    department_id: int | None = None,
+    _: User = Depends(require_org_role_path(["owner", "member", "viewer"])),
+    db: AsyncSession = Depends(get_db),
+):
+    query = (
+        select(InterviewTemplate, Department.name.label("department_name"))
+        .join(Department, InterviewTemplate.department_id == Department.id)
+        .where(Department.org_id == org_id)
+        .order_by(InterviewTemplate.created_at.desc())
+    )
+    if department_id is not None:
+        query = query.where(InterviewTemplate.department_id == department_id)
+
+    result = await db.execute(query)
+    rows = result.all()
+    return [
+        {
+            "id": str(t.id),
+            "department_id": t.department_id,
+            "department_name": dept_name,
+            "name": t.name,
+            "job_role": t.job_role,
+            "description": t.description,
+            "interview_style": t.interview_style,
+            "competencies": t.competencies,
+            "total_questions": t.total_questions,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        }
+        for t, dept_name in rows
+    ]
 
 
 @router.post("/{org_id}/invite", response_model=InviteMemberResponse)

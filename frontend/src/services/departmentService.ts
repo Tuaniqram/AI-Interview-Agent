@@ -23,6 +23,10 @@ export interface Template {
   name: string;
   job_role: string;
   total_questions: number;
+  description?: string | null;
+  interview_style?: string | null;
+  competencies?: any[] | null;
+  created_at?: string | null;
 }
 
 export interface SessionRecord {
@@ -78,7 +82,19 @@ export const departmentService = {
     return apiClient.get<Template[]>(`/api/v1/departments/${departmentId}/templates`);
   },
 
-  async createTemplate(departmentId: number, data: { name: string; job_role: string; total_questions?: number }): Promise<Template> {
+  async createTemplate(departmentId: number, data: { name: string; job_role: string; total_questions?: number; description?: string; interview_style?: string }): Promise<Template> {
     return apiClient.post<Template>(`/api/v1/departments/${departmentId}/templates`, data);
+  },
+
+  async getTemplate(departmentId: number, templateId: string): Promise<Template> {
+    return apiClient.get<Template>(`/api/v1/departments/${departmentId}/templates/${templateId}`);
+  },
+
+  async updateTemplate(departmentId: number, templateId: string, data: Partial<Template>): Promise<Template> {
+    return apiClient.put<Template>(`/api/v1/departments/${departmentId}/templates/${templateId}`, data);
+  },
+
+  async deleteTemplate(departmentId: number, templateId: string): Promise<void> {
+    await apiClient.delete(`/api/v1/departments/${departmentId}/templates/${templateId}`);
   },
 };

@@ -368,6 +368,9 @@ class InterviewTemplate(Base):
     )
     name: Mapped[str] = mapped_column(Text, nullable=False)
     job_role: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    interview_style: Mapped[Optional[str]] = mapped_column(Text, server_default="STANDARD")
+    competencies: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True, default=list)
     total_questions: Mapped[Optional[int]] = mapped_column(Integer, server_default="10")
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

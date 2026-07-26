@@ -283,7 +283,19 @@ async def delete_document(
 class TemplateCreateRequest(BaseModel):
     name: str
     job_role: str
+    description: Optional[str] = None
+    interview_style: Optional[str] = "STANDARD"
+    competencies: Optional[list[dict]] = None
     total_questions: int = 10
+
+
+class TemplateUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    job_role: Optional[str] = None
+    description: Optional[str] = None
+    interview_style: Optional[str] = None
+    competencies: Optional[list[dict]] = None
+    total_questions: Optional[int] = None
 
 
 class TemplateResponse(BaseModel):
@@ -291,6 +303,9 @@ class TemplateResponse(BaseModel):
     department_id: int
     name: str
     job_role: str
+    description: Optional[str] = None
+    interview_style: Optional[str] = None
+    competencies: Optional[list] = None
     total_questions: Optional[int] = None
     created_at: Optional[datetime] = None
 
@@ -332,9 +347,90 @@ async def create_template(
         department_id=department_id,
         name=req.name,
         job_role=req.job_role,
+        description=req.description,
+        interview_style=req.interview_style,
+        competencies=req.competencies,
         total_questions=req.total_questions,
     )
     db.add(template)
     await db.commit()
     await db.refresh(template)
     return TemplateResponse.model_validate(template)
+
+
+@router.get("/{department_id}/templates/{template_id}", response_model=TemplateResponse)
+async def get_template(
+    department_id: int,
+    template_id: str,
+    org_id: str = Depends(_get_org_id),
+    _: None = Depends(require_org_role(["owner", "member", "viewer"])),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(InterviewTemplate)
+        .join(Department, InterviewTemplate.department_id == Department.id)
+        .where(
+            InterviewTemplate.id == template_id,
+            Department.id == department_id,
+            Department.org_id == org_id,
+        )
+    )
+    template = result.scalar_one_or_none()
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    return TemplateResponse.model_validate(template)
+
+
+@router.put("/{department_id}/templates/{template_id}", response_model=TemplateResponse)
+async def update_template(
+    department_id: int,
+    template_id: str,
+    req: TemplateUpdateRequest,
+    org_id: str = Depends(_get_org_id),
+    _: None = Depends(require_org_role(["owner"])),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(InterviewTemplate)
+        .join(Department, InterviewTemplate.department_id == Department.id)
+        .where(
+            InterviewTemplate.id == template_id,
+            Department.id == department_id,
+            Department.org_id == org_id,
+        )
+    )
+    template = result.scalar_one_or_none()
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+
+    update_data = req.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(template, field, value)
+
+    await db.commit()
+    await db.refresh(template)
+    return TemplateResponse.model_validate(template)
+
+
+@router.delete("/{department_id}/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_template(
+    department_id: int,
+    template_id: str,
+    org_id: str = Depends(_get_org_id),
+    _: None = Depends(require_org_role(["owner"])),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(InterviewTemplate)
+        .join(Department, InterviewTemplate.department_id == Department.id)
+        .where(
+            InterviewTemplate.id == template_id,
+            Department.id == department_id,
+            Department.org_id == org_id,
+        )
+    )
+    template = result.scalar_one_or_none()
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    await db.delete(template)
+    await db.commit()
