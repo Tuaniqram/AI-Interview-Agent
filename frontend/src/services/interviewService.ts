@@ -57,16 +57,19 @@ export class InterviewService {
     initial_difficulty?: number;
     session_type?: string;
     interaction_mode?: string;
+    scorecard_template_id?: string;
   }): Promise<InterviewSession> {
     console.log('[InterviewService] startSession:', params);
-    return await this.apiClient.post<InterviewSession>('/interviews', {
+    const body: Record<string, any> = {
       ...(params.department_id !== undefined && { department_id: params.department_id }),
       job_role: params.job_role,
       total_questions: params.total_questions ?? 10,
       initial_difficulty: params.initial_difficulty ?? 1,
       session_type: params.session_type || 'practice',
       interaction_mode: params.interaction_mode || 'avatar',
-    });
+    };
+    if (params.scorecard_template_id) body.scorecard_template_id = params.scorecard_template_id;
+    return await this.apiClient.post<InterviewSession>('/interviews', body);
   }
 
   // ============================================================================

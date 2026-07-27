@@ -35,8 +35,9 @@ from app.candidates.service import (
     update_profile,
 )
 from app.candidates.resume_service import save_resume_file, extract_text, parse_resume, ALLOWED_EXTENSIONS
+from app.auth.rbac import require_org_role_path
 from app.database.deps import get_db
-from app.models.db import CandidatePasswordResetToken, CandidateProfile, CandidateSavedListing, PublicInterview, Organization
+from app.models.db import CandidatePasswordResetToken, CandidateProfile, CandidateSavedListing, PublicInterview, Organization, User
 from app.auth.password import hash_password
 from app.config import settings
 
@@ -377,3 +378,26 @@ async def upload_resume(
     await db.refresh(candidate)
 
     return CandidateProfileResponse.model_validate(candidate)
+
+
+@router.get("/{candidate_id}/resume")
+async def download_resume(
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_org_role_path(["owner", "member"])),
+):
+    result = await db.execute(
+        select(CandidateProfile).where(CandidateProfile.id == candidate_id)
+    )
+    candidate = result.scalar_one_or_none()
+    if not candidate or not candidate.resume_url:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+
+    import os
+    from fastapi.responses import FileResponse
+    filepath = candidate.resume_url
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume file not found")
+
+    filename = f"{candidate.name.replace(' ', '_')}_resume.pdf"
+    return FileResponse(filepath, media_type="application/pdf", filename=filename)

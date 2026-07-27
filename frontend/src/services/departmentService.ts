@@ -26,6 +26,7 @@ export interface Template {
   description?: string | null;
   interview_style?: string | null;
   competencies?: any[] | null;
+  scorecard_template_id?: string | null;
   created_at?: string | null;
 }
 
@@ -82,7 +83,7 @@ export const departmentService = {
     return apiClient.get<Template[]>(`/api/v1/departments/${departmentId}/templates`);
   },
 
-  async createTemplate(departmentId: number, data: { name: string; job_role: string; total_questions?: number; description?: string; interview_style?: string }): Promise<Template> {
+  async createTemplate(departmentId: number, data: { name: string; job_role: string; total_questions?: number; description?: string; interview_style?: string; scorecard_template_id?: string }): Promise<Template> {
     return apiClient.post<Template>(`/api/v1/departments/${departmentId}/templates`, data);
   },
 

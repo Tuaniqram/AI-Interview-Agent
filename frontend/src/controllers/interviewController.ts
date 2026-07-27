@@ -18,6 +18,7 @@ export class InterviewController {
     jobRole: string;
     totalQuestions?: number;
     mode?: string;
+    scorecardTemplateId?: string;
   }): Promise<{ session: InterviewSession; firstQuestion: Question }> {
     if (!params.jobRole.trim()) {
       throw new Error('Job role is required');
@@ -30,6 +31,7 @@ export class InterviewController {
         total_questions: params.totalQuestions,
         interaction_mode: params.mode,
         session_type: params.departmentId ? 'department' : 'practice',
+        scorecard_template_id: params.scorecardTemplateId,
       });
 
       this.session = session;

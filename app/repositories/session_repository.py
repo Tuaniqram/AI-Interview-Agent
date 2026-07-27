@@ -32,7 +32,9 @@ async def create_session(
     session_type: str = "department",
     interaction_mode: str = "avatar",
     candidate_profile_id: Optional[str] = None,
+    scorecard_template_id: Optional[str] = None,
 ) -> dict:
+    from uuid import UUID
     session_data = {
         "id": uuid4(),
         "department_id": department_id,
@@ -46,6 +48,8 @@ async def create_session(
     }
     if candidate_profile_id is not None:
         session_data["candidate_profile_id"] = candidate_profile_id
+    if scorecard_template_id is not None:
+        session_data["scorecard_template_id"] = UUID(scorecard_template_id) if isinstance(scorecard_template_id, str) else scorecard_template_id
     return await self.create(session_data, self.model_class)
 
     async def get_session(self, session_id: str) -> dict:

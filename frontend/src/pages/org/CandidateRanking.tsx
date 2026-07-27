@@ -7,6 +7,7 @@ import { Card } from '../../components/shared/Card';
 import { Button } from '../../components/shared/Button';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { EmptyState } from '../../components/shared/EmptyState';
+import { Select } from '../../components/shared/Select';
 import { useToast } from '../../components/shared/Toast';
 import { Trophy, Search, Download } from 'lucide-react';
 import { ScoreDisplay } from '../../components/shared/ScoreDisplay';
@@ -17,11 +18,13 @@ interface CandidateRank {
   candidate_id: string | null;
   candidate_name: string;
   candidate_email: string | null;
+  resume_url: string | null;
   skills: string | null;
   job_role: string;
   department_name: string | null;
   department_id: number | null;
   final_score: number | null;
+  weighted_score: number | null;
   started_at: string | null;
   ended_at: string | null;
 }
@@ -113,13 +116,12 @@ export default function CandidateRanking() {
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-2 text-sm bg-input text-primary rounded-lg border border-border" placeholder="Search candidates..." />
         </div>
-        <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)}
-          className="px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border">
-          <option value="">All Roles</option>
-          {[...new Set(rankings.map(r => r.job_role))].map(role => (
-            <option key={role} value={role}>{role}</option>
-          ))}
-        </select>
+        <Select
+          value={selectedRole}
+          onChange={setSelectedRole}
+          placeholder="All Roles"
+          options={[...new Set(rankings.map(r => r.job_role))].map(role => ({ value: role, label: role }))}
+        />
       </div>
 
       {/* Ranking List */}
@@ -161,9 +163,26 @@ export default function CandidateRanking() {
               </div>
 
               {/* Score */}
-              <div className="shrink-0">
+              <div className="shrink-0 text-right">
                 <ScoreDisplay score={r.final_score} size="sm" />
+                {r.weighted_score != null && (
+                  <p className="text-[10px] text-muted mt-0.5">weighted: {r.weighted_score.toFixed(1)}</p>
+                )}
               </div>
+
+              {/* Resume download */}
+              {r.resume_url && activeOrg?.id && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(`/api/v1/candidates/${r.candidate_id}/resume`, '_blank');
+                  }}
+                  className="p-2 rounded-lg text-muted hover:text-action-primary hover:bg-action-primary/10 transition-colors"
+                  title="Download Resume"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+              )}
             </div>
           ))}
         </div>

@@ -3,6 +3,7 @@ import { Camera, CameraOff, Mic, CheckCircle, XCircle } from 'lucide-react';
 import { useCamera } from '../hooks/useCamera';
 import { voiceService } from '../services/voiceService';
 import { apiClient } from '../services/apiClient';
+import { Select } from './shared/Select';
 
 interface Department {
   id: number;
@@ -171,18 +172,18 @@ export function AvatarPlaceholder({
             <label className="block text-sm font-medium text-secondary mb-2">
               Department
             </label>
-            <select
-              value={modeConfig.departmentId}
-              onChange={(e) => onModeConfigChange({ ...modeConfig, departmentId: Number(e.target.value) })}
+            <Select
+              label="Department"
+              value={String(modeConfig.departmentId)}
+              onChange={v => onModeConfigChange({ ...modeConfig, departmentId: Number(v) })}
               disabled={companiesLoading}
-              className="w-full px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] transition-all bg-input text-primary"
-            >
-              {companiesLoading && <option value="">Loading companies...</option>}
-              {!companiesLoading && companies.length === 0 && <option value="">No departments found</option>}
-              {companies.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+              options={companiesLoading
+                ? [{ value: '0', label: 'Loading companies...' }]
+                : companies.length === 0
+                  ? [{ value: '0', label: 'No departments found' }]
+                  : companies.map(c => ({ value: String(c.id), label: c.name }))
+              }
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-secondary mb-2">
@@ -200,16 +201,17 @@ export function AvatarPlaceholder({
             <label className="block text-sm font-medium text-secondary mb-2">
               Number of Questions
             </label>
-            <select
-              value={totalQuestions}
-              onChange={(e) => setTotalQuestions(Number(e.target.value))}
-              className="w-full px-4 py-2.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] transition-all bg-input text-primary"
-            >
-              <option value={5}>5 questions (Quick)</option>
-              <option value={10}>10 questions (Standard)</option>
-              <option value={15}>15 questions (Detailed)</option>
-              <option value={20}>20 questions (Comprehensive)</option>
-            </select>
+            <Select
+              label="Number of Questions"
+              value={String(totalQuestions)}
+              onChange={v => setTotalQuestions(Number(v))}
+              options={[
+                { value: '5', label: '5 questions (Quick)' },
+                { value: '10', label: '10 questions (Standard)' },
+                { value: '15', label: '15 questions (Detailed)' },
+                { value: '20', label: '20 questions (Comprehensive)' },
+              ]}
+            />
           </div>
         </div>
       </div>

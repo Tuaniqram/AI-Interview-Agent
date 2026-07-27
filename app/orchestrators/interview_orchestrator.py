@@ -50,6 +50,7 @@ class InterviewOrchestrator:
         session_type: str = "department",
         interaction_mode: str = "avatar",
         candidate_id: Optional[str] = None,
+        scorecard_template_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         logger.info(f"Starting interview: department_id={department_id}, job_role={job_role}")
 
@@ -61,6 +62,7 @@ class InterviewOrchestrator:
                 session_type=session_type,
                 interaction_mode=interaction_mode,
                 candidate_profile_id=candidate_id,
+                scorecard_template_id=scorecard_template_id,
             )
 
             logger.info(f"Session created: {session['id']}")
@@ -583,6 +585,16 @@ Output ONLY the question text, no prefix, no explanation."""
                     final_feedback=feedback
                 )
                 logger.info(f"Session {session_id} finalized with score={evaluation_score}")
+
+                # Auto-calculate scorecard if a scorecard template is linked
+                try:
+                    session_data = await self.session_repo.get_session(session_id)
+                    sc_id = session_data.get("scorecard_template_id")
+                    if sc_id:
+                        from app.scorecards.service import auto_calculate_on_complete
+                        await auto_calculate_on_complete(session_id, str(sc_id))
+                except Exception as sc_err:
+                    logger.warning(f"Auto-scorecard trigger failed: {sc_err}")
 
                 # Generate holistic synthesis
                 try:

@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Store, Shield } from 'lucide-react';
 import { useMemo } from 'react';
+import { Select } from '../components/shared/Select';
 import type { OrgRole } from '../types/org';
 
 export interface NavItem {
@@ -70,21 +71,14 @@ export function Sidebar({
 
         {useOrgSelector && activeOrg && (
           <div className="px-3 py-1.5 shrink-0">
-            <select
-              value={activeOrg.id}
-              onChange={(e) => {
-                onSwitchOrg?.(e.target.value);
-                navigate('/dashboard');
-              }}
-              className="w-full text-xs bg-input text-secondary border border-border rounded px-2 py-1.5"
-            >
-              {orgs.map((o) => (
-                <option key={o.id} value={o.id}>{o.name}</option>
-              ))}
-              {orgs.length === 0 && activeOrg && (
-                <option value={activeOrg.id}>{activeOrg.name}</option>
-              )}
-            </select>
+            <Select
+              value={String(activeOrg.id)}
+              onChange={(v) => { onSwitchOrg?.(v); navigate('/dashboard'); }}
+              options={orgs.length > 0
+                ? orgs.map(o => ({ value: String(o.id), label: o.name }))
+                : [{ value: String(activeOrg.id), label: activeOrg.name }]
+              }
+            />
           </div>
         )}
 

@@ -45,6 +45,7 @@ class InterviewStartRequest(BaseModel):
     initial_difficulty: int = 1
     session_type: str = "department"
     interaction_mode: str = "avatar"
+    scorecard_template_id: Optional[str] = None
 
 
 class QuestionInitiateRequest(BaseModel):
@@ -359,7 +360,8 @@ async def start_interview(request: InterviewStartRequest):
             total_questions=request.total_questions,
             initial_difficulty=request.initial_difficulty,
             session_type=request.session_type,
-            interaction_mode=request.interaction_mode
+            interaction_mode=request.interaction_mode,
+            scorecard_template_id=request.scorecard_template_id,
         )
         
         logger.info(f"Created interview session: department_id={request.department_id}, session_id={result['session_id']}")

@@ -264,6 +264,11 @@ class InterviewSession(Base):
     )
     final_score: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
     final_feedback: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    scorecard_template_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("scorecard_templates.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     engine_version: Mapped[Optional[str]] = mapped_column(Text, server_default="v3")
 
     organization: Mapped[Optional[Organization]] = relationship("Organization")
@@ -372,11 +377,17 @@ class InterviewTemplate(Base):
     interview_style: Mapped[Optional[str]] = mapped_column(Text, server_default="STANDARD")
     competencies: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True, default=list)
     total_questions: Mapped[Optional[int]] = mapped_column(Integer, server_default="10")
+    scorecard_template_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("scorecard_templates.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
 
     department: Mapped[Department] = relationship("Department", back_populates="templates")
+    scorecard_template: Mapped[Optional[ScorecardTemplate]] = relationship("ScorecardTemplate")
 
 
 class CandidateProfile(Base):

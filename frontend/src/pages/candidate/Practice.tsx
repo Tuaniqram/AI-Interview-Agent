@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { candidateService } from '../../services/candidateService';
 import { Button } from '../../components/shared/Button';
+import { Select } from '../../components/shared/Select';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { useToast } from '../../components/shared/Toast';
 
@@ -65,14 +66,12 @@ export default function CandidatePractice() {
 
       <form onSubmit={handleStart} className="bg-[var(--bg-section)] rounded-xl p-6 border border-[var(--border-color)] space-y-5">
         <div>
-          <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Job Role</label>
-          <select
+          <Select
+            label="Job Role"
             value={jobRole}
-            onChange={(e) => setJobRole(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]"
-          >
-            {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-          </select>
+            onChange={setJobRole}
+            options={ROLES.map(r => ({ value: r, label: r }))}
+          />
         </div>
 
         <div>
@@ -107,13 +106,12 @@ export default function CandidatePractice() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Interview Style</label>
-          <select value={fStyle} onChange={e => setFStyle(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]">
-            {INTERVIEW_STYLES.map(s => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
+          <Select
+            label="Interview Style"
+            value={fStyle}
+            onChange={setFStyle}
+            options={INTERVIEW_STYLES.map(s => ({ value: s.value, label: s.label }))}
+          />
           <p className="text-xs text-[var(--text-muted)] mt-1">{INTERVIEW_STYLES.find(s => s.value === fStyle)?.desc}</p>
         </div>
 

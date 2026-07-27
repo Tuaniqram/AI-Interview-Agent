@@ -6,6 +6,7 @@ import { Card } from '../../components/shared/Card';
 import { Button } from '../../components/shared/Button';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { EmptyState } from '../../components/shared/EmptyState';
+import { Select } from '../../components/shared/Select';
 import { useToast } from '../../components/shared/Toast';
 import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import type { ScorecardTemplate, CompetencyDef } from '../../types/scorecard';
@@ -123,10 +124,9 @@ export default function Scorecards() {
                   <div className="flex-1 grid grid-cols-2 gap-2">
                     <input type="text" value={c.name} onChange={(e) => updateCompetency(i, 'name', e.target.value)}
                       className="px-2 py-1.5 text-sm bg-input text-primary rounded border border-border" placeholder="Competency name" />
-                    <select value={c.category} onChange={(e) => updateCompetency(i, 'category', e.target.value)}
-                      className="px-2 py-1.5 text-sm bg-input text-primary rounded border border-border">
-                      {DEFAULT_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                    </select>
+                    <Select value={c.category} onChange={v => updateCompetency(i, 'category', v)}
+                      options={DEFAULT_CATEGORIES.map(cat => ({ value: cat, label: cat }))}
+                    />
                     <div className="flex items-center gap-2">
                       <label className="text-xs text-muted">Weight</label>
                       <input type="number" value={c.weight} onChange={(e) => updateCompetency(i, 'weight', parseFloat(e.target.value) || 0)}

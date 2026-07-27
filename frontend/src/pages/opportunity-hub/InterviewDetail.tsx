@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { marketplaceService } from '../../services/marketplaceService';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';
-import { ArrowLeft, Building2, Clock, Tag, Shield, Briefcase } from 'lucide-react';
+import { useToast } from '../../components/shared/Toast';
+import { ArrowLeft, Building2, Clock, Tag, Shield, Briefcase, Upload } from 'lucide-react';
 import type { PublicInterview } from '../../types/marketplace';
 
 export default function InterviewDetail() {
@@ -17,6 +18,9 @@ export default function InterviewDetail() {
   const [email, setEmail] = useState('');
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
+  const [cvFile, setCvFile] = useState<File | null>(null);
+  const cvInputRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
 
   useEffect(() => {
     if (!interviewId) return;
@@ -37,6 +41,16 @@ export default function InterviewDetail() {
         candidate_name: name,
         candidate_email: email,
       });
+      if (cvFile) {
+        try {
+          const formData = new FormData();
+          formData.append('file', cvFile);
+          await fetch('/api/v1/candidates/me/resume', { method: 'POST', body: formData });
+          toast.success('CV uploaded successfully');
+        } catch {
+          toast.error('CV upload failed — you can upload it later from your profile');
+        }
+      }
       navigate(`/interview/${res.session_id}`);
     } catch (err: any) {
       setError(err?.response?.data?.detail || 'Failed to start interview');
@@ -151,6 +165,19 @@ export default function InterviewDetail() {
             )}
             <Input label="Your Name" value={name} onChange={(e) => setName(e.target.value)} required placeholder="John Doe" />
             <Input label="Email Address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="john@example.com" />
+            <div>
+              <label className="block text-sm font-medium text-primary mb-1">CV (optional)</label>
+              <input ref={cvInputRef} type="file" accept=".pdf,.doc,.docx" onChange={(e) => setCvFile(e.target.files?.[0] ?? null)} className="hidden" />
+              <button type="button" onClick={() => cvInputRef.current?.click()}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-secondary bg-input rounded-lg border border-border hover:border-action-primary/40 transition-colors">
+                <Upload className="w-4 h-4" />
+                {cvFile ? cvFile.name : 'Upload CV'}
+              </button>
+              {cvFile && (
+                <button type="button" onClick={() => { setCvFile(null); if (cvInputRef.current) cvInputRef.current.value = ''; }}
+                  className="ml-2 text-xs text-red-500 hover:text-red-600">Remove</button>
+              )}
+            </div>
             <Button type="submit" loading={starting} className="w-full sm:w-auto">
               Start Interview
             </Button>

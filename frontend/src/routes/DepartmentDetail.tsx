@@ -15,6 +15,7 @@ import { InterviewHistoryTable } from '../components/department/InterviewHistory
 import { CardSkeleton } from '../components/shared/Skeleton';
 import { ConfirmDialog } from '../components/shared/ConfirmDialog';
 import { TagInput } from '../components/shared/TagInput';
+import { Select } from '../components/shared/Select';
 import { useToast } from '../components/shared/Toast';
 import type { OrgPublicListing } from '../types/marketplace';
 
@@ -379,21 +380,19 @@ export function DepartmentDetail() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Interview Mode</label>
-                  <select value={fInterviewMode} onChange={e => setFInterviewMode(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]">
-                    <option value="typing">Typing</option>
-                    <option value="voice">Voice</option>
-                    <option value="avatar">Avatar</option>
-                  </select>
+                  <Select label="Interview Mode" value={fInterviewMode} onChange={setFInterviewMode}
+                    options={[
+                      { value: 'typing', label: 'Typing' },
+                      { value: 'voice', label: 'Voice' },
+                      { value: 'avatar', label: 'Avatar' },
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Interview Style</label>
-                  <select value={fStyle} onChange={e => setFStyle(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]">
-                    {INTERVIEW_STYLES.map(s => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </select>
+                  <Select label="Interview Style" value={fStyle} onChange={setFStyle}
+                    options={INTERVIEW_STYLES.map(s => ({ value: s.value, label: s.label }))}
+                  />
                   <p className="text-xs text-muted mt-1">{INTERVIEW_STYLES.find(s => s.value === fStyle)?.desc}</p>
                 </div>
               </div>

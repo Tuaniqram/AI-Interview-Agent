@@ -7,6 +7,9 @@ import { Card } from '../../components/shared/Card';
 import { Button } from '../../components/shared/Button';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { EmptyState } from '../../components/shared/EmptyState';
+import { Select } from '../../components/shared/Select';
+import { scorecardService } from '../../services/scorecardService';
+import type { ScorecardTemplate } from '../../types/scorecard';
 import { useToast } from '../../components/shared/Toast';
 import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import { ConfirmDialog } from '../../components/shared/ConfirmDialog';
@@ -37,6 +40,8 @@ export default function Templates() {
   const [interviewStyle, setInterviewStyle] = useState('STANDARD');
   const [totalQuestions, setTotalQuestions] = useState(10);
   const [deptId, setDeptId] = useState<number | ''>('');
+  const [scorecardTemplateId, setScorecardTemplateId] = useState('');
+  const [scorecards, setScorecards] = useState<ScorecardTemplate[]>([]);
 
   useEffect(() => {
     if (!activeOrg?.id) return;
@@ -44,9 +49,11 @@ export default function Templates() {
     Promise.all([
       apiClient.get<OrgTemplate[]>(`/api/v1/orgs/${activeOrg.id}/templates`),
       apiClient.get<any[]>('/api/v1/departments'),
-    ]).then(([t, d]) => {
+      scorecardService.list(activeOrg.id).catch(() => []),
+    ]).then(([t, d, sc]) => {
       setTemplates(t);
       setDepartments(d);
+      setScorecards(sc);
     }).catch(() => toast.error('Failed to load templates'))
     .finally(() => setLoading(false));
   }, [activeOrg?.id]);
@@ -58,6 +65,7 @@ export default function Templates() {
     setInterviewStyle('STANDARD');
     setTotalQuestions(10);
     setDeptId('');
+    setScorecardTemplateId('');
     setShowForm(false);
     setEditingId(null);
   };
@@ -69,6 +77,7 @@ export default function Templates() {
     setInterviewStyle(t.interview_style || 'STANDARD');
     setTotalQuestions(t.total_questions);
     setDeptId(t.department_id);
+    setScorecardTemplateId(t.scorecard_template_id || '');
     setEditingId(t.id);
     setShowForm(true);
   };
@@ -81,6 +90,7 @@ export default function Templates() {
       description: description.trim() || undefined,
       interview_style: interviewStyle,
       total_questions: totalQuestions,
+      scorecard_template_id: scorecardTemplateId || undefined,
     };
     try {
       if (editingId) {
@@ -124,13 +134,12 @@ export default function Templates() {
         />
 
         <div className="flex items-center gap-3">
-          <select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)}
-            className="px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border">
-            <option value="">All Departments</option>
-            {departments.map(d => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
+          <Select
+            value={selectedDept}
+            onChange={setSelectedDept}
+            placeholder="All Departments"
+            options={departments.map(d => ({ value: String(d.id), label: d.name }))}
+          />
         </div>
 
         {showForm && (
@@ -152,20 +161,31 @@ export default function Templates() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">Department</label>
-                <select value={deptId} onChange={(e) => setDeptId(e.target.value ? Number(e.target.value) : '')}
-                  className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border">
-                  <option value="">Select department</option>
-                  {departments.map(d => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
+                <Select
+                  label="Department"
+                  value={String(deptId)}
+                  onChange={v => setDeptId(v ? Number(v) : '')}
+                  placeholder="Select department"
+                  options={departments.map(d => ({ value: String(d.id), label: d.name }))}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">Interview Style</label>
-                <select value={interviewStyle} onChange={(e) => setInterviewStyle(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border">
-                  {INTERVIEW_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <Select
+                  label="Interview Style"
+                  value={interviewStyle}
+                  onChange={setInterviewStyle}
+                  options={INTERVIEW_STYLES.map(s => ({ value: s, label: s }))}
+                />
+              </div>
+              <div>
+                <Select
+                  label="Scorecard (optional)"
+                  value={scorecardTemplateId}
+                  onChange={setScorecardTemplateId}
+                  placeholder="None"
+                  options={scorecards.map(sc => ({ value: sc.id, label: sc.name }))}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">Total Questions</label>

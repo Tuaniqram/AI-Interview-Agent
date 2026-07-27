@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { UserMinus } from 'lucide-react';
 import type { OrgMember, OrgRole } from '../../types/org';
+import { Select } from '../shared/Select';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 
 interface MemberListProps {
@@ -57,15 +58,12 @@ export function MemberList({ members, activeRole, currentUserId, onRoleChange, o
               </div>
               <div className="flex items-center gap-2">
                 {onRoleChange && canManage ? (
-                  <select
-                    value={member.role}
-                    onChange={(e) => onRoleChange(member.user_id, e.target.value)}
-                    className="text-xs rounded-lg border border-[var(--border-color)] bg-page px-2 py-1 text-primary focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)]"
-                    aria-label={`Role for ${member.name}`}
-                  >
-                    <option value="member">Member</option>
-                    <option value="viewer">Viewer</option>
-                  </select>
+                  <Select value={member.role} onChange={v => onRoleChange(member.user_id, v)}
+                    options={[
+                      { value: 'member', label: 'Member' },
+                      { value: 'viewer', label: 'Viewer' },
+                    ]}
+                  />
                 ) : (
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${roleColors[member.role] || ''}`}>
                     {member.role.charAt(0).toUpperCase() + member.role.slice(1)}

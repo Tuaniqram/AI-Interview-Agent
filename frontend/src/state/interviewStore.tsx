@@ -219,7 +219,7 @@ const InterviewContext = createContext<InterviewContextType | undefined>(undefin
 // ========== ACTIONS ==========
 
 interface InterviewStoreActions {
-  startInterview: (params: { departmentId?: number; jobRole: string; totalQuestions?: number; candidateName?: string; candidateEmail?: string; mode?: string }) => Promise<void>;
+  startInterview: (params: { departmentId?: number; jobRole: string; totalQuestions?: number; candidateName?: string; candidateEmail?: string; mode?: string; scorecardTemplateId?: string }) => Promise<void>;
   cancelInterview: () => void;
   fetchFinalReport: () => Promise<void>;
   goToNextQuestion: () => Promise<void>;
@@ -290,7 +290,7 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
           if (params.mode) {
             dispatch({ type: 'SET_INTERVIEW_MODE', payload: params.mode as InterviewMode });
           }
-          const result = await controller.startInterview(params);
+          const result = await controller.startInterview(params as any);
           dispatch({ type: 'SET_SESSION', payload: result.session });
           dispatch({ type: 'SET_QUESTION', payload: result.firstQuestion });
         } catch (error: any) {

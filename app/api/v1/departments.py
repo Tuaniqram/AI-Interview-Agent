@@ -287,6 +287,7 @@ class TemplateCreateRequest(BaseModel):
     interview_style: Optional[str] = "STANDARD"
     competencies: Optional[list[dict]] = None
     total_questions: int = 10
+    scorecard_template_id: Optional[str] = None
 
 
 class TemplateUpdateRequest(BaseModel):
@@ -296,6 +297,7 @@ class TemplateUpdateRequest(BaseModel):
     interview_style: Optional[str] = None
     competencies: Optional[list[dict]] = None
     total_questions: Optional[int] = None
+    scorecard_template_id: Optional[str] = None
 
 
 class TemplateResponse(BaseModel):
@@ -307,6 +309,7 @@ class TemplateResponse(BaseModel):
     interview_style: Optional[str] = None
     competencies: Optional[list] = None
     total_questions: Optional[int] = None
+    scorecard_template_id: Optional[str] = None
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
@@ -351,6 +354,7 @@ async def create_template(
         interview_style=req.interview_style,
         competencies=req.competencies,
         total_questions=req.total_questions,
+        scorecard_template_id=UUID(req.scorecard_template_id) if req.scorecard_template_id else None,
     )
     db.add(template)
     await db.commit()
@@ -404,6 +408,8 @@ async def update_template(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
 
     update_data = req.model_dump(exclude_unset=True)
+    if 'scorecard_template_id' in update_data:
+        update_data['scorecard_template_id'] = UUID(update_data['scorecard_template_id']) if update_data['scorecard_template_id'] else None
     for field, value in update_data.items():
         setattr(template, field, value)
 

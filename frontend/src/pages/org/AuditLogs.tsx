@@ -4,6 +4,7 @@ import { apiClient } from '../../services/apiClient';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { EmptyState } from '../../components/shared/EmptyState';
+import { Select } from '../../components/shared/Select';
 import { useToast } from '../../components/shared/Toast';
 
 interface AuditEntry {
@@ -42,11 +43,12 @@ export default function AuditLogs() {
     <div className="space-y-6">
       <PageHeader title="Audit Logs" description="Track all actions taken in your organization" />
 
-      <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}
-        className="px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border">
-        <option value="">All Actions</option>
-        {actions.map(a => <option key={a} value={a}>{a}</option>)}
-      </select>
+      <Select
+        value={actionFilter}
+        onChange={setActionFilter}
+        placeholder="All Actions"
+        options={actions.map(a => ({ value: a, label: a }))}
+      />
 
       {filtered.length === 0 ? (
         <EmptyState title="No audit logs" description="Actions will be recorded here" />

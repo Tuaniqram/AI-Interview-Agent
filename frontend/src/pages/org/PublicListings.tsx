@@ -7,6 +7,7 @@ import { departmentService, type Department } from '../../services/departmentSer
 import { useOrg } from '../../contexts/OrgContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Copy, Plus, Pencil, Trash2, ExternalLink, Clock } from 'lucide-react';
+import { Select } from '../../components/shared/Select';
 import { useToast } from '../../components/shared/Toast';
 import { ConfirmDialog } from '../../components/shared/ConfirmDialog';
 import type { OrgPublicListing } from '../../types/marketplace';
@@ -173,13 +174,10 @@ export default function PublicListings() {
 
             <div>
               <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Department *</label>
-              <select value={departmentId} onChange={e => setDepartmentId(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]" required>
-                <option value={0}>-- Select department --</option>
-                {departments.map(d => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
+              <Select label="Department" value={String(departmentId)} onChange={v => setDepartmentId(Number(v))}
+                placeholder="-- Select department --"
+                options={departments.map(d => ({ value: String(d.id), label: d.name }))}
+              />
             </div>
 
             <div>
@@ -191,12 +189,13 @@ export default function PublicListings() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Interview Mode</label>
-                <select value={interviewMode} onChange={e => setInterviewMode(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]">
-                  <option value="typing">Typing</option>
-                  <option value="voice">Voice</option>
-                  <option value="avatar">Avatar</option>
-                </select>
+                <Select label="Interview Mode" value={interviewMode} onChange={setInterviewMode}
+                  options={[
+                    { value: 'typing', label: 'Typing' },
+                    { value: 'voice', label: 'Voice' },
+                    { value: 'avatar', label: 'Avatar' },
+                  ]}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Max Candidates</label>

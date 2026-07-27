@@ -52,29 +52,4 @@ export function Textarea({ label, error, hint, className = '', ...props }: Texta
   );
 }
 
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  label?: string;
-  error?: string;
-  options: Array<{ value: string | number; label: string }>;
-  placeholder?: string;
-}
 
-export function Select({ label, error, options, placeholder, className = '', ...props }: SelectProps) {
-  return (
-    <div className="space-y-1.5">
-      {label && (
-        <label className="block text-sm font-medium text-primary">{label}</label>
-      )}
-      <select
-        className={`${baseInput} appearance-none ${className}`}
-        {...props}
-      >
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map(opt => (
-          <option key={opt.value} value={opt.value}>{opt.label}</option>
-        ))}
-      </select>
-      {error && <p className="text-xs text-error">{error}</p>}
-    </div>
-  );
-}

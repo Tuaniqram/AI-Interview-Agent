@@ -7,6 +7,7 @@ import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { UserPlus, X, Loader2 } from 'lucide-react';
 import type { OrgMember, OrgRole } from '../../types/org';
 import { orgService } from '../../services/orgService';
+import { Select } from '../../components/shared/Select';
 import { useToast } from '../../components/shared/Toast';
 
 function AddMemberModal({ open, onClose, onAdd }: {
@@ -54,14 +55,14 @@ function AddMemberModal({ open, onClose, onAdd }: {
           </div>
           <div>
             <label className="block text-xs font-medium text-secondary mb-1.5">Role</label>
-            <select
+            <Select
               value={role}
-              onChange={e => setRole(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] border border-[var(--border-color)]"
-            >
-              <option value="member">Member</option>
-              <option value="viewer">Viewer</option>
-            </select>
+              onChange={setRole}
+              options={[
+                { value: 'member', label: 'Member' },
+                { value: 'viewer', label: 'Viewer' },
+              ]}
+            />
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose}

@@ -12,6 +12,7 @@ from app.models.db import (
     Department,
     InterviewSession,
     Organization,
+    ScorecardResult,
     User,
 )
 
@@ -50,6 +51,17 @@ async def get_candidate_ranking(
     result = await db.execute(query)
     rows = result.all()
 
+    session_ids = [str(session.id) for session, _, _ in rows]
+    scorecard_map = {}
+    if session_ids:
+        sc_result = await db.execute(
+            select(ScorecardResult).where(
+                ScorecardResult.session_id.in_([UUID(s) for s in session_ids])
+            )
+        )
+        for sr in sc_result.scalars().all():
+            scorecard_map[str(sr.session_id)] = float(sr.weighted_score) if sr.weighted_score else None
+
     rankings = []
     for rank, (session, candidate, department) in enumerate(rows, 1):
         rankings.append({
@@ -58,11 +70,13 @@ async def get_candidate_ranking(
             "candidate_id": str(candidate.id) if candidate else None,
             "candidate_name": candidate.name if candidate else "Unknown",
             "candidate_email": candidate.email if candidate else None,
+            "resume_url": candidate.resume_url if candidate else None,
             "skills": candidate.skills if candidate else None,
             "job_role": session.job_role,
             "department_name": department.name if department else None,
             "department_id": department.id if department else None,
             "final_score": float(session.final_score) if session.final_score else None,
+            "weighted_score": scorecard_map.get(str(session.id)),
             "started_at": session.started_at.isoformat() if session.started_at else None,
             "ended_at": session.ended_at.isoformat() if session.ended_at else None,
         })

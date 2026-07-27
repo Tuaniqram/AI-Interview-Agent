@@ -6,6 +6,7 @@ import { MetricCard } from '../../components/shared/MetricCard';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { useToast } from '../../components/shared/Toast';
 import { CompetencyRadar } from '../../components/candidate/CompetencyRadar';
+import { CheckCircle, XCircle } from 'lucide-react';
 import type { CandidateStats, CandidateInterview, CompetencyScore, SavedListing } from '../../types/candidate';
 
 export default function CandidateDashboard() {
@@ -60,9 +61,23 @@ export default function CandidateDashboard() {
           </button>
         </div>
       )}
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Welcome, {candidate?.name}</h1>
-        <p className="text-[var(--text-secondary)] mt-1">Your interview dashboard</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Welcome, {candidate?.name}</h1>
+          <p className="text-[var(--text-secondary)] mt-1">Your interview dashboard</p>
+        </div>
+        <Link to="/candidate/profile"
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+            candidate?.resume_url
+              ? 'text-success border-success/30 bg-success/5'
+              : 'text-muted border-border bg-section hover:border-action-primary/40'
+          }`}>
+          {candidate?.resume_url ? (
+            <><CheckCircle className="w-3.5 h-3.5" /> Resume uploaded</>
+          ) : (
+            <><XCircle className="w-3.5 h-3.5" /> No resume — upload</>
+          )}
+        </Link>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

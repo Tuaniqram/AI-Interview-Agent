@@ -1,14 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Bookmark, MessageSquare, Mic, Video, ChevronDown, Check } from 'lucide-react';
+import { Loader2, Bookmark, MessageSquare, Mic, Video, Check } from 'lucide-react';
 import { Card } from '../components/shared/Card';
 import { PageHeader } from '../components/shared/PageHeader';
+import { Select } from '../components/shared/Select';
 import { departmentService, type Department, type Template } from '../services/departmentService';
 import { useInterviewStore } from '../state/interviewStore';
 import { useToast } from '../components/shared/Toast';
 
 const INPUT = 'w-full px-3 py-1.5 text-sm bg-input text-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] transition-colors';
-const SELECT = INPUT + ' appearance-none';
 const LABEL = 'block text-xs font-medium text-secondary mb-1';
 
 export function NewInterview() {
@@ -99,6 +99,7 @@ export function NewInterview() {
         jobRole,
         totalQuestions,
         mode: selectedMode,
+        scorecardTemplateId: selectedTemplate?.scorecard_template_id || undefined,
       });
       navigate('/interview/active');
     } catch (err) {
@@ -158,28 +159,28 @@ export function NewInterview() {
               <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3">Interview Config</h3>
               <div className="space-y-3">
                 <div>
-                  <label className={LABEL}>Department</label>
-                  <div className="relative">
-                    <select value={departmentId} onChange={e => setCompanyId(Number(e.target.value))}
-                      disabled={companiesLoading} className={SELECT + ' pr-8'}>
-                      {companiesLoading && <option>Loading...</option>}
-                      {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted pointer-events-none" />
-                  </div>
+                  <Select
+                    label="Department"
+                    value={String(departmentId)}
+                    onChange={v => setCompanyId(Number(v))}
+                    disabled={companiesLoading}
+                    options={companiesLoading
+                      ? [{ value: '0', label: 'Loading...' }]
+                      : companies.map(c => ({ value: String(c.id), label: c.name }))
+                    }
+                  />
                 </div>
                 <div>
                   <label className={LABEL}>Job Role</label>
                   <input type="text" value={jobRole} onChange={e => setJobRole(e.target.value)} className={INPUT} />
                 </div>
                 <div>
-                  <label className={LABEL}>Questions</label>
-                  <div className="relative">
-                    <select value={totalQuestions} onChange={e => setTotalQuestions(Number(e.target.value))} className={SELECT + ' pr-8'}>
-                      {[5, 10, 15, 20].map(n => <option key={n} value={n}>{n} questions</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted pointer-events-none" />
-                  </div>
+                  <Select
+                    label="Questions"
+                    value={String(totalQuestions)}
+                    onChange={v => setTotalQuestions(Number(v))}
+                    options={[5, 10, 15, 20].map(n => ({ value: String(n), label: `${n} questions` }))}
+                  />
                 </div>
               </div>
             </div>
@@ -195,14 +196,12 @@ export function NewInterview() {
           <div className="flex-1">
             {templates.length > 0 ? (
               <div>
-                <div className="relative">
-                  <select value={selectedTemplateId} onChange={e => handleTemplateChange(e.target.value)}
-                    className={SELECT + ' pr-8 text-xs'}>
-                    <option value="">Custom setup</option>
-                    {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted pointer-events-none" />
-                </div>
+                  <Select
+                    value={selectedTemplateId}
+                    onChange={handleTemplateChange}
+                    placeholder="Custom setup"
+                    options={templates.map(t => ({ value: t.id, label: t.name }))}
+                  />
 
                 {selectedTemplate && (
                   <div className="mt-2 p-2.5 bg-input rounded-lg space-y-1">
