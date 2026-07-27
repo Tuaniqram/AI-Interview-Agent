@@ -41,7 +41,7 @@ export default function Templates() {
     setLoading(true);
     Promise.all([
       apiClient.get<OrgTemplate[]>(`/api/v1/orgs/${activeOrg.id}/templates`),
-      apiClient.get<any[]>(`/api/v1/orgs/${activeOrg.id}/departments`),
+      apiClient.get<any[]>('/api/v1/departments'),
     ]).then(([t, d]) => {
       setTemplates(t);
       setDepartments(d);
@@ -113,7 +113,7 @@ export default function Templates() {
   return (
     <div className="space-y-6">
       <PageHeader title="Templates Library" description="Interview templates across all departments"
-        actions={<Button onClick={() => resetForm()}><Plus className="w-4 h-4 mr-1" /> New Template</Button>}
+        actions={<Button onClick={() => { resetForm(); setShowForm(true); }}><Plus className="w-4 h-4 mr-1" /> New Template</Button>}
       />
 
       {/* Dept Filter */}

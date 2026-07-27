@@ -136,6 +136,37 @@ class ApiClient {
     return await this.request<T>(config);
   }
 
+  async upload<T>(url: string, formData: FormData): Promise<T> {
+    const token = this.getAccessToken();
+    const orgId = this.getActiveOrgId();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (orgId) headers['X-Org-Id'] = orgId;
+    const instance = axios.create({ baseURL: this.config.baseURL, timeout: this.config.timeout });
+    instance.interceptors.response.use(
+      (r) => r,
+      async (error: AxiosError<ErrorResponse>) => {
+        const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+          try {
+            const newToken = await this.refreshToken();
+            if (newToken && originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${newToken}`;
+              return instance.request(originalRequest);
+            }
+          } catch {
+            this.onAuthFailure?.();
+            this.onCandidateAuthFailure?.();
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+    const res = await instance.post(url, formData, { headers });
+    return res.data as T;
+  }
+
   getConfig(): ApiConfig {
     return { ...this.config };
   }

@@ -96,7 +96,7 @@ export default function Scorecards() {
   return (
     <div className="space-y-6">
       <PageHeader title="Scorecards" description="Define custom evaluation scorecards for your interviews"
-        actions={<Button onClick={() => resetForm()}><Plus className="w-4 h-4 mr-1" /> New Scorecard</Button>}
+        actions={<Button onClick={() => { resetForm(); setShowForm(true); }}><Plus className="w-4 h-4 mr-1" /> New Scorecard</Button>}
       />
 
       {showForm && (

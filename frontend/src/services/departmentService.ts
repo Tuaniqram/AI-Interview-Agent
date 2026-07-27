@@ -67,7 +67,7 @@ export const departmentService = {
   async uploadDocument(departmentId: number, file: File): Promise<{ message: string; doc_id: string; filename: string; status: string }> {
     const formData = new FormData();
     formData.append('file', file);
-    return apiClient.post(`/api/v1/departments/${departmentId}/documents`, formData);
+    return apiClient.upload(`/api/v1/departments/${departmentId}/documents`, formData);
   },
 
   async deleteDocument(departmentId: number, docId: string): Promise<void> {

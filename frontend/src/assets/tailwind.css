@@ -94,6 +94,25 @@
     --shadow-lg:                0 8px 24px rgba(0, 0, 0, 0.08);
   }
 
+  *::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--bg-hover);
+    border-radius: 4px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg-hover) transparent;
+  }
+
   [data-theme="dark"] {
     --bg-page:            #0a0a0b;
     --bg-section:         #141416;
