@@ -186,7 +186,7 @@ export function Sidebar({
           )}
         </nav>
 
-        <div className="p-3 border-t border-border/40 shrink-0">
+        <div className="p-3 shrink-0">
           <div className={`flex items-center gap-2 ${collapsed ? 'justify-center' : ''}`}>
             <div className="w-7 h-7 rounded-full bg-action-primary/10 text-action-primary flex items-center justify-center text-xs font-semibold shrink-0">
               {user?.name?.charAt(0)?.toUpperCase() || '?'}
