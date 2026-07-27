@@ -117,103 +117,103 @@ export default function Templates() {
   const filtered = selectedDept ? templates.filter(t => t.department_id === Number(selectedDept)) : templates;
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Templates Library" description="Interview templates across all departments"
-        actions={<Button onClick={() => { resetForm(); setShowForm(true); }}><Plus className="w-4 h-4 mr-1" /> New Template</Button>}
-      />
+    <>
+      <div className="space-y-6">
+        <PageHeader title="Templates Library" description="Interview templates across all departments"
+          actions={<Button onClick={() => { resetForm(); setShowForm(true); }}><Plus className="w-4 h-4 mr-1" /> New Template</Button>}
+        />
 
-      {/* Dept Filter */}
-      <div className="flex items-center gap-3">
-        <select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)}
-          className="px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border">
-          <option value="">All Departments</option>
-          {departments.map(d => (
-            <option key={d.id} value={d.id}>{d.name}</option>
-          ))}
-        </select>
-      </div>
+        <div className="flex items-center gap-3">
+          <select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)}
+            className="px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border">
+            <option value="">All Departments</option>
+            {departments.map(d => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+        </div>
 
-      {showForm && (
-        <Card padding="lg" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-primary">{editingId ? 'Edit Template' : 'New Template'}</h3>
-            <button onClick={resetForm}><X className="w-4 h-4 text-muted" /></button>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-primary mb-1">Template Name</label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border" placeholder="e.g. Senior Frontend Interview" />
+        {showForm && (
+          <Card padding="lg" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-primary">{editingId ? 'Edit Template' : 'New Template'}</h3>
+              <button onClick={resetForm}><X className="w-4 h-4 text-muted" /></button>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">Template Name</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border" placeholder="e.g. Senior Frontend Interview" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">Job Role</label>
+                <input type="text" value={jobRole} onChange={(e) => setJobRole(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border" placeholder="e.g. Software Engineer" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">Department</label>
+                <select value={deptId} onChange={(e) => setDeptId(e.target.value ? Number(e.target.value) : '')}
+                  className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border">
+                  <option value="">Select department</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">Interview Style</label>
+                <select value={interviewStyle} onChange={(e) => setInterviewStyle(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border">
+                  {INTERVIEW_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">Total Questions</label>
+                <input type="number" value={totalQuestions} onChange={(e) => setTotalQuestions(parseInt(e.target.value) || 10)}
+                  className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border" min="1" max="50" />
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-primary mb-1">Job Role</label>
-              <input type="text" value={jobRole} onChange={(e) => setJobRole(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border" placeholder="e.g. Software Engineer" />
+              <label className="block text-sm font-medium text-primary mb-1">Description</label>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
+                className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border" placeholder="Template description..." />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-primary mb-1">Department</label>
-              <select value={deptId} onChange={(e) => setDeptId(e.target.value ? Number(e.target.value) : '')}
-                className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border">
-                <option value="">Select department</option>
-                {departments.map(d => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={resetForm}>Cancel</Button>
+              <Button onClick={handleSave}>{editingId ? 'Update' : 'Create'}</Button>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-primary mb-1">Interview Style</label>
-              <select value={interviewStyle} onChange={(e) => setInterviewStyle(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border">
-                {INTERVIEW_STYLES.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-primary mb-1">Total Questions</label>
-              <input type="number" value={totalQuestions} onChange={(e) => setTotalQuestions(parseInt(e.target.value) || 10)}
-                className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border" min="1" max="50" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-primary mb-1">Description</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
-              className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border" placeholder="Template description..." />
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={resetForm}>Cancel</Button>
-            <Button onClick={handleSave}>{editingId ? 'Update' : 'Create'}</Button>
-          </div>
-        </Card>
-      )}
+          </Card>
+        )}
 
-      {filtered.length === 0 && !showForm ? (
-        <EmptyState title="No templates yet" description="Create interview templates to standardize your hiring process" />
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map(t => (
-            <Card key={t.id} padding="lg" className="flex flex-col">
-              <div className="flex-1">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold text-primary">{t.name}</h3>
-                    <p className="text-xs text-action-primary mt-0.5">{t.job_role}</p>
+        {filtered.length === 0 && !showForm ? (
+          <EmptyState title="No templates yet" description="Create interview templates to standardize your hiring process" />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map(t => (
+              <Card key={t.id} padding="lg" className="flex flex-col">
+                <div className="flex-1">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-primary">{t.name}</h3>
+                      <p className="text-xs text-action-primary mt-0.5">{t.job_role}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted mt-2">{t.department_name}</p>
+                  {t.description && <p className="text-xs text-secondary mt-1 line-clamp-2">{t.description}</p>}
+                  <div className="flex items-center gap-2 mt-3">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-action-primary/10 text-action-primary">{t.interview_style || 'STANDARD'}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-hover text-muted">{t.total_questions} questions</span>
                   </div>
                 </div>
-                <p className="text-xs text-muted mt-2">{t.department_name}</p>
-                {t.description && <p className="text-xs text-secondary mt-1 line-clamp-2">{t.description}</p>}
-                <div className="flex items-center gap-2 mt-3">
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-action-primary/10 text-action-primary">{t.interview_style || 'STANDARD'}</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-hover text-muted">{t.total_questions} questions</span>
+                <div className="flex items-center gap-1 mt-3 pt-3 border-t border-border">
+                  <button onClick={() => startEdit(t)} className="p-1.5 rounded hover:bg-hover text-muted hover:text-primary"><Pencil className="w-4 h-4" /></button>
+                  <button onClick={() => confirmDelete(t)} className="p-1.5 rounded hover:bg-hover text-muted hover:text-error"><Trash2 className="w-4 h-4" /></button>
                 </div>
-              </div>
-              <div className="flex items-center gap-1 mt-3 pt-3 border-t border-border">
-                <button onClick={() => startEdit(t)} className="p-1.5 rounded hover:bg-hover text-muted hover:text-primary"><Pencil className="w-4 h-4" /></button>
-                <button onClick={() => confirmDelete(t)} className="p-1.5 rounded hover:bg-hover text-muted hover:text-error"><Trash2 className="w-4 h-4" /></button>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
 
       <ConfirmDialog
         open={!!deleteTarget}
@@ -224,6 +224,6 @@ export default function Templates() {
         onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget); setDeleteTarget(null); }}
         onCancel={() => setDeleteTarget(null)}
       />
-    </div>
+    </>
   );
 }
