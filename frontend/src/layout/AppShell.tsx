@@ -11,22 +11,22 @@ import type { OrgRole } from '../types/org';
 
 const navItems = [
   { to: '/org',       icon: LayoutDashboard, label: 'Dashboard', end: true },
-  { to: '/departments',icon: Building2,       label: 'Departments', roles: ['owner'] as OrgRole[] },
+  { to: '/departments',icon: Building2,       label: 'Departments' },
   { to: '/sessions',  icon: ListChecks,      label: 'Sessions' },
-  { to: '/analytics', icon: BarChart3,       label: 'Analytics', roles: ['owner'] as OrgRole[] },
+  { to: '/analytics', icon: BarChart3,       label: 'Analytics' },
   { to: '/avatar-lab',icon: FlaskConical,    label: 'Avatar Lab', roles: ['owner'] as OrgRole[] },
   { to: '/settings',  icon: Settings,        label: 'Settings', roles: ['owner'] as OrgRole[] },
 ];
 
 const orgNavItems = [
-  { to: '/org/members', icon: Users, label: 'Team', roles: ['owner'] as OrgRole[] },
-  { to: '/org/candidates', icon: Trophy, label: 'Candidates', roles: ['owner'] as OrgRole[] },
-  { to: '/org/templates', icon: FileText, label: 'Templates', roles: ['owner'] as OrgRole[] },
-  { to: '/org/scorecards', icon: ClipboardList, label: 'Scorecards', roles: ['owner'] as OrgRole[] },
+  { to: '/org/members', icon: Users, label: 'Team', roles: ['owner', 'member', 'viewer'] as OrgRole[] },
+  { to: '/org/candidates', icon: Trophy, label: 'Candidates', roles: ['owner', 'member'] as OrgRole[] },
+  { to: '/org/templates', icon: FileText, label: 'Templates', roles: ['owner', 'member', 'viewer'] as OrgRole[] },
+  { to: '/org/scorecards', icon: ClipboardList, label: 'Scorecards', roles: ['owner', 'member', 'viewer'] as OrgRole[] },
   { to: '/org/audit-logs', icon: ScrollText, label: 'Audit Logs', roles: ['owner'] as OrgRole[] },
   { to: '/org/llm', icon: Cpu, label: 'LLM', roles: ['owner'] as OrgRole[] },
-  { to: '/org/email-templates', icon: Mail, label: 'Emails', roles: ['owner'] as OrgRole[] },
-  { to: '/org/health', icon: HeartPulse, label: 'Health', roles: ['owner'] as OrgRole[] },
+  { to: '/org/email-templates', icon: Mail, label: 'Emails', roles: ['owner', 'member', 'viewer'] as OrgRole[] },
+  { to: '/org/health', icon: HeartPulse, label: 'Health', roles: ['owner', 'member', 'viewer'] as OrgRole[] },
 ];
 
 export function AppShell() {

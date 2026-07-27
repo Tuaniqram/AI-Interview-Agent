@@ -61,7 +61,7 @@ export function Sidebar({
         <div className="fixed inset-0 bg-overlay/50 z-40 lg:hidden" onClick={onClose} />
       )}
 
-      <aside className={`h-screen bg-section shadow-sm flex flex-col transition-all duration-200
+      <aside className={`h-screen bg-section flex flex-col transition-all duration-200
         ${collapsed ? 'w-14' : 'w-52'}
         fixed lg:static z-50 lg:z-auto
         ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -109,6 +109,7 @@ export function Sidebar({
               to={item.to}
               end={item.end ?? item.to === '/'}
               onClick={onClose}
+              title={collapsed ? item.label : undefined}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive
@@ -122,54 +123,65 @@ export function Sidebar({
             </NavLink>
           ))}
 
-          {!collapsed && showOrgSection && (
-            <div className="pt-2 mt-2">
-              <div className="h-px bg-border/40 mb-2" />
-              <p className="px-3 text-[10px] font-semibold text-muted uppercase tracking-widest mb-1">
-                Organization
-              </p>
+          {showOrgSection && (
+            <>
+              {!collapsed && (
+                <div className="pt-3 mt-3">
+                  <div className="h-px bg-border mb-2" />
+                  <p className="px-3 text-[10px] font-semibold text-muted uppercase tracking-wider mb-1.5">
+                    Organization
+                  </p>
+                </div>
+              )}
               {filteredOrgNavItems.map(item => (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   onClick={onClose}
+                  title={collapsed ? item.label : undefined}
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                       isActive
                         ? 'bg-action-primary/10 text-action-primary'
                         : 'text-secondary hover:bg-hover hover:text-primary'
-                    }`
+                    } ${collapsed ? 'justify-center px-2' : ''}`
                   }
                 >
                   <item.icon className="w-4 h-4 shrink-0" />
-                  <span>{item.label}</span>
+                  {!collapsed && <span>{item.label}</span>}
                 </NavLink>
               ))}
-            </div>
+            </>
           )}
 
-          {!collapsed && showMarketplace && (
+          {showMarketplace && (
             <>
-              <div className="h-px bg-border/40 my-2" />
+              {!collapsed && <div className="h-px bg-border my-3" />}
               <NavLink
                 to="/opportunity-hub"
                 onClick={onClose}
-                className="flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium text-secondary hover:bg-hover hover:text-primary transition-colors"
+                title={collapsed ? 'Opportunity Hub' : undefined}
+                className={`flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  collapsed ? 'justify-center px-2' : ''
+                } text-secondary hover:bg-hover hover:text-primary`}
               >
                 <Store className="w-4 h-4 shrink-0" />
-                <span>Opportunity Hub</span>
+                {!collapsed && <span>Opportunity Hub</span>}
               </NavLink>
             </>
           )}
 
-          {!collapsed && showAdmin && (
+          {showAdmin && (
             <NavLink
               to="/admin"
               onClick={onClose}
-              className="flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium text-secondary hover:bg-hover hover:text-primary transition-colors"
+              title={collapsed ? 'Admin' : undefined}
+              className={`flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                collapsed ? 'justify-center px-2' : ''
+              } text-secondary hover:bg-hover hover:text-primary`}
             >
               <Shield className="w-4 h-4 shrink-0" />
-              <span>Admin</span>
+              {!collapsed && <span>Admin</span>}
             </NavLink>
           )}
         </nav>
