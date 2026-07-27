@@ -3,9 +3,15 @@ import { Upload, Loader2 } from 'lucide-react';
 import { departmentService } from '../../services/departmentService';
 import { useToast } from '../shared/Toast';
 
+interface UploadResult {
+  doc_id: string;
+  filename: string;
+  status: string;
+}
+
 interface DocumentUploaderProps {
   departmentId: number;
-  onUploaded: () => void;
+  onUploaded: (result: UploadResult) => void;
 }
 
 export function DocumentUploader({ departmentId, onUploaded }: DocumentUploaderProps) {
@@ -20,9 +26,9 @@ export function DocumentUploader({ departmentId, onUploaded }: DocumentUploaderP
     setUploading(true);
 
     try {
-      await departmentService.uploadDocument(departmentId, file);
+      const result = await departmentService.uploadDocument(departmentId, file);
       toast.success('Document uploaded successfully');
-      onUploaded();
+      onUploaded(result);
     } catch (err: any) {
       const message = err?.response?.data?.detail || err?.message || 'Upload failed';
       toast.error(message);

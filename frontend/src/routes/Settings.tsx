@@ -35,7 +35,9 @@ export function Settings() {
         website: orgWebsite || undefined,
         description: orgDescription || undefined,
       });
-      if (updated?.name) setOrgName(updated.name);
+      setOrgName(updated.name || orgName);
+      setOrgWebsite((updated as any).website || '');
+      setOrgDescription((updated as any).description || '');
       toast.success('Organization profile saved');
     } catch (err) {
       toast.error('Failed to save organization profile');

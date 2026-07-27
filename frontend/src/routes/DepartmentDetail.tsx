@@ -315,8 +315,16 @@ export function DepartmentDetail() {
       {tab === 'documents' && (
         <div className="space-y-4">
           <div className="flex justify-end">
-            <DocumentUploader departmentId={department.id} onUploaded={() => {
-              departmentService.listDocuments(Number(id)).then(setDocuments);
+            <DocumentUploader departmentId={department.id} onUploaded={(result) => {
+              const newDoc: Document = {
+                id: result.doc_id,
+                filename: result.filename,
+                document_type: 'pdf',
+                pinecone_namespace: '',
+                created_at: new Date().toISOString(),
+              };
+              setDocuments(prev => [newDoc, ...prev]);
+              departmentService.listDocuments(Number(id)).then(setDocuments).catch(() => {});
             }} />
           </div>
           {documents.length === 0 ? (
