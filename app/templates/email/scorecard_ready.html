@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family:Arial,sans-serif;background:#f5f5f7;padding:40px 20px">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;padding:32px">
+    <div style="text-align:center;margin-bottom:24px">
+      <h1 style="font-size:20px;color:#1a1a1e;margin:0">Scorecard Ready</h1>
+    </div>
+    <p style="color:#54545c;line-height:1.6">Hi {{reviewer_name}},</p>
+    <p style="color:#54545c;line-height:1.6">The scorecard for <strong>{{candidate_name}}</strong>'s interview for <strong>{{job_role}}</strong> is now ready for review.</p>
+    <div style="background:#f5f5f7;border-radius:6px;padding:16px;margin:20px 0">
+      <p style="margin:4px 0;color:#54545c"><strong>Candidate:</strong> {{candidate_name}}</p>
+      <p style="margin:4px 0;color:#54545c"><strong>Role:</strong> {{job_role}}</p>
+      <p style="margin:4px 0;color:#54545c"><strong>Overall Score:</strong> {{overall_score}}/10</p>
+      <p style="margin:4px 0;color:#54545c"><strong>Competencies Evaluated:</strong> {{competency_count}}</p>
+    </div>
+    <div style="text-align:center;margin:28px 0">
+      <a href="{{scorecard_link}}" style="display:inline-block;padding:12px 32px;background:#6d4fe8;color:#fff;text-decoration:none;border-radius:6px;font-weight:600">View Scorecard</a>
+    </div>
+  </div>
+</body>
+</html>

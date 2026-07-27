@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family:Arial,sans-serif;background:#f5f5f7;padding:40px 20px">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;padding:32px">
+    <div style="text-align:center;margin-bottom:24px">
+      <h1 style="font-size:20px;color:#1a1a1e;margin:0">Interview Reminder</h1>
+    </div>
+    <p style="color:#54545c;line-height:1.6">Hi {{candidate_name}},</p>
+    <p style="color:#54545c;line-height:1.6">This is a reminder that your interview for <strong>{{job_role}}</strong> at <strong>{{org_name}}</strong> is scheduled to start in <strong>{{hours_until}}</strong>.</p>
+    <div style="background:#f5f5f7;border-radius:6px;padding:16px;margin:20px 0">
+      <p style="margin:4px 0;color:#54545c"><strong>Role:</strong> {{job_role}}</p>
+      <p style="margin:4px 0;color:#54545c"><strong>Mode:</strong> {{interview_mode}}</p>
+      <p style="margin:4px 0;color:#54545c"><strong>Scheduled:</strong> {{scheduled_time}}</p>
+    </div>
+    <div style="text-align:center;margin:28px 0">
+      <a href="{{interview_link}}" style="display:inline-block;padding:12px 32px;background:#6d4fe8;color:#fff;text-decoration:none;border-radius:6px;font-weight:600">Join Interview</a>
+    </div>
+    <p style="color:#6b7280;font-size:12px;line-height:1.5">Please ensure you have a stable internet connection and a quiet environment.</p>
+  </div>
+</body>
+</html>

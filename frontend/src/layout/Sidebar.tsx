@@ -66,7 +66,7 @@ export function Sidebar({
         fixed lg:static z-50 lg:z-auto
         ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <div className="h-14 flex items-center px-4 border-b border-border/40 shrink-0">
+        <div className="h-14 flex items-center px-4 shrink-0">
           {!collapsed && (
             <div className="flex items-center gap-2 min-w-0">
               <img src="/favicon.svg" className="w-6 h-6 shrink-0" alt="" />
@@ -83,7 +83,7 @@ export function Sidebar({
         </div>
 
         {!collapsed && useOrgSelector && activeOrg && (
-          <div className="px-3 py-1.5 border-b border-border/40 shrink-0">
+          <div className="px-3 py-1.5 shrink-0">
             <select
               value={activeOrg.id}
               onChange={(e) => {
