@@ -27,10 +27,12 @@ export function BookmarkButton({ listingId, initiallySaved = false, onToggle }: 
         await candidateService.unsaveListing(listingId);
         setSaved(false);
         onToggle?.(false);
+        toast.success('Bookmark removed');
       } else {
         await candidateService.saveListing(listingId);
         setSaved(true);
         onToggle?.(true);
+        toast.success('Listing bookmarked');
       }
     } catch {
       toast.error('Failed to update bookmark');

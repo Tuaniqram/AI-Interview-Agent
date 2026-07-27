@@ -16,7 +16,6 @@ export default function CandidateDashboard() {
   const [savedListings, setSavedListings] = useState<SavedListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
-  const [verifyMsg, setVerifyMsg] = useState('');
   const toast = useToast();
 
   useEffect(() => {
@@ -38,9 +37,9 @@ export default function CandidateDashboard() {
     setVerifying(true);
     try {
       await sendVerification();
-      setVerifyMsg('Verification email sent! Check your inbox.');
+      toast.success('Verification email sent! Check your inbox.');
     } catch {
-      setVerifyMsg('Failed to send verification. Try again.');
+      toast.error('Failed to send verification. Try again.');
     } finally {
       setVerifying(false);
     }
@@ -61,10 +60,6 @@ export default function CandidateDashboard() {
           </button>
         </div>
       )}
-      {verifyMsg && (
-        <div className="text-sm text-center text-[var(--text-secondary)]">{verifyMsg}</div>
-      )}
-
       <div>
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">Welcome, {candidate?.name}</h1>
         <p className="text-[var(--text-secondary)] mt-1">Your interview dashboard</p>

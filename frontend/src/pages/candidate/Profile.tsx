@@ -13,7 +13,6 @@ export default function CandidateProfile() {
   const [phone, setPhone] = useState(candidate?.phone || '');
   const [skills, setSkills] = useState(candidate?.skills || '');
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -25,8 +24,7 @@ export default function CandidateProfile() {
     try {
       const updated = await candidateService.updateProfile({ name, phone: phone || undefined, skills: skills || undefined });
       updateContext(updated);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      toast.success('Profile saved');
     } catch (err) {
       toast.error('Failed to save profile');
     } finally {
@@ -110,7 +108,7 @@ export default function CandidateProfile() {
           <p className="text-xs text-[var(--text-muted)] mt-1">Press Enter or comma to add a skill. Click &times; to remove.</p>
         </div>
         <Button type="submit" loading={saving}>
-          {saved ? 'Saved!' : 'Save Changes'}
+          Save Changes
         </Button>
       </form>
     </div>

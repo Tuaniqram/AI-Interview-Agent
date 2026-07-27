@@ -330,7 +330,10 @@ export function DepartmentDetail() {
                   try {
                     await departmentService.deleteDocument(department.id, docId);
                     setDocuments(prev => prev.filter(x => x.id !== docId));
-                  } catch {}
+                    toast.success('Document deleted');
+                  } catch {
+                    toast.error('Failed to delete document');
+                  }
                 }} />
               ))}
             </div>

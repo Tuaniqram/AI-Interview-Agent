@@ -8,6 +8,7 @@ import { useOrg } from '../../contexts/OrgContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Copy, Plus, Pencil, Trash2, ExternalLink, Clock } from 'lucide-react';
 import { useToast } from '../../components/shared/Toast';
+import { ConfirmDialog } from '../../components/shared/ConfirmDialog';
 import type { OrgPublicListing } from '../../types/marketplace';
 
 export default function PublicListings() {
@@ -28,6 +29,7 @@ export default function PublicListings() {
   const [expiresAt, setExpiresAt] = useState('');
   const [saving, setSaving] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const toast = useToast();
 
   const orgId = activeOrg?.id;
@@ -118,7 +120,6 @@ export default function PublicListings() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to close this listing?')) return;
     try {
       await marketplaceService.deleteListing(id);
       toast.success('Listing closed');
@@ -298,7 +299,7 @@ export default function PublicListings() {
                       <Button variant="ghost" size="sm" onClick={() => handleEdit(listing)} title="Edit">
                         <Pencil className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(listing.id)} title="Close listing">
+                      <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(listing.id)} title="Close listing">
                         <Trash2 className="w-4 h-4 text-red-500" />
                       </Button>
                     </>
@@ -309,6 +310,17 @@ export default function PublicListings() {
           })}
         </div>
       )}
+    </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Close Listing"
+        message="Are you sure you want to close this listing? Candidates will no longer be able to apply."
+        confirmLabel="Close"
+        variant="danger"
+        onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { EmptyState } from '../../components/shared/EmptyState';
 import { useToast } from '../../components/shared/Toast';
 import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import type { ScorecardTemplate, CompetencyDef } from '../../types/scorecard';
+import { ConfirmDialog } from '../../components/shared/ConfirmDialog';
 
 const DEFAULT_CATEGORIES = ['technical', 'communication', 'behavioral', 'leadership'];
 
@@ -19,6 +20,7 @@ export default function Scorecards() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [competencies, setCompetencies] = useState<CompetencyDef[]>([]);
 
@@ -167,7 +169,7 @@ export default function Scorecards() {
                 <button onClick={() => startEdit(t)} className="p-1.5 rounded hover:bg-hover text-muted hover:text-primary">
                   <Pencil className="w-4 h-4" />
                 </button>
-                <button onClick={() => handleDelete(t.id)} className="p-1.5 rounded hover:bg-hover text-muted hover:text-error">
+                <button onClick={() => setDeleteTarget(t.id)} className="p-1.5 rounded hover:bg-hover text-muted hover:text-error">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -175,6 +177,17 @@ export default function Scorecards() {
           ))}
         </div>
       )}
+    </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Scorecard"
+        message="Are you sure you want to delete this scorecard? This cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

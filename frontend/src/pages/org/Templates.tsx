@@ -9,6 +9,7 @@ import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { useToast } from '../../components/shared/Toast';
 import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { ConfirmDialog } from '../../components/shared/ConfirmDialog';
 
 interface OrgTemplate extends Template {
   department_name: string;
@@ -28,6 +29,7 @@ export default function Templates() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedDept, setSelectedDept] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<OrgTemplate | null>(null);
 
   const [name, setName] = useState('');
   const [jobRole, setJobRole] = useState('');
@@ -104,6 +106,10 @@ export default function Templates() {
     } catch {
       toast.error('Failed to delete template');
     }
+  };
+
+  const confirmDelete = (t: OrgTemplate) => {
+    setDeleteTarget(t);
   };
 
   if (loading) return <LoadingSpinner />;
@@ -201,12 +207,23 @@ export default function Templates() {
               </div>
               <div className="flex items-center gap-1 mt-3 pt-3 border-t border-border">
                 <button onClick={() => startEdit(t)} className="p-1.5 rounded hover:bg-hover text-muted hover:text-primary"><Pencil className="w-4 h-4" /></button>
-                <button onClick={() => handleDelete(t)} className="p-1.5 rounded hover:bg-hover text-muted hover:text-error"><Trash2 className="w-4 h-4" /></button>
+                <button onClick={() => confirmDelete(t)} className="p-1.5 rounded hover:bg-hover text-muted hover:text-error"><Trash2 className="w-4 h-4" /></button>
               </div>
             </Card>
           ))}
         </div>
       )}
+    </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete Template"
+        message={`Are you sure you want to delete "${deleteTarget?.name}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

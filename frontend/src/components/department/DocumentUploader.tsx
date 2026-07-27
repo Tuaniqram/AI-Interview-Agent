@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
-import { Upload, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Upload, Loader2 } from 'lucide-react';
 import { departmentService } from '../../services/departmentService';
+import { useToast } from '../shared/Toast';
 
 interface DocumentUploaderProps {
   departmentId: number;
@@ -9,28 +10,22 @@ interface DocumentUploaderProps {
 
 export function DocumentUploader({ departmentId, onUploaded }: DocumentUploaderProps) {
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
-    setError(null);
-    setSuccess(false);
 
     try {
       await departmentService.uploadDocument(departmentId, file);
-
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-
+      toast.success('Document uploaded successfully');
       onUploaded();
     } catch (err: any) {
-      const message = err?.response?.data?.detail || err?.message || 'Upload failed. Please try again.';
-      setError(message);
+      const message = err?.response?.data?.detail || err?.message || 'Upload failed';
+      toast.error(message);
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -48,18 +43,6 @@ export function DocumentUploader({ departmentId, onUploaded }: DocumentUploaderP
         {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
         {uploading ? 'Uploading...' : 'Upload Document'}
       </button>
-      {error && (
-        <div className="flex items-center gap-1.5 text-xs text-warning-text bg-warning-bg px-3 py-2 rounded-lg">
-          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="flex items-center gap-1.5 text-xs text-success-text bg-success-bg px-3 py-2 rounded-lg">
-          <CheckCircle className="w-3.5 h-3.5 shrink-0" />
-          <span>Document uploaded successfully</span>
-        </div>
-      )}
     </div>
   );
 }
