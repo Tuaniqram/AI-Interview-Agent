@@ -38,6 +38,7 @@ export interface OrgPublicListing {
   token_expires_at: string | null;
   skills_required: string | null;
   style_name: string | null;
+  template_id: string | null;
   starts_at: string | null;
   expires_at: string | null;
   created_at: string | null;
@@ -51,6 +52,7 @@ export interface CreateListingRequest {
   max_candidates?: number;
   skills_required?: string;
   style_name?: string;
+  template_id?: string;
   starts_at?: string;
   expires_at?: string;
 }
@@ -64,6 +66,7 @@ export interface UpdateListingRequest {
   max_candidates?: number;
   skills_required?: string;
   style_name?: string;
+  template_id?: string;
   starts_at?: string;
   expires_at?: string;
 }

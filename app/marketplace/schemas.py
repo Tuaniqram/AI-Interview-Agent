@@ -51,6 +51,7 @@ class OrgPublicInterviewResponse(BaseModel):
     token_expires_at: Optional[datetime] = None
     skills_required: Optional[str] = None
     style_name: Optional[str] = "STANDARD"
+    template_id: Optional[UUID] = None
     starts_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
@@ -66,6 +67,7 @@ class CreatePublicInterviewRequest(BaseModel):
     max_candidates: Optional[int] = None
     skills_required: Optional[str] = None
     style_name: str = "STANDARD"
+    template_id: Optional[UUID] = None
     starts_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
 
@@ -79,6 +81,7 @@ class UpdatePublicInterviewRequest(BaseModel):
     max_candidates: Optional[int] = None
     skills_required: Optional[str] = None
     style_name: Optional[str] = None
+    template_id: Optional[UUID] = None
     starts_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
 

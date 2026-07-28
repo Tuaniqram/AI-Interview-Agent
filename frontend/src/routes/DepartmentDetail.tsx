@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Building2, FileText, ListChecks, ExternalLink, AlertCircle, Clock, Copy, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Breadcrumb } from '../components/shared/Breadcrumb';
-import { departmentService, type Department, type Document, type SessionRecord } from '../services/departmentService';
+import { departmentService, type Department, type Document, type SessionRecord, type Template } from '../services/departmentService';
 import { marketplaceService } from '../services/marketplaceService';
 import { useOrg } from '../contexts/OrgContext';
 import { Button } from '../components/shared/Button';
@@ -63,6 +63,8 @@ export function DepartmentDetail() {
   const [formErrors, setFormErrors] = useState<{ title?: string; dates?: string }>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<OrgPublicListing | null>(null);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [fTemplateId, setFTemplateId] = useState('');
   const toast = useToast();
 
   const loadListings = useCallback(async () => {
@@ -110,7 +112,13 @@ export function DepartmentDetail() {
           .catch(() => toast.error('Failed to load marketplace listings'))
         : Promise.resolve();
 
-      await Promise.allSettled([docPromise, sessionPromise, listingPromise]);
+      const templatePromise = id
+        ? departmentService.listTemplates(Number(id))
+          .then(data => { if (!cancelled) setTemplates(data); })
+          .catch(() => {})
+        : Promise.resolve();
+
+      await Promise.allSettled([docPromise, sessionPromise, listingPromise, templatePromise]);
       if (!cancelled) setLoading(false);
     }
 
@@ -125,6 +133,7 @@ export function DepartmentDetail() {
     setFMaxCandidates('');
     setFSkills('');
     setFStyle('STANDARD');
+    setFTemplateId('');
     setFStartsAt('');
     setFExpiresAt('');
     setEditing(null);
@@ -139,6 +148,7 @@ export function DepartmentDetail() {
     setFMaxCandidates(listing.max_candidates?.toString() || '');
     setFSkills(listing.skills_required || '');
     setFStyle(listing.style_name || 'STANDARD');
+    setFTemplateId(listing.template_id || '');
     setFStartsAt(listing.starts_at ? listing.starts_at.slice(0, 16) : '');
     setFExpiresAt(listing.expires_at ? listing.expires_at.slice(0, 16) : '');
     setShowForm(true);
@@ -164,6 +174,7 @@ export function DepartmentDetail() {
           max_candidates: fMaxCandidates ? parseInt(fMaxCandidates) : undefined,
           skills_required: fSkills.trim() || undefined,
           style_name: fStyle,
+          template_id: fTemplateId || undefined,
           starts_at: fStartsAt ? new Date(fStartsAt).toISOString() : undefined,
           expires_at: fExpiresAt ? new Date(fExpiresAt).toISOString() : undefined,
         });
@@ -177,6 +188,7 @@ export function DepartmentDetail() {
           max_candidates: fMaxCandidates ? parseInt(fMaxCandidates) : undefined,
           skills_required: fSkills.trim() || undefined,
           style_name: fStyle,
+          template_id: fTemplateId || undefined,
           starts_at: fStartsAt ? new Date(fStartsAt).toISOString() : undefined,
           expires_at: fExpiresAt ? new Date(fExpiresAt).toISOString() : undefined,
         });
@@ -396,6 +408,18 @@ export function DepartmentDetail() {
                   <p className="text-xs text-muted mt-1">{INTERVIEW_STYLES.find(s => s.value === fStyle)?.desc}</p>
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Template (optional)</label>
+                <select value={fTemplateId} onChange={e => setFTemplateId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]">
+                  <option value="">No template</option>
+                  {templates.map(t => (
+                    <option key={t.id} value={t.id}>{t.name} ({t.job_role})</option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted mt-1">Links a scorecard template for automatic evaluation</p>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Max Candidates</label>

@@ -23,6 +23,7 @@ from app.models.db import (
     CandidateProfile,
     Department,
     InterviewSession,
+    InterviewTemplate,
     Organization,
     PublicInterview,
     PublicInterviewSubmission,
@@ -207,6 +208,16 @@ async def start_public_interview(
     if not pi:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found")
 
+    # Resolve scorecard_template_id from the linked InterviewTemplate if set
+    sc_template_id = None
+    if pi.template_id:
+        tmpl_result = await db.execute(
+            select(InterviewTemplate).where(InterviewTemplate.id == pi.template_id)
+        )
+        tmpl = tmpl_result.scalar_one_or_none()
+        if tmpl:
+            sc_template_id = tmpl.scorecard_template_id
+
     session = InterviewSession(
         id=uuid.uuid4(),
         org_id=pi.org_id,
@@ -216,6 +227,7 @@ async def start_public_interview(
         session_type="public",
         interaction_mode=pi.interview_mode,
         engine_version="v4",
+        scorecard_template_id=sc_template_id,
     )
 
     # G4: link to existing candidate profile if email matches
@@ -313,6 +325,7 @@ async def create_public_interview(
         max_candidates=req.max_candidates,
         skills_required=req.skills_required,
         style_name=req.style_name,
+        template_id=req.template_id,
         starts_at=req.starts_at,
         expires_at=req.expires_at,
         token=uuid.uuid4().hex,
