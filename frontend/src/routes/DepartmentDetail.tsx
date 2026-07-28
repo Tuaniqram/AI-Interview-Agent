@@ -410,13 +410,13 @@ export function DepartmentDetail() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Template (optional)</label>
-                <select value={fTemplateId} onChange={e => setFTemplateId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]">
-                  <option value="">No template</option>
-                  {templates.map(t => (
-                    <option key={t.id} value={t.id}>{t.name} ({t.job_role})</option>
-                  ))}
-                </select>
+                <Select label="" value={fTemplateId} onChange={setFTemplateId}
+                  placeholder="No template"
+                  options={[
+                    { value: '', label: 'No template' },
+                    ...templates.map(t => ({ value: t.id, label: `${t.name} (${t.job_role})` })),
+                  ]}
+                />
                 <p className="text-xs text-muted mt-1">Links a scorecard template for automatic evaluation</p>
               </div>
 
@@ -425,7 +425,7 @@ export function DepartmentDetail() {
                   <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Max Candidates</label>
                   <input type="number" value={fMaxCandidates} onChange={e => setFMaxCandidates(e.target.value)} min={1}
                     placeholder="Unlimited"
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]" />
+                    className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
                 </div>
               </div>
 
