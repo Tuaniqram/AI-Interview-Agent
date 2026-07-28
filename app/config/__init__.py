@@ -1,6 +1,25 @@
 import json
-from pydantic_settings import BaseSettings
 from pydantic import field_validator
+from pydantic_settings import BaseSettings
+from pydantic_settings.sources import EnvSettingsSource, DotEnvSettingsSource
+
+
+class _LenientEnvSource(EnvSettingsSource):
+    """Skip JSON decoding for CORS_ORIGINS — raw string goes to validator instead."""
+
+    def prepare_field_value(self, field_name, field, value, value_is_complex):
+        if field_name == "CORS_ORIGINS":
+            return value
+        return super().prepare_field_value(field_name, field, value, value_is_complex)
+
+
+class _LenientDotenvSource(DotEnvSettingsSource):
+    """Same lenient behavior for .env file."""
+
+    def prepare_field_value(self, field_name, field, value, value_is_complex):
+        if field_name == "CORS_ORIGINS":
+            return value
+        return super().prepare_field_value(field_name, field, value, value_is_complex)
 
 
 class Settings(BaseSettings):
@@ -49,6 +68,17 @@ class Settings(BaseSettings):
             import warnings
             warnings.warn("SECRET_KEY is still the dev default — set a strong secret in production")
         return v
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls,
+        init_settings,
+        env_settings,
+        dotenv_settings,
+        file_secret_settings,
+    ):
+        return (init_settings, _LenientEnvSource(settings_cls), _LenientDotenvSource(settings_cls), file_secret_settings)
 
 
 settings = Settings()
