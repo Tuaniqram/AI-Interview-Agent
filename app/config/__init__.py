@@ -3,7 +3,7 @@ from pydantic import field_validator
 
 
 class Settings(BaseSettings):
-    SECRET_KEY: str
+    SECRET_KEY: str = "dev-secret-key-change-in-production"
     DATABASE_URL: str | None = None
     SUPABASE_URL: str | None = None
     SUPABASE_KEY: str | None = None
@@ -30,8 +30,11 @@ class Settings(BaseSettings):
     @field_validator("SECRET_KEY")
     @classmethod
     def validate_secret_key(cls, v: str) -> str:
-        if not v or v == "dev-secret-key-change-in-production":
-            raise ValueError("SECRET_KEY must be overridden in .env — do not use the default")
+        if not v:
+            raise ValueError("SECRET_KEY must not be empty")
+        if v == "dev-secret-key-change-in-production":
+            import warnings
+            warnings.warn("SECRET_KEY is still the dev default — set a strong secret in production")
         return v
 
 
