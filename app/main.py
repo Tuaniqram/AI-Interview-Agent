@@ -106,16 +106,6 @@ app.include_router(system_router)
 app.include_router(interview_v4_router)
 
 
-# ✅ CORS Configuration - Must be FIRST middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-)
-
 # ✅ Custom middleware to handle ngrok-specific headers
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
@@ -126,6 +116,7 @@ class NgrokMiddleware(BaseHTTPMiddleware):
         response.headers["ngrok-skip-browser-warning"] = "true"
         return response
 
+# Innermost middleware (runs first)
 app.add_middleware(NgrokMiddleware)
 
 # Strict rate limit on auth endpoints (20 req/min per IP)
@@ -147,6 +138,16 @@ app.add_middleware(
     max_requests=120,
     window_seconds=60,
     paths=["/api/v1/", "/interviews/", "/"],
+)
+
+# CORS must be OUTERMOST so it intercepts OPTIONS preflight before other middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 
@@ -175,12 +176,5 @@ def health_check():
     }
 
 
-@app.options("/health")
-async def health_options():
-    return {"status": "ok"}
 
-
-@app.options("/{full_path:path}")
-async def preflight(full_path: str):
-    return {"status": "ok"}
 
