@@ -7,12 +7,14 @@ import { Button } from '../../components/shared/Button';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Select } from '../../components/shared/Select';
+import { Slider } from '../../components/shared/Slider';
 import { useToast } from '../../components/shared/Toast';
 import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import type { ScorecardTemplate, CompetencyDef } from '../../types/scorecard';
 import { ConfirmDialog } from '../../components/shared/ConfirmDialog';
 
 const DEFAULT_CATEGORIES = ['technical', 'communication', 'behavioral', 'leadership'];
+const FOCUS = 'focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)]';
 
 export default function Scorecards() {
   const { activeOrg } = useOrg();
@@ -116,7 +118,7 @@ export default function Scorecards() {
             <div>
               <label className="block text-sm font-medium text-primary mb-1">Name</label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border" placeholder="e.g. Software Engineer Scorecard" />
+                className={`w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border transition-colors ${FOCUS}`} placeholder="e.g. Software Engineer Scorecard" />
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -125,22 +127,16 @@ export default function Scorecards() {
               </div>
               {competencies.map((c, i) => (
                 <div key={i} className="flex items-start gap-2 p-3 rounded-lg bg-page border border-border">
-                  <div className="flex-1 grid grid-cols-2 gap-2">
-                    <input type="text" value={c.name} onChange={(e) => updateCompetency(i, 'name', e.target.value)}
-                      className="px-2 py-1.5 text-sm bg-input text-primary rounded border border-border" placeholder="Competency name" />
-                    <Select value={c.category} onChange={v => updateCompetency(i, 'category', v)}
-                      options={DEFAULT_CATEGORIES.map(cat => ({ value: cat, label: cat }))}
-                    />
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs text-muted">Weight</label>
-                       <input type="number" value={c.weight} onChange={(e) => updateCompetency(i, 'weight', parseFloat(e.target.value) || 0)}
-                         className="w-20 px-2 py-1.5 text-sm bg-input text-primary rounded border border-border [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" step="0.1" min="0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="grid grid-cols-[1fr_auto] gap-2">
+                      <input type="text" value={c.name} onChange={(e) => updateCompetency(i, 'name', e.target.value)}
+                        className={`px-2 py-1.5 text-sm bg-input text-primary rounded border border-border transition-colors ${FOCUS}`} placeholder="Competency name" />
+                      <Select value={c.category} onChange={v => updateCompetency(i, 'category', v)}
+                        options={DEFAULT_CATEGORIES.map(cat => ({ value: cat, label: cat }))}
+                      />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs text-muted">Max</label>
-                       <input type="number" value={c.max_score} onChange={(e) => updateCompetency(i, 'max_score', parseFloat(e.target.value) || 0)}
-                         className="w-20 px-2 py-1.5 text-sm bg-input text-primary rounded border border-border [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" step="1" min="1" />
-                    </div>
+                    <Slider value={c.weight} onChange={(v) => updateCompetency(i, 'weight', v)} label="Weight" min={0} max={5} step={0.1} />
+                    <Slider value={c.max_score} onChange={(v) => updateCompetency(i, 'max_score', v)} label="Max" min={1} max={100} step={1} />
                   </div>
                   <button onClick={() => removeCompetency(i)} className="mt-1"><X className="w-4 h-4 text-muted hover:text-error" /></button>
                 </div>
@@ -156,27 +152,26 @@ export default function Scorecards() {
         {templates.length === 0 && !showForm ? (
           <EmptyState title="No scorecards yet" description="Create a scorecard to define custom evaluation criteria for your interviews" />
         ) : (
-          <div className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {templates.map(t => (
-              <Card key={t.id} padding="lg" className="flex items-center justify-between">
-                <div>
+              <Card key={t.id} padding="lg" className="flex flex-col">
+                <div className="flex-1">
                   <h3 className="text-sm font-semibold text-primary">{t.name}</h3>
                   <p className="text-xs text-muted mt-1">{t.competencies.length} competencies</p>
-                  <div className="flex gap-1.5 mt-2">
-                    {t.competencies.map(c => (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {t.competencies.slice(0, 4).map(c => (
                       <span key={c.id} className="text-[10px] px-2 py-0.5 rounded-full bg-action-primary/10 text-action-primary">
                         {c.name} ({c.weight}x)
                       </span>
                     ))}
+                    {t.competencies.length > 4 && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-hover text-muted">+{t.competencies.length - 4}</span>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => startEdit(t)} className="p-1.5 rounded hover:bg-hover text-muted hover:text-primary">
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => setDeleteTarget(t.id)} className="p-1.5 rounded hover:bg-hover text-muted hover:text-error">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                <div className="flex items-center gap-1 mt-3 pt-3 border-t border-border">
+                  <button onClick={() => startEdit(t)} className="p-1.5 rounded hover:bg-hover text-muted hover:text-primary"><Pencil className="w-4 h-4" /></button>
+                  <button onClick={() => setDeleteTarget(t.id)} className="p-1.5 rounded hover:bg-hover text-muted hover:text-error"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </Card>
             ))}

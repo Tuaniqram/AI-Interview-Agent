@@ -8,6 +8,7 @@ import { Button } from '../../components/shared/Button';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Select } from '../../components/shared/Select';
+import { Slider } from '../../components/shared/Slider';
 import { scorecardService } from '../../services/scorecardService';
 import type { ScorecardTemplate } from '../../types/scorecard';
 import { useToast } from '../../components/shared/Toast';
@@ -22,6 +23,7 @@ interface OrgTemplate extends Template {
 }
 
 const INTERVIEW_STYLES = ['STANDARD', 'CONVERSATIONAL', 'TECHNICAL_DEEP', 'BEHAVIORAL', 'CASE_STUDY'];
+const FOCUS = 'focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)]';
 
 export default function Templates() {
   const { activeOrg } = useOrg();
@@ -156,12 +158,12 @@ export default function Templates() {
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">Template Name</label>
                 <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border" placeholder="e.g. Senior Frontend Interview" />
+                  className={`w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border transition-colors ${FOCUS}`} placeholder="e.g. Senior Frontend Interview" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">Job Role</label>
                 <input type="text" value={jobRole} onChange={(e) => setJobRole(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border" placeholder="e.g. Software Engineer" />
+                  className={`w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border transition-colors ${FOCUS}`} placeholder="e.g. Software Engineer" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">Department</label>
@@ -193,8 +195,7 @@ export default function Templates() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">Total Questions</label>
-                <input type="number" value={totalQuestions} onChange={(e) => setTotalQuestions(parseInt(e.target.value) || 10)}
-                  className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" min="1" max="50" />
+                <Slider value={totalQuestions} onChange={setTotalQuestions} min={1} max={50} step={1} />
               </div>
             </div>
             <div>

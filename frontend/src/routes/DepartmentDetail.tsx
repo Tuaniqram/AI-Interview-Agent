@@ -379,14 +379,14 @@ export function DepartmentDetail() {
               <div>
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Title *</label>
                 <input type="text" value={fTitle} onChange={e => { setFTitle(e.target.value); setFormErrors(prev => ({ ...prev, title: undefined })); }}
-                  className={`w-full px-3 py-2 rounded-lg border bg-[var(--bg-page)] text-[var(--text-primary)] ${formErrors.title ? 'border-red-500' : 'border-[var(--border-color)]'}`} />
+                  className={`w-full px-3 py-2 rounded-lg border bg-[var(--bg-page)] text-[var(--text-primary)] transition-colors focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)] ${formErrors.title ? 'border-red-500' : 'border-[var(--border-color)]'}`} />
                 {formErrors.title && <p className="text-xs text-error mt-1">{formErrors.title}</p>}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Description</label>
                 <textarea value={fDescription} onChange={e => setFDescription(e.target.value)} rows={3}
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]" />
+                  className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)] transition-colors" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -408,24 +408,22 @@ export function DepartmentDetail() {
                   <p className="text-xs text-muted mt-1">{INTERVIEW_STYLES.find(s => s.value === fStyle)?.desc}</p>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Template (optional)</label>
-                <Select label="" value={fTemplateId} onChange={setFTemplateId}
-                  placeholder="No template"
-                  options={[
-                    { value: '', label: 'No template' },
-                    ...templates.map(t => ({ value: t.id, label: `${t.name} (${t.job_role})` })),
-                  ]}
-                />
-                <p className="text-xs text-muted mt-1">Links a scorecard template for automatic evaluation</p>
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Template (optional)</label>
+                  <Select label="" value={fTemplateId} onChange={setFTemplateId}
+                    placeholder="No template"
+                    options={[
+                      { value: '', label: 'No template' },
+                      ...templates.map(t => ({ value: t.id, label: `${t.name} (${t.job_role})` })),
+                    ]}
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Max Candidates</label>
                   <input type="number" value={fMaxCandidates} onChange={e => setFMaxCandidates(e.target.value)} min={1}
                     placeholder="Unlimited"
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                    className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)] transition-colors" />
                 </div>
               </div>
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { candidateService } from '../../services/candidateService';
 import { Button } from '../../components/shared/Button';
 import { Select } from '../../components/shared/Select';
+import { Slider } from '../../components/shared/Slider';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { useToast } from '../../components/shared/Toast';
 
@@ -101,7 +102,7 @@ export default function CandidatePractice() {
             value={techStack}
             onChange={(e) => setTechStack(e.target.value)}
             placeholder="e.g. Python, React, AWS"
-            className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]"
+            className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)] transition-colors"
           />
         </div>
 
@@ -117,14 +118,7 @@ export default function CandidatePractice() {
 
         <div>
           <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Number of Questions</label>
-          <input
-            type="number"
-            value={numQuestions}
-            onChange={(e) => setNumQuestions(Number(e.target.value))}
-            min={3}
-            max={20}
-            className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-          />
+          <Slider value={numQuestions} onChange={setNumQuestions} min={3} max={20} step={1} />
         </div>
 
         <Button type="submit" loading={loading} className="w-full">
