@@ -1,13 +1,18 @@
 import hashlib
 import os
 
+import bcrypt
+
 
 def hash_password(password: str) -> str:
-    salt = os.urandom(16).hex()
-    pwd_hash = hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
-    return f"{salt}:{pwd_hash}"
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(password: str, stored: str) -> bool:
-    salt, pwd_hash = stored.split(":")
-    return hashlib.sha256(f"{salt}{password}".encode()).hexdigest() == pwd_hash
+    try:
+        if ":" in stored:
+            _salt, _pwd_hash = stored.split(":", 1)
+            return hashlib.sha256(f"{_salt}{password}".encode()).hexdigest() == _pwd_hash
+        return bcrypt.checkpw(password.encode(), stored.encode())
+    except Exception:
+        return False

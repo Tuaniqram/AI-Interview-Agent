@@ -49,6 +49,27 @@ class RefreshToken(Base):
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
+    )
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class CandidateRefreshToken(Base):
+    __tablename__ = "candidate_refresh_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    candidate_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("candidate_profiles.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     token_hash: Mapped[str] = mapped_column(Text, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -244,6 +265,7 @@ class InterviewSession(Base):
         UUID(as_uuid=True),
         ForeignKey("candidate_profiles.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     job_role: Mapped[str] = mapped_column(Text, nullable=False)
     session_type: Mapped[Optional[str]] = mapped_column(Text, server_default="company")
@@ -268,6 +290,7 @@ class InterviewSession(Base):
         UUID(as_uuid=True),
         ForeignKey("scorecard_templates.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     engine_version: Mapped[Optional[str]] = mapped_column(Text, server_default="v3")
 
@@ -381,6 +404,7 @@ class InterviewTemplate(Base):
         UUID(as_uuid=True),
         ForeignKey("scorecard_templates.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -605,6 +629,7 @@ class PublicInterviewSubmission(Base):
         UUID(as_uuid=True),
         ForeignKey("interview_sessions.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     candidate_email: Mapped[str] = mapped_column(Text, nullable=False)
     candidate_name: Mapped[str] = mapped_column(Text, nullable=False)
@@ -706,6 +731,7 @@ class Booking(Base):
         UUID(as_uuid=True),
         ForeignKey("interview_sessions.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="confirmed")
     confirmation_sent: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -1002,6 +1028,7 @@ class ScorecardResult(Base):
         UUID(as_uuid=True),
         ForeignKey("scorecard_templates.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
     scores: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     weighted_score: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)

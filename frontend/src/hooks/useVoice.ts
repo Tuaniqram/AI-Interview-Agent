@@ -13,6 +13,8 @@ export function useVoice() {
     activeViseme: null,
   });
   const finalTranscriptRef = useRef('');
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
     voiceService.stopListening();
@@ -25,7 +27,7 @@ export function useVoice() {
 
   const startVoice = useCallback(() => {
     setState(prev => ({ ...prev, error: null, interimText: '', isListening: true }));
-    finalTranscriptRef.current = state.transcript;
+    finalTranscriptRef.current = stateRef.current.transcript;
 
     voiceService.startListening({
       onTranscript: (text, isFinal) => {
@@ -49,7 +51,7 @@ export function useVoice() {
         setState(prev => ({ ...prev, error, isListening: false }));
       },
     });
-  }, [state.transcript]);
+  }, []);
 
   const stopVoice = useCallback(() => {
     if (!voiceService.isMicActive) return;

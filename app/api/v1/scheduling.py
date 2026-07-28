@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.rbac import require_org_role, resolve_org_id
 from app.database.deps import get_db
+from app.models.db import User
 from app.scheduling.schemas import (
     AvailabilityBatchCreate,
     AvailabilityResponse,
@@ -46,6 +47,8 @@ async def list_slots_endpoint(
 @router.post("/availability", response_model=AvailabilityResponse)
 async def set_availability_endpoint(
     req: AvailabilityBatchCreate,
+    org_id: str = Depends(resolve_org_id),
+    _: None = Depends(require_org_role(["owner", "member"])),
     db: AsyncSession = Depends(get_db),
 ):
     return await set_availability(req, db)
@@ -62,6 +65,7 @@ async def get_available_endpoint(
 @router.post("/book", response_model=BookingResponse)
 async def book_slot_endpoint(
     req: BookSlotRequest,
+    _: None = Depends(require_org_role(["owner", "member"])),
     db: AsyncSession = Depends(get_db),
 ):
     return await book_slot(req, db)
@@ -70,6 +74,8 @@ async def book_slot_endpoint(
 @router.post("/bookings/{booking_id}/cancel", status_code=204)
 async def cancel_booking_endpoint(
     booking_id: str,
+    org_id: str = Depends(resolve_org_id),
+    _: None = Depends(require_org_role(["owner", "member"])),
     db: AsyncSession = Depends(get_db),
 ):
     await cancel_booking(booking_id, db)

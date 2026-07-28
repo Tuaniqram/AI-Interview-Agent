@@ -6,6 +6,7 @@ from app.models.db import (
     Booking,
     CandidateInvitation,
     CandidateProfile,
+    CandidateRefreshToken,
     CandidateSession,
     ConsistencyCheck,
     Department,
@@ -31,7 +32,8 @@ from app.models.db import (
 )
 
 __all__ = [
-    "AuditLog", "Booking", "CandidateInvitation", "CandidateProfile", "CandidateSession",
+    "AuditLog", "Booking", "CandidateInvitation", "CandidateProfile", "CandidateRefreshToken",
+    "CandidateSession",
     "ConsistencyCheck", "Department", "DepartmentDocument", "EvidenceStore", "Hypothesis",
     "InterviewEvaluation", "InterviewMessage", "InterviewObjective", "InterviewSession",
     "InterviewSlot", "InterviewTemplate", "Observation", "Organization", "OrgUser",

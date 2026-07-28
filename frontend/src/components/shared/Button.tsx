@@ -56,38 +56,4 @@ export function Button({
   );
 }
 
-interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
-  size?: 'sm' | 'md' | 'lg';
-}
 
-const iconSizes: Record<string, string> = {
-  sm: 'w-8 h-8',
-  md: 'w-10 h-10',
-  lg: 'w-12 h-12',
-};
-
-const iconInnerSizes: Record<string, string> = {
-  sm: 'w-4 h-4',
-  md: 'w-5 h-5',
-  lg: 'w-6 h-6',
-};
-
-export function IconButton({
-  variant = 'primary',
-  size = 'md',
-  className = '',
-  disabled,
-  children,
-  ...props
-}: IconButtonProps) {
-  return (
-    <button
-      className={`${base} ${variants[variant]} ${iconSizes[size]} rounded-full shrink-0 disabled:opacity-30 ${className}`}
-      disabled={disabled}
-      {...props}
-    >
-      <span className={iconInnerSizes[size]}>{children}</span>
-    </button>
-  );
-}

@@ -81,11 +81,13 @@ async def update_org(org_id: UUID, req: OrganizationUpdate, user: User, db: Asyn
     return OrganizationResponse.model_validate(org)
 
 
-async def list_members(org_id: UUID, db: AsyncSession) -> list[OrgMemberResponse]:
+async def list_members(org_id: UUID, db: AsyncSession, skip: int = 0, limit: int = 100) -> list[OrgMemberResponse]:
     result = await db.execute(
         select(OrgUser, User)
         .join(User, OrgUser.user_id == User.id)
         .where(OrgUser.org_id == org_id)
+        .offset(skip)
+        .limit(limit)
     )
     members = []
     for ou, u in result.all():

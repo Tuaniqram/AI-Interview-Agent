@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.rbac import require_org_role, resolve_org_id
+from app.candidates.auth import authenticate_candidate
 from app.config import settings
 from app.database.deps import get_db
 from app.models.db import CandidateInvitation, CandidateProfile, Department, InterviewSession, Organization, User
@@ -128,7 +129,11 @@ async def verify_invitation(token: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/{token}/accept")
-async def accept_invitation(token: str, db: AsyncSession = Depends(get_db)):
+async def accept_invitation(
+    token: str,
+    candidate: CandidateProfile = Depends(authenticate_candidate),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(
         select(CandidateInvitation).where(
             CandidateInvitation.token == token,
@@ -139,26 +144,13 @@ async def accept_invitation(token: str, db: AsyncSession = Depends(get_db)):
     if not invitation:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid or expired invitation")
 
+    if invitation.candidate_email != candidate.email:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This invitation is not for you")
+
     if invitation.expires_at < datetime.now(timezone.utc):
         invitation.status = "expired"
         await db.commit()
         raise HTTPException(status_code=status.HTTP_410_GONE, detail="Invitation has expired")
-
-    candidate_result = await db.execute(
-        select(CandidateProfile).where(CandidateProfile.email == invitation.candidate_email)
-    )
-    candidate = candidate_result.scalar_one_or_none()
-
-    if not candidate:
-        candidate = CandidateProfile(
-            id=uuid.uuid4(),
-            email=invitation.candidate_email,
-            name=invitation.candidate_name,
-            is_verified=True,
-            verified_at=datetime.now(timezone.utc),
-        )
-        db.add(candidate)
-        await db.flush()
 
     invitation.status = "accepted"
 
@@ -177,5 +169,4 @@ async def accept_invitation(token: str, db: AsyncSession = Depends(get_db)):
         "candidate_id": str(candidate.id),
         "candidate_name": candidate.name,
         "candidate_email": candidate.email,
-        "job_role": invitation.job_role,
     }

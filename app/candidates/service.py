@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -10,7 +10,7 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.jwt import create_access_token, decode_token
+from app.auth.jwt import create_access_token, create_refresh_token, decode_token
 from app.auth.password import hash_password, verify_password
 from app.candidates.schemas import (
     CandidateAuthResponse,
@@ -26,6 +26,7 @@ from app.database.deps import get_db
 from app.models.db import (
     CandidateInvitation,
     CandidateProfile,
+    CandidateRefreshToken,
     CandidateSession,
     Department,
     InterviewSession,
@@ -100,12 +101,22 @@ async def refresh(refresh_token: str, db: AsyncSession) -> CandidateTokenRespons
     except ValueError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
-    if payload.get("type") != "candidate_refresh":
+    if payload.get("type") != "refresh":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
 
+    token_id = payload.get("jti")
     candidate_id = payload.get("sub")
-    if not candidate_id:
+    if not token_id or not candidate_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+
+    stored = await db.execute(
+        select(CandidateRefreshToken).where(CandidateRefreshToken.token_hash == _hash(token_id))
+    )
+    stored_token = stored.scalar_one_or_none()
+    if not stored_token or stored_token.revoked:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token revoked or not found")
+
+    stored_token.revoked = True
 
     result = await db.execute(
         select(CandidateProfile).where(CandidateProfile.id == UUID(candidate_id))
@@ -114,8 +125,17 @@ async def refresh(refresh_token: str, db: AsyncSession) -> CandidateTokenRespons
     if not candidate:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Candidate not found")
 
+    new_token_id = uuid.uuid4().hex
+    new_refresh = CandidateRefreshToken(
+        id=uuid.uuid4(),
+        candidate_id=UUID(candidate_id),
+        token_hash=_hash(new_token_id),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+    )
+    db.add(new_refresh)
+
     access_token = create_access_token(candidate_id, token_type="candidate_access")
-    refresh_token_str = create_access_token(candidate_id, token_type="candidate_refresh")
+    refresh_token_str = create_refresh_token(candidate_id, new_token_id)
 
     return CandidateTokenResponse(
         access_token=access_token,
@@ -346,7 +366,16 @@ async def start_practice(
 
 async def _build_auth_response(candidate: CandidateProfile, db: AsyncSession) -> CandidateAuthResponse:
     access_token = create_access_token(str(candidate.id), token_type="candidate_access")
-    refresh_token_str = create_access_token(str(candidate.id), token_type="candidate_refresh")
+
+    token_id = uuid.uuid4().hex
+    refresh_token_str = create_refresh_token(str(candidate.id), token_id)
+
+    db.add(CandidateRefreshToken(
+        id=uuid.uuid4(),
+        candidate_id=candidate.id,
+        token_hash=_hash(token_id),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+    ))
 
     await db.flush()
     await db.refresh(candidate)

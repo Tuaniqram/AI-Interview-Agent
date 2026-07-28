@@ -1,4 +1,4 @@
-import { InputHTMLAttributes, TextareaHTMLAttributes, ReactNode } from 'react';
+import { InputHTMLAttributes, ReactNode } from 'react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -30,26 +30,6 @@ export function Input({ label, error, hint, icon, className = '', ...props }: In
   );
 }
 
-interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
-  label?: string;
-  error?: string;
-  hint?: string;
-}
 
-export function Textarea({ label, error, hint, className = '', ...props }: TextareaProps) {
-  return (
-    <div className="space-y-1.5">
-      {label && (
-        <label className="block text-sm font-medium text-primary">{label}</label>
-      )}
-      <textarea
-        className={`${baseInput} resize-none rounded-xl px-4 py-2.5 ${className}`}
-        {...props}
-      />
-      {error && <p className="text-xs text-error">{error}</p>}
-      {hint && !error && <p className="text-xs text-muted">{hint}</p>}
-    </div>
-  );
-}
 
 

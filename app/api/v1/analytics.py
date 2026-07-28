@@ -1,7 +1,7 @@
 import logging
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import select, func
+from sqlalchemy import case, cast, Date, func, select, Float
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.rbac import require_org_role, resolve_org_id
@@ -37,16 +37,19 @@ async def overview(
         select(func.count(Department.id)).where(Department.org_id == org_id)
     ) or 0
 
-    sessions_result = await db.execute(
-        select(InterviewSession).where(InterviewSession.org_id == org_id)
+    row = await db.execute(
+        select(
+            func.count(InterviewSession.id).label("total"),
+            func.count(case((InterviewSession.status.in_(["active", "in_progress"]), 1), else_=None)).label("active"),
+            func.count(case((InterviewSession.status == "completed", 1), else_=None)).label("completed"),
+            cast(func.avg(InterviewSession.final_score), Float).label("avg_score"),
+        ).where(InterviewSession.org_id == org_id)
     )
-    rows = sessions_result.scalars().all()
-
-    total = len(rows)
-    active = len([r for r in rows if r.status in ("active", "in_progress")])
-    completed = len([r for r in rows if r.status == "completed"])
-    scores = [float(r.final_score) for r in rows if r.final_score is not None]
-    avg_score = round(sum(scores) / len(scores), 2) if scores else None
+    r = row.one()
+    total = r.total or 0
+    active = r.active or 0
+    completed = r.completed or 0
+    avg_score = round(r.avg_score, 2) if r.avg_score is not None else None
     completion_rate = round(completed / total * 100, 1) if total > 0 else 0
 
     return OverviewResponse(
@@ -69,26 +72,21 @@ async def scores_trend(
         return []
 
     result = await db.execute(
-        select(InterviewSession)
+        select(
+            cast(InterviewSession.started_at, Date).label("date"),
+            cast(func.avg(InterviewSession.final_score), Float).label("avg_score"),
+            func.count(InterviewSession.id).label("count"),
+        )
         .where(
             InterviewSession.org_id == org_id,
             InterviewSession.final_score.isnot(None),
         )
-        .order_by(InterviewSession.started_at)
+        .group_by(cast(InterviewSession.started_at, Date))
+        .order_by(cast(InterviewSession.started_at, Date))
     )
-    rows = result.scalars().all()
-
-    daily: dict[str, list[float]] = {}
-    for r in rows:
-        if r.started_at:
-            date_str = r.started_at.strftime("%Y-%m-%d")
-            if date_str not in daily:
-                daily[date_str] = []
-            daily[date_str].append(float(r.final_score))
-
     return [
-        ScoreTrendPoint(date=d, avg_score=round(sum(s) / len(s), 2), count=len(s))
-        for d, s in sorted(daily.items())
+        ScoreTrendPoint(date=str(r.date), avg_score=round(r.avg_score, 2), count=r.count)
+        for r in result.all()
     ]
 
 
@@ -101,29 +99,25 @@ async def scores_distribution(
     if not org_id:
         return []
 
-    result = await db.execute(
-        select(InterviewSession.final_score).where(
-            InterviewSession.org_id == org_id,
-            InterviewSession.final_score.isnot(None),
-        )
-    )
-    scores = [float(row[0]) for row in result.all()]
-
     buckets = [
-        {"range": "0-2", "min": 0, "max": 2, "count": 0},
-        {"range": "3-4", "min": 3, "max": 4, "count": 0},
-        {"range": "5-6", "min": 5, "max": 6, "count": 0},
-        {"range": "7-8", "min": 7, "max": 8, "count": 0},
-        {"range": "9-10", "min": 9, "max": 10, "count": 0},
+        ("0-2", 0, 2),
+        ("3-4", 3, 4),
+        ("5-6", 5, 6),
+        ("7-8", 7, 8),
+        ("9-10", 9, 10),
     ]
-
-    for s in scores:
-        for b in buckets:
-            if b["min"] <= s <= b["max"]:
-                b["count"] += 1
-                break
-
-    return [DistributionBucket(range=b["range"], count=b["count"]) for b in buckets]
+    result = []
+    for label, lo, hi in buckets:
+        count = await db.scalar(
+            select(func.count(InterviewSession.id)).where(
+                InterviewSession.org_id == org_id,
+                InterviewSession.final_score.isnot(None),
+                InterviewSession.final_score >= lo,
+                InterviewSession.final_score <= hi,
+            )
+        ) or 0
+        result.append(DistributionBucket(range=label, count=count))
+    return result
 
 
 @router.get("/sessions/by-department", response_model=list[DepartmentSessionSummary])
@@ -135,37 +129,27 @@ async def sessions_by_department(
     if not org_id:
         return []
 
-    departments_result = await db.execute(
-        select(Department).where(Department.org_id == org_id)
+    result = await db.execute(
+        select(
+            Department.id.label("department_id"),
+            Department.name,
+            func.count(InterviewSession.id).label("session_count"),
+            cast(func.avg(InterviewSession.final_score), Float).label("avg_score"),
+        )
+        .outerjoin(InterviewSession, InterviewSession.department_id == Department.id)
+        .where(Department.org_id == org_id)
+        .group_by(Department.id, Department.name)
+        .order_by(func.count(InterviewSession.id).desc())
     )
-    departments = {d.id: d.name for d in departments_result.scalars().all()}
-
-    sessions_result = await db.execute(
-        select(InterviewSession).where(InterviewSession.org_id == org_id)
-    )
-    rows = sessions_result.scalars().all()
-
-    grouped: dict[int, dict] = {}
-    for r in rows:
-        did = r.department_id
-        if did not in grouped:
-            grouped[did] = {"scores": [], "count": 0}
-        grouped[did]["count"] += 1
-        if r.final_score is not None:
-            grouped[did]["scores"].append(float(r.final_score))
-
-    result = []
-    for did, data in grouped.items():
-        scores = data["scores"]
-        result.append(DepartmentSessionSummary(
-            department_id=did,
-            name=departments.get(did, f"Department {did}"),
-            session_count=data["count"],
-            avg_score=round(sum(scores) / len(scores), 2) if scores else None,
-        ))
-
-    result.sort(key=lambda x: x.session_count, reverse=True)
-    return result
+    return [
+        DepartmentSessionSummary(
+            department_id=r.department_id,
+            name=r.name,
+            session_count=r.session_count,
+            avg_score=round(r.avg_score, 2) if r.avg_score is not None else None,
+        )
+        for r in result.all()
+    ]
 
 
 @router.get("/sessions/by-role", response_model=list[RoleSessionSummary])
@@ -178,27 +162,20 @@ async def sessions_by_role(
         return []
 
     result = await db.execute(
-        select(InterviewSession).where(InterviewSession.org_id == org_id)
+        select(
+            func.coalesce(InterviewSession.job_role, "Unknown").label("job_role"),
+            func.count(InterviewSession.id).label("count"),
+            cast(func.avg(InterviewSession.final_score), Float).label("avg_score"),
+        )
+        .where(InterviewSession.org_id == org_id)
+        .group_by(InterviewSession.job_role)
+        .order_by(func.count(InterviewSession.id).desc())
     )
-    rows = result.scalars().all()
-
-    grouped: dict[str, dict] = {}
-    for r in rows:
-        role = r.job_role or "Unknown"
-        if role not in grouped:
-            grouped[role] = {"scores": [], "count": 0}
-        grouped[role]["count"] += 1
-        if r.final_score is not None:
-            grouped[role]["scores"].append(float(r.final_score))
-
-    result = []
-    for role, data in grouped.items():
-        scores = data["scores"]
-        result.append(RoleSessionSummary(
-            job_role=role,
-            count=data["count"],
-            avg_score=round(sum(scores) / len(scores), 2) if scores else None,
-        ))
-
-    result.sort(key=lambda x: x.count, reverse=True)
-    return result
+    return [
+        RoleSessionSummary(
+            job_role=r.job_role,
+            count=r.count,
+            avg_score=round(r.avg_score, 2) if r.avg_score is not None else None,
+        )
+        for r in result.all()
+    ]

@@ -98,16 +98,16 @@ export function DepartmentDetail() {
 
       const docPromise = departmentService.listDocuments(Number(id))
         .then(data => { if (!cancelled) setDocuments(data); })
-        .catch(() => {});
+        .catch(() => toast.error('Failed to load documents'));
 
       const sessionPromise = departmentService.listSessions(Number(id))
         .then(data => { if (!cancelled) setSessions(data); })
-        .catch(() => {});
+        .catch(() => toast.error('Failed to load interview sessions'));
 
       const listingPromise = activeOrg?.id
         ? marketplaceService.listOrgListings(activeOrg.id)
           .then(data => { if (!cancelled) setListings(data.filter(l => l.department_id === Number(id))); })
-          .catch(() => {})
+          .catch(() => toast.error('Failed to load marketplace listings'))
         : Promise.resolve();
 
       await Promise.allSettled([docPromise, sessionPromise, listingPromise]);
@@ -325,7 +325,7 @@ export function DepartmentDetail() {
                 created_at: new Date().toISOString(),
               };
               setDocuments(prev => [newDoc, ...prev]);
-              departmentService.listDocuments(Number(id)).then(setDocuments).catch(() => {});
+              departmentService.listDocuments(Number(id)).then(setDocuments).catch(() => toast.error('Failed to refresh documents'));
             }} />
           </div>
           {documents.length === 0 ? (

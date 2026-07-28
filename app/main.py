@@ -23,6 +23,7 @@ from app.api.v1.candidate_ranking import router as candidate_ranking_router
 from app.api.v1.audit_logs import router as audit_logs_router
 from app.api.v1.system import router as system_router
 from app.api.interview_v4 import router as interview_v4_router
+from app.config import settings
 
 
 logging.basicConfig(level=logging.INFO)
@@ -108,7 +109,7 @@ app.include_router(interview_v4_router)
 # ✅ CORS Configuration - Must be FIRST middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -123,20 +124,29 @@ class NgrokMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         response = await call_next(request)
         response.headers["ngrok-skip-browser-warning"] = "true"
-        response.headers["Access-Control-Allow-Origin"] = "*"
         return response
 
 app.add_middleware(NgrokMiddleware)
 
-# Rate limiting on auth + public + v4 endpoints (60 req/min per IP)
+# Strict rate limit on auth endpoints (20 req/min per IP)
 app.add_middleware(
     RateLimitMiddleware,
-    max_requests=60,
+    max_requests=20,
     window_seconds=60,
     paths=["/api/v1/candidates/login", "/api/v1/candidates/register",
-           "/api/v1/auth/login", "/api/v1/auth/register",
-           "/api/v1/public/",
-           "/interviews/v4/start", "/interviews/v4/"],
+           "/api/v1/candidates/auth/refresh",
+           "/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/refresh",
+           "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password",
+           "/api/v1/candidates/forgot-password", "/api/v1/candidates/reset-password",
+           "/api/v1/candidates/send-verification"],
+)
+
+# General rate limit on all API + v4 endpoints (120 req/min per IP)
+app.add_middleware(
+    RateLimitMiddleware,
+    max_requests=120,
+    window_seconds=60,
+    paths=["/api/v1/", "/interviews/", "/"],
 )
 
 
@@ -144,10 +154,9 @@ app.add_middleware(
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception on {request.method} {request.url}: {exc}")
     logger.error(traceback.format_exc())
-    return JSONResponse(
-        status_code=500,
-        content={"detail": f"Internal server error: {type(exc).__name__}: {exc}"},
-    )
+    is_dev = "localhost" in settings.APP_URL or "127.0.0.1" in settings.APP_URL
+    detail = f"Internal server error: {type(exc).__name__}: {exc}" if is_dev else "Internal server error"
+    return JSONResponse(status_code=500, content={"detail": detail})
 
 
 @app.get("/")

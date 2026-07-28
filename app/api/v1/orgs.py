@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -73,8 +73,10 @@ async def list_members_endpoint(
     user: User = Depends(authenticate),
     _: None = Depends(require_org_role_path(["owner", "member", "viewer"])),
     db: AsyncSession = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
 ):
-    return await list_members(org_id, db)
+    return await list_members(org_id, db, skip=skip, limit=limit)
 
 
 @router.post("/{org_id}/members", response_model=OrgMemberResponse)
@@ -128,6 +130,8 @@ async def list_org_templates(
     department_id: int | None = None,
     _: User = Depends(require_org_role_path(["owner", "member", "viewer"])),
     db: AsyncSession = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
 ):
     query = (
         select(InterviewTemplate, Department.name.label("department_name"))
@@ -138,7 +142,7 @@ async def list_org_templates(
     if department_id is not None:
         query = query.where(InterviewTemplate.department_id == department_id)
 
-    result = await db.execute(query)
+    result = await db.execute(query.offset(skip).limit(limit))
     rows = result.all()
     return [
         {

@@ -101,8 +101,14 @@ async def get_email_template(
     name: str,
     _: User = Depends(require_org_role_path(["owner"])),
 ):
+    import re
+    if not re.match(r"^[a-zA-Z0-9_-]+$", name):
+        raise HTTPException(status_code=400, detail="Invalid template name")
     for ext in (".html", ".txt"):
         path = EMAIL_TEMPLATES_DIR / f"{name}{ext}"
+        path = path.resolve()
+        if not str(path).startswith(str(EMAIL_TEMPLATES_DIR.resolve())):
+            raise HTTPException(status_code=400, detail="Invalid template path")
         if path.exists():
             return {"name": name, "filename": path.name, "content": path.read_text(encoding="utf-8")}
     raise HTTPException(status_code=404, detail="Email template not found")
@@ -114,9 +120,17 @@ async def update_email_template(
     data: dict,
     _: User = Depends(require_org_role_path(["owner"])),
 ):
+    import re
+    if not re.match(r"^[a-zA-Z0-9_-]+$", name):
+        raise HTTPException(status_code=400, detail="Invalid template name — only letters, numbers, hyphens, and underscores allowed")
     content = data.get("content", "")
     ext = data.get("extension", ".html")
+    if not re.match(r"^\.\w+$", ext):
+        raise HTTPException(status_code=400, detail="Invalid file extension")
     EMAIL_TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
     path = EMAIL_TEMPLATES_DIR / f"{name}{ext}"
+    path = path.resolve()
+    if not str(path).startswith(str(EMAIL_TEMPLATES_DIR.resolve())):
+        raise HTTPException(status_code=400, detail="Invalid template path")
     path.write_text(content, encoding="utf-8")
     return {"message": "Template saved", "name": name, "filename": path.name}

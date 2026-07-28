@@ -359,8 +359,8 @@ async def upload_resume(
     if ext.lower() not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail=f"Only PDF files are supported")
 
-    filepath = save_resume_file(candidate.id, file)
-    text = extract_text(filepath)
+    filepath = await save_resume_file(candidate.id, file)
+    text = await extract_text(filepath)
 
     profile_data = candidate.profile_data or {}
     parsed = await parse_resume(text)

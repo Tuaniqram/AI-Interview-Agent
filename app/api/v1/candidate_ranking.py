@@ -136,6 +136,9 @@ async def export_candidates_csv(
     return PlainTextResponse(output.getvalue(), media_type="text/csv", headers={
         "Content-Disposition": "attachment; filename=candidates_export.csv"
     })
+
+
+@router.get("/ranking/summary")
 async def get_ranking_summary(
     org_id: UUID,
     _: User = Depends(require_org_role_path(["owner", "member"])),

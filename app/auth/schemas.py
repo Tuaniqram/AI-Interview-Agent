@@ -14,7 +14,7 @@ class LoginRequest(BaseModel):
 
 class RegisterRequest(BaseModel):
     email: str
-    password: str
+    password: str = Field(min_length=8)
     name: str
     org_name: str = Field(default="My Organization")
 
@@ -54,7 +54,7 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str
+    new_password: str = Field(min_length=8)
 
 
 class GoogleAuthRequest(BaseModel):

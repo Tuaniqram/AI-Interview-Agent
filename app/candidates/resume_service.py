@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -17,23 +18,33 @@ RESUMES_DIR = Path("resumes")
 ALLOWED_EXTENSIONS = {".pdf"}
 
 
-def _ensure_dir():
-    RESUMES_DIR.mkdir(parents=True, exist_ok=True)
+async def _ensure_dir():
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, lambda: RESUMES_DIR.mkdir(parents=True, exist_ok=True))
 
 
-def save_resume_file(candidate_id: uuid.UUID, file) -> str:
-    _ensure_dir()
+async def save_resume_file(candidate_id: uuid.UUID, file) -> str:
+    await _ensure_dir()
     ext = ".pdf"
     filename = f"{candidate_id}{ext}"
     filepath = RESUMES_DIR / filename
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+
+    def _write():
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, _write)
     return str(filepath)
 
 
-def extract_text(filepath: str) -> str:
-    reader = PdfReader(filepath)
-    text = "\n".join(page.extract_text() or "" for page in reader.pages)
+async def extract_text(filepath: str) -> str:
+    def _read():
+        reader = PdfReader(filepath)
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+    loop = asyncio.get_running_loop()
+    text = await loop.run_in_executor(None, _read)
     return text.strip()
 
 

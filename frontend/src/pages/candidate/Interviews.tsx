@@ -1,14 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { candidateService } from '../../services/candidateService';
+import { Button } from '../../components/shared/Button';
 import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { useToast } from '../../components/shared/Toast';
 import type { CandidateInterview } from '../../types/candidate';
 
+const PAGE_SIZE = 10;
+
 export default function CandidateInterviews() {
   const [interviews, setInterviews] = useState<CandidateInterview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
   const toast = useToast();
 
   useEffect(() => {
@@ -18,7 +22,12 @@ export default function CandidateInterviews() {
       .finally(() => setLoading(false));
   }, []);
 
+  const loadMore = useCallback(() => setPage(p => p + 1), []);
+
   if (loading) return <LoadingSpinner />;
+
+  const visible = interviews.slice(0, (page + 1) * PAGE_SIZE);
+  const hasMore = visible.length < interviews.length;
 
   return (
     <div className="space-y-6">
@@ -34,7 +43,7 @@ export default function CandidateInterviews() {
         />
       ) : (
         <div className="space-y-3">
-          {interviews.map((interview) => (
+          {visible.map((interview) => (
             <Link
               key={interview.id}
               to={`/candidate/interviews/${interview.id}`}
@@ -72,6 +81,11 @@ export default function CandidateInterviews() {
               </div>
             </Link>
           ))}
+          {hasMore && (
+            <div className="flex justify-center pt-2">
+              <Button variant="ghost" onClick={loadMore}>Load More</Button>
+            </div>
+          )}
         </div>
       )}
     </div>

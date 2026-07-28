@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import shutil
@@ -6,7 +7,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, UploadFile, File, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,9 +35,15 @@ async def list_departments(
     org_id: str = Depends(_get_org_id),
     _: None = Depends(require_org_role(["owner", "member", "viewer"])),
     db: AsyncSession = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
 ):
     result = await db.execute(
-        select(Department).where(Department.org_id == org_id).order_by(Department.name)
+        select(Department)
+        .where(Department.org_id == org_id)
+        .order_by(Department.name)
+        .offset(skip)
+        .limit(limit)
     )
     return [DepartmentResponse.model_validate(c) for c in result.scalars().all()]
 
@@ -196,10 +203,18 @@ async def upload_document(
             detail=f"File type '{ext}' not supported. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
         )
 
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    filepath = f"{UPLOAD_DIR}/{file.filename}"
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    import re
+
+    def _save():
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        safe_filename = re.sub(r"[^a-zA-Z0-9._-]", "_", file.filename or "document.pdf")
+        filepath = os.path.join(UPLOAD_DIR, safe_filename)
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        return filepath
+
+    loop = asyncio.get_running_loop()
+    filepath = await loop.run_in_executor(None, _save)
 
     doc_id = libuuid.uuid4()
     namespace = f"department_{department_id}"
