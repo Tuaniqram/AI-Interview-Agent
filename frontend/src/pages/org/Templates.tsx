@@ -194,7 +194,7 @@ export default function Templates() {
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">Total Questions</label>
                 <input type="number" value={totalQuestions} onChange={(e) => setTotalQuestions(parseInt(e.target.value) || 10)}
-                  className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border" min="1" max="50" />
+                  className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" min="1" max="50" />
               </div>
             </div>
             <div>

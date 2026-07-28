@@ -133,13 +133,13 @@ export default function Scorecards() {
                     />
                     <div className="flex items-center gap-2">
                       <label className="text-xs text-muted">Weight</label>
-                      <input type="number" value={c.weight} onChange={(e) => updateCompetency(i, 'weight', parseFloat(e.target.value) || 0)}
-                        className="w-20 px-2 py-1.5 text-sm bg-input text-primary rounded border border-border" step="0.1" min="0" />
+                       <input type="number" value={c.weight} onChange={(e) => updateCompetency(i, 'weight', parseFloat(e.target.value) || 0)}
+                         className="w-20 px-2 py-1.5 text-sm bg-input text-primary rounded border border-border [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" step="0.1" min="0" />
                     </div>
                     <div className="flex items-center gap-2">
                       <label className="text-xs text-muted">Max</label>
-                      <input type="number" value={c.max_score} onChange={(e) => updateCompetency(i, 'max_score', parseFloat(e.target.value) || 0)}
-                        className="w-20 px-2 py-1.5 text-sm bg-input text-primary rounded border border-border" step="1" min="1" />
+                       <input type="number" value={c.max_score} onChange={(e) => updateCompetency(i, 'max_score', parseFloat(e.target.value) || 0)}
+                         className="w-20 px-2 py-1.5 text-sm bg-input text-primary rounded border border-border [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" step="1" min="1" />
                     </div>
                   </div>
                   <button onClick={() => removeCompetency(i)} className="mt-1"><X className="w-4 h-4 text-muted hover:text-error" /></button>

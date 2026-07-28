@@ -123,7 +123,7 @@ export default function CandidatePractice() {
             onChange={(e) => setNumQuestions(Number(e.target.value))}
             min={3}
             max={20}
-            className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)]"
+            className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           />
         </div>
 
