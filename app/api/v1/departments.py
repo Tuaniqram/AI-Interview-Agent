@@ -316,7 +316,7 @@ class TemplateUpdateRequest(BaseModel):
 
 
 class TemplateResponse(BaseModel):
-    id: str
+    id: UUID
     department_id: int
     name: str
     job_role: str
@@ -324,7 +324,7 @@ class TemplateResponse(BaseModel):
     interview_style: Optional[str] = None
     competencies: Optional[list] = None
     total_questions: Optional[int] = None
-    scorecard_template_id: Optional[str] = None
+    scorecard_template_id: Optional[UUID] = None
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

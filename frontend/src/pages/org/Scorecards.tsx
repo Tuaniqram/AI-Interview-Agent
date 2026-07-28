@@ -22,6 +22,7 @@ export default function Scorecards() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [name, setName] = useState('');
   const [competencies, setCompetencies] = useState<CompetencyDef[]>([]);
 
@@ -66,6 +67,7 @@ export default function Scorecards() {
 
   const handleSave = async () => {
     if (!activeOrg?.id || !name.trim()) return;
+    setSaving(true);
     const payload = { name: name.trim(), competencies: competencies.filter(c => c.name.trim()) };
     try {
       if (editingId) {
@@ -80,6 +82,8 @@ export default function Scorecards() {
       resetForm();
     } catch {
       toast.error('Failed to save scorecard');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -143,8 +147,8 @@ export default function Scorecards() {
               ))}
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={resetForm}>Cancel</Button>
-              <Button onClick={handleSave}>{editingId ? 'Update' : 'Create'}</Button>
+              <Button variant="ghost" onClick={resetForm} disabled={saving}>Cancel</Button>
+              <Button onClick={handleSave} loading={saving}>{editingId ? 'Update' : 'Create'}</Button>
             </div>
           </Card>
         )}

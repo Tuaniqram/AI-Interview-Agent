@@ -41,6 +41,7 @@ export default function Templates() {
   const [totalQuestions, setTotalQuestions] = useState(10);
   const [deptId, setDeptId] = useState<number | ''>('');
   const [scorecardTemplateId, setScorecardTemplateId] = useState('');
+  const [saving, setSaving] = useState(false);
   const [scorecards, setScorecards] = useState<ScorecardTemplate[]>([]);
 
   useEffect(() => {
@@ -84,6 +85,7 @@ export default function Templates() {
 
   const handleSave = async () => {
     if (!activeOrg?.id || !name.trim() || !jobRole.trim() || deptId === '') return;
+    setSaving(true);
     const payload = {
       name: name.trim(),
       job_role: jobRole.trim(),
@@ -105,6 +107,8 @@ export default function Templates() {
       resetForm();
     } catch {
       toast.error('Failed to save template');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -199,8 +203,8 @@ export default function Templates() {
                 className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border" placeholder="Template description..." />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={resetForm}>Cancel</Button>
-              <Button onClick={handleSave}>{editingId ? 'Update' : 'Create'}</Button>
+              <Button variant="ghost" onClick={resetForm} disabled={saving}>Cancel</Button>
+              <Button onClick={handleSave} loading={saving}>{editingId ? 'Update' : 'Create'}</Button>
             </div>
           </Card>
         )}
