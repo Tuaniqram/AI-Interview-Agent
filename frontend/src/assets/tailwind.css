@@ -35,6 +35,10 @@
 }
 
 @layer base {
+  html {
+    background: var(--bg-page);
+  }
+
   :root {
     /* ── Background hierarchy ── */
     --bg-page:            #f5f5f7;
@@ -99,7 +103,7 @@
     height: 5px;
   }
   *::-webkit-scrollbar-track {
-    background: transparent;
+    background: var(--bg-page);
   }
   *::-webkit-scrollbar-thumb {
     background: var(--text-muted);
