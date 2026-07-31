@@ -18,6 +18,7 @@ SUFFICIENCY_GAP_THRESHOLD = 0.3
 async def reflection_engine(state: InterviewState) -> InterviewState:
     competency_summary = state.get("competency_summary", {})
     required_competencies = state.get("required_competencies", _DEFAULT_REQUIRED)
+    comp_weights = _competency_weights(state)
     existing_contradictions = state.get("contradictions", [])
     existing_consistency = state.get("consistency_checks", [])
     hypotheses = state.get("hypotheses", [])
@@ -31,6 +32,7 @@ async def reflection_engine(state: InterviewState) -> InterviewState:
 
     evidence_sufficiency, hiring_recommendation = _evaluate_sufficiency(
         competency_summary, required_competencies, contradictions, hypotheses, question_number,
+        comp_weights,
     )
 
     next_action = _decide_next_action(
@@ -46,6 +48,15 @@ async def reflection_engine(state: InterviewState) -> InterviewState:
         "hiring_recommendation": hiring_recommendation,
         "reflection_action": next_action,
     }
+
+
+def _competency_weights(state: InterviewState) -> dict[str, float]:
+    taxonomy = state.get("competency_taxonomy") or COMPETENCY_TAXONOMY
+    weights = {}
+    for c in taxonomy:
+        weight = c.get("weight")
+        weights[c["id"]] = float(weight) if weight else 1.0
+    return weights
 
 
 def _detect_contradictions(
@@ -103,6 +114,7 @@ def _evaluate_sufficiency(
     contradictions: list,
     hypotheses: list,
     question_number: int,
+    comp_weights: dict[str, float],
 ) -> tuple[dict, dict]:
     total_weight = 0.0
     covered_weight = 0.0
@@ -114,12 +126,7 @@ def _evaluate_sufficiency(
         avg_score = summary.get("average_score", 0.0) or 0.0
         gap = summary.get("gap", 1.0)
 
-        if comp in ("tech_core", "system_design", "problem_solving"):
-            weight = 3.0
-        elif comp in ("communication", "collaboration"):
-            weight = 2.0
-        else:
-            weight = 1.0
+        weight = comp_weights.get(comp, 1.0)
 
         is_covered = evidence_count >= MIN_QUESTIONS_PER_COMPETENCY and gap <= SUFFICIENCY_GAP_THRESHOLD
         if is_covered:

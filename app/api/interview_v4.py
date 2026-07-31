@@ -14,6 +14,11 @@ from app.graph.interview_state import InterviewState
 from app.models.db import CandidateProfile, InterviewSession
 from app.config.interview_styles import get_style, list_styles
 from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
+from app.data.competency_resolver import (
+    default_taxonomy,
+    resolve_competencies,
+    taxonomy_for_state,
+)
 from app.agents.session_init_node import session_init_node
 from app.agents.company_context_node import department_context_node
 from app.agents.candidate_profile_node import candidate_profile_node
@@ -163,7 +168,15 @@ async def start_v4_interview(request: V4StartRequest):
     session_id = str(uuid4())
     style = get_style(request.style_name)
 
-    state: InterviewState = _build_initial_state(session_id, request, style)
+    taxonomy = default_taxonomy()
+    if request.department_id:
+        async with get_session_factory()() as db:
+            taxonomy = await resolve_competencies(db, department_id=request.department_id)
+    competency_taxonomy, required, domain_label = taxonomy_for_state(taxonomy)
+
+    state: InterviewState = _build_initial_state(
+        session_id, request, style, competency_taxonomy, required, domain_label
+    )
 
     try:
         state = session_init_node(state)
@@ -285,7 +298,14 @@ async def get_v4_report(
 # ============================================================================
 
 
-def _build_initial_state(session_id: str, request: V4StartRequest, style: dict) -> InterviewState:
+def _build_initial_state(
+    session_id: str,
+    request: V4StartRequest,
+    style: dict,
+    competency_taxonomy: list[dict],
+    required_competencies: list[str],
+    domain_label: str,
+) -> InterviewState:
     return {
         "session_id": session_id,
         "job_role": request.job_role,
@@ -299,7 +319,9 @@ def _build_initial_state(session_id: str, request: V4StartRequest, style: dict) 
             "strengths": request.candidate_strengths,
             "weaknesses": request.candidate_weaknesses,
         },
-        "required_competencies": [c["id"] for c in COMPETENCY_TAXONOMY],
+        "competency_taxonomy": competency_taxonomy,
+        "domain_label": domain_label,
+        "required_competencies": required_competencies,
         "conversation_history": [],
         "question_number": 0,
         "current_question": "",

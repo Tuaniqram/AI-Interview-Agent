@@ -109,7 +109,7 @@ def _generate_deterministic_question(
             return (
                 f"You mentioned you have strength in this area. Can you walk me through a specific "
                 f"challenging project where you applied advanced {target_competency.replace('_', ' ')} concepts? "
-                f"What was the hardest technical problem you had to solve?"
+                f"What was the hardest problem you had to solve?"
             )
         elif direction == "positive":
             return (
@@ -178,7 +178,14 @@ def _get_template_for_competency(competency: str, job_role: str, difficulty: int
             f"Tell me about a time you improved an existing process or system significantly.",
         ],
     }
-    return templates.get(competency, [])
+    if competency in templates:
+        return templates[competency]
+    comp_name = competency.replace("_", " ").title()
+    return [
+        f"Tell me about your strongest {comp_name} skills in your {job_role} role. Provide a specific example.",
+        f"Describe a time when {comp_name} was critical to achieving a goal. What did you do?",
+        f"How do you keep improving your {comp_name} abilities? Share a concrete example.",
+    ]
 
 
 def _fallback_question(competency: str, job_role: str, difficulty: int) -> str:

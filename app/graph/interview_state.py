@@ -86,6 +86,8 @@ class InterviewState(TypedDict, total=False):
     # Competency Planning
     required_competencies: List[Dict[str, Any]]
     competency_summary: Dict[str, Dict[str, Any]]
+    competency_taxonomy: List[Dict[str, Any]]
+    domain_label: str
 
     # Strategy
     interview_style: Dict[str, Any]

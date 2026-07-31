@@ -21,7 +21,11 @@ async def hypothesis_node(state: InterviewState) -> InterviewState:
     required_competencies = state.get("required_competencies", [])
 
     if not hypotheses:
-        hypotheses = generate_initial_hypotheses(job_role, candidate_profile)
+        hypotheses = generate_initial_hypotheses(
+            job_role,
+            candidate_profile,
+            competency_taxonomy=state.get("competency_taxonomy"),
+        )
 
         hypo_state = {}
         for h in hypotheses:

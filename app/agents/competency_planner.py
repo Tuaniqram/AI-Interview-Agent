@@ -1,7 +1,7 @@
 import logging
 from typing import Any
 
-from app.data.competency_taxonomy import COMPETENCY_TAXONOMY, COMPETENCY_IDS
+from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
 from app.graph.interview_state import InterviewState
 
 logger = logging.getLogger(__name__)
@@ -15,9 +15,10 @@ def plan_competencies(state: InterviewState) -> list[dict]:
     evidence_summary = state.get("competency_summary", {})
     strategy = state.get("interview_strategy", {})
     strategy_priorities = strategy.get("competency_priority", {}) if strategy else {}
+    taxonomy = state.get("competency_taxonomy") or COMPETENCY_TAXONOMY
 
     results = []
-    for comp_def in COMPETENCY_TAXONOMY:
+    for comp_def in taxonomy:
         comp_id = comp_def["id"]
         priority_str = (
             strategy_priorities.get(comp_id)

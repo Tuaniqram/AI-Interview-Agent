@@ -26,7 +26,8 @@ async def strategy_brain_node(state: InterviewState) -> InterviewState:
 
         strengths = ", ".join(candidate_profile.get("strengths", []) or ["None identified"])
         weaknesses = ", ".join(candidate_profile.get("weaknesses", []) or ["None identified"])
-        comp_names = ", ".join(c["name"] for c in COMPETENCY_TAXONOMY[:10])
+        taxonomy = state.get("competency_taxonomy") or COMPETENCY_TAXONOMY
+        comp_names = ", ".join(c["name"] for c in taxonomy[:10])
 
         prompt = load_prompt(
             "interview",

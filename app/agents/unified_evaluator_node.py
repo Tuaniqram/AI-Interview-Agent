@@ -23,12 +23,15 @@ async def unified_evaluator_node(state: InterviewState) -> InterviewState:
     style = state.get("interview_style", {})
     weights = style.get("evaluator_weights", {})
     competency = state.get("question_objective", {}).get("target_competency", "")
+    domain_label = state.get("domain_label", "Technical Knowledge")
 
     if evaluator_mode == "parallel":
-        return await _parallel_evaluator(state, question, answer, job_role, difficulty, persona, competency)
+        return await _parallel_evaluator(
+            state, question, answer, job_role, difficulty, persona, competency, domain_label
+        )
 
     return await _unified_evaluator(
-        state, question, answer, job_role, difficulty, persona, competency, weights
+        state, question, answer, job_role, difficulty, persona, competency, weights, domain_label
     )
 
 
@@ -41,6 +44,7 @@ async def _unified_evaluator(
     persona: str,
     competency: str,
     weights: dict,
+    domain_label: str,
 ) -> InterviewState:
     from app.services.llm_service import get_llm_service
     from app.services.prompt_loader import load_prompt
@@ -60,6 +64,7 @@ async def _unified_evaluator(
             difficulty=str(difficulty),
             persona=persona,
             competency=competency or "General",
+            domain_label=domain_label,
         )
 
         response = await llm_service.invoke(
@@ -139,6 +144,7 @@ async def _parallel_evaluator(
     difficulty: int,
     persona: str,
     competency: str,
+    domain_label: str,
 ) -> InterviewState:
     from app.services.llm_service import get_llm_service
     from app.services.prompt_loader import load_prompt
@@ -160,6 +166,7 @@ async def _parallel_evaluator(
                     difficulty=str(difficulty),
                     persona=persona,
                     competency=competency or "General",
+                    domain_label=domain_label,
                 )
                 resp = await llm_service.invoke(prompt=prompt, temperature=0.3, max_tokens=500)
                 resp = resp.strip()

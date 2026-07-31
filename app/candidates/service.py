@@ -34,6 +34,7 @@ from app.models.db import (
 from app.services.v4_session_store import get_v4_session_store
 from app.config.interview_styles import get_style
 from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
+from app.data.competency_resolver import default_taxonomy, taxonomy_for_state
 from app.models.db import EvidenceStore
 
 
@@ -260,7 +261,7 @@ async def get_competency_scores(candidate_id: UUID, db: AsyncSession) -> list[di
         info = taxonomy_map.get(competency, {})
         scores.append({
             "competency": competency,
-            "name": info.get("name", competency),
+            "name": info.get("name") or competency.replace("_", " ").title(),
             "category": info.get("category", "other"),
             "average_score": round(float(avg_score), 1),
             "evidence_count": evidence_count,
@@ -309,6 +310,9 @@ async def start_practice(
 
     # Seed v4 state with the chosen style and candidate profile
     style = get_style(interview_style or "STANDARD")
+    competency_taxonomy, required_competencies, domain_label = taxonomy_for_state(
+        default_taxonomy()
+    )
     store = get_v4_session_store()
     state = {
         "session_id": str(session.id),
@@ -323,7 +327,9 @@ async def start_practice(
             "strengths": list(profile_data.get("strengths", [])) if profile_data else [],
             "weaknesses": list(profile_data.get("weaknesses", [])) if profile_data else [],
         },
-        "required_competencies": [c["id"] for c in COMPETENCY_TAXONOMY],
+        "competency_taxonomy": competency_taxonomy,
+        "domain_label": domain_label,
+        "required_competencies": required_competencies,
         "conversation_history": [],
         "question_number": 0,
         "current_question": "",

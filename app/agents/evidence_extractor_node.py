@@ -3,7 +3,6 @@ from uuid import UUID, uuid4
 from datetime import datetime, timezone
 
 from app.graph.interview_state import InterviewState
-from app.data.competency_taxonomy import map_skill_to_competency
 from app.repositories.evidence_repository import EvidenceRepository
 from app.agents.hypothesis_manager import update_hypotheses
 
@@ -43,9 +42,7 @@ async def evidence_extractor_node(state: InterviewState) -> InterviewState:
         strengths = data.get("strengths", []) or []
         weaknesses = data.get("weaknesses", []) or []
 
-        competency = target_comp if target_comp else map_skill_to_competency(dim)
-        if not competency:
-            competency = f"dim_{dim}"
+        competency = target_comp if target_comp else f"dim_{dim}"
 
         evidence_id = str(uuid4())
         evidence_item = {

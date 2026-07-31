@@ -83,7 +83,7 @@ export const departmentService = {
     return apiClient.get<Template[]>(`/api/v1/departments/${departmentId}/templates`);
   },
 
-  async createTemplate(departmentId: number, data: { name: string; job_role: string; total_questions?: number; description?: string; interview_style?: string; scorecard_template_id?: string }): Promise<Template> {
+  async createTemplate(departmentId: number, data: { name: string; job_role: string; total_questions?: number; description?: string; interview_style?: string; scorecard_template_id?: string; competencies?: any[] }): Promise<Template> {
     return apiClient.post<Template>(`/api/v1/departments/${departmentId}/templates`, data);
   },
 

@@ -15,7 +15,7 @@ Evaluate the candidate's answer as if you're providing honest, constructive feed
 
 **Evaluation Criteria**:
 
-1. **Technical Knowledge** (0.0-10.0): Accuracy of technical understanding, coverage of relevant concepts, depth of knowledge
+1. **{{domain_label}}** (0.0-10.0): Accuracy of domain understanding, coverage of relevant concepts, depth of knowledge
 2. **Problem Solving** (0.0-10.0): Reasoning and logic, approach to problems, presence of structured analysis
 3. **Communication** (0.0-10.0): Clarity of expression, completeness, coherence, organization of thoughts
 

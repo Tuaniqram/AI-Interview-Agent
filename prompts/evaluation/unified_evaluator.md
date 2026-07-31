@@ -8,6 +8,7 @@ You are an expert interview evaluator. Assess the candidate's answer across 6 di
 - **Difficulty Level**: {{difficulty}}/3
 - **Target Competency**: {{competency}}
 - **Interviewer Persona**: {{persona}}
+- **Knowledge Dimension**: {{domain_label}}
 
 ## Question
 
@@ -21,8 +22,8 @@ You are an expert interview evaluator. Assess the candidate's answer across 6 di
 
 Score each dimension from **0-10**. Include specific evidence from the answer.
 
-### 1. Technical (0-10)
-- Correctness of technical concepts
+### 1. {{domain_label}} (0-10)
+- Correctness of domain concepts
 - Depth of knowledge demonstrated
 - Use of proper terminology
 - Awareness of best practices and trade-offs
@@ -97,7 +98,7 @@ Return ONLY valid JSON — no markdown, no explanation:
     },
     "behavioral": {
         "score": null,
-        "evidence": "Not applicable for this technical question",
+        "evidence": "Not applicable for this question type",
         "confidence": 0.0,
         "strengths": [],
         "weaknesses": []

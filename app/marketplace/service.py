@@ -32,7 +32,7 @@ from app.services.audit_log import AuditLogService
 from app.services.marketplace_generator import generate_rich_description
 from app.services.v4_session_store import get_v4_session_store
 from app.config.interview_styles import get_style
-from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
+from app.data.competency_resolver import resolve_competencies, taxonomy_for_state
 
 
 async def list_organizations(
@@ -245,6 +245,12 @@ async def start_public_interview(
 
     # Seed v4 state with the listing's style and candidate profile data
     style = get_style(pi.style_name or "STANDARD")
+    taxonomy = await resolve_competencies(
+        db,
+        scorecard_template_id=str(sc_template_id) if sc_template_id else None,
+        department_id=pi.department_id,
+    )
+    competency_taxonomy, required_competencies, domain_label = taxonomy_for_state(taxonomy)
     store = get_v4_session_store()
     state = {
         "session_id": str(session.id),
@@ -259,7 +265,9 @@ async def start_public_interview(
             "strengths": list(profile_data.get("strengths", [])) if profile_data else [],
             "weaknesses": list(profile_data.get("weaknesses", [])) if profile_data else [],
         },
-        "required_competencies": [c["id"] for c in COMPETENCY_TAXONOMY],
+        "competency_taxonomy": competency_taxonomy,
+        "domain_label": domain_label,
+        "required_competencies": required_competencies,
         "conversation_history": [],
         "question_number": 0,
         "current_question": "",

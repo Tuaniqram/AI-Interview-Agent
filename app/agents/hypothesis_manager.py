@@ -19,6 +19,7 @@ def generate_initial_hypotheses(
     job_role: str,
     candidate_profile: dict | None = None,
     max_hypotheses: int = 6,
+    competency_taxonomy: list[dict] | None = None,
 ) -> list[dict]:
     hypotheses = []
     added = set()
@@ -77,7 +78,8 @@ def generate_initial_hypotheses(
             })
             added.add(key)
 
-    for comp in COMPETENCY_TAXONOMY[:3]:
+    taxonomy = competency_taxonomy or COMPETENCY_TAXONOMY
+    for comp in taxonomy[:3]:
         key = f"comp_{comp['id']}"
         if key not in added:
             hypotheses.append({

@@ -19,7 +19,11 @@ from app.orchestrators.interview_orchestrator import InterviewOrchestrator
 from app.exceptions import SessionNotFoundException
 from app.services.v4_session_store import get_v4_session_store
 from app.config.interview_styles import get_style
-from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
+from app.data.competency_resolver import (
+    default_taxonomy,
+    resolve_competencies,
+    taxonomy_for_state,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -101,10 +105,24 @@ async def _get_engine_version(session_id: str) -> str:
         return row or "v3"
 
 
-def _seed_v4_state(db_session: InterviewSession) -> None:
+async def _seed_v4_state(db_session: InterviewSession) -> None:
     store = get_v4_session_store()
     if store.get(str(db_session.id)):
         return
+
+    taxonomy = default_taxonomy()
+    try:
+        async with get_session_factory()() as db:
+            taxonomy = await resolve_competencies(
+                db,
+                scorecard_template_id=str(db_session.scorecard_template_id)
+                if db_session.scorecard_template_id
+                else None,
+                department_id=db_session.department_id,
+            )
+    except Exception as exc:
+        logger.warning("Competency resolution failed, using defaults: %s", exc)
+    competency_taxonomy, required_competencies, domain_label = taxonomy_for_state(taxonomy)
 
     style = get_style("STANDARD")
     state = {
@@ -120,7 +138,9 @@ def _seed_v4_state(db_session: InterviewSession) -> None:
             "strengths": [],
             "weaknesses": [],
         },
-        "required_competencies": [c["id"] for c in COMPETENCY_TAXONOMY],
+        "competency_taxonomy": competency_taxonomy,
+        "domain_label": domain_label,
+        "required_competencies": required_competencies,
         "conversation_history": [],
         "question_number": 0,
         "current_question": "",
@@ -387,7 +407,7 @@ async def initiate_next_question(
 
     if engine == "v4":
         try:
-            _seed_v4_state(db_session)
+            await _seed_v4_state(db_session)
             result = await _run_v4_start(str(db_session.id), db_session)
             logger.info(f"v4 question generated: session={session_id}, q#{result['question_number']}")
             return result

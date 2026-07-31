@@ -165,4 +165,8 @@ def _map_to_profile_key(dimension: str, competency: str) -> str | None:
         "exp_project_depth": "ownership",
         "cog_problem_solving": "debugging",
     }
-    return competency_key_map.get(competency, None)
+    if competency in competency_key_map:
+        return competency_key_map[competency]
+    if competency:
+        return competency
+    return None
