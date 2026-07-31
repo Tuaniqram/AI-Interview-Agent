@@ -149,6 +149,7 @@ class OrgUser(Base):
         CheckConstraint("role IN ('owner','member','viewer')", name="org_users_role_check"),
         Index("idx_org_users_org", "org_id"),
         Index("idx_org_users_user", "user_id"),
+        Index("idx_org_users_invited_by", "invited_by"),
     )
 
 
@@ -183,8 +184,9 @@ class OrgInvitation(Base):
     __table_args__ = (
         CheckConstraint("status IN ('pending','accepted','expired')",
                         name="org_invitations_status_check"),
-        Index("idx_org_invitations_token", "token"),
         Index("idx_org_invitations_email", "email"),
+        Index("idx_org_invitations_org", "org_id"),
+        Index("idx_org_invitations_inviter", "inviter_id"),
     )
 
 
@@ -380,6 +382,7 @@ class InterviewEvaluation(Base):
     __table_args__ = (
         CheckConstraint("score >= 0 AND score <= 10", name="interview_evaluations_score_check"),
         Index("idx_evaluations_session_id", "session_id"),
+        Index("idx_evaluations_message", "message_id"),
     )
 
 
@@ -413,6 +416,10 @@ class InterviewTemplate(Base):
     department: Mapped[Department] = relationship("Department", back_populates="templates")
     scorecard_template: Mapped[Optional[ScorecardTemplate]] = relationship("ScorecardTemplate")
 
+    __table_args__ = (
+        Index("idx_templates_department", "department_id"),
+    )
+
 
 class CandidateProfile(Base):
     __tablename__ = "candidate_profiles"
@@ -442,7 +449,6 @@ class CandidateProfile(Base):
 
     __table_args__ = (
         Index("idx_candidate_email", "email"),
-        Index("idx_candidate_google", "google_id"),
     )
 
 
@@ -478,8 +484,8 @@ class CandidateInvitation(Base):
     __table_args__ = (
         CheckConstraint("status IN ('pending','accepted','completed','expired')",
                         name="invitations_status_check"),
-        Index("idx_invitations_token", "token"),
         Index("idx_invitations_department", "department_id"),
+        Index("idx_invitations_created_by", "created_by"),
     )
 
 
@@ -609,8 +615,7 @@ class PublicInterview(Base):
 
     __table_args__ = (
         Index("idx_public_interviews_org", "org_id"),
-        Index("idx_public_interviews_token", "token"),
-        Index("idx_public_interviews_department", "department_id"),
+        Index("idx_public_interviews_template", "template_id"),
     )
 
 
@@ -745,6 +750,8 @@ class Booking(Base):
     __table_args__ = (
         CheckConstraint("status IN ('confirmed','completed','cancelled','no-show')",
                         name="bookings_status_check"),
+        Index("idx_bookings_slot", "slot_id"),
+        Index("idx_bookings_availability", "availability_id"),
     )
 
 
@@ -862,8 +869,6 @@ class Hypothesis(Base):
             "status IN ('untested', 'testing', 'confirmed', 'refuted')",
             name="hypothesis_status_check",
         ),
-        Index("idx_hypotheses_session", "session_id"),
-        Index("idx_hypotheses_session_status", "session_id", "status"),
     )
 
 
@@ -899,8 +904,6 @@ class InterviewObjective(Base):
             "status IN ('pending', 'probed', 'satisfied')",
             name="objective_status_check",
         ),
-        Index("idx_objectives_session", "session_id"),
-        Index("idx_objectives_session_status", "session_id", "status"),
     )
 
 
@@ -928,7 +931,6 @@ class ConsistencyCheck(Base):
             "consistency_score >= 0 AND consistency_score <= 1",
             name="consistency_score_check",
         ),
-        Index("idx_consistency_session", "session_id"),
     )
 
 
@@ -955,8 +957,6 @@ class Observation(Base):
 
     __table_args__ = (
         CheckConstraint("value >= 0 AND value <= 1", name="observation_value_check"),
-        Index("idx_observations_session", "session_id"),
-        Index("idx_observations_session_type", "session_id", "type"),
     )
 
 
@@ -983,6 +983,7 @@ class CandidateSavedListing(Base):
     __table_args__ = (
         UniqueConstraint("candidate_id", "listing_id", name="uq_candidate_listing"),
         Index("idx_saved_listings_candidate", "candidate_id"),
+        Index("idx_saved_listings_listing", "listing_id"),
     )
 
 
