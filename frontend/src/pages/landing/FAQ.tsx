@@ -35,7 +35,7 @@ export function FAQ() {
     <section className="py-24 px-6 bg-page">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-14">
-          <h2 className="text-3xl md:text-4xl font-bold text-primary mb-4">Frequently asked questions</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-gradient mb-4">Frequently asked questions</h2>
           <p className="text-secondary text-lg">
             Everything you need to know about the platform.
           </p>

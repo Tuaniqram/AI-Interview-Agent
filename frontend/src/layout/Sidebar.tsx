@@ -1,7 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Store, Shield, X, Command as CommandIcon, Search as SearchIcon, Monitor as MonitorIcon } from 'lucide-react';
+import { Store, Shield, X, Sun, Moon, Command as CommandIcon, Search as SearchIcon, Monitor as MonitorIcon } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Select } from '../components/shared/Select';
+import { useTheme } from '../contexts/ThemeContext';
 import type { OrgRole } from '../types/org';
 
 export interface NavItem {
@@ -81,6 +82,8 @@ export function Sidebar({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, onClose, setShowShortcuts]);
 
+  const { isDark, toggle } = useTheme();
+
   const getIcon = (icon: React.ComponentType<{ className?: string }>, isActive: boolean) => {
     return React.createElement(icon, { 
       className: isActive ? 'text-action-primary' : '' 
@@ -97,7 +100,7 @@ export function Sidebar({
       )}
 
       <aside 
-        className={`h-screen bg-section flex flex-col w-52 fixed lg:static z-50 lg:z-auto
+        className={`h-screen glass flex flex-col w-52 fixed lg:static z-50 lg:z-auto
           ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
@@ -230,7 +233,14 @@ export function Sidebar({
         </nav>
 
         <div className="p-3 shrink-0">
-          {/* Keyboard shortcuts hint */}
+          <button
+            onClick={toggle}
+            className="flex items-center gap-3 w-full px-3 py-1.5 rounded-lg text-xs text-muted bg-bg-input hover:bg-hover mb-2 border border-border hover:border-action-primary transition-colors"
+            aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+          >
+            {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+          </button>
           <div
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-muted bg-bg-input hover:bg-hover cursor-pointer mb-2 border border-border hover:border-action-primary transition-colors"
             onClick={() => setShowShortcuts(true)}
@@ -238,7 +248,6 @@ export function Sidebar({
             <kbd className="bg-bg-elevated px-1.5 py-0.5 rounded text-[10px] font-medium">Ctrl+</kbd>
             <span className="text-[10px]">Shortcuts</span>
           </div>
-
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-action-primary/10 text-action-primary flex items-center justify-center text-xs font-semibold shrink-0">
               {user?.name?.charAt(0)?.toUpperCase() || '?'}

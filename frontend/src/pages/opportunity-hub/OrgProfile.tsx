@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { marketplaceService } from '../../services/marketplaceService';
 import { candidateService } from '../../services/candidateService';
-import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
+import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { BookmarkButton } from '../../components/candidate/BookmarkButton';
 import { ArrowLeft, Clock, Globe } from 'lucide-react';
@@ -29,7 +29,7 @@ export default function OrgProfile() {
     .finally(() => setLoading(false));
   }, [slug]);
 
-  if (loading) return <LoadingSpinner message="Loading organization..." />;
+  if (loading) return <ContentSkeleton />;
   if (!org) return <EmptyState title="Organization not found" />;
 
   return (

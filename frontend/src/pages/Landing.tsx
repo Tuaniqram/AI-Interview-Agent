@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Hero } from './landing/Hero';
 import { Stats } from './landing/Stats';
@@ -12,13 +13,32 @@ import { CTASection } from './landing/CTASection';
 import { ScrollProgress } from '../components/shared/ScrollProgress';
 
 export function Landing() {
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('animate-fade-in-up');
+          } else {
+            entry.target.classList.remove('animate-fade-in-up');
+          }
+        });
+      },
+      { threshold: 0.15 }
+    );
+
+    const els = document.querySelectorAll('[data-reveal]');
+    els.forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#0a0a0b]">
       {/** Scroll Progress Indicator */}
       <ScrollProgress />
       
       {/* Top Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0b]/80 backdrop-blur-lg border-b border-white/5">
+      <nav className="fixed top-0 left-0 right-0 z-50 glass">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <img src="/favicon.svg" className="w-7 h-7" alt="" />

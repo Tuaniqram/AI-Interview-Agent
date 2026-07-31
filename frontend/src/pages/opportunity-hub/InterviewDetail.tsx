@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { marketplaceService } from '../../services/marketplaceService';
-import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
+import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';
@@ -59,7 +59,7 @@ export default function InterviewDetail() {
     }
   };
 
-  if (loading) return <LoadingSpinner message="Loading interview..." />;
+  if (loading) return <ContentSkeleton />;
   if (!interview) return <EmptyState title="Interview not found" />;
 
   const skills = interview.skills_required?.split(',').map(s => s.trim()).filter(Boolean) || [];

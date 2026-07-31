@@ -1,12 +1,35 @@
+import { useRef, useEffect } from 'react';
 import { ArrowRight, Play, CheckCircle, Star } from 'lucide-react';
 
 export function Hero() {
+  const blob1Ref = useRef<HTMLDivElement>(null);
+  const blob2Ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (window.innerWidth <= 768) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const x = (e.clientX / window.innerWidth - 0.5) * 2;
+      const y = (e.clientY / window.innerHeight - 0.5) * 2;
+
+      if (blob1Ref.current) {
+        blob1Ref.current.style.transform = `translate(${x * -15}px, ${y * -15}px)`;
+      }
+      if (blob2Ref.current) {
+        blob2Ref.current.style.transform = `translate(${x * 12}px, ${y * 12}px)`;
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
   const scrollToFlow = () => {
     document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
-    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-page">
+    <section data-reveal className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-page">
       <div
         className="absolute inset-0 opacity-[0.03]"
         style={{
@@ -15,8 +38,8 @@ export function Hero() {
         }}
       />
 
-      <div className="absolute top-1/4 -left-32 w-96 h-96 rounded-full bg-action-primary/10 blur-[120px]" />
-      <div className="absolute bottom-1/4 -right-32 w-96 h-96 rounded-full bg-action-primary/5 blur-[120px]" />
+      <div ref={blob1Ref} className="absolute top-1/4 -left-32 w-96 h-96 rounded-full bg-action-primary/10 blur-[120px]" style={{ willChange: 'transform' }} />
+      <div ref={blob2Ref} className="absolute bottom-1/4 -right-32 w-96 h-96 rounded-full bg-action-primary/5 blur-[120px]" style={{ willChange: 'transform' }} />
 
       <div className="relative z-10 text-center px-6 py-6 max-w-4xl mx-auto">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-action-primary/10 text-action-primary text-xs font-medium mb-8">
@@ -27,7 +50,7 @@ export function Hero() {
         <h1 className="text-5xl md:text-7xl font-bold text-primary leading-tight mb-6 tracking-tight">
           AI Interview
           <br />
-          <span className="bg-gradient-to-r from-[#8b6ff5] to-[#a08aff] bg-clip-text text-transparent">
+          <span className="text-gradient">
             Agent
           </span>
         </h1>

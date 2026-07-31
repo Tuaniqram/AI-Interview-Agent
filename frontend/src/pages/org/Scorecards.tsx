@@ -4,7 +4,7 @@ import { scorecardService } from '../../services/scorecardService';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { Card } from '../../components/shared/Card';
 import { Button } from '../../components/shared/Button';
-import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
+import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Select } from '../../components/shared/Select';
 import { Slider } from '../../components/shared/Slider';
@@ -100,7 +100,7 @@ export default function Scorecards() {
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <ContentSkeleton />;
 
   return (
     <>

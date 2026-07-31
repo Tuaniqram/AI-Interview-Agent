@@ -43,7 +43,7 @@ export function AuthBrandPanel({ role }: AuthBrandPanelProps) {
       <div className="relative z-10">
         <Link to="/" className="inline-flex items-center gap-2.5">
           <img src="/favicon.svg" className="w-8 h-8" alt="" />
-          <span className="text-lg font-bold text-white">AI Interview Agent</span>
+          <span className="text-lg font-bold text-gradient">AI Interview Agent</span>
         </Link>
       </div>
 

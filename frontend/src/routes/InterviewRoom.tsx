@@ -24,7 +24,7 @@ export function InterviewRoom() {
 
   return (
     <div className="fixed inset-0 flex flex-col" data-theme="dark">
-      <header className="shrink-0 flex items-center justify-center bg-page/80 backdrop-blur-sm relative">
+      <header className="shrink-0 flex items-center justify-center glass relative">
         <div className="flex-1" />
         <PhaseProgress />
         <div className="flex-1 flex justify-end pr-3">

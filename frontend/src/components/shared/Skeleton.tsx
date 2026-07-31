@@ -6,7 +6,7 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ className = '', variant = 'text', width, height }: SkeletonProps) {
-  const base = 'animate-pulse bg-elevated';
+  const base = 'shimmer bg-elevated';
   const shape = variant === 'circle' ? 'rounded-full' : variant === 'rect' ? 'rounded-lg' : 'rounded h-4';
 
   return (

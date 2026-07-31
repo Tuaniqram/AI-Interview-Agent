@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { candidateService } from '../../services/candidateService';
-import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
+import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { useToast } from '../../components/shared/Toast';
 import type { CandidateInterviewDetail as Detail } from '../../types/candidate';
@@ -23,7 +23,7 @@ export default function CandidateInterviewDetail() {
       .finally(() => setLoading(false));
   }, [interviewId]);
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <ContentSkeleton />;
   if (!interview) return <EmptyState title="Interview not found" />;
 
   return (

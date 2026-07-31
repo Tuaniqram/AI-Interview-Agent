@@ -6,6 +6,7 @@ import { App } from './App'
 import './assets/tailwind.css'
 import { InterviewProvider } from './state/interviewStore'
 import { AuthProvider } from './contexts/AuthContext'
+import { ThemeProvider } from './contexts/ThemeContext'
 import { OrgProvider } from './contexts/OrgContext'
 import { CandidateAuthProvider } from './contexts/CandidateAuthContext'
 import { ToastProvider } from './components/shared/Toast'
@@ -16,6 +17,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
       <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        <ThemeProvider>
         <AuthProvider>
           <OrgProvider>
             <CandidateAuthProvider>
@@ -27,6 +29,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             </CandidateAuthProvider>
           </OrgProvider>
         </AuthProvider>
+        </ThemeProvider>
       </GoogleOAuthProvider>
     </BrowserRouter>
   </React.StrictMode>,

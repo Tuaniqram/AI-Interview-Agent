@@ -6,6 +6,7 @@ import { useCamera } from '../../hooks/useCamera';
 import { AvatarRenderer, getLipSyncController } from '../../components/AvatarRenderer';
 import { CameraPreview } from '../../components/CameraPreview';
 import type { AvatarEmotion } from '../../types/avatar';
+import { VoiceWaveform } from '../../components/VoiceWaveform';
 import { BackButton, LoadingScreen, QuestionDisplay, InputBar } from './shared';
 
 export function AvatarMode() {
@@ -141,13 +142,14 @@ export function AvatarMode() {
         statusIndicator={
           <>
             {voice.isListening && (
-              <span className="flex items-center gap-1 text-success">
-                <span className="w-1.5 h-1.5 bg-success rounded-full animate-pulse" /> Recording...
+              <span className="flex items-center gap-2 text-success">
+                <VoiceWaveform isListening={true} className="h-6" />
+                Recording...
               </span>
             )}
             {effectiveIsSpeaking && (
               <span className="flex items-center gap-1 text-action-primary">
-                <span className="w-1.5 h-1.5 bg-action-primary rounded-full animate-pulse" /> Speaking...
+                <span className="relative w-1.5 h-1.5"><span className="absolute inset-0 rounded-full bg-action-primary pulse-ring" /><span className="absolute inset-0 rounded-full bg-action-primary" /></span> Speaking...
               </span>
             )}
             {!voice.isSupported && <span className="text-warning">Voice not supported</span>}
@@ -159,7 +161,7 @@ export function AvatarMode() {
           disabled={isSending || !voice.isSupported}
           className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shrink-0 ${
             voice.isListening
-              ? 'bg-error text-inverse animate-pulse'
+              ? 'bg-error text-inverse pulse-ring'
               : 'bg-input text-muted hover:bg-hover'
           } disabled:opacity-50 disabled:cursor-not-allowed`}
         >

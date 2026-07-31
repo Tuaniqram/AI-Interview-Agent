@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { adminService } from '../../services/adminService';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { SearchInput } from '../../components/shared/SearchInput';
-import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
+import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Button } from '../../components/shared/Button';
 import { useToast } from '../../components/shared/Toast';
@@ -34,7 +34,7 @@ export default function OrgManagement() {
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <ContentSkeleton />;
 
   return (
     <div className="space-y-6">

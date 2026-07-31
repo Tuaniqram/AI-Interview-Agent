@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { apiClient } from '../../services/apiClient';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { Card } from '../../components/shared/Card';
-import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
+import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { CheckCircle, XCircle, Activity } from 'lucide-react';
 
 interface HealthStatus {
@@ -29,7 +29,7 @@ export default function SystemHealth() {
     }).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <ContentSkeleton />;
 
   const checks = [
     { label: 'API Server', ok: health?.status === 'ok', detail: `${health?.app} v${health?.version}` },

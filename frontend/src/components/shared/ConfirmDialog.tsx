@@ -47,7 +47,7 @@ export function ConfirmDialog({ open, title, message, confirmLabel = 'Confirm', 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-      <div ref={dialogRef} className="bg-elevated rounded-xl shadow-lg max-w-sm w-full mx-4 p-6">
+      <div ref={dialogRef} className="glass rounded-xl shadow-lg max-w-sm w-full mx-4 p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-full ${variant === 'danger' ? 'bg-error-bg' : 'bg-hover'}`}>

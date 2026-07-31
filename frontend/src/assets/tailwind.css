@@ -244,6 +244,10 @@
     #c4b5fd 100%
   );
   background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
   animation: gradient-shift 3s linear infinite;
 }
 
@@ -415,3 +419,13 @@
 .waveform-bar:nth-child(6) { animation-delay: 0.3s; }
 .waveform-bar:nth-child(7) { animation-delay: 0.2s; }
 .waveform-bar:nth-child(8) { animation-delay: 0.1s; }
+
+/* ──── NEW: Fade In Up Reveal ──── */
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}

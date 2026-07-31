@@ -3,7 +3,7 @@ import { useOrg } from '../../contexts/OrgContext';
 import { apiClient } from '../../services/apiClient';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { Card } from '../../components/shared/Card';
-import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
+import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { useToast } from '../../components/shared/Toast';
 import { Cpu, Activity, CheckCircle, XCircle } from 'lucide-react';
 
@@ -27,7 +27,7 @@ export default function LLMDashboard() {
     .finally(() => setLoading(false));
   }, [activeOrg?.id]);
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <ContentSkeleton />;
 
   return (
     <div className="space-y-6">

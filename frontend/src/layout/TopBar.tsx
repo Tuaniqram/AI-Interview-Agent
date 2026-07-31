@@ -1,8 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { Sun, Moon, Menu } from 'lucide-react';
-import { useState, useEffect } from 'react';
-
-const THEME_KEY = 'ai-interview-theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -14,13 +12,6 @@ const pageTitles: Record<string, string> = {
   '/new-interview': 'New Interview',
 };
 
-function getInitialTheme(): boolean {
-  const stored = localStorage.getItem(THEME_KEY);
-  if (stored === 'dark') return true;
-  if (stored === 'light') return false;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches;
-}
-
 interface TopBarProps {
   onMenuToggle?: () => void;
 }
@@ -29,18 +20,7 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
   const location = useLocation();
   const base = '/' + location.pathname.split('/').filter(Boolean)[0] || '/';
   const title = pageTitles[base] || 'AI Interview';
-
-  const [isDark, setIsDark] = useState(getInitialTheme);
-
-  useEffect(() => {
-    const theme = isDark ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem(THEME_KEY, theme);
-  }, [isDark]);
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-  }, []);
+  const { isDark, toggle } = useTheme();
 
   return (
     <header className="h-14 bg-section flex items-center justify-between px-4 lg:px-6">
@@ -58,7 +38,7 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
         <h2 className="text-sm font-semibold text-primary">{title}</h2>
       </div>
       <button
-        onClick={() => setIsDark(prev => !prev)}
+        onClick={toggle}
         className="p-2 rounded-lg text-muted hover:text-secondary hover:bg-hover transition-colors"
         aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
       >

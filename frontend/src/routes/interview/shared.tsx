@@ -33,7 +33,7 @@ export function QuestionDisplay() {
   const q = state.currentQuestion;
   if (!q) return null;
   return (
-    <div className="bg-overlay/80 backdrop-blur rounded-xl p-4 shadow-lg">
+    <div className="glass rounded-xl p-4 shadow-lg">
       <div className="flex items-center gap-2 mb-2">
         <span className="px-2 py-0.5 bg-action-primary/10 text-action-primary text-[10px] font-semibold rounded">
           Q{q.question_number || '?'}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { adminService } from '../../services/adminService';
 import { MetricCard } from '../../components/shared/MetricCard';
 import { PageHeader } from '../../components/shared/PageHeader';
-import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
+import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { useToast } from '../../components/shared/Toast';
 import type { PlatformStats } from '../../types/admin';
 
@@ -18,7 +18,7 @@ export default function AdminDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <ContentSkeleton />;
 
   return (
     <div className="space-y-6">

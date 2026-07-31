@@ -98,7 +98,7 @@ export function AvatarLab() {
       {/* Floating back button */}
       <button
         onClick={() => navigate(-1)}
-        className="fixed top-4 left-4 z-50 flex items-center gap-2 px-3 py-2 bg-overlay/80 backdrop-blur-sm text-secondary hover:text-primary rounded-lg  -default hover:-strong transition-all opacity-60 hover:opacity-100"
+        className="fixed top-4 left-4 z-50 flex items-center gap-2 px-3 py-2 glass text-secondary hover:text-primary rounded-lg  -default hover:-strong transition-all opacity-60 hover:opacity-100"
       >
         <ArrowLeft className="w-4 h-4" />
         <span className="text-xs font-medium">Back</span>

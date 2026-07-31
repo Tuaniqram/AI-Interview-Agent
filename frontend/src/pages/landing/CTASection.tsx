@@ -21,7 +21,7 @@ export function CTASection() {
           Get started today
         </div>
 
-        <h2 className="text-3xl md:text-4xl font-bold text-primary mb-4">
+        <h2 className="text-3xl md:text-4xl font-bold text-gradient mb-4">
           Ready to transform your hiring?
         </h2>
         <p className="text-secondary text-lg mb-8 max-w-lg mx-auto">

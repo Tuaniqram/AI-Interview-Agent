@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useOrg } from '../../contexts/OrgContext';
 import { apiClient } from '../../services/apiClient';
 import { PageHeader } from '../../components/shared/PageHeader';
-import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
+import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Select } from '../../components/shared/Select';
 import { useToast } from '../../components/shared/Toast';
@@ -34,7 +34,7 @@ export default function AuditLogs() {
       .finally(() => setLoading(false));
   }, [activeOrg?.id]);
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <ContentSkeleton />;
 
   const actions = [...new Set(logs.map(l => l.action))];
   const filtered = actionFilter ? logs.filter(l => l.action === actionFilter) : logs;

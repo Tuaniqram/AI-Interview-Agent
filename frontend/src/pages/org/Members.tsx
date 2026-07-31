@@ -3,7 +3,7 @@ import { useOrg } from '../../contexts/OrgContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { MemberList } from '../../components/org/MemberList';
 import { PageHeader } from '../../components/shared/PageHeader';
-import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
+import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { UserPlus, X, Loader2 } from 'lucide-react';
 import type { OrgMember, OrgRole } from '../../types/org';
 import { orgService } from '../../services/orgService';
@@ -36,7 +36,7 @@ function AddMemberModal({ open, onClose, onAdd }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay/50">
-      <div className="bg-elevated rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
+      <div className="glass rounded-xl shadow-lg max-w-md w-full mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-semibold text-primary">Invite Member</h3>
           <button onClick={onClose} className="text-muted hover:text-secondary p-1"><X className="w-4 h-4" /></button>
@@ -141,7 +141,7 @@ export default function Members() {
     }
   }, [activeOrg, loadMembers, toast]);
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <ContentSkeleton />;
 
   return (
     <div className="space-y-6">

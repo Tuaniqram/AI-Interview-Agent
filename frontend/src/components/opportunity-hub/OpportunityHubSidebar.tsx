@@ -49,7 +49,7 @@ export function OpportunityHubSidebar({
         <div className="fixed inset-0 bg-overlay/50 z-40 lg:hidden" onClick={onClose} />
       )}
 
-      <aside className={`w-56 shrink-0 h-full bg-[var(--bg-section)] border-r border-[var(--border-color)] overflow-y-auto
+      <aside className={`w-56 shrink-0 h-full glass border-r border-[var(--border-color)] overflow-y-auto
         ${open ? 'fixed left-0 top-16 z-50' : 'hidden'}
         lg:static lg:block lg:z-auto
       `}>

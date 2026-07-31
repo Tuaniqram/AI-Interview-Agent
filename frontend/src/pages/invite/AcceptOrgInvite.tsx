@@ -4,7 +4,7 @@ import { Building2, UserCheck } from 'lucide-react';
 import { orgService } from '../../services/orgService';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/shared/Button';
-import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
+import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import type { OrgInvitationVerifyResponse } from '../../types/org';
 
 export default function AcceptOrgInvite() {
@@ -46,7 +46,7 @@ export default function AcceptOrgInvite() {
     }
   };
 
-  if (loading) return <LoadingSpinner message="Verifying invitation..." />;
+  if (loading) return <ContentSkeleton />;
 
   if (error && !invite) {
     return (

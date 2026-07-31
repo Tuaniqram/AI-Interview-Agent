@@ -28,7 +28,7 @@ export function StatusBadge({ status, size = 'sm' }: StatusBadgeProps) {
 
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-medium ${v.bg} ${v.text} ${textSize}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${v.dot}`} />
+      <span className={`relative w-1.5 h-1.5`}><span className={`absolute inset-0 rounded-full ${v.dot} pulse-ring`} /><span className={`absolute inset-0 rounded-full ${v.dot}`} /></span>
       {v.label}
     </span>
   );

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Frown, Crosshair } from 'lucide-react';
 import { invitationService } from '../../services/invitationService';
 import { Button } from '../../components/shared/Button';
-import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
+import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 
 export default function AcceptInvitation() {
   const { token } = useParams<{ token: string }>();
@@ -45,7 +45,7 @@ export default function AcceptInvitation() {
     }
   };
 
-  if (loading) return <LoadingSpinner message="Verifying invitation..." />;
+  if (loading) return <ContentSkeleton />;
 
   if (error) {
     return (

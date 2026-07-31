@@ -66,7 +66,7 @@ function FlowChart({ workflow }: { workflow: typeof workflows[0] }) {
 
               {!isLast && (
                 <div className="flex justify-center py-1.5">
-                  <div className="w-px h-6" style={{ background: `${color}40` }} />
+                  <div className="w-px h-6 opacity-60 hover:opacity-100 transition-opacity duration-300" style={{ background: `${color}40` }} />
                 </div>
               )}
             </div>
@@ -90,7 +90,7 @@ color: 'var(--action-primary)',
           <Brain size={14} />
           LangGraph Architecture
         </div>
-        <h2 className="text-3xl md:text-4xl font-bold text-primary mb-3">
+        <h2 className="text-3xl md:text-4xl font-bold text-gradient mb-3">
           Two Separate Workflows
         </h2>
         <p className="text-secondary text-lg max-w-2xl mx-auto">

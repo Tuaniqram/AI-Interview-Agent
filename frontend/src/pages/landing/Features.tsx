@@ -53,10 +53,10 @@ const features = [
 
 export function Features() {
   return (
-    <section className="py-24 px-6 bg-section">
+    <section data-reveal className="py-24 px-6 bg-section">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-primary mb-4">Everything you need</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-gradient mb-4">Everything you need</h2>
           <p className="text-secondary text-lg max-w-xl mx-auto">
             From avatar interviews to deep analytics — a complete AI interview platform.
           </p>
@@ -66,10 +66,10 @@ export function Features() {
           {features.map((f) => (
             <div
               key={f.title}
-              className="group p-5 rounded-2xl bg-elevated hover:bg-elevated/80 transition-all duration-300"
+              className="group p-5 rounded-2xl bg-elevated hover:bg-elevated/80 hover:-translate-y-1 hover:shadow-lg hover:shadow-action-primary/10 border border-transparent hover:border-action-primary/30 transition-all duration-300"
             >
               <div className="w-9 h-9 rounded-xl bg-action-primary/10 flex items-center justify-center mb-3 group-hover:bg-action-primary/20 transition-colors">
-                <f.icon className="w-4.5 h-4.5 text-action-primary" />
+                <f.icon className="w-4.5 h-4.5 text-action-primary group-hover:scale-110 transition-transform" />
               </div>
               <h3 className="text-sm font-semibold text-primary mb-1.5">{f.title}</h3>
               <p className="text-xs text-secondary leading-relaxed mb-3">{f.description}</p>

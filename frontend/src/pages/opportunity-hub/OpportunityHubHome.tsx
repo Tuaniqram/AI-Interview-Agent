@@ -6,6 +6,7 @@ import { EmptyState } from '../../components/shared/EmptyState';
 import { HeroSection } from '../../components/opportunity-hub/HeroSection';
 import { CategoryCard } from '../../components/opportunity-hub/CategoryCard';
 import { OrgCard } from '../../components/opportunity-hub/OrgCard';
+import { Carousel } from '../../components/shared/Carousel';
 import { useDebounce } from '../../hooks/useDebounce';
 import type { OrgListing } from '../../types/marketplace';
 
@@ -89,7 +90,7 @@ export default function OpportunityHubHome() {
           <span className="text-xs text-muted font-medium">Active filters:</span>
           {search && (
             <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-[#7C3AED]/10 text-[#7C3AED] font-medium">
-              Search: “{search}”
+              Search: &ldquo;{search}&rdquo;
               <button onClick={() => clearFilter('search')} className="hover:bg-[#7C3AED]/20 rounded-full p-0.5 -mr-0.5" aria-label="Clear search">
                 <X className="w-3 h-3" />
               </button>
@@ -126,14 +127,17 @@ export default function OpportunityHubHome() {
       {!hasFilters && orgs.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold text-primary mb-4 font-heading">Browse by Category</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {CATEGORIES.map((cat, i) => {
-              const count = orgs.filter(o =>
-                o.description?.toLowerCase().includes(cat.keywords[0])
-              ).length;
-              if (count === 0) return null;
-              return (
-                <div key={cat.name} className={`animate-stagger animate-stagger-${Math.min(i + 1, 6)}`}>
+          <Carousel autoPlay interval={6000}>
+            {CATEGORIES
+              .map(cat => ({
+                cat,
+                count: orgs.filter(o =>
+                  o.description?.toLowerCase().includes(cat.keywords[0])
+                ).length,
+              }))
+              .filter(entry => entry.count > 0)
+              .map(({ cat, count }) => (
+                <div key={cat.name} className="w-48 sm:w-52">
                   <CategoryCard
                     name={cat.name}
                     icon={cat.icon}
@@ -141,9 +145,8 @@ export default function OpportunityHubHome() {
                     onClick={() => handleCategoryClick(cat.keywords)}
                   />
                 </div>
-              );
-            })}
-          </div>
+              ))}
+          </Carousel>
         </section>
       )}
 

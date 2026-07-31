@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { candidateService } from '../../services/candidateService';
 import { Button } from '../../components/shared/Button';
-import { LoadingSpinner } from '../../components/shared/LoadingSpinner';
+import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { useToast } from '../../components/shared/Toast';
 import type { CandidateInterview } from '../../types/candidate';
@@ -24,7 +24,7 @@ export default function CandidateInterviews() {
 
   const loadMore = useCallback(() => setPage(p => p + 1), []);
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <ContentSkeleton />;
 
   const visible = interviews.slice(0, (page + 1) * PAGE_SIZE);
   const hasMore = visible.length < interviews.length;

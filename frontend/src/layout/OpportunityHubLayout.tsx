@@ -29,7 +29,7 @@ export function OpportunityHubLayout() {
 
   return (
     <div className="h-screen bg-[var(--bg-page)] flex flex-col overflow-hidden">
-      <header className="shrink-0 z-30 h-16 bg-[var(--bg-section)]/90 backdrop-blur-md border-b border-[var(--border-color)]">
+      <header className="shrink-0 z-30 h-16 glass border-b border-[var(--border-color)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center gap-4">
           <button
             onClick={() => setSidebarOpen(true)}

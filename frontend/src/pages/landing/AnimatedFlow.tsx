@@ -395,11 +395,7 @@ export default function AnimatedFlow() {
               : "3 8";
 
             const cls =
-              isData
-              ? "flow-data"
-              : active
-                ? "flow-active"
-                : "";
+              `flow-line ${isData ? "flow-data" : active ? "flow-active" : ""}`;
 
 
             return (
@@ -664,6 +660,14 @@ export default function AnimatedFlow() {
 
 
       <style>{`
+
+        .flow-line{
+          transition: filter .3s ease;
+        }
+
+        .flow-line:hover{
+          filter: drop-shadow(0 0 6px rgba(139,111,245,.6));
+        }
 
         .flow-active{
 
