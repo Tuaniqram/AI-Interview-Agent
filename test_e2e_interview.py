@@ -4,10 +4,11 @@ Run: python test_e2e_interview.py
 """
 import httpx
 import json
+import os
 import sys
 import time
 
-BASE_URL = "https://ai-interview-agent-jtit.onrender.com"
+BASE_URL = os.environ.get("BACKEND_BASE_URL", "http://127.0.0.1:8000")
 
 
 def print_section(label: str):
@@ -23,7 +24,7 @@ def main():
     print_section("1. START v4 INTERVIEW")
     payload = {
         "job_role": "Software Engineer",
-        "style_name": "STANDARD",
+        "style_name": os.environ.get("STYLE_NAME", "STANDARD"),
         "candidate_name": "Test Candidate",
         "candidate_headline": "Full Stack Developer with 5 years experience",
         "candidate_strengths": ["Python", "React", "System Design", "TypeScript"],

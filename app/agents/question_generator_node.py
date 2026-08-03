@@ -1,3 +1,4 @@
+import json
 import logging
 from uuid import uuid4
 from datetime import datetime, timezone
@@ -49,6 +50,23 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
         hypothesis_text = ""
 
     try:
+        question_text = await _generate_llm_question(
+            phase=state.get("current_phase", "technical"),
+            target_competency=target_competency or "general",
+            job_role=job_role,
+            difficulty=difficulty,
+            approach=approach,
+            hypothesis_text=hypothesis_text,
+            competency_info=competency_info,
+            candidate_profile=candidate_profile,
+            persona=persona,
+            followup_number=_count_competency_questions(previous_questions, target_competency),
+            question_number=question_number,
+            total_questions=state.get("total_questions", 10),
+            conversation_history=state.get("conversation_history", []),
+        )
+    except Exception as e:
+        logger.warning(f"LLM question generation failed ({e}), falling back to deterministic")
         question_text = _generate_deterministic_question(
             target_competency=target_competency or "general",
             job_role=job_role,
@@ -60,9 +78,6 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
             persona=persona,
             followup_number=_count_competency_questions(previous_questions, target_competency),
         )
-    except Exception as e:
-        logger.warning(f"Question generation error: {e}")
-        question_text = _fallback_question(target_competency or "General", job_role, difficulty)
 
     question_id = str(uuid4())
 
@@ -90,6 +105,67 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
         "questions_asked": questions_asked,
         "question_number": question_number + 1,
     }
+
+
+async def _generate_llm_question(
+    phase: str,
+    target_competency: str,
+    job_role: str,
+    difficulty: int,
+    approach: str,
+    hypothesis_text: str,
+    competency_info: str,
+    candidate_profile: dict,
+    persona: str,
+    followup_number: int,
+    question_number: int,
+    total_questions: int,
+    conversation_history: list,
+) -> str:
+    """Generate the next question with the LLM using the question_generation prompt."""
+    from app.services.llm_service import get_llm_service
+    from app.services.prompt_loader import load_prompt
+
+    llm_service = get_llm_service()
+
+    history_lines = []
+    for h in conversation_history[-6:]:
+        role = h.get("role", "")
+        content = h.get("content", "")
+        if content:
+            history_lines.append(f"{role}: {content[:500]}")
+    history_summary = "\n".join(history_lines) if history_lines else "(no previous conversation)"
+
+    profile_json = json.dumps(candidate_profile) if candidate_profile else "{}"
+    department_context = "N/A"
+
+    prompt = load_prompt(
+        "interview",
+        "question_generation.md",
+        job_role=job_role or "Unknown",
+        target_competency=target_competency or "general",
+        phase=phase,
+        difficulty_level=difficulty,
+        difficulty=difficulty,
+        persona=persona or "friendly",
+        hypothesis=hypothesis_text or "No specific hypothesis yet",
+        competency_info=competency_info or "No evidence gathered yet",
+        approach=approach or "Explore the competency",
+        followup_number=followup_number,
+        department_context=department_context,
+        candidate_profile=profile_json[:2000] or "N/A",
+        question_number=question_number + 1,
+        total_questions=total_questions,
+        conversation_history=history_summary,
+    )
+
+    response = await llm_service.invoke(prompt=prompt, temperature=0.8, max_tokens=200)
+    question = (response or "").strip()
+    if question.startswith("Question:"):
+        question = question[len("Question:"):].strip()
+    if not question:
+        raise ValueError("LLM returned an empty question")
+    return question
 
 
 def _generate_deterministic_question(

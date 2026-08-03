@@ -192,6 +192,7 @@ SKILL_TO_COMPETENCY = {
     "gcp": "tech_devops",
     "azure": "tech_devops",
     "ci/cd": "tech_devops",
+    "devops": "tech_devops",
     "testing": "tech_testing",
     "unit testing": "tech_testing",
     "integration testing": "tech_testing",

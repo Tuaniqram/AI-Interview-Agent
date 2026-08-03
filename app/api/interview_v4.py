@@ -355,9 +355,9 @@ def _build_initial_state(
 
 
 def _build_start_response(session_id: str, state: InterviewState) -> dict:
-    target = state.get("hypothesis_target", {})
+    target = state.get("hypothesis_target") or {}
     question = state.get("current_question", "")
-    next_comp = state.get("next_competency", {})
+    next_comp = state.get("next_competency") or {}
     comp_id = next_comp.get("id", "") if isinstance(next_comp, dict) else ""
 
     return {
@@ -385,8 +385,8 @@ def _build_start_response(session_id: str, state: InterviewState) -> dict:
 
 def _build_answer_response(session_id: str, state: InterviewState) -> dict:
     evaluation = state.get("unified_evaluation", {})
-    target = state.get("hypothesis_target", {})
-    next_comp = state.get("next_competency", {})
+    target = state.get("hypothesis_target") or {}
+    next_comp = state.get("next_competency") or {}
 
     scored = {}
     for dim, data in evaluation.items():

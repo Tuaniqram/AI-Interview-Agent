@@ -62,65 +62,19 @@ async def synthesis_node(state: InterviewState) -> InterviewState:
     try:
         llm_service = get_llm_service()
 
-        synthesis_prompt = f"""You are an expert hiring manager creating a final assessment for a {job_role} interview.
+        synthesis_prompt = load_prompt(
+            "evaluation",
+            "synthesis.md",
+            job_role=job_role,
+            score_timeline=json.dumps(score_timeline, indent=2),
+            avg_score=f"{avg_score:.1f}",
+            growth_trend=growth_trend,
+            max_difficulty=f"Level {max_difficulty}/3",
+            skills_tested=json.dumps(skills_tested, indent=2) if skills_tested else "None recorded",
+            skills_weak=json.dumps(skills_weak, indent=2) if skills_weak else "None identified",
+            coverage_map=json.dumps(coverage_map, indent=2) if coverage_map else "No coverage data",
+        )
 
-## Score Timeline
-{json.dumps(score_timeline, indent=2)}
-
-## Average Score: {avg_score:.1f}/10
-## Growth Trend: {growth_trend}
-## Highest Difficulty Reached: Level {max_difficulty}/3
-
-## Skills Tested
-{json.dumps(skills_tested, indent=2) if skills_tested else "None recorded"}
-
-## Skills Marked Weak
-{json.dumps(skills_weak, indent=2) if skills_weak else "None identified"}
-
-## Skill Coverage Map
-{json.dumps(coverage_map, indent=2) if coverage_map else "No coverage data"}
-
-## Instructions
-Generate a holistic interview assessment that goes beyond the numbers.
-
-### Assessment Structure:
-1. **Holistic Score**: A SINGLE final score (0-10) — NOT an average. Consider:
-   - Consistency across phases
-   - Growth trajectory (did they improve?)
-   - Difficulty reached and performed at
-   - Depth demonstrated (were probes needed? did they handle them well?)
-
-2. **Overall Narrative**: 3-5 sentence summary of the candidate's performance
-
-3. **Key Strengths**: 2-4 top strengths (deduplicated and ranked)
-
-4. **Key Weaknesses**: 2-4 areas for improvement (deduplicated and ranked)
-
-5. **Fit Assessment**: Would this candidate succeed in this role?
-   - "Strong Fit" — likely to excel
-   - "Good Fit" — capable with some development areas
-   - "Potential Fit" — needs significant development
-   - "Not Fit" — significant gaps
-
-6. **Interview Notes**: Observations about interviewing style, communication, areas to probe in follow-up
-
-### Constraints:
-- Be honest and specific — don't inflate scores
-- Base assessment on what was actually demonstrated, not what you'd like to see
-- If candidate improved over the interview, note that positively
-- If candidate was inconsistent, note that as a concern
-
-## Output Format
-Respond with ONLY a JSON object:
-{{
-  "holistic_score": 7.5,
-  "narrative": "Comprehensive assessment paragraph...",
-  "key_strengths": ["Strength 1", "Strength 2"],
-  "key_weaknesses": ["Weakness 1", "Weakness 2"],
-  "fit_assessment": "Strong Fit|Good Fit|Potential Fit|Not Fit",
-  "interview_notes": "Observations about interview style..."
-}}
-"""
         response = await llm_service.invoke(
             prompt=synthesis_prompt,
             temperature=0.3,

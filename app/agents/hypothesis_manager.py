@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from app.graph.interview_state import InterviewState
-from app.data.competency_taxonomy import COMPETENCY_TAXONOMY, SKILL_TO_COMPETENCY
+from app.data.competency_taxonomy import COMPETENCY_TAXONOMY, map_skill_to_competency
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,7 @@ def generate_initial_hypotheses(
             if key not in added:
                 hypotheses.append({
                     "id": str(uuid4()),
+                    "competency": map_skill_to_competency(s),
                     "statement": f"Candidate has strong {s}",
                     "direction": "positive",
                     "confidence": 0.0,
@@ -50,6 +51,7 @@ def generate_initial_hypotheses(
             if key not in added:
                 hypotheses.append({
                     "id": str(uuid4()),
+                    "competency": map_skill_to_competency(w),
                     "statement": f"Candidate is weak in {w}",
                     "direction": "negative",
                     "confidence": 0.0,
@@ -67,6 +69,7 @@ def generate_initial_hypotheses(
         if key not in added:
             hypotheses.append({
                 "id": str(uuid4()),
+                "competency": map_skill_to_competency(kw),
                 "statement": f"Candidate has strong {kw} skills for this role",
                 "direction": "positive",
                 "confidence": 0.0,
@@ -84,6 +87,7 @@ def generate_initial_hypotheses(
         if key not in added:
             hypotheses.append({
                 "id": str(uuid4()),
+                "competency": comp['id'],
                 "statement": f"Candidate demonstrates {comp['name']}",
                 "direction": "positive",
                 "confidence": 0.0,
@@ -97,6 +101,7 @@ def generate_initial_hypotheses(
 
     hypotheses.append({
         "id": str(uuid4()),
+        "competency": "behav_communication",
         "statement": "Candidate communicates clearly and effectively",
         "direction": "positive",
         "confidence": 0.0,

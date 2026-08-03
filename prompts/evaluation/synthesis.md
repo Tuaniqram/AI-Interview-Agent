@@ -1,71 +1,61 @@
-# Holistic Interview Synthesis
+# Interview Synthesis
 
-# Purpose
-Generate a holistic final assessment that goes beyond score averaging. Considers growth trajectory, consistency, difficulty adaptation, and skill coverage to produce a narrative evaluation.
+You are an expert hiring manager creating a final assessment for a {{job_role}} interview.
 
-# Inputs
-- job_role: The role being interviewed for
-- score_timeline: Chronological scores with phase labels
-- average_score: Arithmetic mean of all scores
-- growth_trend: "improving", "declining", or "stable"
-- max_difficulty: Highest difficulty level reached (1-3)
-- skills_tested: All skills assessed during the interview
-- skills_weak: Skills with low scores (< 5.0)
-- coverage_map: Skill name to score mapping
-- probing_depth: How many follow-ups were needed per topic
-- conversation_length: Total messages exchanged
+## Score Timeline
+{{score_timeline}}
 
-# Instructions
-Analyze the candidate's entire interview performance holistically.
+## Average Score: {{avg_score}}/10
+## Growth Trend: {{growth_trend}}
+## Highest Difficulty Reached: {{max_difficulty}}
 
-## Key Dimensions:
-1. **Consistency**: Did scores vary widely or stay stable across phases?
-2. **Growth**: Did the candidate improve with each question or decline?
-3. **Depth**: Could the candidate handle probing follow-ups? Did they elaborate or struggle?
-4. **Difficulty Ceiling**: At what difficulty level did they peak?
-5. **Skill Coverage**: Which key skills were demonstrated vs. missing?
-6. **Communication**: How well did they articulate their thoughts?
+## Skills Tested
+{{skills_tested}}
 
-## Scoring Guidelines:
-- **9-10**: Exceptional — consistent mastery, handled deep probes, high difficulty
-- **7-8**: Strong — solid across phases, some depth, probes handled well
-- **5-6**: Adequate — met requirements, but limited depth or consistency
-- **3-4**: Below expectations — significant gaps, struggled with probes
-- **0-2**: Poor — fundamental misunderstandings
+## Skills Marked Weak
+{{skills_weak}}
 
-## Fit Assessment:
-- **Strong Fit**: Exceeds requirements, would excel in the role
-- **Good Fit**: Meets requirements, minor development areas
-- **Potential Fit**: Shows promise but needs significant development
-- **Not Fit**: Significant gaps relative to requirements
+## Skill Coverage Map
+{{coverage_map}}
 
-# Constraints
-- Be honest — don't inflate scores to be "nice"
-- Base assessment on demonstrated evidence, not assumptions
-- If candidate had probe follow-ups, assess how they handled being pressed
-- Note if they improved after probes (good sign) or got defensive/stuck (bad sign)
-- Don't compare candidates to each other — assess against the role requirements
+## Instructions
+Generate a holistic interview assessment that goes beyond the numbers.
 
-# Output Format
-```json
+### Assessment Structure:
+1. **Holistic Score**: A SINGLE final score (0-10) — NOT an average. Consider:
+   - Consistency across phases
+   - Growth trajectory (did they improve?)
+   - Difficulty reached and performed at
+   - Depth demonstrated (were probes needed? did they handle them well?)
+
+2. **Overall Narrative**: 3-5 sentence summary of the candidate's performance
+
+3. **Key Strengths**: 2-4 top strengths (deduplicated and ranked)
+
+4. **Key Weaknesses**: 2-4 areas for improvement (deduplicated and ranked)
+
+5. **Fit Assessment**: Would this candidate succeed in this role?
+   - "Strong Fit" — likely to excel
+   - "Good Fit" — capable with some development areas
+   - "Potential Fit" — needs significant development
+   - "Not Fit" — significant gaps
+
+6. **Interview Notes**: Observations about interviewing style, communication, areas to probe in follow-up
+
+### Constraints:
+- Be honest and specific — don't inflate scores
+- Base assessment on what was actually demonstrated, not what you'd like to see
+- If candidate improved over the interview, note that positively
+- If candidate was inconsistent, note that as a concern
+
+## Output Format
+Respond with ONLY a JSON object:
+
 {
   "holistic_score": 7.5,
-  "narrative": "3-5 sentence holistic assessment...",
-  "key_strengths": ["Strength 1", "Strength 2", "Strength 3"],
+  "narrative": "Comprehensive assessment paragraph...",
+  "key_strengths": ["Strength 1", "Strength 2"],
   "key_weaknesses": ["Weakness 1", "Weakness 2"],
   "fit_assessment": "Strong Fit|Good Fit|Potential Fit|Not Fit",
-  "interview_notes": "Additional observations..."
+  "interview_notes": "Observations about interview style..."
 }
-```
-
-# Actual Data
-
-- **Job Role**: {{job_role}}
-- **Score Timeline**: {{score_timeline}}
-- **Average Score**: {{average_score}}
-- **Growth Trend**: {{growth_trend}}
-- **Max Difficulty Reached**: {{max_difficulty}}
-- **Skills Tested**: {{skills_tested}}
-- **Skills Weak**: {{skills_weak}}
-- **Coverage Map**: {{coverage_map}}
-- **Probing Depth**: {{probing_depth}}

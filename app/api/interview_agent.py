@@ -196,7 +196,7 @@ async def _run_v4_start(session_id: str, db_session: InterviewSession) -> dict:
 
     store.set(session_id, state)
 
-    target = state.get("hypothesis_target", {})
+    target = state.get("hypothesis_target") or {}
     question = state.get("current_question", "")
     return {
         "session_id": session_id,
