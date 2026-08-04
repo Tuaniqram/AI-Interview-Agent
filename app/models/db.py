@@ -971,8 +971,8 @@ class CandidateSavedListing(Base):
         ForeignKey("candidate_profiles.id", ondelete="CASCADE"),
         nullable=False,
     )
-    listing_id: Mapped[int] = mapped_column(
-        Integer,
+    listing_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
         ForeignKey("public_interviews.id", ondelete="CASCADE"),
         nullable=False,
     )

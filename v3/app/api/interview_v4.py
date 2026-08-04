@@ -1,26 +1,40 @@
 import logging
-from typing import Optional
+from typing import Any, Optional
+from uuid import UUID, uuid4
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import select
 
+from app.candidates.auth import optional_candidate_auth
+from app.database.deps import get_db
+from app.database.session import get_session_factory
 from app.graph.interview_state import InterviewState
-from app.config.interview_styles import STYLES
+from app.models.db import CandidateProfile, InterviewSession
+from app.config.interview_styles import get_style, list_styles, STYLES
+from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
+from app.data.competency_resolver import (
+    default_taxonomy,
+    resolve_competencies,
+    taxonomy_for_state,
+)
+from app.agents.session_init_node import session_init_node
+from app.agents.company_context_node import department_context_node
+from app.agents.candidate_profile_node import candidate_profile_node
 from app.agents.competency_planner_node import competency_planner_node
+from app.agents.strategy_brain_node import strategy_brain_node
 from app.agents.hypothesis_node import hypothesis_node
 from app.agents.question_generator_node import question_generator_node
 from app.agents.unified_evaluator_node import unified_evaluator_node
 from app.agents.evidence_extractor_node import evidence_extractor_node
 from app.agents.difficulty_governor import difficulty_governor
 from app.agents.reflection_engine import reflection_engine
-from app.agents.action_router import route_after_planner
+from app.agents.action_router import route, route_after_planner
 from app.agents.synthesis_node import synthesis_node
-from app.services.event_log import get_event_log
+from app.exceptions import SessionNotFoundException
 from app.services.v4_session_store import get_v4_session_store
 from app.services.repositories import get_session_repo, get_message_repo, get_evaluation_repo
-
-_events = get_event_log()
 from app.utils.input_sanitizer import sanitize_user_input, detect_prompt_injection
 
 logger = logging.getLogger(__name__)
@@ -33,6 +47,7 @@ _store = get_v4_session_store()
 # AURA is the only public style, but legacy names still validate (they resolve
 # to AURA via get_style).
 _VALID_STYLE_NAMES = set(STYLES.keys()) | {"AURA"}
+_COMPETENCY_IDS = {c["id"] for c in COMPETENCY_TAXONOMY}
 
 
 # ============================================================================
@@ -63,9 +78,133 @@ class V4StartRequest(BaseModel):
         return [s.strip()[:100] for s in v if s.strip()]
 
 
+class V4AnswerRequest(BaseModel):
+    answer: str = Field(min_length=1, max_length=10000)
+
+    @field_validator("answer")
+    @classmethod
+    def validate_answer(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("Answer cannot be empty")
+        return stripped
+
+
+class V4StyleInfoResponse(BaseModel):
+    name: str
+    persona: str
+    max_questions: int
+    difficulty_range: list[int]
+
+
 # ============================================================================
-# ENGINE
+# HELPERS
 # ============================================================================
+
+
+async def _get_session_or_404(session_id: str) -> InterviewState:
+    try:
+        return _store.get_or_raise(session_id)
+    except SessionNotFoundException:
+        raise HTTPException(status_code=404, detail=f"Session '{session_id[:12]}...' not found")
+
+
+def _validate_uuid(session_id: str) -> str:
+    try:
+        UUID(session_id)
+        return session_id
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid session_id format: '{session_id[:20]}'")
+
+
+async def _verify_v4_access(
+    session_id: str,
+    current_candidate: Optional[CandidateProfile],
+) -> None:
+    async with get_session_factory()() as db:
+        result = await db.execute(
+            select(InterviewSession).where(InterviewSession.id == UUID(session_id))
+        )
+        db_session = result.scalar_one_or_none()
+    if not db_session:
+        return
+    if db_session.candidate_profile_id is not None:
+        if not current_candidate:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        if str(db_session.candidate_profile_id) != str(current_candidate.id):
+            raise HTTPException(status_code=403, detail="You don't own this session")
+
+
+# ============================================================================
+# ENDPOINTS
+# ============================================================================
+
+
+@router.get("/styles")
+async def list_interview_styles():
+    styles = list_styles()
+    return {
+        "styles": [
+            V4StyleInfoResponse(
+                name=s.get("name", ""),
+                persona=s.get("persona", "friendly"),
+                max_questions=s.get("max_questions", 10),
+                difficulty_range=list(s.get("difficulty_range", (1, 3))),
+            )
+            for s in styles
+        ]
+    }
+
+
+@router.get("/competencies")
+async def list_competencies():
+    return {
+        "competencies": [
+            {"id": c["id"], "name": c["name"], "category": c["category"]}
+            for c in COMPETENCY_TAXONOMY
+        ]
+    }
+
+
+@router.post("/start")
+async def start_v4_interview(request: V4StartRequest):
+    session_id = str(uuid4())
+    style = get_style(request.style_name)
+
+    taxonomy = default_taxonomy()
+    if request.department_id:
+        async with get_session_factory()() as db:
+            taxonomy = await resolve_competencies(db, department_id=request.department_id)
+    competency_taxonomy, required, domain_label = taxonomy_for_state(taxonomy)
+
+    state: InterviewState = _build_initial_state(
+        session_id, request, style, competency_taxonomy, required, domain_label
+    )
+
+    try:
+        state = session_init_node(state)
+        state = await department_context_node(state)
+        state = await candidate_profile_node(state)
+        state = await competency_planner_node(state)
+        state = await strategy_brain_node(state)
+        state = await hypothesis_node(state)
+        state = await question_generator_node(state)
+
+        _store.set(session_id, state)
+        logger.info(f"v4 session started: {session_id[:12]}..., style={request.style_name}, role={request.job_role}")
+
+        return _build_start_response(session_id, state)
+    except Exception as e:
+        _store.pop(session_id)
+        logger.exception(f"Failed to start v4 interview: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to start interview: {type(e).__name__}")
+
+
+@router.post("/{session_id}/answer")
+async def submit_v4_answer(session_id: str, request: V4AnswerRequest):
+    _validate_uuid(session_id)
+    await _get_session_or_404(session_id)
+    return await process_v4_answer(session_id, request.answer)
 
 
 async def process_v4_answer(session_id: str, answer: str) -> dict:
@@ -75,16 +214,12 @@ async def process_v4_answer(session_id: str, answer: str) -> dict:
     response dict (answer response, or the report on completion).
     """
     state = _store.get_or_raise(session_id)
-    prev_hypotheses = state.get("hypotheses", [])
 
     sanitized = sanitize_user_input(answer)
     injections = detect_prompt_injection(answer)
     if injections:
         logger.warning(f"Potential prompt injection detected in session {session_id[:12]}: {injections[:3]}")
     answer = sanitized
-    await _events.append(session_id, "answer_received", {
-        "length": len(answer), "injection_signals": list(injections),
-    })
 
     question = state.get("current_question", "")
     question_number = state.get("question_number", 0)
@@ -108,31 +243,11 @@ async def process_v4_answer(session_id: str, answer: str) -> dict:
 
     try:
         state = await unified_evaluator_node(state)
-        await _events.append(session_id, "evaluation_done", {
-            "question_number": question_number,
-            "unified_evaluation": state.get("unified_evaluation", {}),
-            "evaluation_score": state.get("evaluation_score"),
-        })
         state = await evidence_extractor_node(state)
-        await _events.append(session_id, "evidence_added", {
-            "question_number": question_number,
-            "evidence_count": len(state.get("evidence_store", [])),
-            "competency_summary": state.get("competency_summary", {}),
-        })
         state = await difficulty_governor(state)
-        await _events.append(session_id, "difficulty_changed", {
-            "question_number": question_number,
-            "prev_difficulty": state.get("_prev_difficulty"),
-            "difficulty_level": state.get("difficulty_level"),
-        })
         state = await reflection_engine(state)
-        await _events.append(session_id, "action_decided", {
-            "question_number": question_number,
-            "reflection_action": state.get("reflection_action"),
-        })
 
         action = state.get("reflection_action", "probe")
-        hypothesis_updated = False
 
         if action == "change_competency":
             state = await competency_planner_node(state)
@@ -141,43 +256,15 @@ async def process_v4_answer(session_id: str, answer: str) -> dict:
                 return await _finalize_session(session_id, state)
 
             state = await hypothesis_node(state)
-            hypothesis_updated = True
 
         elif action == "finish":
             return await _finalize_session(session_id, state)
 
-        if not hypothesis_updated:
-            state = await hypothesis_node(state)
-
-        target = state.get("hypothesis_target") or {}
-        await _events.append(session_id, "question_selected", {
-            "question_number": question_number,
-            "target_hypothesis_id": target.get("id", ""),
-            "competency": target.get("competency", ""),
-            "status": target.get("status", ""),
-            "selection_reason": target.get("selection_reason", ""),
-            "information_gain": target.get("information_gain", 0.0),
-        })
-
-        before = _summarize_hypotheses(prev_hypotheses)
-        after = _summarize_hypotheses(state.get("hypotheses", []))
-        if before != after:
-            await _events.append(session_id, "hypothesis_updated", {
-                "question_number": question_number,
-                "before": before,
-                "after": after,
-            })
-
+        state = await hypothesis_node(state)
         state = await question_generator_node(state)
-        await _events.append(session_id, "question_asked", {
-            "question_number": state.get("question_number", 0),
-            "phase": state.get("current_phase", "technical"),
-            "difficulty_level": state.get("difficulty_level"),
-        })
 
         await _persist_answer_turn(session_id, state)
         _store.set(session_id, state)
-        _store.checkpoint(session_id, state)
         logger.info(f"v4 answer processed: session={session_id[:12]}..., q#{question_number}, action={action}")
 
         return _build_answer_response(session_id, state)
@@ -186,22 +273,6 @@ async def process_v4_answer(session_id: str, answer: str) -> dict:
     except Exception as e:
         logger.exception(f"Failed to process answer: {type(e).__name__}")
         raise HTTPException(status_code=500, detail=f"Error processing answer: {type(e).__name__}")
-
-
-def _summarize_hypotheses(hypotheses: list) -> list[dict]:
-    """Compact per-hypothesis snapshot for the hypothesis_updated event."""
-    return [
-        {
-            "id": h.get("id", ""),
-            "competency": h.get("competency", ""),
-            "direction": h.get("direction", ""),
-            "confidence": h.get("confidence"),
-            "status": h.get("status", "untested"),
-            "supporting_count": len(h.get("supporting_evidence", [])),
-            "contradicting_count": len(h.get("contradicting_evidence", [])),
-        }
-        for h in hypotheses
-    ]
 
 
 _NON_TECHNICAL_DIMS = {"communication", "reasoning", "behavioral", "confidence", "completeness"}
@@ -335,15 +406,31 @@ async def _finalize_session(session_id: str, state: InterviewState) -> dict:
     await _persist_answer_turn(session_id, state)
     await _persist_completion(session_id, state)
     _store.set(session_id, state)
-    _store.checkpoint(session_id, state)
     report = _build_report_response(state)
     report["interview_complete"] = True
-    await _events.append(session_id, "interview_finished", {
-        "final_score": state.get("evaluation_score"),
-        "hiring_recommendation": state.get("hiring_recommendation"),
-        "questions_answered": state.get("question_number", 0),
-    })
     return report
+
+
+@router.get("/{session_id}/state")
+async def get_v4_state(
+    session_id: str,
+    current_candidate: Optional[CandidateProfile] = Depends(optional_candidate_auth),
+):
+    _validate_uuid(session_id)
+    await _verify_v4_access(session_id, current_candidate)
+    state = await _get_session_or_404(session_id)
+    return _build_state_response(session_id, state)
+
+
+@router.get("/{session_id}/report")
+async def get_v4_report(
+    session_id: str,
+    current_candidate: Optional[CandidateProfile] = Depends(optional_candidate_auth),
+):
+    _validate_uuid(session_id)
+    await _verify_v4_access(session_id, current_candidate)
+    state = await _get_session_or_404(session_id)
+    return _build_report_response(state)
 
 
 # ============================================================================

@@ -27,6 +27,7 @@ from sqlalchemy import select
 
 from app.auth.jwt import decode_token
 from app.database.session import get_session_factory
+from app.services.event_log import get_event_log
 from app.models.db import InterviewSession
 from app.exceptions import SessionNotFoundException
 
@@ -161,10 +162,26 @@ async def _start_v4_engine(session_id: str) -> dict:
     state = await competency_planner_node(state)
     state = await strategy_brain_node(state)
     state = await hypothesis_node(state)
+    target = state.get("hypothesis_target") or {}
+    await get_event_log().append(session_id, "question_selected", {
+        "question_number": state.get("question_number", 0),
+        "target_hypothesis_id": target.get("id", ""),
+        "competency": target.get("competency", ""),
+        "status": target.get("status", ""),
+        "selection_reason": target.get("selection_reason", ""),
+        "information_gain": target.get("information_gain", 0.0),
+    })
     state = await question_generator_node(state)
 
     store.set(session_id, state)
     logger.info(f"WS v4 session started: {session_id[:12]}..., role={request.job_role}")
+    await get_event_log().append(session_id, "session_started", {
+        "style_name": request.style_name,
+        "job_role": request.job_role,
+        "department_id": request.department_id,
+        "competency_count": len(competency_taxonomy),
+        "domain_label": domain_label,
+    })
     return _build_start_response(session_id, state)
 
 
