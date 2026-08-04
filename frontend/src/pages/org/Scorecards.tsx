@@ -115,6 +115,11 @@ export default function Scorecards() {
               <h3 className="text-sm font-semibold text-primary">{editingId ? 'Edit Scorecard' : 'New Scorecard'}</h3>
               <button onClick={resetForm}><X className="w-4 h-4 text-muted" /></button>
             </div>
+            <div className="rounded-lg bg-page border border-border px-3 py-2.5 text-xs text-secondary space-y-1">
+              <p className="text-primary font-medium">What is a scorecard?</p>
+              <p>It's the grading rubric — the competencies AURA evaluates, each weighted toward the final score. Templates link to one scorecard.</p>
+              <p>Not sure which competencies to add? Skip scorecards — AURA's built-in set works fine.</p>
+            </div>
             <div>
               <label className="block text-sm font-medium text-primary mb-1">Name</label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)}
@@ -125,6 +130,7 @@ export default function Scorecards() {
                 <label className="text-sm font-medium text-primary">Competencies</label>
                 <Button type="button" size="sm" variant="secondary" onClick={addCompetency}>+ Add</Button>
               </div>
+              <p className="text-xs text-muted -mt-1">Weight = how much this competency counts toward the final score. Max = highest achievable score.</p>
               {competencies.map((c, i) => (
                 <div key={i} className="flex items-start gap-2 p-3 rounded-lg bg-page border border-border">
                   <div className="flex-1 space-y-2">

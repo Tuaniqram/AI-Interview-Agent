@@ -2,6 +2,7 @@
 Session repository for interview sessions using async SQLAlchemy.
 """
 import logging
+from datetime import datetime
 from typing import Optional
 from uuid import uuid4
 
@@ -74,12 +75,24 @@ class SessionRepository(BaseRepository):
             self.model_class
         )
 
-    async def complete_session(self, session_id: str, final_score: float, final_feedback: str) -> dict:
-        return await self.update(
-            session_id,
-            {"final_score": final_score, "final_feedback": final_feedback, "status": "completed"},
-            self.model_class
-        )
+    async def complete_session(
+        self,
+        session_id: str,
+        final_score: float,
+        final_feedback: str,
+        ended_at: Optional[datetime] = None,
+        engine_version: Optional[str] = None,
+    ) -> dict:
+        updates = {
+            "final_score": final_score,
+            "final_feedback": final_feedback,
+            "status": "completed",
+        }
+        if ended_at is not None:
+            updates["ended_at"] = ended_at
+        if engine_version is not None:
+            updates["engine_version"] = engine_version
+        return await self.update(session_id, updates, self.model_class)
 
     async def check_completion_before(self, session_id: str) -> tuple[bool, int, Optional[float]]:
         try:

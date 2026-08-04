@@ -201,6 +201,7 @@ async def _run_v4_start(session_id: str, db_session: InterviewSession) -> dict:
     return {
         "session_id": session_id,
         "question": question,
+        "conversation_turn": _compose_conversation_turn(state),
         "question_number": state.get("question_number", 1),
         "phase": "v4_evidence_driven",
         "difficulty_level": state.get("difficulty_level", 1),
@@ -212,6 +213,15 @@ async def _run_v4_start(session_id: str, db_session: InterviewSession) -> dict:
         "rag_metadata": {},
         "v4_hypothesis_target": target.get("statement", ""),
     }
+
+
+def _compose_conversation_turn(state) -> str:
+    """Compose the AURA spoken message: acknowledgement + bridge + question."""
+    turn = state.get("conversation_turn") or {}
+    if isinstance(turn, dict) and turn.get("question"):
+        parts = [p for p in (turn.get("acknowledgement", ""), turn.get("bridge", ""), turn["question"]) if p]
+        return "\n\n".join(parts)
+    return state.get("current_question", "")
 
 
 async def _run_v4_answer(session_id: str, question: str, answer: str, conv_history: list) -> dict:
@@ -241,6 +251,8 @@ async def _run_v4_answer(session_id: str, question: str, answer: str, conv_histo
 
     state = await unified_evaluator_node(state)
     state = await evidence_extractor_node(state)
+    from app.agents.difficulty_governor import difficulty_governor
+    state = await difficulty_governor(state)
     state = await reflection_engine(state)
 
     action = state.get("reflection_action", "probe")
@@ -296,6 +308,7 @@ def _v4_eval_to_response(session_id: str, state, is_finished: bool = False) -> d
         "question_number": state.get("question_number", 0),
         "inquisitor_action": "saturate" if is_finished else "probe",
         "is_follow_up": False,
+        "conversation_turn": _compose_conversation_turn(state),
         "evaluation": {
             "score": round(float(avg), 2) if avg else 0,
             "technical_score": scores.get("technical", 0),
@@ -539,6 +552,13 @@ async def get_session_summary(
 
     if engine == "v4":
         v4_data = await _get_v4_summary(session_id)
+        try:
+            base = await orchestrator.get_session_summary(session_id)
+        except SessionNotFoundException:
+            base = None
+        if base:
+            extras = {k: v for k, v in v4_data.items() if k not in base}
+            return {**base, **extras}
         if v4_data:
             return v4_data
 

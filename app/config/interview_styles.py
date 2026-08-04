@@ -495,34 +495,88 @@ STYLES = {
         "allow_probing": True,
         "hypothesis_count": 6,
     },
+    "AURA": {
+        "name": "AURA Interview",
+        "persona": "conductor",
+        "evaluator_mode": "unified",
+        "base_competency_priority": {
+            "tech_core": "HIGH",
+            "tech_framework": "MEDIUM",
+            "tech_system_design": "MEDIUM",
+            "tech_data": "MEDIUM",
+            "behav_adaptability": "MEDIUM",
+            "behav_teamwork": "MEDIUM",
+            "behav_communication": "HIGH",
+            "cog_problem_solving": "HIGH",
+            "cog_analytical": "MEDIUM",
+            "cog_learning": "MEDIUM",
+            "exp_project_depth": "HIGH",
+        },
+        "evidence_minimums": {
+            "tech_core": 2,
+            "tech_framework": 1,
+            "tech_system_design": 2,
+            "tech_data": 1,
+            "behav_adaptability": 1,
+            "behav_teamwork": 1,
+            "behav_communication": 1,
+            "cog_problem_solving": 2,
+            "cog_analytical": 1,
+            "cog_learning": 1,
+            "exp_project_depth": 2,
+        },
+        "evaluator_weights": {
+            "technical": 0.25,
+            "communication": 0.15,
+            "reasoning": 0.25,
+            "behavioral": 0.20,
+            "confidence": 0.05,
+            "completeness": 0.10,
+        },
+        "max_probe_depth": 3,
+        "phase_order": ["intro", "technical", "behavioral", "conclusion"],
+        "early_termination_threshold": 0.85,
+        "difficulty_range": (1, 4),
+        "max_questions": 14,
+        "allow_probing": True,
+        "hypothesis_count": 8,
+    },
 }
 
-PERSONAS = ["friendly", "formal", "strict", "faang", "conversational", "stress", "mentor"]
+PERSONAS = ["friendly", "formal", "strict", "faang", "conversational", "stress", "mentor", "conductor"]
 
 EVALUATOR_MODES = ["unified", "parallel"]
 
-DEFAULT_STYLE = "STANDARD"
+DEFAULT_STYLE = "AURA"
+
+_AURA_STYLE = "AURA"
 
 
 def get_style(name: str = None) -> dict:
+    """Resolve an interview style.
+
+    AURA is the single conductor: legacy names (e.g. "STANDARD") and unknown
+    names all resolve to AURA. Old styles remain in STYLES only so legacy
+    routes/tests that reference them by name still work.
+    """
     if name is None:
         name = DEFAULT_STYLE
-    style = STYLES.get(name.upper())
-    if style is None:
-        style = STYLES[DEFAULT_STYLE]
-    return dict(style)
+    key = name.upper()
+    if key == "STANDARD" or key not in STYLES:
+        key = _AURA_STYLE
+    return dict(STYLES[key])
 
 
 def list_styles() -> list:
+    """Public styles — AURA only. The 14-style picker is gone."""
     return [
         {
-            "name": name,
-            "display_name": style["name"],
-            "persona": style["persona"],
-            "evaluator_mode": style["evaluator_mode"],
-            "max_questions": style["max_questions"],
+            "name": _AURA_STYLE,
+            "display_name": STYLES[_AURA_STYLE]["name"],
+            "persona": STYLES[_AURA_STYLE]["persona"],
+            "evaluator_mode": STYLES[_AURA_STYLE]["evaluator_mode"],
+            "max_questions": STYLES[_AURA_STYLE]["max_questions"],
         }
-        for name, style in sorted(STYLES.items())
     ]
 
 

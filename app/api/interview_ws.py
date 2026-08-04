@@ -1,6 +1,19 @@
 """
-WebSocket-based interview protocol.
+WebSocket-based interview protocol (v4 / AURA engine).
+
 Persistent connection replaces HTTP request/response cycle for the interview flow.
+
+Protocol (JSON messages over WebSocket):
+  Client → Server: { _id, type, ...data }
+  Server → Client: { _id, type, ...data }   (_id echoed so the client can resolve)
+  Server → Client (pushes): { type: "status", phase: "evaluating" | "question_ready" }
+
+Message types:
+  start_interview  → { type: "question", ...start_response }      (starts/resumes v4 engine)
+  request_question → { type: "question", ...current question }     (idempotent resend)
+  submit_answer    → { type: "evaluation", ...answer_response } or { type: "report", ... }
+  get_status       → { type: "status_snapshot", ...state_response }
+  ping             → { type: "pong" }
 """
 import asyncio
 import json
@@ -15,14 +28,35 @@ from sqlalchemy import select
 from app.auth.jwt import decode_token
 from app.database.session import get_session_factory
 from app.models.db import InterviewSession
-from app.orchestrators.interview_orchestrator import InterviewOrchestrator
 from app.exceptions import SessionNotFoundException
+
+from app.api.interview_v4 import (
+    V4StartRequest,
+    _build_initial_state,
+    _build_start_response,
+    _build_state_response,
+    process_v4_answer,
+)
+from app.agents.session_init_node import session_init_node
+from app.agents.company_context_node import department_context_node
+from app.agents.candidate_profile_node import candidate_profile_node
+from app.agents.competency_planner_node import competency_planner_node
+from app.agents.strategy_brain_node import strategy_brain_node
+from app.agents.hypothesis_node import hypothesis_node
+from app.agents.question_generator_node import question_generator_node
+from app.config.interview_styles import get_style
+from app.data.competency_resolver import (
+    default_taxonomy,
+    resolve_competencies,
+    taxonomy_for_state,
+)
+from app.services.v4_session_store import get_v4_session_store
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Interview WS"])
 
-# Per-connection orchestrator instances
+# Per-connection state
 _connections: dict[str, dict[str, Any]] = {}
 _connection_timestamps: dict[str, float] = {}
 
@@ -74,24 +108,74 @@ async def _verify_ws_session_access(session_id: str, candidate_id: Optional[str]
     return True  # unowned session, allow
 
 
+def _send_id(message: dict, request: dict) -> dict:
+    """Echo the client's _id (when present) so the client can resolve the request."""
+    if "_id" in request:
+        message["_id"] = request["_id"]
+    return message
+
+
+async def _load_db_session_row(session_id: str) -> Optional[InterviewSession]:
+    """Load the DB session row that anchors the engine state."""
+    async with get_session_factory()() as db:
+        result = await db.execute(
+            select(InterviewSession).where(InterviewSession.id == UUID(session_id))
+        )
+        return result.scalar_one_or_none()
+
+
+async def _start_v4_engine(session_id: str) -> dict:
+    """Start (or resume) the v4 AURA engine for the given session.
+
+    The session row in the DB is the source of truth for job_role / department_id;
+    the engine state lives in the v4 session store under the same session_id.
+    """
+    store = get_v4_session_store()
+    existing = store.get(session_id)
+    if existing is not None:
+        return _build_start_response(session_id, existing)
+
+    db_session = await _load_db_session_row(session_id)
+    if db_session is None:
+        raise SessionNotFoundException(session_id)
+
+    style = get_style("AURA")
+    taxonomy = default_taxonomy()
+    if db_session.department_id:
+        async with get_session_factory()() as db:
+            taxonomy = await resolve_competencies(db, department_id=db_session.department_id)
+    competency_taxonomy, required, domain_label = taxonomy_for_state(taxonomy)
+
+    request = V4StartRequest(
+        job_role=db_session.job_role or "Software Engineer",
+        style_name="AURA",
+        department_id=db_session.department_id,
+    )
+
+    state = _build_initial_state(
+        session_id, request, style, competency_taxonomy, required, domain_label
+    )
+    state = session_init_node(state)
+    state = await department_context_node(state)
+    state = await candidate_profile_node(state)
+    state = await competency_planner_node(state)
+    state = await strategy_brain_node(state)
+    state = await hypothesis_node(state)
+    state = await question_generator_node(state)
+
+    store.set(session_id, state)
+    logger.info(f"WS v4 session started: {session_id[:12]}..., role={request.job_role}")
+    return _build_start_response(session_id, state)
+
+
 @router.websocket("/ws/interview/{session_id}")
 async def interview_websocket(websocket: WebSocket, session_id: str):
     token = websocket.query_params.get("token")
     candidate_id = await _resolve_candidate_from_token(token)
 
     await websocket.accept()
-    orchestrator = InterviewOrchestrator()
 
-    # Per-connection state
-    conn_state = {
-        "session_id": session_id,
-        "conversation_history": [],
-        "current_phase": "intro",
-        "question_number": 0,
-        "difficulty_level": 1,
-        "candidate_profile": {},
-        "candidate_id": candidate_id,
-    }
+    conn_state: dict[str, Any] = {"session_id": session_id, "candidate_id": candidate_id}
     _connections[session_id] = conn_state
     _connection_timestamps[session_id] = time_module.time()
 
@@ -109,104 +193,82 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
 
             if msg_type == "ping":
                 _connection_timestamps[session_id] = time_module.time()
-                await websocket.send_json({"type": "pong"})
+                await websocket.send_json(_send_id({"type": "pong"}, data))
 
             elif msg_type == "start_interview":
-                existing_session_id = data.get("session_id")
-                if existing_session_id:
-                    if not await _verify_ws_session_access(existing_session_id, candidate_id):
-                        await websocket.send_json({"type": "error", "detail": "Session access denied"})
-                        continue
-                    conn_state["session_id"] = existing_session_id
-                    _connections[existing_session_id] = conn_state
-                    await websocket.send_json({
-                        "type": "session_created",
-                        "session_id": existing_session_id,
-                    })
-                else:
-                    result = await orchestrator.start_interview(
-                        department_id=data.get("department_id"),
-                        job_role=data["job_role"],
-                        total_questions=data.get("total_questions", 10),
-                        initial_difficulty=data.get("initial_difficulty", 1),
-                        session_type=data.get("session_type", "department"),
-                        interaction_mode=data.get("interaction_mode", "typing"),
-                        candidate_id=candidate_id,
-                    )
-                    conn_state["session_id"] = result["session_id"]
-                    _connections[result["session_id"]] = conn_state
-                    await websocket.send_json({
-                        "type": "session_created",
-                        **result,
-                    })
+                sid = data.get("session_id") or session_id
+                if not await _verify_ws_session_access(sid, candidate_id):
+                    await websocket.send_json(_send_id({"type": "error", "detail": "Session access denied"}, data))
+                    continue
+                conn_state["session_id"] = sid
+                _connections[sid] = conn_state
+                try:
+                    response = await _start_v4_engine(sid)
+                except SessionNotFoundException:
+                    await websocket.send_json(_send_id({"type": "error", "detail": "Session not found"}, data))
+                    continue
+                except Exception as e:
+                    logger.exception(f"WS start failed: {e}")
+                    await websocket.send_json(_send_id({"type": "error", "detail": f"Failed to start interview: {type(e).__name__}"}, data))
+                    continue
+                await websocket.send_json(_send_id({"type": "question", **response}, data))
 
             elif msg_type == "request_question":
-                if not await _verify_ws_session_access(conn_state["session_id"], candidate_id):
-                    await websocket.send_json({"type": "error", "detail": "Session access denied"})
+                sid = conn_state["session_id"]
+                if not await _verify_ws_session_access(sid, candidate_id):
+                    await websocket.send_json(_send_id({"type": "error", "detail": "Session access denied"}, data))
                     continue
-                result = await orchestrator.initiate_next_question(
-                    session_id=conn_state["session_id"],
-                    conversation_history=conn_state["conversation_history"],
-                    current_phase=conn_state["current_phase"],
-                    question_number=conn_state["question_number"],
-                    difficulty_level=conn_state["difficulty_level"],
-                    candidate_profile=conn_state["candidate_profile"],
-                )
-
-                conn_state["current_phase"] = result.get("phase", conn_state["current_phase"])
-                conn_state["question_number"] = result.get("question_number", conn_state["question_number"])
-                conn_state["difficulty_level"] = result.get("difficulty_level", conn_state["difficulty_level"])
-
-                await websocket.send_json({
-                    "type": "question",
-                    **result,
-                })
+                store = get_v4_session_store()
+                state = store.get(sid)
+                if state is None:
+                    await websocket.send_json(_send_id({"type": "error", "detail": "Session not initialized"}, data))
+                    continue
+                await websocket.send_json(_send_id({"type": "question", **_build_start_response(sid, state)}, data))
 
             elif msg_type == "submit_answer":
-                if not await _verify_ws_session_access(conn_state["session_id"], candidate_id):
-                    await websocket.send_json({"type": "error", "detail": "Session access denied"})
+                sid = conn_state["session_id"]
+                if not await _verify_ws_session_access(sid, candidate_id):
+                    await websocket.send_json(_send_id({"type": "error", "detail": "Session access denied"}, data))
                     continue
-                question_number = data["question_number"]
-                question = data["question"]
-                candidate_answer = data["candidate_answer"]
+                candidate_answer = data.get("candidate_answer", "")
 
-                conn_state["conversation_history"].append({"role": "assistant", "content": question})
-                conn_state["conversation_history"].append({"role": "user", "content": candidate_answer})
+                await websocket.send_json(_send_id({"type": "status", "phase": "evaluating"}, data))
 
-                result = await orchestrator.submit_answer(
-                    session_id=conn_state["session_id"],
-                    question_number=question_number,
-                    question=question,
-                    candidate_answer=candidate_answer,
-                    conversation_history=conn_state["conversation_history"],
-                    candidate_profile=conn_state["candidate_profile"],
-                    difficulty_level=conn_state["difficulty_level"],
-                )
+                try:
+                    result = await process_v4_answer(sid, candidate_answer)
+                except SessionNotFoundException:
+                    await websocket.send_json(_send_id({"type": "error", "detail": "Session not found"}, data))
+                    continue
+                except Exception as e:
+                    logger.exception(f"WS answer failed: {e}")
+                    await websocket.send_json(_send_id({"type": "error", "detail": f"Error processing answer: {type(e).__name__}"}, data))
+                    continue
 
-                conn_state["current_phase"] = result.get("next_phase", conn_state["current_phase"])
-                conn_state["difficulty_level"] = result.get("next_difficulty", conn_state["difficulty_level"])
-                conn_state["question_number"] = question_number + 1
-
-                await websocket.send_json({
-                    "type": "evaluation",
-                    **result,
-                })
+                completed = result.get("status") == "completed" or result.get("interview_complete")
+                if completed:
+                    await websocket.send_json(_send_id({"type": "report", **result}, data))
+                else:
+                    await websocket.send_json(_send_id({"type": "status", "phase": "question_ready"}, data))
+                    await websocket.send_json(_send_id({"type": "evaluation", **result}, data))
 
             elif msg_type == "get_status":
-                if not await _verify_ws_session_access(conn_state["session_id"], candidate_id):
-                    await websocket.send_json({"type": "error", "detail": "Session access denied"})
+                sid = conn_state["session_id"]
+                if not await _verify_ws_session_access(sid, candidate_id):
+                    await websocket.send_json(_send_id({"type": "error", "detail": "Session access denied"}, data))
                     continue
-                try:
-                    status = await orchestrator.get_session_status(conn_state["session_id"])
-                    await websocket.send_json({"type": "status", **status})
-                except SessionNotFoundException:
-                    await websocket.send_json({"type": "error", "detail": "Session not found"})
+                store = get_v4_session_store()
+                state = store.get(sid)
+                if state is None:
+                    await websocket.send_json(_send_id({"type": "error", "detail": "Session not found"}, data))
+                    continue
+                status = _build_state_response(sid, state)
+                await websocket.send_json(_send_id({"type": "status_snapshot", **status}, data))
 
             else:
-                await websocket.send_json({
+                await websocket.send_json(_send_id({
                     "type": "error",
                     "detail": f"Unknown message type: {msg_type}",
-                })
+                }, data))
 
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected: {session_id}")
@@ -218,6 +280,4 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
             pass
     finally:
         _connections.pop(session_id, None)
-        _connections.pop(conn_state.get("session_id", ""), None)
         _connection_timestamps.pop(session_id, None)
-        _connection_timestamps.pop(conn_state.get("session_id", ""), None)

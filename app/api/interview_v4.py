@@ -12,7 +12,7 @@ from app.database.deps import get_db
 from app.database.session import get_session_factory
 from app.graph.interview_state import InterviewState
 from app.models.db import CandidateProfile, InterviewSession
-from app.config.interview_styles import get_style, list_styles
+from app.config.interview_styles import get_style, list_styles, STYLES
 from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
 from app.data.competency_resolver import (
     default_taxonomy,
@@ -28,11 +28,13 @@ from app.agents.hypothesis_node import hypothesis_node
 from app.agents.question_generator_node import question_generator_node
 from app.agents.unified_evaluator_node import unified_evaluator_node
 from app.agents.evidence_extractor_node import evidence_extractor_node
+from app.agents.difficulty_governor import difficulty_governor
 from app.agents.reflection_engine import reflection_engine
 from app.agents.action_router import route, route_after_planner
 from app.agents.synthesis_node import synthesis_node
 from app.exceptions import SessionNotFoundException
 from app.services.v4_session_store import get_v4_session_store
+from app.services.repositories import get_session_repo, get_message_repo, get_evaluation_repo
 from app.utils.input_sanitizer import sanitize_user_input, detect_prompt_injection
 
 logger = logging.getLogger(__name__)
@@ -42,8 +44,9 @@ router = APIRouter(prefix="/interviews/v4", tags=["AI Interview Agent v4"])
 _store = get_v4_session_store()
 
 # Styles/competencies don't need DB writes — safe to return regardless of DB
-_STYLE_NAMES = {s["name"] for s in list_styles()}
-_VALID_STYLE_NAMES = _STYLE_NAMES if _STYLE_NAMES else {"STANDARD"}
+# AURA is the only public style, but legacy names still validate (they resolve
+# to AURA via get_style).
+_VALID_STYLE_NAMES = set(STYLES.keys()) | {"AURA"}
 _COMPETENCY_IDS = {c["id"] for c in COMPETENCY_TAXONOMY}
 
 
@@ -200,13 +203,23 @@ async def start_v4_interview(request: V4StartRequest):
 @router.post("/{session_id}/answer")
 async def submit_v4_answer(session_id: str, request: V4AnswerRequest):
     _validate_uuid(session_id)
-    state = await _get_session_or_404(session_id)
+    await _get_session_or_404(session_id)
+    return await process_v4_answer(session_id, request.answer)
 
-    sanitized = sanitize_user_input(request.answer)
-    injections = detect_prompt_injection(request.answer)
+
+async def process_v4_answer(session_id: str, answer: str) -> dict:
+    """Run the v4 answer pipeline (evaluate → govern → reflect → next question).
+
+    Shared by the REST endpoint and the WebSocket protocol. Returns the API
+    response dict (answer response, or the report on completion).
+    """
+    state = _store.get_or_raise(session_id)
+
+    sanitized = sanitize_user_input(answer)
+    injections = detect_prompt_injection(answer)
     if injections:
         logger.warning(f"Potential prompt injection detected in session {session_id[:12]}: {injections[:3]}")
-    request.answer = sanitized
+    answer = sanitized
 
     question = state.get("current_question", "")
     question_number = state.get("question_number", 0)
@@ -218,11 +231,11 @@ async def submit_v4_answer(session_id: str, request: V4AnswerRequest):
     conv = list(state.get("conversation_history", []))
     if question:
         conv.append({"role": "assistant", "content": question})
-    conv.append({"role": "user", "content": request.answer})
+    conv.append({"role": "user", "content": answer})
 
     state = {
         **state,
-        "candidate_answer": request.answer,
+        "candidate_answer": answer,
         "conversation_history": conv,
         "skip_evaluation": False,
         "extracted_evidence": [],
@@ -231,6 +244,7 @@ async def submit_v4_answer(session_id: str, request: V4AnswerRequest):
     try:
         state = await unified_evaluator_node(state)
         state = await evidence_extractor_node(state)
+        state = await difficulty_governor(state)
         state = await reflection_engine(state)
 
         action = state.get("reflection_action", "probe")
@@ -249,6 +263,7 @@ async def submit_v4_answer(session_id: str, request: V4AnswerRequest):
         state = await hypothesis_node(state)
         state = await question_generator_node(state)
 
+        await _persist_answer_turn(session_id, state)
         _store.set(session_id, state)
         logger.info(f"v4 answer processed: session={session_id[:12]}..., q#{question_number}, action={action}")
 
@@ -260,11 +275,136 @@ async def submit_v4_answer(session_id: str, request: V4AnswerRequest):
         raise HTTPException(status_code=500, detail=f"Error processing answer: {type(e).__name__}")
 
 
+_NON_TECHNICAL_DIMS = {"communication", "reasoning", "behavioral", "confidence", "completeness"}
+
+
+def _extract_answer_turn(state: InterviewState) -> Optional[dict]:
+    """Pull the latest (question, answer) pair and its evaluation from state."""
+    conv = state.get("conversation_history") or []
+    if len(conv) < 2:
+        return None
+    q_entry, a_entry = conv[-2], conv[-1]
+    if q_entry.get("role") != "assistant" or a_entry.get("role") != "user":
+        return None
+    question_text = (q_entry.get("content") or "").strip()
+    answer_text = (a_entry.get("content") or "").strip()
+    if not question_text or not answer_text:
+        return None
+    return {
+        "question": question_text,
+        "answer": answer_text,
+        "question_number": state.get("question_number", 0),
+        "phase": state.get("current_phase", "technical"),
+        "composite": state.get("evaluation_score") or 0.0,
+        "evaluation": state.get("unified_evaluation") or {},
+    }
+
+
+async def _persist_answer_turn(session_id: str, state: InterviewState) -> None:
+    """Persist the latest evaluated Q/A turn to the DB (best-effort, never raises)."""
+    try:
+        turn = _extract_answer_turn(state)
+        if not turn:
+            return
+        answered = set(state.get("answered_question_numbers") or [])
+        qnum = turn["question_number"]
+        if qnum in answered:
+            return
+        state["answered_question_numbers"] = sorted(answered | {qnum})
+
+        technical_score = None
+        communication_score = None
+        strengths: list[str] = []
+        weaknesses: list[str] = []
+        for dim, data in turn["evaluation"].items():
+            if not isinstance(data, dict):
+                continue
+            if dim == "communication":
+                communication_score = data.get("score")
+            elif dim not in _NON_TECHNICAL_DIMS:
+                technical_score = (
+                    technical_score if technical_score is not None else data.get("score")
+                )
+            for item in data.get("strengths") or []:
+                if isinstance(item, str) and item.strip():
+                    strengths.append(item.strip())
+            for item in data.get("weaknesses") or []:
+                if isinstance(item, str) and item.strip():
+                    weaknesses.append(item.strip())
+
+        message_repo = get_message_repo()
+        evaluation_repo = get_evaluation_repo()
+        question_msg = await message_repo.create_question(
+            session_id=session_id,
+            question_text=turn["question"],
+            question_number=qnum,
+            phase=turn["phase"],
+        )
+        answer_msg = await message_repo.create_candidate_answer(
+            session_id=session_id,
+            role="candidate",
+            candidate_answer=turn["answer"],
+            question_number=qnum,
+            phase=turn["phase"],
+            score=turn["composite"],
+        )
+        await evaluation_repo.create_evaluation(
+            session_id=session_id,
+            message_id=answer_msg["id"],
+            technical_score=technical_score if technical_score is not None else turn["composite"],
+            communication_score=(
+                communication_score if communication_score is not None else turn["composite"]
+            ),
+            strengths=", ".join(strengths) if strengths else None,
+            weaknesses=", ".join(weaknesses) if weaknesses else None,
+            feedback=None,
+            overall_score=turn["composite"],
+        )
+        logger.info(
+            f"Persisted v4 turn: session={session_id[:12]}..., q#{qnum}, score={turn['composite']}"
+        )
+    except Exception as exc:
+        logger.warning(f"Failed to persist v4 turn (non-fatal): {exc}")
+
+
+async def _persist_completion(session_id: str, state: InterviewState) -> None:
+    """Persist session completion (status, final score) to the DB (best-effort, never raises)."""
+    try:
+        rec = state.get("hiring_recommendation") or {}
+        final_score = rec.get("composite_score")
+        if final_score is None:
+            final_score = state.get("evaluation_score") or 0.0
+        final_score = round(float(final_score), 2)
+
+        verdict = rec.get("verdict", "insufficient_evidence")
+        confidence = rec.get("confidence", 0.0)
+        questions_asked = state.get("question_number", 0)
+        evidence_count = len(state.get("evidence_store") or [])
+        final_feedback = (
+            f"Verdict: {verdict} (confidence {confidence:.2f}). "
+            f"Questions asked: {questions_asked}. Evidence collected: {evidence_count}."
+        )
+        await get_session_repo().complete_session(
+            session_id,
+            final_score,
+            final_feedback,
+            ended_at=datetime.now(timezone.utc),
+            engine_version="v4",
+        )
+        logger.info(
+            f"Persisted v4 completion: session={session_id[:12]}..., score={final_score}"
+        )
+    except Exception as exc:
+        logger.warning(f"Failed to persist v4 completion (non-fatal): {exc}")
+
+
 async def _finalize_session(session_id: str, state: InterviewState) -> dict:
     try:
         state = await synthesis_node(state)
     except Exception as e:
         logger.warning(f"Synthesis failed (non-fatal): {type(e).__name__}")
+    await _persist_answer_turn(session_id, state)
+    await _persist_completion(session_id, state)
     _store.set(session_id, state)
     report = _build_report_response(state)
     report["interview_complete"] = True
@@ -354,6 +494,15 @@ def _build_initial_state(
     }
 
 
+def _compose_conversation_turn(state: InterviewState) -> str:
+    """Compose the spoken message: acknowledgement + bridge + question."""
+    turn = state.get("conversation_turn") or {}
+    if isinstance(turn, dict) and turn.get("question"):
+        parts = [p for p in (turn.get("acknowledgement", ""), turn.get("bridge", ""), turn["question"]) if p]
+        return "\n\n".join(parts)
+    return state.get("current_question", "")
+
+
 def _build_start_response(session_id: str, state: InterviewState) -> dict:
     target = state.get("hypothesis_target") or {}
     question = state.get("current_question", "")
@@ -363,6 +512,9 @@ def _build_start_response(session_id: str, state: InterviewState) -> dict:
     return {
         "session_id": session_id,
         "status": "in_progress",
+        "job_role": state.get("job_role", ""),
+        "department_id": state.get("department_id"),
+        "conversation_turn": _compose_conversation_turn(state),
         "question": {
             "text": question,
             "number": state.get("question_number", 1),
@@ -418,6 +570,9 @@ def _build_answer_response(session_id: str, state: InterviewState) -> dict:
     return {
         "session_id": session_id,
         "status": "in_progress",
+        "job_role": state.get("job_role", ""),
+        "department_id": state.get("department_id"),
+        "conversation_turn": _compose_conversation_turn(state),
         "evaluation": {
             "scores": scored,
             "composite": state.get("evaluation_score"),
@@ -446,6 +601,11 @@ def _build_state_response(session_id: str, state: InterviewState) -> dict:
         "session_id": session_id,
         "question_number": state.get("question_number", 0),
         "persona": state.get("persona", ""),
+        "job_role": state.get("job_role", ""),
+        "department_id": state.get("department_id"),
+        "conversation_turn": _compose_conversation_turn(state),
+        "current_question": state.get("current_question", ""),
+        "interview_complete": bool(state.get("reflection_action") == "finish"),
         "difficulty": state.get("difficulty_level", 1),
         "evidence_count": len(state.get("evidence_store", [])),
         "competency_coverage": {

@@ -243,8 +243,8 @@ async def start_public_interview(
     db.add(session)
     await db.flush()
 
-    # Seed v4 state with the listing's style and candidate profile data
-    style = get_style(pi.style_name or "STANDARD")
+    # Seed v4 state with AURA (single conductor mode — style selection is gone)
+    style = get_style("AURA")
     taxonomy = await resolve_competencies(
         db,
         scorecard_template_id=str(sc_template_id) if sc_template_id else None,
@@ -332,7 +332,7 @@ async def create_public_interview(
         interview_mode=req.interview_mode,
         max_candidates=req.max_candidates,
         skills_required=req.skills_required,
-        style_name=req.style_name,
+        style_name="AURA",
         template_id=req.template_id,
         starts_at=req.starts_at,
         expires_at=req.expires_at,
@@ -409,6 +409,7 @@ async def update_public_interview(
     title_changed = "title" in update_data or "skills_required" in update_data
     for key, value in update_data.items():
         setattr(pi, key, value)
+    pi.style_name = "AURA"  # single conductor mode — never allow a style change
     await db.commit()
     await db.refresh(pi)
 

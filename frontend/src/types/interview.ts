@@ -49,6 +49,9 @@ export interface InterviewSession {
   difficulty_level?: number;
   start_time?: string;
   interaction_mode?: InterviewMode;
+  /** AURA/v4 metadata returned by the engine */
+  job_role?: string;
+  department_id?: number | null;
 }
 
 /**
@@ -116,6 +119,8 @@ export interface EvaluationHistoryEntry {
   strengths: string[];
   weaknesses: string[];
   feedback: string;
+  /** AURA conductor spoken turn: acknowledgement + bridge + question */
+  conversationTurn?: string;
 }
 
 /**
@@ -136,6 +141,8 @@ export interface AnswerEvaluation {
   is_follow_up?: boolean;
   probe_angle?: string;
   probing_active?: boolean;
+  /** AURA conductor spoken turn: acknowledgement + bridge + question */
+  conversationTurn?: string;
 }
 
 /**

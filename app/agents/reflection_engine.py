@@ -223,7 +223,7 @@ def _decide_next_action(
     if len(serious) >= 2:
         return "change_competency"
 
-    max_questions = 20
+    max_questions = 14  # AURA cap — evidence-driven end usually fires earlier
     if question_number >= max_questions:
         return "finish"
 

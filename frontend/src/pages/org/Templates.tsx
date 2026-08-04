@@ -22,7 +22,6 @@ interface OrgTemplate extends Template {
   competencies: any[] | null;
 }
 
-const INTERVIEW_STYLES = ['STANDARD', 'CONVERSATIONAL', 'TECHNICAL_DEEP', 'BEHAVIORAL', 'CASE_STUDY'];
 const COMPETENCY_CATEGORIES = ['technical', 'behavioral', 'cognitive', 'experience', 'general'];
 const FOCUS = 'focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)]';
 
@@ -40,13 +39,13 @@ export default function Templates() {
   const [name, setName] = useState('');
   const [jobRole, setJobRole] = useState('');
   const [description, setDescription] = useState('');
-  const [interviewStyle, setInterviewStyle] = useState('STANDARD');
   const [totalQuestions, setTotalQuestions] = useState(10);
   const [deptId, setDeptId] = useState<number | ''>('');
   const [scorecardTemplateId, setScorecardTemplateId] = useState('');
   const [saving, setSaving] = useState(false);
   const [scorecards, setScorecards] = useState<ScorecardTemplate[]>([]);
   const [competencies, setCompetencies] = useState<CompetencyDef[]>([]);
+  const [competencySource, setCompetencySource] = useState<'defaults' | 'scorecard' | 'custom'>('defaults');
 
   useEffect(() => {
     if (!activeOrg?.id) return;
@@ -67,11 +66,11 @@ export default function Templates() {
     setName('');
     setJobRole('');
     setDescription('');
-    setInterviewStyle('STANDARD');
     setTotalQuestions(10);
     setDeptId('');
     setScorecardTemplateId('');
     setCompetencies([]);
+    setCompetencySource('defaults');
     setShowForm(false);
     setEditingId(null);
   };
@@ -80,11 +79,15 @@ export default function Templates() {
     setName(t.name);
     setJobRole(t.job_role);
     setDescription(t.description || '');
-    setInterviewStyle(t.interview_style || 'STANDARD');
     setTotalQuestions(t.total_questions);
     setDeptId(t.department_id);
     setScorecardTemplateId(t.scorecard_template_id || '');
     setCompetencies((t.competencies || []).map(c => ({ ...c })));
+    setCompetencySource(
+      t.scorecard_template_id ? 'scorecard'
+        : (t.competencies && t.competencies.length) ? 'custom'
+        : 'defaults'
+    );
     setEditingId(t.id);
     setShowForm(true);
   };
@@ -113,10 +116,9 @@ export default function Templates() {
       name: name.trim(),
       job_role: jobRole.trim(),
       description: description.trim() || undefined,
-      interview_style: interviewStyle,
       total_questions: totalQuestions,
-      scorecard_template_id: scorecardTemplateId || undefined,
-      competencies: cleaned.length ? cleaned : undefined,
+      scorecard_template_id: competencySource === 'scorecard' ? (scorecardTemplateId || undefined) : undefined,
+      competencies: competencySource === 'custom' ? (cleaned.length ? cleaned : undefined) : undefined,
     };
     try {
       if (editingId) {
@@ -176,6 +178,11 @@ export default function Templates() {
               <h3 className="text-sm font-semibold text-primary">{editingId ? 'Edit Template' : 'New Template'}</h3>
               <button onClick={resetForm}><X className="w-4 h-4 text-muted" /></button>
             </div>
+            <div className="rounded-lg bg-page border border-border px-3 py-2.5 text-xs text-secondary space-y-1">
+              <p className="text-primary font-medium">Not sure what to fill in?</p>
+              <p>An <span className="text-primary font-medium">interview template</span> defines how the interview runs: which role, department, and how many questions.</p>
+              <p><span className="text-primary font-medium">Competencies</span> are the skill list AURA evaluates against — you pick the source below. Not sure? AURA defaults works for most roles.</p>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-primary mb-1">Template Name</label>
@@ -198,24 +205,6 @@ export default function Templates() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-primary mb-1">Interview Style</label>
-                <Select
-                  label="Interview Style"
-                  value={interviewStyle}
-                  onChange={setInterviewStyle}
-                  options={INTERVIEW_STYLES.map(s => ({ value: s, label: s }))}
-                />
-              </div>
-              <div>
-                <Select
-                  label="Scorecard (optional)"
-                  value={scorecardTemplateId}
-                  onChange={setScorecardTemplateId}
-                  placeholder="None"
-                  options={scorecards.map(sc => ({ value: sc.id, label: sc.name }))}
-                />
-              </div>
-              <div>
                 <label className="block text-sm font-medium text-primary mb-1">Total Questions</label>
                 <Slider value={totalQuestions} onChange={setTotalQuestions} min={1} max={50} step={1} />
               </div>
@@ -225,38 +214,78 @@ export default function Templates() {
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
                 className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border" placeholder="Template description..." />
             </div>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-primary">Competencies (optional)</label>
-                <button type="button" onClick={addCompetency}
-                  className="inline-flex items-center gap-1 text-xs text-action-primary hover:text-primary">
-                  <Plus className="w-3.5 h-3.5" /> Add competency
-                </button>
-              </div>
-              <p className="text-xs text-muted mb-3">Leave empty to use the platform default taxonomy. When set, interviews for this template are driven by these competencies regardless of field.</p>
-              {competencies.length === 0 && (
-                <p className="text-xs text-secondary">No custom competencies — default taxonomy will be used.</p>
-              )}
-              <div className="space-y-2">
-                {competencies.map((c, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <input type="text" value={c.name} onChange={(e) => updateCompetency(i, 'name', e.target.value)}
-                      className={`flex-1 px-3 py-1.5 text-sm bg-input text-primary rounded-lg border border-border ${FOCUS}`}
-                      placeholder="Competency name (e.g. Marketing Strategy)" />
-                    <Select
-                      value={c.category}
-                      onChange={v => updateCompetency(i, 'category', v)}
-                      options={COMPETENCY_CATEGORIES.map(cat => ({ value: cat, label: cat }))}
-                      className="w-36"
-                    />
-                    <input type="number" min={0.5} max={5} step={0.5} value={c.weight}
-                      onChange={(e) => updateCompetency(i, 'weight', Number(e.target.value))}
-                      className="w-20 px-3 py-1.5 text-sm bg-input text-primary rounded-lg border border-border" title="Weight" />
-                    <button type="button" onClick={() => removeCompetency(i)}
-                      className="p-1.5 rounded hover:bg-hover text-muted hover:text-error"><X className="w-4 h-4" /></button>
-                  </div>
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-primary">Competencies — what AURA evaluates</label>
+              <div className="flex gap-2">
+                {([
+                  { value: 'defaults', label: 'AURA defaults' },
+                  { value: 'scorecard', label: 'Scorecard' },
+                  { value: 'custom', label: 'Custom' },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setCompetencySource(opt.value)}
+                    className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                      competencySource === opt.value
+                        ? 'bg-action-primary text-inverse border-transparent'
+                        : 'bg-input text-secondary border-border hover:bg-hover'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
                 ))}
               </div>
+
+              {competencySource === 'scorecard' && (
+                <div>
+                  <Select
+                    label="Scorecard"
+                    value={scorecardTemplateId}
+                    onChange={setScorecardTemplateId}
+                    placeholder="Select a scorecard"
+                    options={scorecards.map(sc => ({ value: sc.id, label: sc.name }))}
+                  />
+                  <p className="text-xs text-muted mt-1">The scorecard's competencies and weights will drive the interview.</p>
+                </div>
+              )}
+
+              {competencySource === 'custom' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-primary">Competencies</label>
+                    <button type="button" onClick={addCompetency}
+                      className="inline-flex items-center gap-1 text-xs text-action-primary hover:text-primary">
+                      <Plus className="w-3.5 h-3.5" /> Add competency
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted">These competencies will drive interviews using this template.</p>
+                  <div className="space-y-2">
+                    {competencies.map((c, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <input type="text" value={c.name} onChange={(e) => updateCompetency(i, 'name', e.target.value)}
+                          className={`flex-1 px-3 py-1.5 text-sm bg-input text-primary rounded-lg border border-border ${FOCUS}`}
+                          placeholder="Competency name (e.g. Marketing Strategy)" />
+                        <Select
+                          value={c.category}
+                          onChange={v => updateCompetency(i, 'category', v)}
+                          options={COMPETENCY_CATEGORIES.map(cat => ({ value: cat, label: cat }))}
+                          className="w-36"
+                        />
+                        <input type="number" min={0.5} max={5} step={0.5} value={c.weight}
+                          onChange={(e) => updateCompetency(i, 'weight', Number(e.target.value))}
+                          className="w-20 px-3 py-1.5 text-sm bg-input text-primary rounded-lg border border-border" title="Weight" />
+                        <button type="button" onClick={() => removeCompetency(i)}
+                          className="p-1.5 rounded hover:bg-hover text-muted hover:text-error"><X className="w-4 h-4" /></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {competencySource === 'defaults' && (
+                <p className="text-xs text-secondary">Uses AURA's built-in competency set — good for most roles.</p>
+              )}
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="ghost" onClick={resetForm} disabled={saving}>Cancel</Button>
@@ -281,7 +310,7 @@ export default function Templates() {
                   <p className="text-xs text-muted mt-2">{t.department_name}</p>
                   {t.description && <p className="text-xs text-secondary mt-1 line-clamp-2">{t.description}</p>}
                   <div className="flex items-center gap-2 mt-3">
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-action-primary/10 text-action-primary">{t.interview_style || 'STANDARD'}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-action-primary/10 text-action-primary">AURA</span>
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-hover text-muted">{t.total_questions} questions</span>
                     {t.competencies && t.competencies.length > 0 && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-hover text-muted">{t.competencies.length} competencies</span>

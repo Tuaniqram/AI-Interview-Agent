@@ -308,8 +308,8 @@ async def start_practice(
 
     await db.commit()
 
-    # Seed v4 state with the chosen style and candidate profile
-    style = get_style(interview_style or "STANDARD")
+    # Seed v4 state with AURA (single conductor mode — style selection is gone)
+    style = get_style("AURA")
     competency_taxonomy, required_competencies, domain_label = taxonomy_for_state(
         default_taxonomy()
     )

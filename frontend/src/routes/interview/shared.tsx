@@ -117,13 +117,13 @@ export function EvaluationFeedback({ entry }: { entry: { strengths: string[]; we
   );
 }
 
-export function ConversationThread() {
+export function ConversationThread({ showEvaluation = true }: { showEvaluation?: boolean }) {
   const { state } = useInterviewStore();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [state.evaluationHistory.length, state.currentQuestion]);
+  }, [state.evaluationHistory.length, state.currentQuestion, state.conversationTurn]);
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" data-conversation-thread>
@@ -131,22 +131,22 @@ export function ConversationThread() {
         <div key={i} className="space-y-2 max-w-2xl mx-auto w-full">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-medium text-action-primary uppercase">Q{entry.questionNumber}</span>
-            {entry.technicalScore != null && (
-              <span className="text-[10px] text-muted">
-                T:{entry.technicalScore.toFixed(1)} C:{entry.communicationScore?.toFixed(1)}
-              </span>
-            )}
+            <span className="text-[10px] text-muted uppercase tracking-wide">AURA</span>
           </div>
-          <p className="text-sm text-primary bg-section/40 rounded-lg px-4 py-2.5">{entry.question}</p>
-          <div className="ml-3 pl-3">
+          <p className="text-sm text-primary bg-section/40 rounded-lg px-4 py-2.5 leading-relaxed">
+            {entry.conversationTurn || entry.question}
+          </p>
+          <div className="ml-3 pl-3 border-l border-[var(--border-color)]/60">
             <p className="text-sm text-secondary bg-elevated/60 rounded-lg px-4 py-2.5">{entry.answer}</p>
           </div>
-          <EvaluationFeedback entry={{
-            strengths: entry.strengths,
-            weaknesses: entry.weaknesses,
-            feedback: entry.feedback,
-            score: entry.score,
-          }} />
+          {showEvaluation && (
+            <EvaluationFeedback entry={{
+              strengths: entry.strengths,
+              weaknesses: entry.weaknesses,
+              feedback: entry.feedback,
+              score: entry.score,
+            }} />
+          )}
         </div>
       ))}
 
@@ -154,11 +154,14 @@ export function ConversationThread() {
         <div className="space-y-2 max-w-2xl mx-auto w-full">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-medium text-action-primary uppercase">Q{state.currentQuestion.question_number}</span>
+            <span className="text-[10px] text-muted uppercase tracking-wide">AURA</span>
             {state.currentQuestion.phase && (
               <span className="text-[10px] text-muted capitalize">Phase: {state.currentQuestion.phase}</span>
             )}
           </div>
-          <p className="text-sm text-primary bg-section/60 rounded-xl px-5 py-3.5">{state.currentQuestion.question}</p>
+          <p className="text-sm text-primary bg-section/60 rounded-xl px-5 py-3.5 leading-relaxed">
+            {state.conversationTurn || state.currentQuestion.question}
+          </p>
         </div>
       )}
 

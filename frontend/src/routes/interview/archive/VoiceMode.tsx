@@ -1,9 +1,9 @@
 import React from 'react';
 import { Mic, MicOff } from 'lucide-react';
-import { useInterviewStore } from '../../state/interviewStore';
-import { useVoice } from '../../hooks/useVoice';
-import { VoiceWaveform } from '../../components/VoiceWaveform';
-import { BackButton, LoadingScreen, QuestionDisplay, InputBar } from './shared';
+import { useInterviewStore } from '../../../state/interviewStore';
+import { useVoice } from '../../../hooks/useVoice';
+import { VoiceWaveform } from '../../../components/VoiceWaveform';
+import { BackButton, LoadingScreen, QuestionDisplay, InputBar } from '../shared';
 
 export function VoiceMode() {
   const { state, actions } = useInterviewStore();

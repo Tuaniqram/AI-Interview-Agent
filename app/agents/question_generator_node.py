@@ -49,35 +49,51 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
     else:
         hypothesis_text = ""
 
-    try:
-        question_text = await _generate_llm_question(
+    last_answer = _last_user_message(state.get("conversation_history", []))
+
+    if persona == "conductor":
+        conversation_turn = await _generate_conductor_turn(
+            state=state,
             phase=state.get("current_phase", "technical"),
             target_competency=target_competency or "general",
             job_role=job_role,
             difficulty=difficulty,
-            approach=approach,
             hypothesis_text=hypothesis_text,
             competency_info=competency_info,
-            candidate_profile=candidate_profile,
-            persona=persona,
-            followup_number=_count_competency_questions(previous_questions, target_competency),
-            question_number=question_number,
-            total_questions=state.get("total_questions", 10),
-            conversation_history=state.get("conversation_history", []),
+            last_answer=last_answer,
         )
-    except Exception as e:
-        logger.warning(f"LLM question generation failed ({e}), falling back to deterministic")
-        question_text = _generate_deterministic_question(
-            target_competency=target_competency or "general",
-            job_role=job_role,
-            difficulty=difficulty,
-            approach=approach,
-            hypothesis_text=hypothesis_text,
-            competency_info=competency_info,
-            candidate_profile=candidate_profile,
-            persona=persona,
-            followup_number=_count_competency_questions(previous_questions, target_competency),
-        )
+        question_text = conversation_turn["question"]
+    else:
+        conversation_turn = None
+        try:
+            question_text = await _generate_llm_question(
+                phase=state.get("current_phase", "technical"),
+                target_competency=target_competency or "general",
+                job_role=job_role,
+                difficulty=difficulty,
+                approach=approach,
+                hypothesis_text=hypothesis_text,
+                competency_info=competency_info,
+                candidate_profile=candidate_profile,
+                persona=persona,
+                followup_number=_count_competency_questions(previous_questions, target_competency),
+                question_number=question_number,
+                total_questions=state.get("total_questions", 10),
+                conversation_history=state.get("conversation_history", []),
+            )
+        except Exception as e:
+            logger.warning(f"LLM question generation failed ({e}), falling back to deterministic")
+            question_text = _generate_deterministic_question(
+                target_competency=target_competency or "general",
+                job_role=job_role,
+                difficulty=difficulty,
+                approach=approach,
+                hypothesis_text=hypothesis_text,
+                competency_info=competency_info,
+                candidate_profile=candidate_profile,
+                persona=persona,
+                followup_number=_count_competency_questions(previous_questions, target_competency),
+            )
 
     question_id = str(uuid4())
 
@@ -101,9 +117,114 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
     return {
         **state,
         "current_question": question_text,
+        "conversation_turn": conversation_turn,
         "question_objective": question_objective,
         "questions_asked": questions_asked,
         "question_number": question_number + 1,
+    }
+
+
+def _last_user_message(conversation_history: list) -> str:
+    for h in reversed(conversation_history or []):
+        if h.get("role") == "user" and h.get("content"):
+            return h["content"][:600]
+    return ""
+
+
+async def _generate_conductor_turn(
+    state: InterviewState,
+    phase: str,
+    target_competency: str,
+    job_role: str,
+    difficulty: int,
+    hypothesis_text: str,
+    competency_info: str,
+    last_answer: str,
+) -> dict:
+    """One LLM call producing {acknowledgement, bridge, question} (AURA conductor)."""
+    from app.services.llm_service import get_llm_service
+    from app.services.prompt_loader import load_prompt
+
+    try:
+        llm_service = get_llm_service()
+
+        history_lines = []
+        for h in (state.get("conversation_history") or [])[-6:]:
+            role = h.get("role", "")
+            content = h.get("content", "")
+            if content:
+                history_lines.append(f"{role}: {content[:400]}")
+        history_summary = "\n".join(history_lines) if history_lines else "(no previous conversation)"
+
+        prompt = load_prompt(
+            "interview",
+            "conductor_persona.md",
+            job_role=job_role or "Unknown",
+            target_competency=target_competency or "general",
+            phase=phase,
+            difficulty=difficulty,
+            hypothesis=hypothesis_text or "No specific hypothesis yet",
+            competency_info=competency_info or "No evidence gathered yet",
+            last_answer=last_answer or "(none yet)",
+            conversation_history=history_summary,
+            question_number=state.get("question_number", 0) + 1,
+        )
+
+        response = await llm_service.invoke(prompt=prompt, temperature=0.7, max_tokens=400)
+        return _parse_conductor_turn(response)
+    except Exception as e:
+        logger.warning(f"Conductor turn generation failed ({e}), using deterministic fallback")
+        return _generate_deterministic_conductor_turn(
+            target_competency=target_competency,
+            job_role=job_role,
+            difficulty=difficulty,
+            hypothesis_text=hypothesis_text,
+            competency_info=competency_info,
+            last_answer=last_answer,
+        )
+
+
+def _parse_conductor_turn(response: str) -> dict:
+    data = json.loads(response.strip().lstrip("```json").rstrip("```").strip())
+    question = str(data.get("question", "")).strip()
+    if not question:
+        raise ValueError("Conductor turn missing question")
+    return {
+        "acknowledgement": str(data.get("acknowledgement", "")).strip(),
+        "bridge": str(data.get("bridge", "")).strip(),
+        "question": question,
+    }
+
+
+def _generate_deterministic_conductor_turn(
+    target_competency: str,
+    job_role: str,
+    difficulty: int,
+    hypothesis_text: str,
+    competency_info: str,
+    last_answer: str,
+) -> dict:
+    question = _generate_deterministic_question(
+        target_competency=target_competency,
+        job_role=job_role,
+        difficulty=difficulty,
+        approach="",
+        hypothesis_text=hypothesis_text,
+        competency_info=competency_info,
+        candidate_profile={},
+        persona="conductor",
+        followup_number=0,
+    )
+
+    if last_answer:
+        acknowledgement = "Got it. Let me dig into that."
+    else:
+        acknowledgement = "Let's get started."
+
+    return {
+        "acknowledgement": acknowledgement,
+        "bridge": f"Now, about {target_competency.replace('_', ' ')}...",
+        "question": question,
     }
 
 

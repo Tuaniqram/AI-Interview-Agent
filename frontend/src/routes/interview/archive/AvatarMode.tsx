@@ -1,13 +1,13 @@
 import React from 'react';
 import { Mic, MicOff } from 'lucide-react';
-import { useInterviewStore } from '../../state/interviewStore';
-import { useVoice } from '../../hooks/useVoice';
-import { useCamera } from '../../hooks/useCamera';
-import { AvatarRenderer, getLipSyncController } from '../../components/AvatarRenderer';
-import { CameraPreview } from '../../components/CameraPreview';
-import type { AvatarEmotion } from '../../types/avatar';
-import { VoiceWaveform } from '../../components/VoiceWaveform';
-import { BackButton, LoadingScreen, QuestionDisplay, InputBar } from './shared';
+import { useInterviewStore } from '../../../state/interviewStore';
+import { useVoice } from '../../../hooks/useVoice';
+import { useCamera } from '../../../hooks/useCamera';
+import { AvatarRenderer, getLipSyncController } from '../../../components/AvatarRenderer';
+import { CameraPreview } from '../../../components/CameraPreview';
+import type { AvatarEmotion } from '../../../types/avatar';
+import { VoiceWaveform } from '../../../components/VoiceWaveform';
+import { BackButton, LoadingScreen, QuestionDisplay, InputBar } from '../shared';
 
 export function AvatarMode() {
   const { state, actions } = useInterviewStore();

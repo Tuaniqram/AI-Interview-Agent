@@ -15,6 +15,7 @@ from app.agents.competency_planner_node import competency_planner_node
 from app.agents.strategy_brain_node import strategy_brain_node
 from app.agents.hypothesis_node import hypothesis_node
 from app.agents.synthesis_node import synthesis_node
+from app.agents.difficulty_governor import difficulty_governor
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ def build_interview_graph() -> StateGraph:
     workflow.add_node("hypothesis_manager", hypothesis_node)
     workflow.add_node("question_subgraph", question_subgraph)
     workflow.add_node("evaluation_subgraph", evaluation_subgraph)
+    workflow.add_node("difficulty_governor", difficulty_governor)
     workflow.add_node("reflection_subgraph", reflection_subgraph)
     workflow.add_node("synthesis", synthesis_node)
 
@@ -46,7 +48,8 @@ def build_interview_graph() -> StateGraph:
     workflow.add_edge("strategy_brain", "hypothesis_manager")
     workflow.add_edge("hypothesis_manager", "question_subgraph")
     workflow.add_edge("question_subgraph", "evaluation_subgraph")
-    workflow.add_edge("evaluation_subgraph", "reflection_subgraph")
+    workflow.add_edge("evaluation_subgraph", "difficulty_governor")
+    workflow.add_edge("difficulty_governor", "reflection_subgraph")
 
     workflow.add_conditional_edges(
         "reflection_subgraph",
@@ -67,7 +70,7 @@ def build_interview_graph() -> StateGraph:
 def _route_interview_cycle(state: InterviewState) -> Literal["probe", "change_competency", "finish"]:
     action = state.get("reflection_action", "probe")
     question_number = state.get("question_number", 0)
-    max_questions = state.get("max_questions", 20)
+    max_questions = state.get("max_questions", 14)
 
     if question_number >= max_questions:
         return "finish"

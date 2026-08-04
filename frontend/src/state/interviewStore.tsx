@@ -3,16 +3,18 @@
  * Centralized state management with context API
  */
 
-import React, { createContext, useContext, useReducer, useMemo, useRef, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, useMemo, useRef, useEffect, useCallback, ReactNode } from 'react';
 import { 
   InterviewSession, 
   Question, 
   AnswerEvaluation, 
   EvaluationHistoryEntry,
   InterviewReport,
-  InterviewMode
+  InterviewMode,
+  InterviewStatus
 } from '../types/interview';
 import { interviewController } from '../controllers/interviewController';
+import { interviewWebSocket } from '../services/interviewWebSocket';
 
 // ========== STATE TYPES ==========
 
@@ -32,7 +34,13 @@ export type InterviewState = {
   historyIndex: number;
   cardVisible: boolean;
   finalReport: InterviewReport | null;
-  
+
+  // AURA conductor turn (spoken message for the current/pending question)
+  conversationTurn: string;
+
+  // AURA engine phase pushed over WebSocket (drives AuraCore states)
+  wsPhase: 'idle' | 'evaluating' | 'question_ready' | 'reconnecting';
+
   // Interview mode
   interviewMode: InterviewMode;
   
@@ -59,6 +67,8 @@ type InterviewAction =
   | { type: 'SET_HISTORY_INDEX'; payload: number }
   | { type: 'TOGGLE_CARD' }
   | { type: 'SET_FINAL_REPORT'; payload: InterviewReport }
+  | { type: 'SET_CONVERSATION_TURN'; payload: string }
+  | { type: 'SET_WS_PHASE'; payload: 'idle' | 'evaluating' | 'question_ready' | 'reconnecting' }
   | { type: 'SET_INTERVIEW_MODE'; payload: InterviewMode }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_EVALUATING'; payload: boolean }
@@ -77,6 +87,8 @@ const initialState: InterviewState = {
   historyIndex: -1,
   cardVisible: false,
   finalReport: null,
+  conversationTurn: '',
+  wsPhase: 'idle',
   interviewMode: (localStorage.getItem('aiInterviewMode') as InterviewMode) || 'avatar',
   isLoading: false,
   isEvaluating: false,
@@ -151,6 +163,18 @@ function interviewReducer(state: InterviewState, action: InterviewAction): Inter
         finalReport: action.payload,
       };
 
+    case 'SET_CONVERSATION_TURN':
+      return {
+        ...state,
+        conversationTurn: action.payload,
+      };
+
+    case 'SET_WS_PHASE':
+      return {
+        ...state,
+        wsPhase: action.payload,
+      };
+
     case 'SET_INTERVIEW_MODE':
       localStorage.setItem('aiInterviewMode', action.payload);
       return {
@@ -219,7 +243,7 @@ const InterviewContext = createContext<InterviewContextType | undefined>(undefin
 // ========== ACTIONS ==========
 
 interface InterviewStoreActions {
-  startInterview: (params: { departmentId?: number; jobRole: string; totalQuestions?: number; candidateName?: string; candidateEmail?: string; mode?: string; scorecardTemplateId?: string }) => Promise<void>;
+  startInterview: (params: { sessionId: string }) => Promise<void>;
   cancelInterview: () => void;
   fetchFinalReport: () => Promise<void>;
   goToNextQuestion: () => Promise<void>;
@@ -251,9 +275,53 @@ function initState(defaultState: InterviewState): InterviewState {
 export function InterviewProvider({ children }: InterviewProviderProps) {
   const [state, dispatch] = useReducer(interviewReducer, initialState, initState);
   const controller = interviewController;
+  const wsOffRef = useRef<(() => void) | null>(null);
+  const closeOffRef = useRef<(() => void) | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stateRef = useRef(state);
   stateRef.current = state;
+
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleReconnect = useCallback(() => {
+    const sessionId = sessionIdRef.current;
+    if (!sessionId) return;
+    if (reconnectTimerRef.current) return;
+
+    const attempts = reconnectAttemptsRef.current + 1;
+    reconnectAttemptsRef.current = attempts;
+    if (attempts > 5) {
+      dispatch({ type: 'SET_ERROR', payload: 'Connection lost. Reload the page to continue the interview.' });
+      return;
+    }
+
+    const delay = Math.min(1000 * 2 ** (attempts - 1), 20000);
+    reconnectTimerRef.current = setTimeout(async () => {
+      reconnectTimerRef.current = null;
+      dispatch({ type: 'SET_WS_PHASE', payload: 'reconnecting' });
+      try {
+        // Reconnect + reconcile: get_status resumes when the engine still has
+        // state, otherwise a fresh start is issued (both idempotent).
+        const result = await controller.initInterviewViaWS(sessionId);
+        reconnectAttemptsRef.current = 0;
+        dispatch({ type: 'SET_ERROR', payload: '' });
+        dispatch({ type: 'SET_SESSION', payload: result.session });
+        dispatch({ type: 'SET_QUESTION', payload: result.firstQuestion });
+        dispatch({ type: 'SET_CONVERSATION_TURN', payload: result.conversationTurn });
+        dispatch({ type: 'SET_WS_PHASE', payload: 'question_ready' });
+      } catch {
+        scheduleReconnect();
+      }
+    }, delay);
+  }, [controller]);
 
   useEffect(() => {
     if (!state.session) return;
@@ -263,12 +331,13 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
       evaluationHistory: state.evaluationHistory,
       historyIndex: state.historyIndex,
       cardVisible: state.cardVisible,
+      conversationTurn: state.conversationTurn,
       interviewMode: state.interviewMode,
     };
     try {
       sessionStorage.setItem('aiInterviewState', JSON.stringify(toSave));
     } catch {}
-  }, [state.session, state.currentQuestion, state.evaluationHistory, state.historyIndex, state.cardVisible, state.interviewMode]);
+  }, [state.session, state.currentQuestion, state.evaluationHistory, state.historyIndex, state.cardVisible, state.conversationTurn, state.interviewMode]);
 
   const actions = useMemo<InterviewStoreActions>(() => {
     const fetchFinalReport = async () => {
@@ -284,22 +353,44 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
     };
 
     return {
-      startInterview: async (params) => {
+      startInterview: async ({ sessionId }) => {
         dispatch({ type: 'SET_LOADING', payload: true });
         try {
-          if (params.mode) {
-            dispatch({ type: 'SET_INTERVIEW_MODE', payload: params.mode as InterviewMode });
-          }
-          const result = await controller.startInterview(params as any);
+          sessionIdRef.current = sessionId;
+          reconnectAttemptsRef.current = 0;
+          clearReconnectTimer();
+          const result = await controller.initInterviewViaWS(sessionId);
+
+          wsOffRef.current?.();
+          wsOffRef.current = interviewWebSocket.on('status', (data: any) => {
+            if (data?.phase) {
+              dispatch({ type: 'SET_WS_PHASE', payload: data.phase });
+            }
+          });
+          closeOffRef.current?.();
+          closeOffRef.current = interviewWebSocket.on('close', () => {
+            if (stateRef.current.session?.status === 'completed') return;
+            scheduleReconnect();
+          });
+
           dispatch({ type: 'SET_SESSION', payload: result.session });
           dispatch({ type: 'SET_QUESTION', payload: result.firstQuestion });
+          dispatch({ type: 'SET_CONVERSATION_TURN', payload: result.conversationTurn });
+          dispatch({ type: 'SET_WS_PHASE', payload: 'question_ready' });
         } catch (error: any) {
           dispatch({ type: 'SET_ERROR', payload: error.message });
         }
       },
 
       cancelInterview: () => {
-        controller.cancelInterview();
+        wsOffRef.current?.();
+        wsOffRef.current = null;
+        closeOffRef.current?.();
+        closeOffRef.current = null;
+        clearReconnectTimer();
+        reconnectAttemptsRef.current = 0;
+        sessionIdRef.current = null;
+        controller.cancelInterviewWS();
         dispatch({ type: 'RESET_STATE' });
       },
 
@@ -327,7 +418,7 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
         dispatch({ type: 'SET_EVALUATING', payload: true });
         dispatch({ type: 'SET_USER_ANSWER', payload: answer });
         try {
-          const result = await controller.submitAnswer({ answer });
+          const result = await controller.submitAnswerViaWS({ answer });
           dispatch({ type: 'SET_EVALUATION', payload: result });
 
           const currentQ = stateRef.current.currentQuestion;
@@ -341,19 +432,25 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
             strengths: result.strengths || [],
             weaknesses: result.weaknesses || [],
             feedback: result.evaluation || '',
+            conversationTurn: result.conversationTurn || '',
           };
           dispatch({ type: 'PUSH_EVALUATION', payload: entry });
-          if (result.phase) {
-            dispatch({ type: 'SET_SESSION_PHASE', payload: result.phase });
-          }
 
           if (result.interview_status === 'completed') {
-            await fetchFinalReport();
+            dispatch({ type: 'SET_WS_PHASE', payload: 'idle' });
+            dispatch({ type: 'SET_CONVERSATION_TURN', payload: '' });
+            const sess = stateRef.current.session;
+            if (sess) {
+              dispatch({ type: 'SET_SESSION', payload: { ...sess, status: 'completed' as InterviewStatus } });
+            }
           } else {
-            const nextQuestion = await controller.goToNextQuestion();
+            const snap = controller.getSession();
+            if (snap.currentQuestion) {
+              dispatch({ type: 'SET_QUESTION', payload: snap.currentQuestion });
+            }
             dispatch({ type: 'SET_USER_ANSWER', payload: '' });
             dispatch({ type: 'SET_EVALUATION', payload: null as unknown as AnswerEvaluation });
-            dispatch({ type: 'SET_QUESTION', payload: nextQuestion });
+            dispatch({ type: 'SET_CONVERSATION_TURN', payload: result.conversationTurn || '' });
           }
         } catch (error: any) {
           dispatch({ type: 'SET_ERROR', payload: error.message });
