@@ -10,7 +10,7 @@ from functools import wraps
 import time
 import hashlib
 
-from app.models.llm import llm
+from app.models.llm import llm, get_llm
 from app.exceptions import LLMServiceError, LLMTimeoutError, LLMRateLimitError
 from app.services.cache import get_cache
 
@@ -34,20 +34,24 @@ class LLMService:
         prompt: str,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
-        system_prompt: Optional[str] = None
+        system_prompt: Optional[str] = None,
+        tier: Optional[str] = None
     ) -> str:
         """
         Invoke LLM with caching support and retry logic.
-        
+
         Args:
             prompt: User prompt
             temperature: Temperature for generation (0.0-2.0)
             max_tokens: Maximum tokens to generate (default: 2048)
             system_prompt: System prompt to use
-            
+            tier: Model tier — "cheap" for extraction/formatting/classification,
+                  "strong" (default) for reasoning/reflection/decisions. Pass
+                  None to use the default strong chain.
+
         Returns:
             str: Generated response
-            
+
         Raises:
             LLMServiceError: If LLM call fails
             LLMTimeoutError: If timeout occurs
@@ -56,8 +60,9 @@ class LLMService:
         # Use default max_tokens if not provided (avoid 65536 default)
         if max_tokens is None:
             max_tokens = 2048  # Reasonable limit for interview questions
-        
-        cache_key = self._generate_cache_key(prompt, temperature, system_prompt)
+
+        target_llm = get_llm(tier) if tier else llm
+        cache_key = self._generate_cache_key(prompt, temperature, system_prompt, tier)
 
         # Check Redis first
         redis_cache = get_cache()
@@ -92,7 +97,7 @@ class LLMService:
                         config["max_tokens"] = max_tokens
 
                     response = await asyncio.wait_for(
-                        llm.ainvoke(messages, config),
+                        target_llm.ainvoke(messages, config),
                         timeout=60
                     )
 
@@ -147,7 +152,8 @@ class LLMService:
         prompt: str,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
-        system_prompt: Optional[str] = None
+        system_prompt: Optional[str] = None,
+        tier: Optional[str] = None
     ) -> AsyncGenerator[str, None]:
         """Stream LLM response token by token."""
         if max_tokens is None:
@@ -160,8 +166,10 @@ class LLMService:
 
         config = {"temperature": temperature, "max_tokens": max_tokens}
 
+        target_llm = get_llm(tier) if tier else llm
+
         async with self._rate_limiter:
-            async for token in llm.astream(messages, config):
+            async for token in target_llm.astream(messages, config):
                 yield token
     
     async def invoke_structured(
@@ -169,7 +177,8 @@ class LLMService:
         prompt: str,
         pydantic_model: Any,
         temperature: float = 0.3,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        tier: Optional[str] = None
     ) -> Any:
         """
         Invoke LLM and parse structured output using Pydantic model.
@@ -179,6 +188,7 @@ class LLMService:
             pydantic_model: Pydantic model for output parsing
             temperature: Temperature for generation
             max_tokens: Maximum tokens to generate
+            tier: Model tier (see ``invoke``)
             
         Returns:
             Pydantic model instance with parsed output
@@ -189,7 +199,9 @@ class LLMService:
         try:
             # For now, just use regular invoke and parse manually
             # Later can integrate with bedrock structured outputs or similar
-            response = await self.invoke(prompt, temperature=temperature, max_tokens=max_tokens)
+            response = await self.invoke(
+                prompt, temperature=temperature, max_tokens=max_tokens, tier=tier
+            )
             
             # Try to parse as JSON first
             try:
@@ -210,8 +222,14 @@ class LLMService:
             logger.error(f"Structured invocation failed: {str(e)}")
             raise LLMServiceError(f"Failed to parse structured response: {str(e)}")
     
-    def _generate_cache_key(self, prompt: str, temperature: float, system_prompt: Optional[str]) -> str:
-        raw = f"{prompt}|{temperature}|{system_prompt or ''}"
+    def _generate_cache_key(
+        self,
+        prompt: str,
+        temperature: float,
+        system_prompt: Optional[str],
+        tier: Optional[str] = None
+    ) -> str:
+        raw = f"{prompt}|{temperature}|{system_prompt or ''}|{tier or 'strong'}"
         return hashlib.md5(raw.encode()).hexdigest()
     
     async def clear_cache(self):

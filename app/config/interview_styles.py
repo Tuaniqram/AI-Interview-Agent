@@ -240,7 +240,7 @@ STYLES = {
     "FAANG": {
         "name": "FAANG-Style Interview",
         "persona": "faang",
-        "evaluator_mode": "parallel",
+        "evaluator_mode": "unified",
         "base_competency_priority": {
             "tech_data": "HIGH",
             "tech_system_design": "HIGH",

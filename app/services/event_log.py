@@ -1,8 +1,8 @@
-"""Append-only event log for the v4 interview pipeline.
+"""Append-only event log for the interview pipeline.
 
 Each interview event is a small JSONB row with a per-session monotonic
 ``seq``. The writer is best-effort and never raises (mirrors the contract
-of ``interview_v4._persist_answer_turn``) so a DB blip can never break an
+of ``app/engine/persistence.py``) so a DB blip can never break an
 in-flight interview.
 
 Schema (created by alembic migration a7f3c2e1b9d4):

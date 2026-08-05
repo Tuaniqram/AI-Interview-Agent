@@ -27,6 +27,33 @@ class PromptLoader:
         if not self.prompts_dir.exists():
             logger.warning(f"Prompts directory not found: {self.prompts_dir}")
     
+    def _render(self, content: str, kwargs: dict[str, Any]) -> str:
+        """Replace {{variable}} or {variable} placeholders in content."""
+        for key, value in kwargs.items():
+            double_brace_placeholder = f"{{{{{key}}}}}"
+            single_brace_placeholder = f"{{{key}}}"
+
+            # Prefer the exact {{key}} form; falling back to {key} only avoids
+            # mangling double-brace templates into stray {value} braces.
+            if double_brace_placeholder in content:
+                content = content.replace(double_brace_placeholder, str(value))
+            elif single_brace_placeholder in content:
+                content = content.replace(single_brace_placeholder, str(value))
+        return content
+
+    def _load_cached(self, relative_path: str) -> str:
+        """Read and cache a prompt file resolved under the prompts directory.
+
+        Supports nested subdirectories (e.g. ``intelligence/company_brain.md``).
+        """
+        if relative_path not in self._file_cache:
+            file_path = self.prompts_dir / relative_path
+            if not file_path.exists():
+                raise FileNotFoundError(f"Prompt file not found: {file_path}")
+            with open(file_path, 'r', encoding='utf-8') as f:
+                self._file_cache[relative_path] = f.read()
+        return self._file_cache[relative_path]
+
     def load(
         self,
         category: str,
@@ -37,7 +64,7 @@ class PromptLoader:
         Load a prompt file and inject variables.
         
         Args:
-            category: Category (system, interview, evaluation)
+            category: Category (system, interview, evaluation, intelligence)
             filename: Filename (e.g., "interviewer_system.md", "answer_evaluation.md")
             **kwargs: Variables to inject into the prompt template
             
@@ -47,14 +74,14 @@ class PromptLoader:
         Raises:
             FileNotFoundError: If prompt file doesn't exist
         """
-        file_path = self.prompts_dir / category / filename
         cache_key = f"{category}/{filename}"
 
         if cache_key not in self._file_cache:
-            if not file_path.exists():
-                raise FileNotFoundError(f"Prompt file not found: {file_path}")
-            with open(file_path, 'r', encoding='utf-8') as f:
-                self._file_cache[cache_key] = f.read()
+            if not (self.prompts_dir / category / filename).exists():
+                raise FileNotFoundError(
+                    f"Prompt file not found: {self.prompts_dir / category / filename}"
+                )
+            self._file_cache[cache_key] = self._load_cached(cache_key)
 
         content = self._file_cache[cache_key]
         
@@ -66,17 +93,7 @@ class PromptLoader:
             logger.debug(f"Rendered prompt cache hit: {category}/{filename}")
             return self._rendered_cache[rendered_key]
         
-        # Replace variables in format {{variable_name}} or {variable_name}
-        for key, value in kwargs.items():
-            # Support both {{variable}} and {variable} formats
-            double_brace_placeholder = f"{{{{{key}}}}}"
-            single_brace_placeholder = f"{{{key}}}"
-            
-            # Check for existing single brace first (for backcompatibility)
-            if single_brace_placeholder in content:
-                content = content.replace(single_brace_placeholder, str(value))
-            elif double_brace_placeholder in content:
-                content = content.replace(double_brace_placeholder, str(value))
+        content = self._render(content, kwargs)
         
         if len(self._rendered_cache) < self._MAX_RENDERED_CACHE:
             self._rendered_cache[rendered_key] = content
@@ -126,49 +143,37 @@ class PromptLoader:
     def load_by_path(self, prompt_path: str, **kwargs: Any) -> str:
         """
         Load a prompt by file path relative to prompts directory.
-        
+
         Args:
-            prompt_path: Relative path (e.g., "system/interviewer_system.md")
+            prompt_path: Relative path (e.g., "system/interviewer_system.md",
+                "intelligence/company_brain.md")
             **kwargs: Variables to inject
             
         Returns:
             str: Rendered prompt
         """
-        file_path = self.prompts_dir / prompt_path
-        
-        if not file_path.exists():
-            raise FileNotFoundError(
-                f"Prompt file not found: {file_path}"
-            )
-        
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        for key, value in kwargs.items():
-            placeholder = f"{{{{{key}}}}}"
-            content = content.replace(placeholder, str(value))
-        
-        return content
+        content = self._load_cached(prompt_path)
+        return self._render(content, kwargs)
     
     def list_prompts(self, category: str = None) -> list[str]:
         """
-        List available prompts.
-        
+        List available prompts, recursing into nested subdirectories.
+
         Args:
             category: Optional category to filter by
-            
+
         Returns:
             list[str]: List of prompt filenames
         """
         prompts = []
-        
+
         category_dir = self.prompts_dir / category if category else self.prompts_dir
-        
+
         if category_dir.exists() and category_dir.is_dir():
-            for file_path in category_dir.iterdir():
-                if file_path.is_file() and file_path.suffix == '.md':
-                    prompts.append(f"{category}/{file_path.name}" if category else file_path.name)
-        
+            for file_path in sorted(category_dir.rglob('*.md')):
+                relative = file_path.relative_to(self.prompts_dir)
+                prompts.append(str(relative).replace('\\', '/'))
+
         return prompts
 
 

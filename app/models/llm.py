@@ -56,6 +56,15 @@ _LLM_CONFIGS: list[dict[str, str | None]] = [
     {"model": "openrouter/auto-beta", "base_url": "https://openrouter.ai/api/v1", "api_key": os.getenv("OPENROUTER_API_KEY")},
 ]
 
+# Cheap tier — small/fast models for extraction, formatting and classification.
+# Falls back to the local model and finally the strong chain so it never
+# fails outright when no cheap provider is configured.
+_CHEAP_LLM_CONFIGS: list[dict[str, str | None]] = [
+    {"model": "llama-3.1-8b-instant", "base_url": "https://api.groq.com/openai/v1", "api_key": os.getenv("GROQ_API_KEY")},
+    {"model": "one", "base_url": "http://localhost:20128/v1", "api_key": None},
+    *_LLM_CONFIGS,
+]
+
 
 def _build_llm_instance(config: dict[str, str | None]) -> ChatOpenAI:
     api_key = config["api_key"] or "sk-no-key"
@@ -69,11 +78,17 @@ def _build_llm_instance(config: dict[str, str | None]) -> ChatOpenAI:
 
 
 llm: FallbackLLM = FallbackLLM([_build_llm_instance(c) for c in _LLM_CONFIGS])
+cheap_llm: FallbackLLM = FallbackLLM([_build_llm_instance(c) for c in _CHEAP_LLM_CONFIGS])
 
 logger.info("LLM initialized with fallback chain: %s", llm.model_name)
+logger.info("LLM cheap tier initialized with fallback chain: %s", cheap_llm.model_name)
 
 
-_llm_registry: dict[str, FallbackLLM] = {"openrouter": llm}
+_llm_registry: dict[str, FallbackLLM] = {
+    "strong": llm,
+    "cheap": cheap_llm,
+    "openrouter": llm,
+}
 
 
 def get_llm(name: str | None = None) -> FallbackLLM:

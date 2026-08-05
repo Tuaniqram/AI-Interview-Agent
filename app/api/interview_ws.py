@@ -28,30 +28,20 @@ from sqlalchemy import select
 from app.auth.jwt import decode_token
 from app.database.session import get_session_factory
 from app.services.event_log import get_event_log
-from app.models.db import InterviewSession
+from app.models.db import CandidateProfile, InterviewSession
 from app.exceptions import SessionNotFoundException
 
-from app.api.interview_v4 import (
-    V4StartRequest,
-    _build_initial_state,
-    _build_start_response,
-    _build_state_response,
-    process_v4_answer,
-)
-from app.agents.session_init_node import session_init_node
-from app.agents.company_context_node import department_context_node
-from app.agents.candidate_profile_node import candidate_profile_node
-from app.agents.competency_planner_node import competency_planner_node
-from app.agents.strategy_brain_node import strategy_brain_node
-from app.agents.hypothesis_node import hypothesis_node
-from app.agents.question_generator_node import question_generator_node
+from app.engine.engine import InterviewEngine
+from app.engine.builders import build_start_response, build_state_response
 from app.config.interview_styles import get_style
 from app.data.competency_resolver import (
     default_taxonomy,
     resolve_competencies,
     taxonomy_for_state,
 )
+from app.intelligence.company_cache import get_or_build_company_brain
 from app.services.v4_session_store import get_v4_session_store
+from app.services.v5_brain_persister import V5BrainPersister
 
 logger = logging.getLogger(__name__)
 
@@ -125,16 +115,69 @@ async def _load_db_session_row(session_id: str) -> Optional[InterviewSession]:
         return result.scalar_one_or_none()
 
 
+_v5_persister_instance: Optional[V5BrainPersister] = None
+
+
+def _get_v5_persister() -> Optional[V5BrainPersister]:
+    """Shared V5 persister instance for the WS flow (engine seam)."""
+    global _v5_persister_instance
+    if _v5_persister_instance is None:
+        _v5_persister_instance = V5BrainPersister()
+    return _v5_persister_instance
+
+
+async def _load_candidate_profile_data(
+    db_session: InterviewSession,
+) -> tuple[dict, Optional[str]]:
+    """Best-effort candidate profile dict + resume-ish text for intelligence.
+
+    Falls back to a neutral stub when there is no profile or the lookup fails,
+    so a session can always start.
+    """
+    stub = {"full_name": "Candidate", "headline": "", "strengths": [], "weaknesses": []}
+    if not db_session.candidate_profile_id:
+        return stub, None
+    try:
+        async with get_session_factory()() as db:
+            result = await db.execute(
+                select(CandidateProfile).where(
+                    CandidateProfile.id == db_session.candidate_profile_id
+                )
+            )
+            profile = result.scalar_one_or_none()
+    except Exception as exc:  # noqa: BLE001 - intelligence is best-effort
+        logger.warning(f"Failed to load candidate profile: {exc}")
+        profile = None
+    if profile is None:
+        return stub, None
+
+    data = dict(profile.profile_data or {})
+    data.setdefault("full_name", profile.name)
+    data.setdefault("headline", "")
+    data.setdefault("strengths", [])
+    data.setdefault("weaknesses", [])
+
+    parts = [profile.name or "", profile.skills or ""]
+    for value in data.values():
+        if isinstance(value, str) and value.strip():
+            parts.append(value)
+        elif isinstance(value, list):
+            parts.append(", ".join(str(v) for v in value if v))
+    resume_text = "\n".join(p for p in parts if p.strip()) or None
+    return data, resume_text
+
+
 async def _start_v4_engine(session_id: str) -> dict:
-    """Start (or resume) the v4 AURA engine for the given session.
+    """Start (or resume) the v5 AURA engine for the given session.
 
     The session row in the DB is the source of truth for job_role / department_id;
     the engine state lives in the v4 session store under the same session_id.
+    All orchestration is delegated to ``InterviewEngine``.
     """
     store = get_v4_session_store()
     existing = store.get(session_id)
     if existing is not None:
-        return _build_start_response(session_id, existing)
+        return build_start_response(session_id, existing)
 
     db_session = await _load_db_session_row(session_id)
     if db_session is None:
@@ -147,42 +190,68 @@ async def _start_v4_engine(session_id: str) -> dict:
             taxonomy = await resolve_competencies(db, department_id=db_session.department_id)
     competency_taxonomy, required, domain_label = taxonomy_for_state(taxonomy)
 
-    request = V4StartRequest(
-        job_role=db_session.job_role or "Software Engineer",
-        style_name="AURA",
-        department_id=db_session.department_id,
-    )
+    candidate_profile, resume_text = await _load_candidate_profile_data(db_session)
 
-    state = _build_initial_state(
-        session_id, request, style, competency_taxonomy, required, domain_label
-    )
-    state = session_init_node(state)
-    state = await department_context_node(state)
-    state = await candidate_profile_node(state)
-    state = await competency_planner_node(state)
-    state = await strategy_brain_node(state)
-    state = await hypothesis_node(state)
-    target = state.get("hypothesis_target") or {}
-    await get_event_log().append(session_id, "question_selected", {
-        "question_number": state.get("question_number", 0),
-        "target_hypothesis_id": target.get("id", ""),
-        "competency": target.get("competency", ""),
-        "status": target.get("status", ""),
-        "selection_reason": target.get("selection_reason", ""),
-        "information_gain": target.get("information_gain", 0.0),
-    })
-    state = await question_generator_node(state)
-
-    store.set(session_id, state)
-    logger.info(f"WS v4 session started: {session_id[:12]}..., role={request.job_role}")
-    await get_event_log().append(session_id, "session_started", {
-        "style_name": request.style_name,
-        "job_role": request.job_role,
-        "department_id": request.department_id,
-        "competency_count": len(competency_taxonomy),
+    state = {
+        "session_id": session_id,
+        "job_role": db_session.job_role or "Software Engineer",
+        "department_id": db_session.department_id,
+        "interview_style": style,
+        "persona": style.get("persona", "friendly"),
+        "difficulty_level": style.get("difficulty_range", (1, 3))[0],
+        "candidate_profile": candidate_profile,
+        "resume_text": resume_text,
+        "scorecard_competencies": [
+            {"id": c.get("id", ""), "name": c.get("name", c.get("id", "")), "weight": 1.0}
+            for c in (competency_taxonomy or [])
+        ],
+        "competency_taxonomy": competency_taxonomy,
         "domain_label": domain_label,
-    })
-    return _build_start_response(session_id, state)
+        "required_competencies": required,
+        "conversation_history": [],
+        "question_number": 0,
+        "current_question": "",
+        "candidate_answer": "",
+        "flow_type": "v5_evidence_driven",
+        "nodes_executed": [],
+        "start_time": time_module.strftime("%Y-%m-%dT%H:%M:%SZ", time_module.gmtime()),
+        "hypotheses": [],
+        "hypothesis_target": None,
+        "evidence_store": [],
+        "competency_summary": {},
+        "unified_evaluation": {},
+        "evaluation_score": None,
+        "observations": [],
+        "competency_plan": [],
+        "next_competency": None,
+        "interview_strategy": {},
+        "reflection_action": "probe",
+        "evidence_sufficiency": {},
+        "hiring_recommendation": {},
+        "contradictions": [],
+        "consistency_checks": [],
+        "extracted_evidence": [],
+        "max_questions": style.get("max_questions", 20),
+        "questions_asked": [],
+        "question_objective": {},
+        "skip_evaluation": False,
+        "evaluator_mode": style.get("evaluator_mode", "unified"),
+        "strategy_cache_valid": False,
+    }
+
+    engine = InterviewEngine(store=store, v5_persister=_get_v5_persister())
+    company_brain = await get_or_build_company_brain(
+        department_id=db_session.department_id,
+        job_role=db_session.job_role or "Software Engineer",
+    )
+    response = await engine.start_session(
+        state,
+        build_intelligence=True,
+        company_brain=company_brain,
+    )
+
+    logger.info(f"WS v5 session started: {session_id[:12]}..., role={state['job_role']}")
+    return response
 
 
 @router.websocket("/ws/interview/{session_id}")
@@ -240,7 +309,7 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                 if state is None:
                     await websocket.send_json(_send_id({"type": "error", "detail": "Session not initialized"}, data))
                     continue
-                await websocket.send_json(_send_id({"type": "question", **_build_start_response(sid, state)}, data))
+                await websocket.send_json(_send_id({"type": "question", **build_start_response(sid, state)}, data))
 
             elif msg_type == "submit_answer":
                 sid = conn_state["session_id"]
@@ -252,7 +321,11 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                 await websocket.send_json(_send_id({"type": "status", "phase": "evaluating"}, data))
 
                 try:
-                    result = await process_v4_answer(sid, candidate_answer)
+                    engine = InterviewEngine(
+                        store=get_v4_session_store(),
+                        v5_persister=_get_v5_persister(),
+                    )
+                    result = await engine.process_answer(sid, candidate_answer)
                 except SessionNotFoundException:
                     await websocket.send_json(_send_id({"type": "error", "detail": "Session not found"}, data))
                     continue
@@ -278,7 +351,7 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                 if state is None:
                     await websocket.send_json(_send_id({"type": "error", "detail": "Session not found"}, data))
                     continue
-                status = _build_state_response(sid, state)
+                status = build_state_response(sid, state)
                 await websocket.send_json(_send_id({"type": "status_snapshot", **status}, data))
 
             else:

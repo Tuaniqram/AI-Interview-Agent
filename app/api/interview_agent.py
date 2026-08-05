@@ -1,8 +1,9 @@
 """
 AI Interview Agent API - Session Summary Endpoint
-The live engine is v4 (WebSocket-driven via /ws/interview/{session_id}).
-Only the summary endpoint remains here; the v3 legacy engine (orchestrator +
-LangGraph workflows) has been archived to v3/.
+The live engine is V5 (WebSocket-driven via /ws/interview/{session_id} ->
+InterviewEngine). Only the summary endpoint remains here: it reads the durable
+DB state (session/message/evaluation rows plus the V5 ``interview_brain``
+snapshot) and serves the post-interview report page.
 """
 import asyncio
 import logging
@@ -16,7 +17,6 @@ from app.candidates.auth import optional_candidate_auth
 from app.database.session import get_session_factory
 from app.models.db import CandidateProfile, InterviewSession
 from app.exceptions import SessionNotFoundException
-from app.services.v4_session_store import get_v4_session_store
 from app.services.repositories import (
     get_evaluation_repo,
     get_message_repo,
@@ -128,35 +128,64 @@ async def _get_legacy_summary(session_id: str) -> dict:
     }
 
 
-async def _get_v4_summary(session_id: str) -> dict:
-    store = get_v4_session_store()
+async def _get_engine_summary(session_id: str) -> dict:
+    """V4/V5 extras from the durable ``interview_brain`` snapshot (DB).
+
+    The engine snapshots the brain into ``interview_brain`` on every turn via
+    ``V5BrainPersister`` (and at completion). The in-memory session store is
+    NOT a reliable source after a restart or eviction, so the summary reads the
+    snapshot table instead. The payload keeps the legacy ``v4_*`` key names for
+    API compatibility.
+
+    Best-effort: any failure (e.g. the table missing pre-migration) degrades to
+    an empty dict, and the caller falls back to the legacy summary alone.
+    """
+    from app.models.db import InterviewBrain as InterviewBrainRecord
+
     try:
-        state = store.get_or_raise(session_id)
-        rec = state.get("hiring_recommendation", {})
-        return {
-            "session_id": session_id,
-            "status": "completed",
-            "v4_verdict": rec.get("verdict", "insufficient_evidence"),
-            "v4_confidence": rec.get("confidence", 0),
-            "v4_composite_score": rec.get("composite_score"),
-            "v4_evidence_count": len(state.get("evidence_store", [])),
-            "v4_questions_asked": state.get("question_number", 0),
-            "v4_competency_summary": {
-                comp: {
-                    "average_score": s.get("average_score", 0),
-                    "evidence_count": s.get("evidence_count", 0),
-                    "gap": s.get("gap", 1),
-                }
-                for comp, s in (state.get("competency_summary") or {}).items()
-            },
-            "v4_hypothesis_outcomes": {
-                "confirmed": sum(1 for h in (state.get("hypotheses") or []) if h.get("status") == "confirmed"),
-                "refuted": sum(1 for h in (state.get("hypotheses") or []) if h.get("status") == "refuted"),
-                "untested": sum(1 for h in (state.get("hypotheses") or []) if h.get("status") == "untested"),
-            },
-        }
-    except SessionNotFoundException:
+        async with get_session_factory()() as db:
+            result = await db.execute(
+                select(InterviewBrainRecord).where(
+                    InterviewBrainRecord.session_id == UUID(session_id)
+                )
+            )
+            record = result.scalar_one_or_none()
+    except Exception as exc:  # noqa: BLE001 - best-effort summary extras
+        logger.warning(f"V5 brain snapshot read failed (non-fatal): {exc}")
         return {}
+
+    if not record:
+        return {}
+
+    decision = record.decision_state or {}
+    rec = decision.get("hiring_recommendation", {})
+    summary = record.evidence_summary or {}
+    hypotheses = record.current_hypotheses or []
+    metadata = record.brain_metadata or {}
+
+    return {
+        "session_id": session_id,
+        "v4_verdict": rec.get("verdict", "insufficient_evidence"),
+        "v4_confidence": rec.get("confidence", 0),
+        "v4_composite_score": rec.get("composite_score"),
+        "v4_evidence_count": sum(
+            s.get("evidence_count", 0) for s in summary.values()
+        ),
+        "v4_questions_asked": metadata.get("question_number", 0),
+        "v4_competency_summary": {
+            comp: {
+                "average_score": s.get("average_score", 0),
+                "evidence_count": s.get("evidence_count", 0),
+                "gap": s.get("gap", 1),
+            }
+            for comp, s in summary.items()
+        },
+        "v4_hypothesis_outcomes": {
+            "confirmed": sum(1 for h in hypotheses if h.get("status") == "confirmed"),
+            "refuted": sum(1 for h in hypotheses if h.get("status") == "refuted"),
+            "untested": sum(1 for h in hypotheses if h.get("status") == "untested"),
+        },
+    }
 
 
 # ============================================================================
@@ -171,22 +200,22 @@ async def get_session_summary(
     """
     Get comprehensive session summary.
     Returns all questions, evaluations, and metrics.
-    Includes v4-specific data (competency coverage, hypothesis outcomes) for v4 sessions.
+    Includes engine extras (competency coverage, hypothesis outcomes) for
+    v4/v5 sessions, read from the durable ``interview_brain`` snapshot.
     """
     db_session = await _verify_session_access(session_id, current_candidate)
     engine = db_session.engine_version or "v3"
 
-    if engine == "v4":
-        v4_data = await _get_v4_summary(session_id)
+    if engine in ("v4", "v5"):
+        engine_data = await _get_engine_summary(session_id)
         try:
             base = await _get_legacy_summary(session_id)
         except SessionNotFoundException:
             base = None
         if base:
-            extras = {k: v for k, v in v4_data.items() if k not in base}
-            return {**base, **extras}
-        if v4_data:
-            return v4_data
+            return {**base, **engine_data}
+        if engine_data:
+            return engine_data
 
     try:
         result = await _get_legacy_summary(session_id)

@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from typing import Optional, Set
 from uuid import uuid4
 
-from app.graph.interview_state import InterviewState
+from app.core.interview_state import InterviewState
 from app.exceptions import SessionNotFoundException
 
 logger = logging.getLogger(__name__)

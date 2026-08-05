@@ -1042,3 +1042,289 @@ class ScorecardResult(Base):
     __table_args__ = (
         Index("idx_scorecard_results_session", "session_id"),
     )
+
+
+class CompanyBrain(Base):
+    """V5 company intelligence bundle — vision, values, stack, signals."""
+
+    __tablename__ = "company_brains"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    session_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    department_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey("departments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    company_name: Mapped[str] = mapped_column(Text, nullable=False)
+    industry: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    company_vision: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    values: Mapped[Optional[dict]] = mapped_column(JSONB, default=list, nullable=True)
+    technical_stack: Mapped[Optional[dict]] = mapped_column(JSONB, default=list, nullable=True)
+    culture: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict, nullable=True)
+    success_signals: Mapped[Optional[dict]] = mapped_column(JSONB, default=list, nullable=True)
+    red_flags: Mapped[Optional[dict]] = mapped_column(JSONB, default=list, nullable=True)
+    source_documents: Mapped[Optional[dict]] = mapped_column(JSONB, default=list, nullable=True)
+    source_version: Mapped[str] = mapped_column(Text, nullable=False, server_default="1")
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        Index("idx_company_brains_session", "session_id"),
+        Index("idx_company_brains_department", "department_id"),
+    )
+
+
+class Scorecard(Base):
+    """V5 per-interview scorecard — weighted competencies + required evidence level."""
+
+    __tablename__ = "scorecards"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    session_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    department_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey("departments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    role: Mapped[str] = mapped_column(Text, nullable=False)
+    competencies: Mapped[dict] = mapped_column(JSONB, nullable=False, default=list)
+    required_level: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        Index("idx_scorecards_session", "session_id"),
+        Index("idx_scorecards_department", "department_id"),
+    )
+
+
+class InterviewBlueprint(Base):
+    """V5 interview plan — objectives, phases, hypothesis templates, evidence needs."""
+
+    __tablename__ = "interview_blueprints"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    session_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    department_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        ForeignKey("departments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    role: Mapped[str] = mapped_column(Text, nullable=False)
+    objectives: Mapped[dict] = mapped_column(JSONB, nullable=False, default=list)
+    phases: Mapped[dict] = mapped_column(JSONB, nullable=False, default=list)
+    hypothesis_template: Mapped[dict] = mapped_column(JSONB, nullable=False, default=list)
+    evidence_requirements: Mapped[dict] = mapped_column(JSONB, nullable=False, default=list)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        Index("idx_interview_blueprints_session", "session_id"),
+        Index("idx_interview_blueprints_department", "department_id"),
+    )
+
+
+class CandidateBrain(Base):
+    """V5 candidate intelligence — resume summary, skills, strengths, persona."""
+
+    __tablename__ = "candidate_brains"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    session_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    candidate_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("candidate_profiles.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    full_name: Mapped[str] = mapped_column(Text, nullable=False)
+    resume_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    skills: Mapped[Optional[dict]] = mapped_column(JSONB, default=list, nullable=True)
+    strengths: Mapped[Optional[dict]] = mapped_column(JSONB, default=list, nullable=True)
+    weaknesses: Mapped[Optional[dict]] = mapped_column(JSONB, default=list, nullable=True)
+    work_history: Mapped[Optional[dict]] = mapped_column(JSONB, default=list, nullable=True)
+    inferred_seniority: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    persona: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict, nullable=True)
+    source_version: Mapped[str] = mapped_column(Text, nullable=False, server_default="1")
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        Index("idx_candidate_brains_session", "session_id"),
+        Index("idx_candidate_brains_candidate", "candidate_id"),
+    )
+
+
+class CandidateDocument(Base):
+    """V5 candidate document store — resumes and parsed artifacts."""
+
+    __tablename__ = "candidate_documents"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    candidate_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("candidate_profiles.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    session_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    filename: Mapped[str] = mapped_column(Text, nullable=False)
+    document_type: Mapped[str] = mapped_column(Text, nullable=False, server_default="resume")
+    content_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    extracted_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    document_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        Index("idx_candidate_documents_candidate", "candidate_id"),
+        Index("idx_candidate_documents_session", "session_id"),
+    )
+
+
+class CandidateEvidenceRequirement(Base):
+    """V5 per-competency evidence requirements — what must be probed and how."""
+
+    __tablename__ = "candidate_evidence_requirements"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    session_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    competency: Mapped[str] = mapped_column(Text, nullable=False)
+    dimension: Mapped[str] = mapped_column(Text, nullable=False)
+    required_probes: Mapped[Optional[dict]] = mapped_column(JSONB, default=list, nullable=True)
+    evidence_level: Mapped[str] = mapped_column(Text, nullable=False, server_default="behavioral")
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        Index("idx_candidate_evidence_requirements_session", "session_id"),
+    )
+
+
+class InterviewBrain(Base):
+    """V5 central reasoning state snapshot — hypotheses, evidence, decisions."""
+
+    __tablename__ = "interview_brain"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    current_hypotheses: Mapped[dict] = mapped_column(JSONB, nullable=False, default=list)
+    evidence_summary: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    competency_scores: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    difficulty_profile: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    decision_state: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    brain_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        Index("idx_interview_brain_session", "session_id"),
+    )
+
+
+class EvidenceGraph(Base):
+    """V5 evidence graph snapshot — competency nodes + evidence→hypothesis edges."""
+
+    __tablename__ = "evidence_graph"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    nodes: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    edges: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        Index("idx_evidence_graph_session", "session_id"),
+    )
+
+
+class InterviewTimeline(Base):
+    """V5 event timeline — every question, evaluation, hypothesis shift, decision."""
+
+    __tablename__ = "interview_timeline"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    event_type: Mapped[str] = mapped_column(Text, nullable=False)
+    question_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    event_data: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        Index("idx_interview_timeline_session", "session_id"),
+        Index("idx_interview_timeline_session_event", "session_id", "event_type"),
+    )
