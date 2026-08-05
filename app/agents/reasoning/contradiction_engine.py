@@ -159,7 +159,18 @@ def evaluate_sufficiency(
     covered_weight = 0.0
     comp_details = {}
 
-    for comp in required_competencies:
+    # Only consider required competencies that exist in the competency_weights
+    # (i.e. were resolved into the runtime taxonomy). This prevents unknown
+    # blueprint IDs from inflating the denominator and keeping coverage low.
+    if required_competencies:
+        filtered_required = [c for c in required_competencies if c in comp_weights]
+    else:
+        filtered_required = []
+    if not filtered_required:
+        # fallback to all known competencies in the taxonomy
+        filtered_required = list(comp_weights.keys())
+
+    for comp in filtered_required:
         summary = competency_summary.get(comp, {})
         evidence_count = summary.get("evidence_count", 0)
         avg_score = summary.get("average_score", 0.0) or 0.0
