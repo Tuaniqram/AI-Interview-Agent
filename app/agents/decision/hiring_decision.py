@@ -50,6 +50,10 @@ async def hiring_decision_node(state: InterviewState) -> InterviewState:
     summary = state.get("competency_summary") or {}
     evidence = state.get("evidence_store") or []
 
+    # Fix 9: deterministic 7-point scale first — the LLM explains THIS result.
+    signals = _decision_signals(state)
+    mapped = decide_hiring_decision(**signals)
+
     try:
         llm_service = get_llm_service()
         prompt = load_prompt(
@@ -58,8 +62,8 @@ async def hiring_decision_node(state: InterviewState) -> InterviewState:
             job_role=state.get("job_role", "Unknown"),
             holistic_score=report.get("holistic_score", "N/A"),
             fit_assessment=report.get("fit_assessment", "unknown"),
-            verdict=rec.get("verdict", "insufficient_evidence"),
-            verdict_confidence=rec.get("confidence", 0.0),
+            verdict=mapped["decision"],
+            decision_score=mapped["decision_score"],
             coverage_ratio=rec.get("coverage_ratio", "N/A"),
             evidence_summary=(
                 f"{len(evidence)} evidence items across {len(summary)} competencies"
@@ -68,25 +72,37 @@ async def hiring_decision_node(state: InterviewState) -> InterviewState:
             ),
             strengths=_join(report.get("key_strengths")),
             weaknesses=_join(report.get("key_weaknesses")),
+            competency_summary=(
+                ", ".join(
+                    f"{comp} (avg {s.get('average_score', 0.0)}, "
+                    f"{s.get('evidence_count', 0)} evidence)"
+                    for comp, s in summary.items()
+                )
+                or "(none)"
+            ),
         )
         response = await llm_service.invoke(prompt=prompt, temperature=0.2, max_tokens=300, tier="strong")
         from app.intelligence._helpers import parse_json
 
         data = parse_json(response)
         next_steps = data.get("next_steps", [])
+        # The LLM explains the engine's decision — it never makes one. The
+        # draft carries no ``decision``/``confidence`` so the report can never
+        # show the LLM and the engine disagreeing.
         llm_draft = {
-            "decision": str(data.get("decision", "undecided")),
-            "confidence": round(float(data.get("confidence", 0.0)), 2),
             "rationale": str(data.get("rationale", "")),
             "next_steps": next_steps if isinstance(next_steps, list) else [],
         }
     except Exception as e:
         logger.warning(f"Hiring decision LLM failed ({e}), using deterministic fallback")
-        llm_draft = _decision_deterministic(report, rec)
+        llm_draft = _decision_deterministic(report, mapped["decision"])
 
-    # Fix 9: deterministic 7-point scale overlays the LLM draft.
-    signals = _decision_signals(state)
-    mapped = decide_hiring_decision(**signals)
+    # Deterministic confidence: distance of the decision score from the 5.0
+    # midpoint, capped — never borrowed from the LLM.
+    decision_confidence = round(
+        min(0.9, max(0.5, 0.5 + abs(mapped["decision_score"] - 5.0) / 10.0)),
+        2,
+    )
 
     return {
         **state,
@@ -95,7 +111,7 @@ async def hiring_decision_node(state: InterviewState) -> InterviewState:
             "decision_score": mapped["decision_score"],
             "decision_scale": mapped["decision_scale"],
             "signals": mapped["signals"],
-            "confidence": min(float(llm_draft.get("confidence", 0.5) or 0.5), 0.9),
+            "confidence": decision_confidence,
             "rationale": mapped["rationale"],
             "next_steps": decision_next_steps(mapped["decision"]),
             "llm_draft": llm_draft,
@@ -103,25 +119,28 @@ async def hiring_decision_node(state: InterviewState) -> InterviewState:
     }
 
 
-def _decision_deterministic(report: dict, rec: dict) -> dict:
-    verdict = rec.get("verdict", "insufficient_evidence")
+def _decision_deterministic(report: dict, verdict: str) -> dict:
     holistic = report.get("holistic_score")
 
     if verdict == "hire" and holistic is not None and float(holistic) >= 7.0:
-        decision, confidence = "hire", 0.8
+        rationale = (
+            f"Deterministic verdict '{verdict}' with holistic score {holistic} "
+            f"— solid evidence across the required competencies."
+        )
     elif verdict == "no_hire" or (holistic is not None and float(holistic) < 5.0):
-        decision, confidence = "no_hire", 0.7
+        rationale = (
+            f"Deterministic verdict '{verdict}' with holistic score {holistic} "
+            f"— evidence does not meet the role's requirements."
+        )
     else:
-        decision, confidence = "undecided", 0.5
+        rationale = (
+            f"Deterministic verdict '{verdict}' from holistic score {holistic} "
+            f"and coverage — further probing may be warranted."
+        )
 
     return {
-        "decision": decision,
-        "confidence": confidence,
-        "rationale": (
-            f"Deterministic decision from verdict '{verdict}' "
-            f"and holistic score {holistic}."
-        ),
-        "next_steps": _next_steps(decision),
+        "rationale": rationale,
+        "next_steps": _next_steps(verdict),
     }
 
 

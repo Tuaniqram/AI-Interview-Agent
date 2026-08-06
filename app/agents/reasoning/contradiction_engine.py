@@ -446,6 +446,34 @@ def evaluate_sufficiency(
     return sufficiency, recommendation
 
 
+def _required_gaps_ok(
+    competency_summary: dict,
+    required_competencies: list[str],
+    hypotheses: list,
+) -> bool:
+    """True when every required competency has its minimum evidence, no gap,
+    and none of its hypotheses was never explored (``untested``).
+
+    An interview must not end while required competencies are still starved of
+    evidence or required hypotheses were never tested — the only escape from
+    this gate is the hard question cap in :func:`decide_next_action`.
+    """
+    for comp in required_competencies:
+        summary = competency_summary.get(comp, {}) or {}
+        count = int(summary.get("evidence_count", 0) or 0)
+        gap = summary.get("gap")
+        gap = float(gap) if gap is not None else 1.0
+        if count < MIN_QUESTIONS_PER_COMPETENCY or gap > SUFFICIENCY_GAP_THRESHOLD:
+            return False
+    if any(
+        h.get("status") == "untested"
+        for h in (hypotheses or [])
+        if h.get("competency") in required_competencies
+    ):
+        return False
+    return True
+
+
 def decide_next_action(
     competency_summary: dict,
     required_competencies: list[str],
@@ -458,10 +486,20 @@ def decide_next_action(
     question_counts: dict | None = None,
     last_competency: str | None = None,
 ) -> str:
+    max_questions = 14  # AURA cap — the only escape from evidence gating
+
     if evidence_sufficiency.get("is_sufficient"):
         # Fix 11: hard floor — never finish before enough questions were
         # answered to justify a decision, whatever the signals say.
-        if question_number >= MIN_QUESTIONS_BEFORE_FINISH:
+        # Fix 12: even sufficient evidence must not finish while a required
+        # competency still has a gap or a required hypothesis was never
+        # tested — keep probing until those are resolved (or the cap hits).
+        if (
+            question_number >= MIN_QUESTIONS_BEFORE_FINISH
+            and _required_gaps_ok(competency_summary, required_competencies, hypotheses)
+        ):
+            return "finish"
+        if question_number >= max_questions:
             return "finish"
         return "probe"
 
@@ -507,6 +545,7 @@ def decide_next_action(
         if (
             question_number >= MIN_QUESTIONS_BEFORE_FINISH
             and coverage_ratio >= COVERAGE_THRESHOLD
+            and _required_gaps_ok(competency_summary, required_competencies, hypotheses)
         ):
             return "finish"
         return "change_competency"
@@ -545,12 +584,13 @@ def decide_next_action(
     if len(serious) >= 2:
         return "change_competency"
 
-    max_questions = 14  # AURA cap — evidence-driven end usually fires earlier
     if question_number >= max_questions:
         return "finish"
 
     # Top difficulty + decent coverage + at least 5 questions = pushed far
-    # enough to decide without burning the remaining budget.
+    # enough to decide — but only when the required competencies are actually
+    # covered and no required hypothesis was never tested. High difficulty is
+    # no excuse for ending with evidence gaps.
     coverage_ratio = evidence_sufficiency.get("coverage_ratio", 0.0)
 
     # Fix for coverage: Allow finishing with partial coverage if:
@@ -574,6 +614,7 @@ def decide_next_action(
         and difficulty_reached >= HIGH_DIFFICULTY_FINISH
         and (high_priority_coverage_ok or partial_coverage_ok)
         and question_number >= 5
+        and _required_gaps_ok(competency_summary, required_competencies, hypotheses)
     ):
         return "finish"
 

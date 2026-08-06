@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from uuid import uuid4
 from datetime import datetime, timezone
 
@@ -36,27 +37,80 @@ _MODE_DESCRIPTIONS = {
 }
 
 
-def _resolve_interview_mode(state: InterviewState) -> str:
-    """The interviewer depth mode for the next question (Fix 2/4).
+def _resolve_interview_mode(
+    state: InterviewState,
+    claims: list | None = None,
+    followup_number: int = 0,
+) -> str:
+    """The interviewer depth mode for the next question (Fix 2/4, P3).
 
     Primary source is the director's ``probe_mode``; falls back to
     difficulty/evidence heuristics when the director did not run.
+
+    Claim override (P3): a measurable claim in the candidate's last answer is
+    the strongest evidence need — a follow-up on the current competency must
+    pin it down before any other agenda, so VERIFIER wins over every mode.
     """
     director = state.get("director") or {}
     probe_mode = director.get("probe_mode")
     if probe_mode in _MODE_BY_PROBE_MODE:
-        return _MODE_BY_PROBE_MODE[probe_mode]
+        mode = _MODE_BY_PROBE_MODE[probe_mode]
+    else:
+        difficulty = int(state.get("difficulty_level", 1) or 1)
+        summary = state.get("competency_summary") or {}
+        target = state.get("hypothesis_target") or {}
+        competency = target.get("competency", "")
+        collected = int(summary.get(competency, {}).get("evidence_count", 0) or 0)
+        if difficulty >= 4:
+            mode = "CHALLENGER"
+        elif collected > 0:
+            mode = "PROBER"
+        else:
+            mode = "EXPLORER"
 
-    difficulty = int(state.get("difficulty_level", 1) or 1)
-    summary = state.get("competency_summary") or {}
-    target = state.get("hypothesis_target") or {}
-    competency = target.get("competency", "")
-    collected = int(summary.get(competency, {}).get("evidence_count", 0) or 0)
-    if difficulty >= 4:
-        return "CHALLENGER"
-    if collected > 0:
-        return "PROBER"
-    return "EXPLORER"
+    if claims and followup_number > 0:
+        return "VERIFIER"
+    return mode
+
+
+# A claim-bearing sentence asserts a quantified result (30%, 9x, 20ms, 10k
+# users) or an outcome verb — the kind of statement a VERIFIER follow-up must
+# pin down with "how was that measured?".
+_METRIC_RE = re.compile(
+    r"(?<!\w)\d+(?:\.\d+)?\s*(?:%|[x×]|ms|s|secs?|seconds|req/s|qps|rps|tps|"
+    r"users|requests|concurrent|parallel|gb|tb|mb|gb/s|hours|days|weeks|usd|\$|k|m)\b"
+)
+_QUANTIFY_VERB_RE = re.compile(
+    r"\b(reduced?|reduction|improved?|increased?|decreased?|cut|saved|boosted|optimized|"
+    r"dropped|lowered|halved|doubled|tripled|grew|migrated|scaled|achieved|latency|"
+    r"throughput|uptime|error rate|conversion|retention)\b",
+    re.IGNORECASE,
+)
+
+
+def _claim_targets(last_answer: str) -> list[str]:
+    """Extract measurable claims from the candidate's last answer (best-effort).
+
+    Returns up to three deduplicated sentences that assert a quantified result
+    or an outcome — the claims the next question should ask to have measured.
+    """
+    if not last_answer:
+        return []
+    claims: list[str] = []
+    seen = set()
+    for sentence in re.split(r"(?<=[.!?])\s+", last_answer):
+        sentence = sentence.strip()[:200]
+        if not sentence or sentence.endswith("?"):
+            continue
+        norm = sentence.lower()
+        if norm in seen:
+            continue
+        if _METRIC_RE.search(sentence) or _QUANTIFY_VERB_RE.search(sentence):
+            seen.add(norm)
+            claims.append(sentence)
+        if len(claims) >= 3:
+            break
+    return claims
 
 
 async def question_generator_node(state: InterviewState) -> InterviewState:
@@ -76,7 +130,6 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
     )
 
     difficulty = state.get("difficulty_level", 1)
-    interview_mode = _resolve_interview_mode(state)
     memory = recent_memory(previous_questions)
 
     target_competency = ""
@@ -127,6 +180,10 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
         hypothesis_text = ""
 
     last_answer = _last_user_message(state.get("conversation_history", []))
+    claims = _claim_targets(last_answer)
+    followup_number = _count_competency_questions(previous_questions, target_competency)
+    interview_mode = _resolve_interview_mode(state, claims, followup_number)
+    claims_to_verify = ", ".join(claims) if claims else "None"
     company_context = _company_context(state, interview_mode)
     avoid_topics = avoid_topics_summary(memory)
 
@@ -148,6 +205,7 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 avoid_topics=avoid_topics,
                 last_rejected=last_rejected,
                 last_question=last_question,
+                claims_to_verify=claims_to_verify,
             )
             return conversation_turn, conversation_turn["question"]
         try:
@@ -161,7 +219,7 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 competency_info=competency_info,
                 candidate_profile=candidate_profile,
                 persona=persona,
-                followup_number=_count_competency_questions(previous_questions, target_competency),
+                followup_number=followup_number,
                 question_number=question_number,
                 total_questions=state.get("total_questions", 10),
                 conversation_history=state.get("conversation_history", []),
@@ -170,6 +228,7 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 avoid_topics=avoid_topics,
                 last_rejected=last_rejected,
                 last_question=last_question,
+                claims_to_verify=claims_to_verify,
             )
         except Exception as e:
             logger.warning(f"LLM question generation failed ({e}), falling back to deterministic")
@@ -182,9 +241,10 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 competency_info=competency_info,
                 candidate_profile=candidate_profile,
                 persona=persona,
-                followup_number=_count_competency_questions(previous_questions, target_competency),
+                followup_number=followup_number,
                 interview_mode=interview_mode,
                 attempt_offset=attempt,
+                claims=claims,
             )
         return None, question_text
 
@@ -240,9 +300,10 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 competency_info=competency_info,
                 candidate_profile=candidate_profile,
                 persona=persona,
-                followup_number=_count_competency_questions(previous_questions, target_competency),
-                interview_mode="EXPLORER",
+                followup_number=followup_number,
+                interview_mode=interview_mode,
                 attempt_offset=offset,
+                claims=claims,
             )
             if candidate in rejected_texts:
                 continue
@@ -347,6 +408,7 @@ def _question_prompt_vars(
     avoid_topics: str = "None",
     last_rejected: str = "",
     last_question: str = "",
+    claims_to_verify: str = "None",
 ) -> dict:
     """Single source of truth for the question_generation prompt's variables."""
     history_lines = []
@@ -378,6 +440,7 @@ def _question_prompt_vars(
         "avoid_topics": avoid_topics or "None",
         "last_rejected": last_rejected or "None",
         "last_question": last_question or "None",
+        "claims_to_verify": claims_to_verify or "None",
     }
 
 
@@ -395,6 +458,7 @@ async def _generate_conductor_turn(
     avoid_topics: str = "None",
     last_rejected: str = "",
     last_question: str = "",
+    claims_to_verify: str = "None",
 ) -> dict:
     """One LLM call producing {acknowledgement, bridge, question} (AURA conductor)."""
     from app.services.llm_service import get_llm_service
@@ -433,6 +497,7 @@ async def _generate_conductor_turn(
                 avoid_topics=avoid_topics,
                 last_rejected=last_rejected,
                 last_question=last_question,
+                claims_to_verify=claims_to_verify,
             ),
         )
 
@@ -488,6 +553,7 @@ def _generate_deterministic_conductor_turn(
         followup_number=0,
         interview_mode=interview_mode,
         attempt_offset=attempt_offset,
+        claims=_claim_targets(last_answer),
     )
 
     if last_answer:
@@ -521,6 +587,7 @@ async def _generate_llm_question(
     avoid_topics: str = "None",
     last_rejected: str = "",
     last_question: str = "",
+    claims_to_verify: str = "None",
 ) -> str:
     """Generate the next question with the LLM using the question_generation prompt."""
     from app.services.llm_service import get_llm_service
@@ -551,6 +618,7 @@ async def _generate_llm_question(
             avoid_topics=avoid_topics,
             last_rejected=last_rejected,
             last_question=last_question,
+            claims_to_verify=claims_to_verify,
         ),
     )
 
@@ -575,6 +643,7 @@ def _generate_deterministic_question(
     followup_number: int,
     interview_mode: str = "EXPLORER",
     attempt_offset: int = 0,
+    claims: list | None = None,
 ) -> str:
     """Deterministic fallback question, shaped by the interview depth mode.
 
@@ -584,34 +653,40 @@ def _generate_deterministic_question(
     if hypothesis_text:
         direction = "positive" if "strong" in hypothesis_text.lower() else "negative"
         if direction == "positive" and followup_number > 0:
-            return (
+            question = (
                 f"You mentioned you have strength in this area. Can you walk me through a specific "
                 f"challenging project where you applied advanced {target_competency.replace('_', ' ')} concepts? "
                 f"What was the hardest problem you had to solve?"
             )
         elif direction == "positive":
-            return (
+            question = (
                 f"Based on your background, I'd like to explore your {target_competency.replace('_', ' ')} skills. "
                 f"Can you describe a complex problem you solved in this area? What was your approach and why?"
             )
         else:
-            return (
+            question = (
                 f"I'd like to understand your experience with {target_competency.replace('_', ' ')}. "
                 f"Tell me about a time when you faced a significant challenge in this area. "
                 f"How did you approach it and what was the outcome?"
             )
+        return _apply_mode_flavor(question, interview_mode, target_competency, claims)
 
     templates = _get_template_for_competency(target_competency, job_role, difficulty)
     if templates:
         idx = min(followup_number + attempt_offset, len(templates) - 1) if followup_number + attempt_offset < len(templates) else 0
         question = templates[idx]
-        return _apply_mode_flavor(question, interview_mode, target_competency)
+        return _apply_mode_flavor(question, interview_mode, target_competency, claims)
 
     question = _fallback_question(target_competency, job_role, difficulty)
-    return _apply_mode_flavor(question, interview_mode, target_competency)
+    return _apply_mode_flavor(question, interview_mode, target_competency, claims)
 
 
-def _apply_mode_flavor(question: str, interview_mode: str, target_competency: str) -> str:
+def _apply_mode_flavor(
+    question: str,
+    interview_mode: str,
+    target_competency: str,
+    claims: list | None = None,
+) -> str:
     """Attach the interviewer depth strategy to a deterministic question."""
     comp_name = target_competency.replace("_", " ")
     if interview_mode == "CHALLENGER":
@@ -620,6 +695,12 @@ def _apply_mode_flavor(question: str, interview_mode: str, target_competency: st
             f"differently at twice the scale, and how would you defend that choice?"
         )
     if interview_mode == "VERIFIER":
+        if claims:
+            claim_text = "; ".join(claims[:2])
+            return (
+                f'{question} You mentioned "{claim_text}" — how was that measured or demonstrated? '
+                f"What concrete data or methodology sits behind it?"
+            )
         return f"{question} How was that measured or demonstrated — what concrete evidence did you see?"
     if interview_mode == "PROBER":
         return f"{question} Give me the specifics: what data or details made you certain it was the right call?"

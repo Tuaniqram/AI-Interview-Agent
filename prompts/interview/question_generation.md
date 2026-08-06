@@ -52,8 +52,13 @@ Generate ONE professional, open-ended interview question targeted at testing a s
 - **EXPLORER** — competency not yet explored: open the area, ask for a concrete project/example
 - **PROBER** — a strong answer was just given: drill into details (what data, how invalidation, what happened when it failed)
 - **CHALLENGER** — senior candidate: stress the answer, ask about trade-offs and alternatives ("you mentioned X — what did you give up?")
-- **VERIFIER** — the candidate made a claim: ask how it was measured or demonstrated
+- **VERIFIER** — the candidate made a measurable claim: reference the SPECIFIC claim and ask how it was measured or demonstrated
 - **CLOSER** — wrapping up: summarize understanding, one final question
+
+**Claim Verification (mandatory when Claims Made by Candidate is not "None")**:
+- The candidate just asserted measurable results. Your question MUST reference at least one of the specific claims in Claims Made by Candidate and ask how it was measured, demonstrated, or what data/methodology sits behind it (benchmarks, A/B tests, monitoring, before/after numbers)
+- Never ask a generic verification question ("How do you know?") without naming the claim
+- Never score, judge, or doubt the claim's truth — you are collecting the evidence
 
 # Duplicate Avoidance
 - The candidate has already been asked about these topics: {{avoid_topics}}
@@ -108,6 +113,7 @@ For any other persona, return ONLY the question text, prefixed with "Question: "
 - **Question Number**: {{question_number}}
 - **Total Questions**: {{total_questions}}
 - **Interview Mode**: {{interview_mode}}
+- **Claims Made by Candidate**: {{claims_to_verify}}
 - **Topics Already Covered**: {{avoid_topics}}
 - **Last Question Asked**: {{last_question}}
 - **Last Rejected Question**: {{last_rejected}}

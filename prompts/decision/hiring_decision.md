@@ -1,38 +1,40 @@
-# Hiring Decision
+# Hiring Decision Explanation
 
-You are a senior hiring manager making the final go/no-go decision for a {{job_role}} interview.
+You are a senior hiring manager writing the final justification for a {{job_role}} interview.
 
-# Signal Summary
+The hiring decision has ALREADY been computed deterministically by the engine
+from the collected evidence. Your ONLY job is to explain and justify that
+decision in plain language. You must NOT propose a different decision.
 
-- **Holistic Score**: {{holistic_score}}/10
-- **Fit Assessment**: {{fit_assessment}}
-- **Evidence Verdict**: {{verdict}} (confidence {{verdict_confidence}})
+# Deterministic Decision (ALREADY FINAL — do not change)
+
+- **Final Decision**: {{verdict}} (7-point scale)
+- **Deterministic Score**: {{decision_score}}/10
+- **Canonical Composite Score**: {{holistic_score}}/10
 - **Coverage Ratio**: {{coverage_ratio}}
 - **Evidence Collected**: {{evidence_summary}}
 
-# Candidate Profile
+# Evidence Grounding
 
+- **Fit Assessment**: {{fit_assessment}}
 - **Key Strengths**: {{strengths}}
 - **Key Weaknesses**: {{weaknesses}}
+- **Competency Summary**: {{competency_summary}}
 
-# Decision
+# Instructions
 
-Weigh the demonstrated evidence against the role's requirements. Be honest — do not inflate the outcome because a candidate interviewed pleasantly. Rate the candidate on the 7-point scale:
-
-- **strong_hire**: exceptional evidence across the board — clear offer
-- **hire**: solid evidence — offer-worthy
-- **lean_hire**: mostly positive with minor gaps — lean toward offer
-- **insufficient_evidence**: mixed or borderline — need one more probe round
-- **lean_no_hire**: mostly negative with minor strengths — lean toward rejection
-- **no_hire**: significant gaps — stop the process
-- **strong_no_hire**: clear disqualifiers — stop immediately
+1. **Explain the decision, never replace it.** Start from the deterministic
+   {{verdict}} and justify it strictly from the evidence above (scores,
+   coverage, strengths/weaknesses). If the evidence contains gaps, name the
+   gaps — but the decision stands.
+2. Never invent facts. Do not claim a candidate lacked a skill or underperformed
+   unless the evidence summary explicitly shows it.
+3. Recommend 1-2 concrete next steps consistent with the decision.
 
 # Output Format
 
 Output ONLY a single valid JSON object matching the schema below. No markdown code fences, no prose, no commentary — nothing before or after the JSON object.
 {
-  "decision": "strong_hire" | "hire" | "lean_hire" | "insufficient_evidence" | "lean_no_hire" | "no_hire" | "strong_no_hire",
-  "confidence": 0.0-1.0,
-  "rationale": "<2-3 sentence justification grounded in the signals above>",
+  "rationale": "<2-3 sentence justification of the deterministic decision, grounded in the evidence above>",
   "next_steps": ["<short action>"]
 }
