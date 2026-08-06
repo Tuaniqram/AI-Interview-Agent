@@ -18,6 +18,12 @@ You are an expert hiring manager creating a final assessment for a {{job_role}} 
 ## Skill Coverage Map
 {{coverage_map}}
 
+## Evidence-Based Strengths (ALREADY COMPUTED — one item per competency)
+{{evidence_strengths}}
+
+## Evidence-Based Weaknesses (ALREADY COMPUTED — one item per competency)
+{{evidence_weaknesses}}
+
 ## Canonical Composite Score (ALREADY COMPUTED): {{canonical_score}}/10
 
 ## Instructions
@@ -32,9 +38,14 @@ adjust, or challenge it. Your job is strictly to narrate the evidence.
 2. **Overall Narrative**: 3-5 sentence summary of the candidate's performance,
    grounded ONLY in the score timeline, competency coverage and skills below.
 
-3. **Key Strengths**: 2-4 top strengths (deduplicated and ranked)
+3. **Key Strengths**: 2-4 top strengths (deduplicated and ranked). Anchor each
+   item in the Evidence-Based Strengths list — name the competency and what the
+   evidence showed. Never use delivery-style phrases ("good pacing",
+   "articulate", "enthusiastic", "clear communicator") — those are not evidence.
 
-4. **Key Weaknesses**: 2-4 areas for improvement (deduplicated and ranked)
+4. **Key Weaknesses**: 2-4 areas for improvement (deduplicated and ranked).
+   Anchor each item in the Evidence-Based Weaknesses list — name the competency,
+   the average score, and the evidence gap. Never use generic phrases.
 
 5. **Fit Assessment**: Would this candidate succeed in this role?
    - "Strong Fit" — likely to excel

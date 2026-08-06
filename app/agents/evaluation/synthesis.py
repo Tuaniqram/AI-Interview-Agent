@@ -10,6 +10,7 @@ hallucinated holistic scores that contradicted the evidence graph.
 """
 import json
 import logging
+import re
 
 from app.core.interview_state import InterviewState
 
@@ -17,6 +18,16 @@ logger = logging.getLogger(__name__)
 
 _MAX_HIGHLIGHTS = 5
 _TOKEN_CHARS = "@:/\\`{}[]#"
+
+# Evaluator process-buzzwords (P4): phrases about delivery style rather than
+# demonstrated evidence. The summary's strengths/weaknesses must be anchored
+# in competencies and their evidence — never generic interviewer impressions.
+_BUZZWORD_RE = re.compile(
+    r"\b(pacing|articulat\w*|eloquen\w*|fluenc\w*|fluent|rapport|enthusias\w*|"
+    r"engagement|engaged|composure|demeanor|polite|pleasant|warmth|professional "
+    r"manner)\b",
+    re.IGNORECASE,
+)
 
 
 def _score_timeline(state: InterviewState) -> list[dict]:
@@ -95,6 +106,58 @@ def _coverage_map(state: InterviewState) -> dict:
     }
 
 
+def _evidence_strengths(summary: dict) -> list[str]:
+    """Competency-anchored strengths: strong average backed by real evidence."""
+    items = []
+    for comp, s in sorted(summary.items()):
+        count = int(s.get("evidence_count", 0) or 0)
+        avg = float(s.get("average_score", 0.0) or 0.0)
+        if count > 0 and avg >= 7.0:
+            items.append(f"{comp}: strong evidence ({count} item(s), avg {avg:.1f}/10)")
+    return items[: _MAX_HIGHLIGHTS]
+
+
+def _evidence_weaknesses(summary: dict) -> list[str]:
+    """Competency-anchored weaknesses: weak scores, evidence gaps, or no evidence."""
+    items = []
+    for comp, s in sorted(summary.items()):
+        count = int(s.get("evidence_count", 0) or 0)
+        avg = float(s.get("average_score", 0.0) or 0.0)
+        gap = float(s.get("gap", 1.0) or 1.0)
+        if count == 0:
+            items.append(f"{comp}: no evidence gathered")
+        elif avg < 5.0:
+            items.append(f"{comp}: weak performance (avg {avg:.1f}/10)")
+        elif gap >= 0.5:
+            items.append(f"{comp}: evidence gap (gap {gap:.2f})")
+    return items[: _MAX_HIGHLIGHTS]
+
+
+def _filter_buzzwords(items: list) -> list[str]:
+    """Drop delivery-style phrases; keep only evidence-anchored items."""
+    return [
+        text
+        for text in items
+        if not _BUZZWORD_RE.search(text)
+    ]
+
+
+def _merge_lists(*lists: list, cap: int = _MAX_HIGHLIGHTS) -> list[str]:
+    """Order-preserving, deduplicated merge across the given lists."""
+    seen: set[str] = set()
+    merged: list[str] = []
+    for lst in lists:
+        for item in lst or []:
+            key = item.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(item)
+            if len(merged) >= cap:
+                return merged
+    return merged
+
+
 def build_final_report(
     state: InterviewState,
     canonical: float,
@@ -120,13 +183,26 @@ def build_final_report(
         or float(s.get("gap", 1.0) or 1.0) >= 0.5
     )
 
+    # P4: strengths/weaknesses are anchored in the competency evidence first;
+    # LLM-drafted items count only when they are not delivery-style buzzwords.
+    evidence_strengths = _evidence_strengths(summary)
+    evidence_weaknesses = _evidence_weaknesses(summary)
+    llm_strengths = _filter_buzzwords(_clean_highlights(llm.get("key_strengths")))
+    llm_weaknesses = _filter_buzzwords(_clean_highlights(llm.get("key_weaknesses")))
+
     return {
         "holistic_score": canonical,
         "average_score": canonical,
         "growth_trend": trend,
         "narrative": llm.get("narrative", ""),
-        "key_strengths": _clean_highlights(llm.get("key_strengths")) or strengths[:3],
-        "key_weaknesses": _clean_highlights(llm.get("key_weaknesses")) or weaknesses[:3],
+        "key_strengths": _merge_lists(
+            evidence_strengths,
+            llm_strengths or strengths[:3],
+        ),
+        "key_weaknesses": _merge_lists(
+            evidence_weaknesses,
+            llm_weaknesses or weaknesses[:3],
+        ),
         "fit_assessment": llm.get("fit_assessment", "Potential Fit"),
         "interview_notes": llm.get("interview_notes", ""),
         "skills_tested": skills_tested,
@@ -182,6 +258,10 @@ async def synthesis_node(state: InterviewState) -> InterviewState:
             if coverage_map
             else "No coverage data",
             canonical_score=f"{canonical:.2f}",
+            evidence_strengths=json.dumps(_evidence_strengths(state.get("competency_summary") or {}), indent=2)
+            or "[]",
+            evidence_weaknesses=json.dumps(_evidence_weaknesses(state.get("competency_summary") or {}), indent=2)
+            or "[]",
         )
 
         response = await llm_service.invoke(

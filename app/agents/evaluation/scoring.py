@@ -30,13 +30,40 @@ DEFAULT_DIMENSION_WEIGHTS = {
     "completeness": 0.05,
 }
 
+# Calibration rubric (P5): maps any composite onto a score band with a fixed
+# anchor so the same number gets the same label everywhere.
+CALIBRATION_BANDS = (
+    (9.5, "outstanding"),
+    (8.2, "strong"),
+    (6.5, "average"),
+    (4.8, "weak"),
+)
+
 __all__ = [
     "DEFAULT_DIMENSION_WEIGHTS",
+    "CALIBRATION_BANDS",
+    "score_band",
     "reconcile_composite",
     "rubric_breakdown",
     "build_score_reasons",
     "explainable_scoring_node",
 ]
+
+
+def score_band(composite: float) -> str:
+    """Calibration label for a composite score (P5)."""
+    for threshold, label in CALIBRATION_BANDS:
+        if composite >= threshold:
+            return label
+    return "poor"
+
+
+def _any_depth_probe(state: dict) -> bool:
+    """Whether any VERIFIER/PROBER/CHALLENGER follow-up probe has been asked."""
+    for q in state.get("questions_asked") or []:
+        if q.get("mode") in ("VERIFIER", "PROBER", "CHALLENGER"):
+            return True
+    return False
 
 
 def _weights(weights: dict | None) -> dict:
@@ -229,9 +256,19 @@ def explainable_scoring_node(state: dict) -> dict:
         competency_summary=state.get("competency_summary") or {},
     )
 
+    band = score_band(composite)
+    # P5: a high score that has never been stress-tested is an unverified
+    # claim — say so instead of letting it stand as established evidence.
+    if composite >= 8.2 and not _any_depth_probe(state):
+        reasons.append(
+            f"Calibration: composite {composite:.2f} ({band}) not yet verified — "
+            "no VERIFIER/PROBER/CHALLENGER follow-up probe has been asked"
+        )
+
     return {
         **state,
         "evaluation_score": composite,
+        "score_band": band,
         "score_contributions": contributions,
         "score_reasons": reasons,
     }
