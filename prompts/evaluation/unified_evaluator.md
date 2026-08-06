@@ -71,9 +71,8 @@ Also note these behavioral signals from the answer text:
 
 ## Output Format
 
-Return ONLY valid JSON — no markdown, no explanation:
+Return ONLY a single valid JSON object matching the schema below. No markdown code fences, no prose, no commentary — nothing before or after the JSON object.
 
-```json
 {
     "technical": {
         "score": 7.5,
@@ -127,6 +126,5 @@ Return ONLY valid JSON — no markdown, no explanation:
     },
     "composite_score": 7.5
 }
-```
 
 Use `null` for score when a dimension is not applicable to the question type. Ensure all 6 dimensions are included in the response.

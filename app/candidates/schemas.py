@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -37,6 +37,7 @@ class CandidateProfileResponse(BaseModel):
     is_registered: bool
     is_verified: bool
     skills: Optional[str] = None
+    profile_data: Optional[Dict[str, Any]] = None
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

@@ -4,7 +4,6 @@ Handles all LLM operations with proper error handling.
 """
 import asyncio
 import logging
-import json
 from typing import Any, AsyncGenerator, Optional
 from functools import wraps
 import time
@@ -205,15 +204,11 @@ class LLMService:
             
             # Try to parse as JSON first
             try:
-                # Extract JSON from response if it's wrapped in markdown code blocks
-                if '```json' in response:
-                    response = response.split('```json')[1].split('```')[0].strip()
-                elif '```' in response:
-                    response = response.split('```')[1].split('```')[0].strip()
-                
-                data = json.loads(response)
+                from app.intelligence._helpers import parse_json
+
+                data = parse_json(response)
                 return pydantic_model(**data)
-            except json.JSONDecodeError:
+            except (ValueError, TypeError):
                 # Not JSON, return raw response
                 logger.warning("LLM did not return structured JSON, using raw response")
                 return pydantic_model(content=response)

@@ -147,6 +147,57 @@ def build_score_reasons(
     return reasons
 
 
+def _apply_evaluator_calibration(evaluation: dict) -> dict:
+    """Adjust overly optimistic evaluator scores when evidence lacks concrete examples.
+
+    This calibration is opt-in via the interview style to preserve test expectations
+    in CI/default local runs. When enabled, scores >=8 without concrete evidence
+    are reduced to 7, and 9+ without ownership signals are capped to 8.
+    """
+    if not evaluation:
+        return evaluation
+    EVIDENCE_KEYWORDS = [
+        "example",
+        "project",
+        "production",
+        "incident",
+        "trade-off",
+        "tradeoffs",
+        "trade offs",
+        "architecture",
+        "owned",
+        "ownership",
+        "scale",
+        "scalability",
+        "latency",
+        "bottleneck",
+    ]
+    ownership_words = ["architect", "architecture", "owner", "owned", "ownership", "define standards"]
+    calibrated = dict(evaluation)
+    for dim, dim_data in list(calibrated.items()):
+        if not isinstance(dim_data, dict):
+            continue
+        score = dim_data.get("score")
+        evidence = (dim_data.get("evidence") or "")
+        if score is None:
+            continue
+        try:
+            score_f = float(score)
+        except Exception:
+            continue
+        if score_f >= 8.0:
+            evidence_l = evidence.lower()
+            has_example = any(k in evidence_l for k in EVIDENCE_KEYWORDS)
+            if not has_example:
+                calibrated[dim] = dict(dim_data)
+                calibrated[dim]["score"] = 7.0
+            else:
+                if score_f >= 9.0 and not any(w in evidence_l for w in ownership_words):
+                    calibrated[dim] = dict(dim_data)
+                    calibrated[dim]["score"] = 8.0
+    return calibrated
+
+
 def explainable_scoring_node(state: dict) -> dict:
     """Replace the opaque LLM composite with a deterministic, explained score.
 
@@ -159,15 +210,19 @@ def explainable_scoring_node(state: dict) -> dict:
         (state.get("interview_style") or {}).get("confidence_weighted", False)
     )
 
+    # Calibration is opt-in via interview style to avoid unexpected changes in tests
+    apply_calibration = bool((state.get("interview_style") or {}).get("apply_evaluator_calibration", False))
+    eval_for_scoring = _apply_evaluator_calibration(evaluation) if apply_calibration else evaluation
+
     composite, contributions = reconcile_composite(
-        evaluation, weights, confidence_weighted=confidence_weighted
+        eval_for_scoring, weights, confidence_weighted=confidence_weighted
     )
     if composite is None:
         logger.info("Explainable scoring: no scored dimensions, keeping prior score")
         return state
 
     reasons = build_score_reasons(
-        evaluation,
+        eval_for_scoring,
         composite,
         contributions,
         evidence_records=state.get("evidence_store") or [],

@@ -5,11 +5,11 @@ priority competencies, focus areas, probe strategy and scenario material.
 The deterministic fallback is fully functional; the LLM pass (guarded) tailors
 it to the company brain and job role.
 """
-import json
 import logging
 
 from app.config.interview_styles import get_style
 from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
+from app.intelligence._helpers import parse_llm_json_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -51,10 +51,9 @@ async def build_interview_blueprint(
             focus_areas=", ".join(focus_areas) or "not specified",
         )
 
-        response = await get_llm_service().invoke(
-            prompt=prompt, temperature=0.3, max_tokens=800, tier="cheap"
+        data = await parse_llm_json_with_retry(
+            get_llm_service(), prompt, temperature=0.3, max_tokens=800, tier="cheap"
         )
-        data = json.loads(response.strip().lstrip("```json").strip().rstrip("```").strip())
         blueprint = {**fallback, **data}
         blueprint["version"] = "v1"
         blueprint["job_role"] = job_role

@@ -24,9 +24,8 @@ Design a blueprint that:
 3. Sets a probe strategy (depth, follow-up cadence, evidence-first discipline)
 4. Lists scenario material grounded in the company tech stack that make questions concrete
 
-Return JSON only:
+Return ONLY a single valid JSON object matching the schema below. No markdown code fences, no prose, no commentary — nothing before or after the JSON object.
 
-```json
 {
     "phases": ["intro", "technical", "behavioral", "conclusion"],
     "priority_competencies": [
@@ -41,6 +40,5 @@ Return JSON only:
     "tech_stack_focus": ["kubernetes", "postgresql"],
     "scenarios": ["Design a system for ...", "Walk through how you would ..."]
 }
-```
 
 Prefer a mix of technical and behavioral coverage. Never invent company facts — only reference the tech stack and focus areas given above.

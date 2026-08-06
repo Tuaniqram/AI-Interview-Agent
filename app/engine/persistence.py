@@ -63,27 +63,45 @@ def extract_answer_turn(brain: InterviewBrain) -> Optional[dict]:
 async def persist_evidence(session_id: str, state: dict) -> None:
     """Best-effort evidence rows to the DB.
 
-    Follows the extractor's cadence: flush only on a SAVE_INTERVAL boundary
-    and only when a session_id is present. Failures are non-fatal by design.
+    Flushes every answer's freshly-extracted evidence (evidence ids are unique
+    per turn, so rows never collide). Failures are non-fatal by design.
     """
     try:
-        from app.agents.reasoning.evidence_engine import SAVE_INTERVAL
         from app.repositories.evidence_repository import EvidenceRepository
 
-        answer_count = int(state.get("question_number", 0) or 0)
-        if answer_count % SAVE_INTERVAL != 0 or not session_id:
+        if not session_id:
             return
         extracted = state.get("extracted_evidence") or []
         if not extracted:
             return
 
         repo = EvidenceRepository()
+        hypotheses = state.get("hypotheses") or []
         for ev in extracted:
             evidence_metadata = {
                 key: ev[key]
                 for key in ("strength", "impact", "ownership", "complexity", "contradiction")
                 if ev.get(key) is not None
             }
+            # Attach the evidence to its best-matching (same-competency)
+            # hypothesis so the DB rows stop pointing at ghost ids.
+            best_hyp = None
+            best_hyp_relevance = 0.0
+            try:
+                from app.agents.reasoning.hypothesis_engine import compute_relevance
+                from app.agents.reasoning.hypothesis_engine import RELEVANCE_THRESHOLD
+
+                for hyp in hypotheses:
+                    rel = compute_relevance(hyp, ev)
+                    if rel > best_hyp_relevance:
+                        best_hyp_relevance = rel
+                        best_hyp = hyp
+            except Exception:  # noqa: BLE001
+                best_hyp = None
+                best_hyp_relevance = 0.0
+            hypothesis_id = (
+                best_hyp["id"] if best_hyp and best_hyp_relevance >= RELEVANCE_THRESHOLD else None
+            )
             await repo.create_evidence(
                 session_id=session_id,
                 competency=ev["competency"],
@@ -93,7 +111,10 @@ async def persist_evidence(session_id: str, state: dict) -> None:
                 source_question=ev["source_question"],
                 question_number=ev["question_number"],
                 confidence=ev["confidence"],
+                hypothesis_id=hypothesis_id,
+                hypothesis_relevance=round(best_hyp_relevance, 4) if hypothesis_id else None,
                 evidence_metadata=evidence_metadata or None,
+                evidence_id=ev.get("id"),
             )
     except Exception as exc:  # noqa: BLE001 - best-effort by design
         logger.warning(f"Failed to save evidence (non-fatal): {exc}")
@@ -177,16 +198,22 @@ async def persist_answer_turn(session_id: str, brain: InterviewBrain) -> None:
         logger.warning(f"Failed to persist v5 turn (non-fatal): {exc}")
 
 
-async def persist_v5_snapshot(session_id: str, brain: InterviewBrain, persister) -> None:
+async def persist_v5_snapshot(
+    session_id: str, brain: InterviewBrain, persister, finalize: bool = False
+) -> None:
     """Persist the V5 InterviewBrain/evidence-graph/timeline snapshot.
 
     Opt-in: only runs when the engine was constructed with a ``v5_persister``
-    exposing ``save_snapshot(brain)``; failures are non-fatal by design.
+    exposing ``save_snapshot(brain)``; failures are non-fatal by design. Also
+    persists the relational reasoning tables when the persister exposes
+    ``save_relational(brain, finalize=...)``.
     """
     if persister is None:
         return
     try:
         await persister.save_snapshot(brain)
+        if hasattr(persister, "save_relational"):
+            await persister.save_relational(brain, finalize=finalize)
     except Exception as exc:  # noqa: BLE001 - best-effort by design
         logger.warning(f"Failed to persist v5 snapshot (non-fatal): {exc}")
 
@@ -217,6 +244,9 @@ async def persist_completion(session_id: str, brain: InterviewBrain) -> None:
             ended_at=datetime.now(timezone.utc),
             engine_version="v5",
         )
+        # The phase was stuck at "intro" for the session's whole life — close it
+        # out so summaries stop reporting an intro phase on a finished interview.
+        await get_session_repo().update_phase(session_id, "summary")
         logger.info(
             f"Persisted v5 completion: session={session_id[:12]}..., score={final_score}"
         )

@@ -22,6 +22,7 @@ from app.api.v1.candidate_ranking import router as candidate_ranking_router
 from app.api.v1.audit_logs import router as audit_logs_router
 from app.api.v1.system import router as system_router
 from app.api.v1.intelligence import router as intelligence_router
+from app.api.v1.demo import router as demo_router
 from app.config import settings
 
 
@@ -48,6 +49,23 @@ async def lifespan(app: FastAPI):
     _warm("interview", "question_generation.md", job_role="warmup", phase="intro", difficulty_level=1,
           department_context="N/A", candidate_profile="N/A", question_number=0, conversation_history="(warmup)")
     logger.info("Prompt cache pre-warmed")
+
+    # Warm up the embedding model + Pinecone client (best-effort). The first
+    # RAG retrieval otherwise loads model weights lazily inside the request,
+    # blowing the retrieval timeout and producing an empty company brain.
+    try:
+        import asyncio
+        from app.rag.pinecone_store import get_embedding, get_pinecone_client
+
+        def _warm_embeddings():
+            get_pinecone_client()
+            get_embedding().embed_query("warmup company overview retrieval")
+            return True
+
+        await asyncio.wait_for(asyncio.to_thread(_warm_embeddings), timeout=120.0)
+        logger.info("Embedding model + Pinecone client warmed up")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"Embedding/Pinecone warm-up failed (best-effort): {exc}")
 
     # Start WebSocket stale-connection cleanup
     from app.api.interview_ws import start_cleanup_task
@@ -92,6 +110,7 @@ app.include_router(scorecards_router, prefix="/api/v1")
 app.include_router(candidate_ranking_router, prefix="/api/v1")
 app.include_router(audit_logs_router, prefix="/api/v1")
 app.include_router(intelligence_router, prefix="/api/v1")
+app.include_router(demo_router, prefix="/api/v1")
 app.include_router(system_router)
 
 

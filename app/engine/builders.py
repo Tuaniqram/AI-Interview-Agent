@@ -67,6 +67,40 @@ def build_start_response(session_id: str, state: StateLike) -> dict:
     }
 
 
+def refresh_hiring_recommendation(state: StateLike) -> dict:
+    """Recompute the hiring recommendation from the *current* hypothesis state.
+
+    The reflection computes ``hiring_recommendation`` before the turn's
+    hypothesis update, so payloads built later showed stale counts that
+    disagreed with ``hypothesis_progress``. This recomputes it from the
+    post-update state; falls back to the stored value if evaluation fails.
+    """
+    s = _as_dict(state)
+    try:
+        from app.agents.reasoning.contradiction_engine import (
+            competency_weights,
+            evaluate_sufficiency,
+        )
+
+        _, recommendation = evaluate_sufficiency(
+            competency_summary=s.get("competency_summary", {}),
+            required_competencies=s.get("required_competencies", []) or [],
+            contradictions=s.get("contradictions", []),
+            hypotheses=s.get("hypotheses", []),
+            question_number=int(s.get("question_number", 0) or 0),
+            comp_weights=competency_weights(s),
+            difficulty_reached=s.get("difficulty_level"),
+            unanswered_hypotheses=sum(
+                1
+                for h in (s.get("hypotheses") or [])
+                if h.get("status") in ("untested", "testing")
+            ),
+        )
+        return recommendation or {}
+    except Exception:
+        return s.get("hiring_recommendation", {})
+
+
 def build_answer_response(session_id: str, state: StateLike) -> dict:
     """Build the ``{type: evaluation}`` payload after an answered turn."""
     s = _as_dict(state)
@@ -126,7 +160,7 @@ def build_answer_response(session_id: str, state: StateLike) -> dict:
             "statuses": hyp_statuses,
         },
         "contradictions": len(s.get("contradictions", [])),
-        "hiring_recommendation": s.get("hiring_recommendation", {}),
+        "hiring_recommendation": refresh_hiring_recommendation(s),
     }
 
 
@@ -190,6 +224,7 @@ def build_report_response(state: StateLike) -> dict:
         "hypothesis_outcomes": {
             "confirmed": sum(1 for h in (s.get("hypotheses") or []) if h.get("status") == "confirmed"),
             "refuted": sum(1 for h in (s.get("hypotheses") or []) if h.get("status") == "refuted"),
+            "testing": sum(1 for h in (s.get("hypotheses") or []) if h.get("status") == "testing"),
             "untested": sum(1 for h in (s.get("hypotheses") or []) if h.get("status") == "untested"),
         },
         "evidence_graph": {

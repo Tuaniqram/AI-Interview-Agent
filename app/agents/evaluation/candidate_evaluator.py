@@ -1,4 +1,3 @@
-import json
 import logging
 from uuid import uuid4
 from datetime import datetime, timezone
@@ -68,16 +67,9 @@ async def _unified_evaluator(
             tier="cheap",
         )
 
-        response = response.strip()
-        if response.startswith("```json"):
-            response = response[7:]
-        if response.startswith("```"):
-            response = response[3:]
-        if response.endswith("```"):
-            response = response[:-3]
-        response = response.strip()
+        from app.intelligence._helpers import parse_json
 
-        data = json.loads(response)
+        data = parse_json(response)
     except Exception as e:
         logger.warning(f"Unified evaluator LLM failed: {e}")
         return _empty_evaluation(state, f"Evaluation error: {str(e)}")

@@ -14,21 +14,17 @@ You are an expert talent analyst. Extract a structured profile from the candidat
 
 Extract only what is present. Do not fabricate skills. For strengths, pick the most relevant skills to the target role. For weaknesses, infer plausible gaps from what is absent or thin (e.g. missing version control mention, no testing experience) — keep them reasonable and few.
 
-Return JSON only:
+Keep the output SHORT. Prefer fewer list items over omitting the outer fields: at most 3 experience entries and 2 education entries, each as a single one-line string using the `|` separator. Never exceed your available output budget.
 
-```json
+Return ONLY a single valid JSON object matching the schema below. No markdown code fences, no prose, no commentary — nothing before or after the JSON object.
+
 {
+    "years_of_experience": 4,
     "full_name": "Candidate's name",
     "headline": "One-line professional summary",
     "skills": ["skill", "technology", "tool"],
-    "experience": [
-        {"company": "Acme", "role": "Backend Engineer", "duration": "2021-2024", "description": "built ..."}
-    ],
-    "education": [
-        {"institution": "University", "degree": "BSc", "year": "2020"}
-    ],
-    "years_of_experience": 4,
+    "experience": ["company | role | duration | short description"],
+    "education": ["institution | degree | year"],
     "strengths": ["strong technical depth", "scalable systems"],
     "weaknesses": ["limited testing exposure"]
 }
-```

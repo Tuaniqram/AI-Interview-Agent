@@ -67,7 +67,7 @@ async def _get_legacy_summary(session_id: str) -> dict:
         evaluations = []
 
     answered_questions = len([m for m in messages if m.get("role") == "candidate"])
-    total_questions_possible = session.get("total_questions", 10)
+    total_questions_possible = int(session.get("total_questions") or 10)
 
     if evaluations:
         scores = [float(e.get("score", 0)) for e in evaluations]
@@ -163,11 +163,14 @@ async def _get_engine_summary(session_id: str) -> dict:
     hypotheses = record.current_hypotheses or []
     metadata = record.brain_metadata or {}
 
-    return {
+    engine_data = {
         "session_id": session_id,
         "v4_verdict": rec.get("verdict", "insufficient_evidence"),
         "v4_confidence": rec.get("confidence", 0),
         "v4_composite_score": rec.get("composite_score"),
+        # Canonical override: v4/v5 sessions must report the engine's single
+        # composite (== persisted session.final_score), never a re-derived
+        # per-turn average that disagrees with the recommendation/decision.
         "v4_evidence_count": sum(
             s.get("evidence_count", 0) for s in summary.values()
         ),
@@ -186,6 +189,9 @@ async def _get_engine_summary(session_id: str) -> dict:
             "untested": sum(1 for h in hypotheses if h.get("status") == "untested"),
         },
     }
+    if rec.get("composite_score") is not None:
+        engine_data["final_score"] = rec.get("composite_score")
+    return engine_data
 
 
 # ============================================================================

@@ -95,7 +95,7 @@ async def department_context_node(state: InterviewState) -> InterviewState:
 
         docs = await asyncio.wait_for(
             asyncio.to_thread(_retrieve, department_id, query),
-            timeout=15.0
+            timeout=60.0
         )
         elapsed = time.time() - t0
         logger.info(

@@ -11,10 +11,15 @@ becomes the *final* decision:
 
 Each review produces an ``{issue, severity, detail}`` check; ``finalize_decision``
 applies the findings deterministically (downgrade confidence, demote risky
-hire/no-hire verdicts, flag for human review). Pure capability — no DB, no
-shared-state mutation.
+decisive verdicts to ``insufficient_evidence``, flag for human review). Pure
+capability — no DB, no shared-state mutation.
+
+Fix 9: decisive 7-point labels (strong_hire … strong_no_hire) demote exactly
+like the legacy ``hire``/``no_hire``.
 """
 import logging
+
+from app.agents.decision.decision_engine import DECISIVE_DECISIONS
 
 logger = logging.getLogger(__name__)
 
@@ -171,9 +176,9 @@ def finalize_decision(draft: dict, checks: list[dict]) -> dict:
     high_issues = [c for c in checks if c["severity"] == "high"]
     if high_issues:
         confidence = min(confidence, 0.5)
-        if draft.get("decision") in {"hire", "no_hire"}:
+        if draft.get("decision") in DECISIVE_DECISIONS or draft.get("decision") in {"hire", "no_hire"}:
             demoted = True
-            decision["decision"] = "undecided"
+            decision["decision"] = "insufficient_evidence"
 
     if any(c["issue"] == "contradictions" and c["severity"] == "high" for c in checks):
         confidence = max(0.0, confidence - 0.2)

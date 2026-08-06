@@ -536,7 +536,7 @@ STYLES = {
         "max_probe_depth": 3,
         "phase_order": ["intro", "technical", "behavioral", "conclusion"],
         "early_termination_threshold": 0.85,
-        "difficulty_range": (1, 4),
+        "difficulty_range": (1, 5),
         "max_questions": 14,
         "allow_probing": True,
         "hypothesis_count": 8,

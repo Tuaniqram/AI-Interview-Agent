@@ -8,19 +8,44 @@ at the turn boundary. Failures are non-fatal by design (persistence must never
 break an interview), and the session factory can be injected for tests.
 """
 import logging
+import uuid
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database.session import get_session_factory
 from app.models.db import (
+    ConsistencyCheck as ConsistencyCheckRecord,
     EvidenceGraph as EvidenceGraphRecord,
+    Hypothesis as HypothesisRecord,
     InterviewBrain as InterviewBrainRecord,
+    InterviewObjective as InterviewObjectiveRecord,
     InterviewTimeline as InterviewTimelineRecord,
+    Observation as ObservationRecord,
+    ScorecardResult as ScorecardResultRecord,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _uuid_list(items) -> list | None:
+    """Coerce a list of uuid-strings/uuid objects into UUIDs (invalid dropped)."""
+    out = []
+    for it in items or []:
+        try:
+            out.append(UUID(str(it)))
+        except (ValueError, TypeError, AttributeError):
+            continue
+    return out
+
+
+def _clamp(value, lo: float = 0.0, hi: float = 1.0) -> float:
+    try:
+        return max(lo, min(hi, float(value)))
+    except (TypeError, ValueError):
+        return lo
 
 
 class V5BrainPersister:
@@ -28,6 +53,10 @@ class V5BrainPersister:
 
     def __init__(self, session_factory=None):
         self._session_factory = session_factory or get_session_factory
+        self._last_objective_key: dict[str, str] = {}
+        self._last_objective_row_id: dict[str, UUID] = {}
+        self._last_obs_qnum: dict[str, int] = {}
+        self._finalize_done: dict[str, bool] = {}
 
     async def save_snapshot(self, brain) -> None:
         """Persist one brain snapshot (brain + evidence graph + timeline row).
@@ -129,3 +158,239 @@ class V5BrainPersister:
                 },
             )
         )
+
+    # ------------------------------------------------------------------ #
+    # Relational V4 tables (hypotheses / observations / objectives /
+    # consistency_checks) — best-effort, never raises.
+    # ------------------------------------------------------------------ #
+
+    async def save_relational(self, brain, finalize: bool = False) -> None:
+        """Best-effort writes to the relational reasoning tables.
+
+        ``finalize`` marks the last objective as probed and persists
+        consistency checks (which are only complete at the end).
+        """
+        session_id_str = getattr(brain, "session_id", "")
+        if not session_id_str:
+            return
+        try:
+            session_id = UUID(session_id_str)
+        except (ValueError, TypeError, AttributeError):
+            logger.warning(
+                f"Invalid session_id for v5 relational snapshot: {session_id_str!r}"
+            )
+            return
+
+        if finalize and self._finalize_done.get(str(session_id)):
+            return
+        self._finalize_done[str(session_id)] = True
+
+        factory = self._session_factory()
+        if factory is None:
+            logger.debug("v5 relational persister no-op: DATABASE_URL not configured")
+            return
+
+        try:
+            async with factory() as session:
+                await self._upsert_hypotheses(session, session_id, brain)
+                await self._insert_observations(session, session_id, brain)
+                await self._upsert_objectives(session, session_id, brain, finalize)
+                if finalize:
+                    await self._insert_consistency_checks(session, session_id, brain)
+                    await self._insert_scorecard_result(session, session_id, brain)
+                await session.commit()
+        except Exception as exc:  # noqa: BLE001 - best-effort by design
+            logger.warning(f"V5 relational persistence failed (non-fatal): {exc}")
+
+    async def _upsert_hypotheses(self, session, session_id: UUID, brain) -> None:
+        hypotheses = getattr(brain, "hypotheses", []) or []
+        if not hypotheses:
+            return
+        rows = []
+        for h in hypotheses:
+            try:
+                hid = UUID(str(h.get("id", "")))
+            except (ValueError, TypeError):
+                continue
+            rows.append({
+                "id": hid,
+                "session_id": session_id,
+                "statement": h.get("statement") or "",
+                "competency": h.get("competency"),
+                "direction": h.get("direction") or "positive",
+                "confidence": _clamp(h.get("confidence", h.get("probability", 0.0))),
+                "supporting_evidence": _uuid_list(h.get("supporting_evidence")),
+                "contradicting_evidence": _uuid_list(h.get("contradicting_evidence")),
+                "status": h.get("status") or "untested",
+            })
+        if not rows:
+            return
+        stmt = pg_insert(HypothesisRecord).values(rows)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[HypothesisRecord.id],
+            set_={
+                "statement": stmt.excluded.statement,
+                "competency": stmt.excluded.competency,
+                "direction": stmt.excluded.direction,
+                "confidence": stmt.excluded.confidence,
+                "supporting_evidence": stmt.excluded.supporting_evidence,
+                "contradicting_evidence": stmt.excluded.contradicting_evidence,
+                "status": stmt.excluded.status,
+                "last_updated": func.now(),
+            },
+        )
+        await session.execute(stmt)
+
+    async def _insert_observations(self, session, session_id: UUID, brain) -> None:
+        observations = getattr(brain, "observations", []) or []
+        if not observations:
+            return
+        key = str(session_id)
+        answered = getattr(brain, "answered_question_numbers", []) or []
+        qnum = answered[-1] if answered else int(getattr(brain, "question_number", 0) or 0)
+        if qnum == self._last_obs_qnum.get(key):
+            return
+        existing_obs = await session.execute(
+            select(ObservationRecord.id)
+            .where(
+                ObservationRecord.session_id == session_id,
+                ObservationRecord.question_number == qnum,
+            )
+            .limit(1)
+        )
+        if existing_obs.scalar_one_or_none() is not None:
+            return
+        self._last_obs_qnum[key] = qnum
+        risk_types = {"hedging", "certainty_shift", "sentiment_shift", "response_latency_estimate"}
+        for obs in observations:
+            obs_type = obs.get("type") or "observation"
+            raw_value = obs.get("value")
+            evidence = obs.get("evidence") or (
+                f"{obs_type}={float(raw_value):.2f}"
+                if isinstance(raw_value, (int, float))
+                else (str(raw_value) if raw_value else "")
+            )
+            risk_signal = obs.get("risk_signal")
+            if risk_signal is None:
+                risk_signal = {"signal": obs_type} if obs_type in risk_types else None
+            session.add(ObservationRecord(
+                session_id=session_id,
+                question_number=qnum,
+                type=obs_type,
+                value=_clamp(raw_value, 0.0, 1.0),
+                evidence=evidence,
+                pattern=obs.get("pattern") or obs_type,
+                risk_signal=risk_signal,
+            ))
+
+    async def _upsert_objectives(
+        self, session, session_id: UUID, brain, finalize: bool
+    ) -> None:
+        key = str(session_id)
+        objective = getattr(brain, "question_objective", None) or {}
+        question_id = objective.get("question_id")
+        if not question_id:
+            return
+
+        target_competency = objective.get("target_competency") or "unknown"
+        evidence_ids = _uuid_list([
+            ev.get("id")
+            for ev in (getattr(brain, "evidence_store", None) or [])
+            if ev.get("competency") == target_competency
+        ])
+
+        if self._last_objective_key.get(key) != question_id:
+            if self._last_objective_row_id.get(key) is not None:
+                await session.execute(
+                    update(InterviewObjectiveRecord)
+                    .where(InterviewObjectiveRecord.id == self._last_objective_row_id[key])
+                    .values(status="probed", evidence_ids=evidence_ids)
+                )
+            hypotheses = getattr(brain, "hypotheses", []) or []
+            target_id = objective.get("target_hypothesis_id") or ""
+            match = next((h for h in hypotheses if str(h.get("id", "")) == str(target_id)), None)
+            try:
+                hypothesis_id = UUID(str(target_id)) if target_id else None
+            except (ValueError, TypeError):
+                hypothesis_id = None
+            new_id = uuid.uuid4()
+            row = InterviewObjectiveRecord(
+                id=new_id,
+                session_id=session_id,
+                competency=target_competency,
+                dimension=objective.get("dimension")
+                or getattr(brain, "current_phase", None)
+                or "technical",
+                hypothesis_id=hypothesis_id,
+                hypothesis_statement=match.get("statement") if match else None,
+                hypothesis_confidence=_clamp(match.get("confidence", 0.0)) if match else None,
+                status="pending",
+                evidence_ids=evidence_ids,
+                priority=1,
+            )
+            session.add(row)
+            self._last_objective_row_id[key] = new_id
+            self._last_objective_key[key] = question_id
+        elif finalize and self._last_objective_row_id.get(key) is not None:
+            await session.execute(
+                update(InterviewObjectiveRecord)
+                .where(InterviewObjectiveRecord.id == self._last_objective_row_id[key])
+                .values(status="probed", evidence_ids=evidence_ids)
+            )
+
+    async def _insert_consistency_checks(self, session, session_id: UUID, brain) -> None:
+        checks = getattr(brain, "consistency_checks", []) or []
+        if not checks:
+            return
+        existing = await session.execute(
+            select(ConsistencyCheckRecord.id)
+            .where(ConsistencyCheckRecord.session_id == session_id)
+            .limit(1)
+        )
+        if existing.scalar_one_or_none() is not None:
+            return
+        contradictions = getattr(brain, "contradictions", []) or []
+        for check in checks:
+            score = check.get("score")
+            confidence = check.get("confidence", 0.5)
+            session.add(ConsistencyCheckRecord(
+                session_id=session_id,
+                check_type=check.get("type") or "evaluation",
+                assessment=check.get("assessment"),
+                score=check.get("score"),
+                confidence=check.get("confidence"),
+                evidence=check.get("evidence", ""),
+                checked_at=check.get("checked_at"),
+                dimension=check.get("type") or "evaluation",
+                answers_compared={
+                    "assessment": check.get("assessment"),
+                    "evidence": check.get("evidence", ""),
+                },
+                consistency_score=_clamp((score or 0) / 10.0 * _clamp(confidence)),
+                contradictions=contradictions,
+            ))
+
+    async def _insert_scorecard_result(self, session, session_id: UUID, brain) -> None:
+        existing = await session.execute(
+            select(ScorecardResultRecord.id)
+            .where(ScorecardResultRecord.session_id == session_id)
+            .limit(1)
+        )
+        if existing.scalar_one_or_none() is not None:
+            return
+        scores = {}
+        for comp, summary in (getattr(brain, "competency_summary", {}) or {}).items():
+            if isinstance(summary, dict):
+                scores[comp] = {
+                    "score": summary.get("score"),
+                    "evidence_count": summary.get("evidence_count", 0),
+                    "confidence": summary.get("confidence"),
+                }
+            else:
+                scores[comp] = {"score": summary}
+        evaluation_score = getattr(brain, "evaluation_score", None)
+        session.add(ScorecardResultRecord(
+            session_id=session_id,
+            scores=scores or {},
+            weighted_score=float(evaluation_score) if evaluation_score is not None else None,
+        ))

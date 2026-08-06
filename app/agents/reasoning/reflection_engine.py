@@ -14,6 +14,7 @@ from app.agents.reasoning.contradiction_engine import (
     MAX_CONSECUTIVE_SAME_DIMENSION,
     SUFFICIENCY_GAP_THRESHOLD,
     average_evidence_confidence,
+    competency_question_counts,
     competency_weights,
     decide_next_action,
     detect_contradictions,
@@ -41,6 +42,9 @@ async def reflection_engine(state: InterviewState) -> InterviewState:
 
     difficulty_reached = state.get("difficulty_level")
     unanswered = unanswered_hypothesis_count(hypotheses)
+    question_counts = competency_question_counts(state.get("questions_asked", []))
+    last_asked = (state.get("questions_asked") or [])
+    last_competency = last_asked[-1].get("competency", "") if last_asked else None
 
     evidence_sufficiency, hiring_recommendation = evaluate_sufficiency(
         competency_summary, required_competencies, contradictions, hypotheses,
@@ -54,6 +58,8 @@ async def reflection_engine(state: InterviewState) -> InterviewState:
         contradictions, question_number, hypotheses,
         difficulty_reached=difficulty_reached,
         unanswered_hypotheses=unanswered,
+        question_counts=question_counts,
+        last_competency=last_competency,
     )
 
     reflection_inputs = {

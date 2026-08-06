@@ -1,4 +1,5 @@
 from typing import Optional
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,17 +47,17 @@ async def org_profile(slug: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/interviews/{interview_id}", response_model=PublicInterviewResponse)
-async def get_interview(interview_id: str, db: AsyncSession = Depends(get_db)):
-    return await get_public_interview(interview_id, db)
+async def get_interview(interview_id: UUID, db: AsyncSession = Depends(get_db)):
+    return await get_public_interview(str(interview_id), db)
 
 
 @router.post("/interviews/{interview_id}/start", response_model=StartInterviewResponse)
 async def start_interview(
-    interview_id: str,
+    interview_id: UUID,
     req: StartInterviewRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    return await start_public_interview(interview_id, req, db)
+    return await start_public_interview(str(interview_id), req, db)
 
 
 # ── Org CRUD for public interview listings ────────────────────────────
@@ -88,12 +89,13 @@ async def list_listings(
 
 @router.put("/interviews/{interview_id}", response_model=OrgPublicInterviewResponse)
 async def update_listing(
-    interview_id: str,
+    interview_id: UUID,
     req: UpdatePublicInterviewRequest,
     request: Request,
     _: None = Depends(require_org_role(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
+    interview_id = str(interview_id)
     result = await update_public_interview(interview_id, req, db)
     audit = AuditLogService(db)
     await audit.log(
@@ -108,11 +110,12 @@ async def update_listing(
 
 @router.delete("/interviews/{interview_id}", status_code=204)
 async def delete_listing(
-    interview_id: str,
+    interview_id: UUID,
     request: Request,
     _: None = Depends(require_org_role(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
+    interview_id = str(interview_id)
     await delete_public_interview(interview_id, db)
     audit = AuditLogService(db)
     await audit.log(

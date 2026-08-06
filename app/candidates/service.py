@@ -311,7 +311,7 @@ async def start_practice(
     # Seed v4 state with AURA (single conductor mode — style selection is gone)
     style = get_style("AURA")
     competency_taxonomy, required_competencies, domain_label = taxonomy_for_state(
-        default_taxonomy()
+        default_taxonomy(), priority_map=style.get("base_competency_priority")
     )
     store = get_v4_session_store()
     state = {

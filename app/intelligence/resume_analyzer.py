@@ -7,7 +7,7 @@ data is always merged in so profile-first sessions work offline.
 import logging
 import re
 
-from app.intelligence._helpers import dedupe
+from app.intelligence._helpers import dedupe, parse_llm_json_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +60,9 @@ async def analyze_resume(
             job_role=job_role or "Unknown",
             resume_text=text[:8000],
         )
-        response = await get_llm_service().invoke(
-            prompt=prompt, temperature=0.2, max_tokens=800, tier="cheap"
+        data = await parse_llm_json_with_retry(
+            get_llm_service(), prompt, temperature=0.2, max_tokens=1000, tier="cheap"
         )
-        data = json.loads(response.strip().lstrip("```json").strip().rstrip("```").strip())
         for key in ("skills", "experience", "education", "strengths", "weaknesses"):
             if isinstance(data.get(key), list):
                 result[key] = dedupe(data[key])
@@ -71,13 +70,24 @@ async def analyze_resume(
             if data.get(key):
                 result[key] = data[key]
         if data.get("years_of_experience"):
-            result["years_of_experience"] = int(data["years_of_experience"])
+            years = _coerce_years(data["years_of_experience"])
+            if years is not None:
+                result["years_of_experience"] = years
         result["source"] = "resume_llm"
     except Exception as exc:  # noqa: BLE001
         logger.warning(f"Resume LLM parse failed ({exc}); using heuristics")
         result["source"] = "heuristics"
 
     return result
+
+
+def _coerce_years(value) -> int | None:
+    """The LLM often answers ``'N/A'``, ``'8+ years'`` or ``'5-7'`` — extract
+    the first integer instead of crashing the whole parse on a bad value."""
+    if isinstance(value, (int, float)):
+        return int(value)
+    match = re.search(r"\d+", str(value or ""))
+    return int(match.group(0)) if match else None
 
 
 def _heuristic_parse(text: str, job_role: str) -> dict:

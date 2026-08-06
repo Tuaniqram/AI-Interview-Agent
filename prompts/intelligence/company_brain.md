@@ -15,9 +15,8 @@ You are an expert analyst building a durable "company brain" from internal depar
 
 Extract a structured, evidence-grounded summary. Only include facts supported by the documents — never invent details. If a category has no support, use an empty list.
 
-Return JSON only:
+Return ONLY a single valid JSON object matching the schema below. No markdown code fences, no prose, no commentary — nothing before or after the JSON object.
 
-```json
 {
     "summary": "2-3 sentence overview of the department and what it builds",
     "mission": "One sentence mission or purpose statement",
@@ -27,4 +26,3 @@ Return JSON only:
     "challenges": ["known engineering or business challenges"],
     "role_context": "What the {{job_role}} role does inside this department and the context an interviewer should reference"
 }
-```

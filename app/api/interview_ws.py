@@ -176,7 +176,7 @@ async def _start_v4_engine(session_id: str) -> dict:
     """
     store = get_v4_session_store()
     existing = store.get(session_id)
-    if existing is not None:
+    if existing is not None and existing.get("nodes_executed"):
         return build_start_response(session_id, existing)
 
     db_session = await _load_db_session_row(session_id)
@@ -185,10 +185,17 @@ async def _start_v4_engine(session_id: str) -> dict:
 
     style = get_style("AURA")
     taxonomy = default_taxonomy()
-    if db_session.department_id:
+    if db_session.department_id or db_session.scorecard_template_id:
         async with get_session_factory()() as db:
-            taxonomy = await resolve_competencies(db, department_id=db_session.department_id)
-    competency_taxonomy, required, domain_label = taxonomy_for_state(taxonomy)
+            taxonomy = await resolve_competencies(
+                db,
+                scorecard_template_id=str(db_session.scorecard_template_id)
+                if db_session.scorecard_template_id else None,
+                department_id=db_session.department_id,
+            )
+    competency_taxonomy, required, domain_label = taxonomy_for_state(
+        taxonomy, priority_map=style.get("base_competency_priority")
+    )
 
     candidate_profile, resume_text = await _load_candidate_profile_data(db_session)
 

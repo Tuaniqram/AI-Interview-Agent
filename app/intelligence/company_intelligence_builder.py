@@ -2,9 +2,9 @@
 session. Fully best-effort: RAG retrieval and LLM enrichment degrade to
 deterministic keyword analysis so a session can always start.
 """
-import json
 import logging
 
+from app.intelligence._helpers import parse_llm_json_with_retry
 from app.intelligence.document_analyzer import analyze_documents
 
 logger = logging.getLogger(__name__)
@@ -79,7 +79,7 @@ async def _retrieve_department_docs(department_id: int, job_role: str) -> tuple[
                 f"team culture, processes, challenges"
             )
 
-        docs = await asyncio.wait_for(asyncio.to_thread(_retrieve), timeout=15.0)
+        docs = await asyncio.wait_for(asyncio.to_thread(_retrieve), timeout=60.0)
         chunks = [
             {
                 "page_content": doc.page_content,
@@ -113,10 +113,9 @@ async def _enrich_with_llm(brain: dict, documents: list[dict]) -> dict:
         documents=doc_text,
     )
 
-    response = await get_llm_service().invoke(
-        prompt=prompt, temperature=0.3, max_tokens=900, tier="cheap"
+    data = await parse_llm_json_with_retry(
+        get_llm_service(), prompt, temperature=0.3, max_tokens=900, tier="cheap"
     )
-    data = json.loads(response.strip().lstrip("```json").strip().rstrip("```").strip())
 
     allowed = {"summary", "mission", "tech_stack", "process", "culture", "challenges", "role_context"}
     cleaned = {k: v for k, v in data.items() if k in allowed}

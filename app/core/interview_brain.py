@@ -75,6 +75,7 @@ class InterviewBrain:
 
     # -- Competency Planning ------------------------------------------------
     competency_plan: list = field(default_factory=list)
+    planned_competency: Optional[dict] = None
     next_competency: Optional[dict] = None
     competency_summary: dict = field(default_factory=dict)
 

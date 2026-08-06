@@ -1,0 +1,30 @@
+{
+  "exp_project_depth": [
+    "project experience",
+    "project management",
+    "production system",
+    "architecture ownership",
+    "technical challenge",
+    "system design"
+  ],
+  "tech_core": [
+    "python",
+    "api",
+    "database",
+    "backend",
+    "async",
+    "testing"
+  ],
+  "behav_communication": [
+    "communication",
+    "collaboration",
+    "alignment",
+    "stakeholder"
+  ],
+  "behav_teamwork": [
+    "team",
+    "conflict",
+    "priority",
+    "cross-functional"
+  ]
+}

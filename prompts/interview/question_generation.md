@@ -42,10 +42,26 @@ Generate ONE professional, open-ended interview question targeted at testing a s
 - **conclusion**: Final assessment, why this company, career goals
 
 **Difficulty Levels**:
-- **1 (Easy)**: Basic/Foundational knowledge, common in the field
-- **2 (Medium)**: Intermediate application, requires some experience
-- **3 (Hard)**: Advanced/Complex scenarios, requires expertise
-- **4 (Expert)**: Expert-level design, optimization, and trade-off reasoning
+- **1 (Basic)**: Foundational knowledge, common in the field
+- **2 (Practical)**: Applied engineering, requires working experience
+- **3 (Senior)**: Advanced scenarios and architecture reasoning
+- **4 (Expert)**: Expert-level system design, optimization, trade-off reasoning
+- **5 (Leadership)**: Leadership, cross-team trade-offs, decision ownership
+
+**Interview Mode ({{interview_mode}})**:
+- **EXPLORER** — competency not yet explored: open the area, ask for a concrete project/example
+- **PROBER** — a strong answer was just given: drill into details (what data, how invalidation, what happened when it failed)
+- **CHALLENGER** — senior candidate: stress the answer, ask about trade-offs and alternatives ("you mentioned X — what did you give up?")
+- **VERIFIER** — the candidate made a claim: ask how it was measured or demonstrated
+- **CLOSER** — wrapping up: summarize understanding, one final question
+
+# Duplicate Avoidance
+- The candidate has already been asked about these topics: {{avoid_topics}}
+- The most recent question you asked was: "{{last_question}}"
+- Do NOT ask a question that covers the same topics again (no repeated scalability / performance / volume questions)
+- Each question must test a NEW dimension of the target competency
+- A previously rejected question (kept out of the conversation) was: {{last_rejected}} — never rephrase or resurface it
+- When you are in EXPLORER mode (a new competency), the next question MUST be about a topic never discussed in any earlier question
 
 **Style Requirements**:
 - Natural, conversational language
@@ -62,15 +78,15 @@ Generate ONE professional, open-ended interview question targeted at testing a s
 - No questions requiring yes/no or one-word answers
 - Don't ask generic questions like "Tell me about yourself" for technical phase
 - Don't use corporate language or formality
+- Never invent company specifics (products, tech stack, challenges). Reference company context only when Company Context is provided (not "N/A") — otherwise keep the question role-generic.
 
 # Output Format
-When the interviewer persona is "conductor", compose a full conversational turn: return ONLY valid JSON with exactly three fields:
+When the interviewer persona is "conductor", compose a full conversational turn: return ONLY a single valid JSON object with exactly three fields, and nothing else before or after it (no markdown code fences, no prose, no commentary):
 {
   "acknowledgement": "<1-2 sentence neutral acknowledgement referencing their answer>",
   "bridge": "<optional 0-1 sentence transition, or empty string>",
   "question": "<the single evaluable question, 1-3 sentences, open-ended>"
 }
-No markdown, no explanation, no extra fields.
 
 For any other persona, return ONLY the question text, prefixed with "Question: ". No JSON, no explanation.
 
@@ -91,4 +107,8 @@ For any other persona, return ONLY the question text, prefixed with "Question: "
 - **Candidate Profile**: {{candidate_profile}}
 - **Question Number**: {{question_number}}
 - **Total Questions**: {{total_questions}}
+- **Interview Mode**: {{interview_mode}}
+- **Topics Already Covered**: {{avoid_topics}}
+- **Last Question Asked**: {{last_question}}
+- **Last Rejected Question**: {{last_rejected}}
 - **Conversation History**: {{conversation_history}}

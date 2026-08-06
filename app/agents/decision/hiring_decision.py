@@ -1,13 +1,44 @@
 """V5 hiring-decision capability — turns synthesis + sufficiency signals into an
 explicit decision. LLM-backed with a deterministic fallback so finalization
 never fails on an LLM outage.
+
+Fix 9: the final ``hiring_decision.decision`` is the deterministic 7-point
+scale (see ``decision_engine``); the LLM stays as the *draft* (kept under
+``llm_draft``) and the legacy ``hiring_recommendation.verdict`` is untouched.
 """
-import json
 import logging
 
 from app.core.interview_state import InterviewState
+from app.agents.decision.decision_engine import (
+    decide_hiring_decision,
+    decision_next_steps,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _decision_signals(state: InterviewState) -> dict:
+    report = state.get("final_report") or {}
+    rec = state.get("hiring_recommendation") or {}
+    hypotheses = state.get("hypotheses") or []
+
+    confirmed = sum(1 for h in hypotheses if h.get("status") == "confirmed")
+    refuted = sum(1 for h in hypotheses if h.get("status") == "refuted")
+    confirmed_ratio = confirmed / (confirmed + refuted + 1)
+
+    contradictions = sum(
+        1 for c in (state.get("contradictions") or [])
+        if c.get("severity") in ("high", "medium")
+    )
+
+    return {
+        "holistic_score": report.get("holistic_score"),
+        "coverage_ratio": rec.get("coverage_ratio"),
+        "confirmed_ratio": confirmed_ratio,
+        "contradiction_count": contradictions,
+        "difficulty_reached": state.get("difficulty_level"),
+        "evidence_count": len(state.get("evidence_store") or []),
+    }
 
 
 async def hiring_decision_node(state: InterviewState) -> InterviewState:
@@ -39,9 +70,11 @@ async def hiring_decision_node(state: InterviewState) -> InterviewState:
             weaknesses=_join(report.get("key_weaknesses")),
         )
         response = await llm_service.invoke(prompt=prompt, temperature=0.2, max_tokens=300, tier="strong")
-        data = json.loads(response.strip().lstrip("```json").rstrip("```").strip())
+        from app.intelligence._helpers import parse_json
+
+        data = parse_json(response)
         next_steps = data.get("next_steps", [])
-        decision = {
+        llm_draft = {
             "decision": str(data.get("decision", "undecided")),
             "confidence": round(float(data.get("confidence", 0.0)), 2),
             "rationale": str(data.get("rationale", "")),
@@ -49,9 +82,25 @@ async def hiring_decision_node(state: InterviewState) -> InterviewState:
         }
     except Exception as e:
         logger.warning(f"Hiring decision LLM failed ({e}), using deterministic fallback")
-        decision = _decision_deterministic(report, rec)
+        llm_draft = _decision_deterministic(report, rec)
 
-    return {**state, "hiring_decision": decision}
+    # Fix 9: deterministic 7-point scale overlays the LLM draft.
+    signals = _decision_signals(state)
+    mapped = decide_hiring_decision(**signals)
+
+    return {
+        **state,
+        "hiring_decision": {
+            "decision": mapped["decision"],
+            "decision_score": mapped["decision_score"],
+            "decision_scale": mapped["decision_scale"],
+            "signals": mapped["signals"],
+            "confidence": min(float(llm_draft.get("confidence", 0.5) or 0.5), 0.9),
+            "rationale": mapped["rationale"],
+            "next_steps": decision_next_steps(mapped["decision"]),
+            "llm_draft": llm_draft,
+        },
+    }
 
 
 def _decision_deterministic(report: dict, rec: dict) -> dict:

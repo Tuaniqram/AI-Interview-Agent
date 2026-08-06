@@ -1,4 +1,3 @@
-import json
 import logging
 
 from app.core.interview_state import InterviewState
@@ -49,16 +48,9 @@ async def strategy_brain_node(state: InterviewState) -> InterviewState:
             max_tokens=800,
         )
 
-        response = response.strip()
-        if response.startswith("```json"):
-            response = response[7:]
-        if response.startswith("```"):
-            response = response[3:]
-        if response.endswith("```"):
-            response = response[:-3]
-        response = response.strip()
+        from app.intelligence._helpers import parse_json
 
-        strategy = json.loads(response)
+        strategy = parse_json(response)
     except Exception as e:
         logger.warning(f"Strategy brain LLM failed: {e}, using defaults")
         strategy = _default_strategy(style, candidate_profile)

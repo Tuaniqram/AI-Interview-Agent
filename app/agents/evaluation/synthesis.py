@@ -1,69 +1,158 @@
 """V5 synthesis capability — builds the holistic final report.
 
-LLM-backed with a deterministic fallback; speaks the state-dict contract
-(state in → state out) so the engine imports it unchanged.
+Deterministic-first: the canonical composite (see
+``contradiction_engine.compute_canonical_score`` / ``canonical_score_from_state``)
+anchors every number in the report; the LLM writes narrative text only
+(fit assessment, strengths, weaknesses, notes). Legacy V3 fields
+(``rag_metadata.phase_decisions``, ``skills_tested``, ``skills_weak``,
+``coverage_map``) are never read — they are null in V5 and were the source of
+hallucinated holistic scores that contradicted the evidence graph.
 """
 import json
 import logging
-from typing import List, Dict, Any
+
 from app.core.interview_state import InterviewState
 
 logger = logging.getLogger(__name__)
 
+_MAX_HIGHLIGHTS = 5
+_TOKEN_CHARS = "@:/\\`{}[]#"
+
+
+def _score_timeline(state: InterviewState) -> list[dict]:
+    """Per-question average scores from the evidence store (V5 source of truth)."""
+    per_question: dict[int, list[float]] = {}
+    for ev in state.get("evidence_store") or []:
+        q = int(ev.get("question_number", 0) or 0)
+        if q > 0:
+            per_question.setdefault(q, []).append(float(ev.get("score", 0.0) or 0.0))
+    return [
+        {
+            "question": q,
+            "score": round(sum(scores) / len(scores), 2),
+        }
+        for q, scores in sorted(per_question.items())
+    ]
+
+
+def _growth_trend(timeline: list[dict]) -> str:
+    """First-half vs second-half trajectory from the score timeline."""
+    scores = [t["score"] for t in timeline if t.get("score") is not None]
+    if len(scores) < 3:
+        return "stable"
+    mid = len(scores) // 2
+    first = sum(scores[:mid]) / mid
+    second = sum(scores[mid:]) / (len(scores) - mid)
+    if second - first > 0.5:
+        return "improving"
+    if first - second > 0.5:
+        return "declining"
+    return "stable"
+
+
+def _clean_highlights(items: list, max_items: int = _MAX_HIGHLIGHTS) -> list[str]:
+    """Dedupe highlights and drop artifacts (code tokens, paths, symbols).
+
+    Rejects tokens like ``@angular/material:cdk`` that the evaluator extracted
+    as noun phrases — they are not strengths or weaknesses.
+    """
+    seen: set[str] = set()
+    cleaned: list[str] = []
+    for item in items or []:
+        text = str(item).strip()
+        if not text or len(text) < 3 or len(text) > 160:
+            continue
+        if any(ch in text for ch in _TOKEN_CHARS):
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(text)
+        if len(cleaned) >= max_items:
+            break
+    return cleaned
+
+
+def _aggregate_highlights(state: InterviewState) -> tuple[list[str], list[str]]:
+    """Strengths/weaknesses aggregated and deduped from the evidence store."""
+    strengths: list[str] = []
+    weaknesses: list[str] = []
+    for ev in state.get("evidence_store") or []:
+        strengths.extend(ev.get("strengths") or [])
+        weaknesses.extend(ev.get("weaknesses") or [])
+    return _clean_highlights(strengths), _clean_highlights(weaknesses)
+
+
+def _coverage_map(state: InterviewState) -> dict:
+    return {
+        comp: {
+            "evidence_count": s.get("evidence_count", 0),
+            "average_score": s.get("average_score", 0.0),
+            "gap": s.get("gap", 1.0),
+        }
+        for comp, s in (state.get("competency_summary") or {}).items()
+    }
+
+
+def build_final_report(
+    state: InterviewState,
+    canonical: float,
+    llm: dict | None = None,
+) -> dict:
+    """Assemble the final report from V5 state + optional LLM narrative.
+
+    ``canonical`` is the single source of truth for the report's numbers —
+    every score field mirrors it, so the report can never contradict the
+    recommendation, the persisted ``final_score`` or the hiring decision.
+    """
+    timeline = _score_timeline(state)
+    trend = _growth_trend(timeline)
+    summary = state.get("competency_summary") or {}
+    strengths, weaknesses = _aggregate_highlights(state)
+    llm = llm or {}
+
+    skills_tested = sorted(summary.keys())
+    skills_weak = sorted(
+        comp
+        for comp, s in summary.items()
+        if float(s.get("average_score", 0.0) or 0.0) < 5.0
+        or float(s.get("gap", 1.0) or 1.0) >= 0.5
+    )
+
+    return {
+        "holistic_score": canonical,
+        "average_score": canonical,
+        "growth_trend": trend,
+        "narrative": llm.get("narrative", ""),
+        "key_strengths": _clean_highlights(llm.get("key_strengths")) or strengths[:3],
+        "key_weaknesses": _clean_highlights(llm.get("key_weaknesses")) or weaknesses[:3],
+        "fit_assessment": llm.get("fit_assessment", "Potential Fit"),
+        "interview_notes": llm.get("interview_notes", ""),
+        "skills_tested": skills_tested,
+        "skills_weak": skills_weak,
+        "coverage_map": _coverage_map(state),
+        "max_difficulty_reached": state.get("difficulty_level", 1),
+        "score_timeline": timeline,
+    }
+
 
 async def synthesis_node(state: InterviewState) -> InterviewState:
     """
-    Generate a holistic final report synthesizing all evaluations.
-    Goes beyond score-averaging — assesses growth trajectory, consistency,
-    difficulty reached, and produces a narrative assessment.
+    Build the final report: canonical score anchors it, LLM narrates it.
     """
+    from app.agents.reasoning.contradiction_engine import canonical_score_from_state
     from app.services.llm_service import get_llm_service
     from app.services.prompt_loader import load_prompt
 
-    job_role = state.get('job_role', 'Unknown')
-    conversation_history = state.get('conversation_history', [])
-    skills_tested = state.get('skills_tested', [])
-    skills_weak = state.get('skills_weak', [])
-    coverage_map = state.get('coverage_map', {})
-    rag_metadata = state.get('rag_metadata', {})
-    phase_decisions = rag_metadata.get('phase_decisions', [])
+    canonical = canonical_score_from_state(state) or 0.0
+    job_role = state.get("job_role", "Unknown")
+    timeline = _score_timeline(state)
+    trend = _growth_trend(timeline)
+    coverage_map = _coverage_map(state)
+    strengths, weaknesses = _aggregate_highlights(state)
 
-    evaluation_history = []
-    current_strengths = set()
-    current_weaknesses = set()
-
-    for msg in conversation_history:
-        if msg.get('role') == 'user' and msg.get('content'):
-            evaluation_history.append({
-                'answer': msg.get('content', ''),
-            })
-
-    # Build score timeline from phase decisions
-    score_timeline = []
-    for d in phase_decisions:
-        s = d.get('score')
-        if s is not None:
-            score_timeline.append({
-                'phase': d.get('phase', 'unknown'),
-                'score': s,
-                'question': d.get('question_number', 0),
-            })
-
-    avg_scores = [s['score'] for s in score_timeline if s['score'] is not None]
-    avg_score = sum(avg_scores) / len(avg_scores) if avg_scores else 0
-
-    # Detect growth trend
-    growth_trend = "stable"
-    if len(avg_scores) >= 3:
-        first_half = sum(avg_scores[:len(avg_scores)//2]) / (len(avg_scores)//2)
-        second_half = sum(avg_scores[len(avg_scores)//2:]) / (len(avg_scores) - len(avg_scores)//2)
-        if second_half - first_half > 0.5:
-            growth_trend = "improving"
-        elif first_half - second_half > 0.5:
-            growth_trend = "declining"
-
-    max_difficulty = state.get('difficulty_level', 1)
-
+    llm: dict = {}
     try:
         llm_service = get_llm_service()
 
@@ -71,13 +160,28 @@ async def synthesis_node(state: InterviewState) -> InterviewState:
             "evaluation",
             "synthesis.md",
             job_role=job_role,
-            score_timeline=json.dumps(score_timeline, indent=2),
-            avg_score=f"{avg_score:.1f}",
-            growth_trend=growth_trend,
-            max_difficulty=f"Level {max_difficulty}/3",
-            skills_tested=json.dumps(skills_tested, indent=2) if skills_tested else "None recorded",
-            skills_weak=json.dumps(skills_weak, indent=2) if skills_weak else "None identified",
-            coverage_map=json.dumps(coverage_map, indent=2) if coverage_map else "No coverage data",
+            score_timeline=json.dumps(timeline, indent=2),
+            avg_score=f"{canonical:.1f}",
+            growth_trend=trend,
+            max_difficulty=f"Level {state.get('difficulty_level', 1)}/3",
+            skills_tested=json.dumps(sorted((state.get("competency_summary") or {}).keys()), indent=2)
+            if state.get("competency_summary")
+            else "None recorded",
+            skills_weak=json.dumps(
+                [
+                    comp
+                    for comp, s in (state.get("competency_summary") or {}).items()
+                    if float(s.get("average_score", 0.0) or 0.0) < 5.0
+                    or float(s.get("gap", 1.0) or 1.0) >= 0.5
+                ],
+                indent=2,
+            )
+            if state.get("competency_summary")
+            else "None identified",
+            coverage_map=json.dumps(coverage_map, indent=2)
+            if coverage_map
+            else "No coverage data",
+            canonical_score=f"{canonical:.2f}",
         )
 
         response = await llm_service.invoke(
@@ -87,89 +191,38 @@ async def synthesis_node(state: InterviewState) -> InterviewState:
             tier="strong",
         )
 
-        response = response.strip()
-        if response.startswith("```json"):
-            response = response[7:]
-        if response.startswith("```"):
-            response = response[3:]
-        if response.endswith("```"):
-            response = response[:-3]
-        response = response.strip()
+        from app.intelligence._helpers import parse_json
 
-        data = None
         try:
-            data = json.loads(response)
-        except json.JSONDecodeError:
-            start = response.find('{')
-            end = response.rfind('}')
-            if start != -1 and end != -1 and end > start:
-                try:
-                    data = json.loads(response[start:end + 1])
-                except json.JSONDecodeError:
-                    pass
+            data = parse_json(response)
+        except ValueError:
+            data = None
 
-        if not data:
-            logger.warning(f"Synthesis LLM returned invalid JSON, using fallback: {response[:200]}")
-            return _fallback_synthesis(state, avg_score, skills_tested, skills_weak, growth_trend)
-
-        logger.info(f"Synthesis complete: holistic_score={data.get('holistic_score')}, "
-                     f"fit={data.get('fit_assessment')}")
-
-        return {
-            **state,
-            'final_report': {
-                'holistic_score': data.get('holistic_score', avg_score),
-                'average_score': round(avg_score, 1),
-                'growth_trend': growth_trend,
-                'narrative': data.get('narrative', ''),
-                'key_strengths': data.get('key_strengths', list(skills_tested)[:3]),
-                'key_weaknesses': data.get('key_weaknesses', list(skills_weak)[:3]),
-                'fit_assessment': data.get('fit_assessment', 'Potential Fit'),
-                'interview_notes': data.get('interview_notes', ''),
-                'skills_tested': skills_tested,
-                'skills_weak': skills_weak,
-                'coverage_map': coverage_map,
-                'max_difficulty_reached': max_difficulty,
-                'score_timeline': score_timeline,
-            },
-            'rag_metadata': {
-                **rag_metadata,
-                'synthesis': {
-                    'performed': True,
-                    'holistic_score': data.get('holistic_score'),
-                    'fit_assessment': data.get('fit_assessment'),
-                }
+        if data:
+            # Only narrative fields are accepted. ``holistic_score`` is
+            # deliberately ignored — the canonical composite anchors the
+            # report, never the LLM.
+            llm = {
+                key: data.get(key)
+                for key in (
+                    "narrative",
+                    "fit_assessment",
+                    "key_strengths",
+                    "key_weaknesses",
+                    "interview_notes",
+                )
+                if data.get(key) not in (None, "")
             }
-        }
+    except Exception as e:  # noqa: BLE001 - fallback is fully deterministic
+        logger.warning(f"Synthesis LLM failed ({e}); using deterministic report")
 
-    except Exception as e:
-        logger.error(f"Synthesis failed: {e}")
-        return _fallback_synthesis(state, avg_score, skills_tested, skills_weak, growth_trend)
+    report = build_final_report(state, canonical, llm or None)
+    logger.info(
+        f"Synthesis complete: holistic_score={report['holistic_score']}, "
+        f"fit={report['fit_assessment']}"
+    )
 
-
-def _fallback_synthesis(
-    state: InterviewState,
-    avg_score: float,
-    skills_tested: List[str],
-    skills_weak: List[str],
-    growth_trend: str,
-) -> InterviewState:
-    """Fallback synthesis when LLM fails."""
     return {
         **state,
-        'final_report': {
-            'holistic_score': round(avg_score, 1),
-            'average_score': round(avg_score, 1),
-            'growth_trend': growth_trend,
-            'narrative': f"Candidate completed the interview with an average score of {avg_score:.1f}/10.",
-            'key_strengths': skills_tested[:3] if skills_tested else [],
-            'key_weaknesses': skills_weak[:3] if skills_weak else [],
-            'fit_assessment': 'Potential Fit',
-            'interview_notes': '',
-            'skills_tested': skills_tested,
-            'skills_weak': skills_weak,
-            'coverage_map': state.get('coverage_map', {}),
-            'max_difficulty_reached': state.get('difficulty_level', 1),
-            'score_timeline': [],
-        }
+        "final_report": report,
     }

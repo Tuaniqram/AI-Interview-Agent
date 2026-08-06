@@ -30,10 +30,11 @@ class EvidenceRepository(BaseRepository):
         hypothesis_id: Optional[str] = None,
         hypothesis_relevance: Optional[float] = None,
         evidence_metadata: Optional[dict] = None,
+        evidence_id: Optional[str] = None,
     ) -> dict:
-        from uuid import uuid4
+        from uuid import UUID as _UUID, uuid4
         data = {
-            "id": uuid4(),
+            "id": _UUID(evidence_id) if evidence_id else uuid4(),
             "session_id": UUID(session_id),
             "competency": competency,
             "dimension": dimension,

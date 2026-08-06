@@ -15,6 +15,61 @@ from app.engine.persistence import persist_answer_turn, summarize_hypotheses
 logger = logging.getLogger(__name__)
 
 
+def _refresh_target_reference(brain: InterviewBrain) -> None:
+    """Re-point ``hypothesis_target`` at the live hypothesis object.
+
+    The evaluator replaces hypothesis dicts with updated copies every turn
+    (``hypothesis_engine.update_hypotheses``), so ``brain.hypothesis_target``
+    can still reference the pre-evaluation dict with stale status/confidence.
+    The director decides PROBE vs CONTINUE from that state — refresh it first
+    so follow-ups on established beliefs correctly flip to ``deep_probe``.
+    """
+    target = brain.hypothesis_target or {}
+    target_id = target.get("id")
+    if not target_id:
+        return
+    for h in brain.hypotheses or []:
+        if h.get("id") == target_id:
+            brain.hypothesis_target = h
+            return
+
+
+def _project_target_evidence(state: dict) -> dict:
+    """Project pending evidence onto the hypothesis target (pure, non-committing).
+
+    ``hypothesis_node`` is the only place evidence updates hypothesis
+    status/confidence, and it runs *after* the director — so at decision time
+    the target still shows pre-evidence status and every follow-up looks
+    untested, falling through to CONTINUE/explore_new_competency instead of
+    PROBE/deep_probe. This applies the pending ``extracted_evidence`` to a copy
+    of the target so the director decides on the state the hypothesis is about
+    to be in. Nothing is committed: ``hypothesis_node`` still performs the
+    single real update, so evidence is never double-counted.
+    """
+    evidence = state.get("extracted_evidence") or []
+    target = state.get("hypothesis_target") or {}
+    if not evidence or not target.get("id"):
+        return state
+
+    from app.agents.reasoning.hypothesis_engine import update_hypotheses
+
+    records = [
+        {
+            "id": ev.get("id", ""),
+            "competency": ev.get("competency", ""),
+            "dimension": ev.get("dimension", ""),
+            "score": ev.get("score", 0.0),
+            "confidence": ev.get("confidence", 0.5),
+            "evidence_text": ev.get("evidence_text", ""),
+        }
+        for ev in evidence
+    ]
+    projected = update_hypotheses([dict(target)], records)
+    if projected:
+        state = {**state, "hypothesis_target": projected[0]}
+    return state
+
+
 async def reflect_and_select(
     engine,
     brain: InterviewBrain,
@@ -39,9 +94,13 @@ async def reflect_and_select(
     })
     brain = sync_brain(brain, s)
 
+    # Re-point the target at the post-evaluation hypothesis before the director
+    # reads it, so fresh status/confidence drive PROBE vs CONTINUE correctly.
+    _refresh_target_reference(brain)
+
     from app.agents.decision.director import director_controller
 
-    director = director_controller(brain_to_dict(brain))
+    director = director_controller(_project_target_evidence(brain_to_dict(brain)))
     brain.director = director
     await events.append(session_id, "director_decided", {
         "question_number": question_number,
@@ -84,6 +143,45 @@ async def reflect_and_select(
 
     target = brain.hypothesis_target or {}
     _track_target(brain, target.get("id", ""))
+
+    # Refresh the competency plan every turn (cheap, pure): the planner node
+    # only re-runs on CHANGE_COMPETENCY, so between turns the plan would show
+    # session-start gaps/coverage and disagree with the fresh competency_summary.
+    from app.agents.planning.competency_planner import plan_competencies
+
+    brain.competency_plan = plan_competencies(brain_to_dict(brain))
+
+    # Diagnostic per-question log (STEP 12) — compact but comprehensive.
+    try:
+        planner_top = (brain.competency_plan or [])[0] if brain.competency_plan else None
+        competency_summary = brain.competency_summary or {}
+        evidence_gap = ""
+        if target and target.get("competency"):
+            comp = target.get("competency")
+            evidence_gap = competency_summary.get(comp, {}).get("gap", "")
+        # The brain carries ``planned_competency``/``next_competency`` as
+        # Optional[dict]; older brain shapes only stored the id. Resolve both
+        # forms defensively so the diagnostic log never crashes a turn.
+        planned = getattr(brain, "planned_competency", None) or ""
+        planned_id = planned.get("id") if isinstance(planned, dict) else planned
+        next_c = getattr(brain, "next_competency", None) or ""
+        next_id = next_c.get("id") if isinstance(next_c, dict) else next_c
+        diag = (
+            f"QUESTION {question_number}\n"
+            f"Current hypothesis: id={target.get('id','')} status={target.get('status','')} confidence={target.get('confidence','')}\n"
+            f"Current competency: planned={planned_id} next={next_id} target={target.get('competency','')}\n"
+            f"Reason selected: {target.get('selection_reason','')} info_gain={target.get('information_gain',0.0)}\n"
+            f"Evidence gap: {evidence_gap} Coverage:{competency_summary.get(target.get('competency',''),{}).get('coverage','')}\n"
+            f"Difficulty: {getattr(brain,'difficulty_level',None)}\n"
+            f"Termination: reflection_action={getattr(brain,'reflection_action',None)} "
+            f"director_action={(getattr(brain,'director',None) or {}).get('action',None)} "
+            f"planner_top={planner_top.get('id') if isinstance(planner_top, dict) else planner_top}\n"
+            f"Questions asked (last5): {[q.get('text') or q.get('content') for q in (brain.questions_asked or [])[-5:]]}\n"
+        )
+        logger.info(diag)
+    except Exception as _:
+        logger.exception("Failed to emit diagnostic question log")
+
     await events.append(session_id, "question_selected", {
         "question_number": question_number,
         "target_hypothesis_id": target.get("id", ""),
@@ -151,16 +249,42 @@ async def emit_question_and_persist(
     from app.engine.builders import build_answer_response
     from app.agents.generation.question_generator import question_generator_node
 
+    # Persist the just-answered turn BEFORE generating the next question —
+    # ``question_generator_node`` bumps ``question_number`` and
+    # ``extract_answer_turn`` stamps the turn with the brain's number, so
+    # persisting after generation mislabeled every row one question late
+    # (Q1's turn persisted as Q2, final answer never flushed).
+    await persist_answer_turn(session_id, brain)
+
     s = brain_to_dict(brain)
     s = await question_generator_node(s)
     brain = sync_brain(brain, s)
+
+    # Diagnostic log for emitted question (post-generation)
+    try:
+        qobj = getattr(brain, 'question_objective', {}) or {}
+        comp_summary = brain.competency_summary or {}
+        logger.info(
+            {
+                'question_number': brain.question_number,
+                'current_question': getattr(brain, 'current_question', ''),
+                'question_objective': qobj,
+                'target_hypothesis_id': qobj.get('target_hypothesis_id'),
+                'target_competency': qobj.get('target_competency'),
+                'difficulty_level': getattr(brain, 'difficulty_level', None),
+                'competency_coverage': comp_summary.get(qobj.get('target_competency',''), {}).get('coverage'),
+                'planner_top': (brain.competency_plan or [None])[0] if brain.competency_plan else None,
+            }
+        )
+    except Exception:
+        logger.exception('Failed to log emitted question diagnostic')
+
     await events.append(session_id, "question_asked", {
         "question_number": brain.question_number,
         "phase": brain.current_phase,
         "difficulty_level": brain.difficulty_level,
     })
 
-    await persist_answer_turn(session_id, brain)
     store.set(session_id, brain.to_dict())
     store.checkpoint(session_id, brain.to_dict())
     brain.bump_version()

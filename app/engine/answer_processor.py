@@ -63,6 +63,23 @@ async def process_answer(engine, session_id: str, answer: str) -> dict:
     s = await evidence_extractor_node(s)
     s = explainable_scoring_node(s)
     await persist_evidence(session_id, s)
+
+    # Diagnostic log after evaluation & evidence extraction
+    try:
+        from app.engine.persistence import summarize_hypotheses as _summ
+        extracted = s.get('extracted_evidence', []) or []
+        comp_summary = s.get('competency_summary', {}) or {}
+        logger.info({
+            'question_number': question_number,
+            'extracted_evidence_count': len(extracted),
+            'extracted_evidence': [ { 'competency': ev.get('competency'), 'dimension': ev.get('dimension'), 'score': ev.get('score') } for ev in extracted ],
+            'evidence_store_count': len(s.get('evidence_store', []) or []),
+            'competency_summary_snapshot': comp_summary,
+            'hypotheses_before_after': _summ(s.get('hypotheses', [])),
+        })
+    except Exception:
+        logger.exception('Failed to emit evaluation diagnostic')
+
     await events.append(session_id, "evaluation_done", {
         "question_number": question_number,
         "unified_evaluation": s.get("unified_evaluation", {}),

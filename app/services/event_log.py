@@ -23,10 +23,29 @@ Usage (fire-and-forget from the answer pipeline):
 
 import json
 import logging
+from uuid import UUID
+
+from sqlalchemy import text
 
 from app.database.session import get_session_factory
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_session_id(session_id) -> str | None:
+    """Coerce any session id into a canonical 36-char UUID string.
+
+    The ``session_id`` column is ``uuid`` and asyncpg refuses non-UUID
+    strings at the driver level — a silently swallowed error that would
+    drop the whole event stream. Returns ``None`` for anything unusable so
+    callers can skip without raising.
+    """
+    if session_id is None:
+        return None
+    try:
+        return str(UUID(str(session_id)))
+    except (ValueError, TypeError, AttributeError):
+        return None
 
 
 class EventLog:
@@ -44,10 +63,16 @@ class EventLog:
         """
         if self._factory is None:
             return
+        sid = _normalize_session_id(session_id)
+        if sid is None:
+            logger.warning(
+                f"event_log.append skipped (invalid session_id {session_id!r}): {event_type}"
+            )
+            return
         try:
-            seq = await self._next_seq(session_id)
+            seq = await self._next_seq(sid)
             record = {
-                "session_id": session_id,
+                "session_id": sid,
                 "seq": seq,
                 "event_type": event_type,
                 "payload": json.dumps(payload, default=_fallback_serialize),
@@ -77,10 +102,13 @@ class EventLog:
         """Fetch recent events for a session (for debugging/replay)."""
         if self._factory is None:
             return []
+        sid = _normalize_session_id(session_id)
+        if sid is None:
+            return []
         async with self._factory() as session:
             result = await session.execute(
                 _SELECT_EVENTS_SQL,
-                {"session_id": session_id, "limit": limit},
+                {"session_id": sid, "limit": limit},
             )
             rows = result.fetchall()
         out = []
@@ -110,16 +138,16 @@ def _fallback_serialize(obj):
 # SQL (kept as constants so dialect stays explicit and reviewable)           #
 # --------------------------------------------------------------------------- #
 
-_INSERT_EVENT_SQL = (
+_INSERT_EVENT_SQL = text(
     "INSERT INTO interview_events (session_id, seq, event_type, payload) "
     "VALUES (:session_id, :seq, :event_type, CAST(:payload AS jsonb))"
 )
 
-_MAX_SEQ_SQL = (
+_MAX_SEQ_SQL = text(
     "SELECT MAX(seq) FROM interview_events WHERE session_id = :session_id"
 )
 
-_SELECT_EVENTS_SQL = (
+_SELECT_EVENTS_SQL = text(
     "SELECT seq, event_type, payload, created_at "
     "FROM interview_events WHERE session_id = :session_id "
     "ORDER BY seq ASC LIMIT :limit"

@@ -250,7 +250,9 @@ async def start_public_interview(
         scorecard_template_id=str(sc_template_id) if sc_template_id else None,
         department_id=pi.department_id,
     )
-    competency_taxonomy, required_competencies, domain_label = taxonomy_for_state(taxonomy)
+    competency_taxonomy, required_competencies, domain_label = taxonomy_for_state(
+        taxonomy, priority_map=style.get("base_competency_priority")
+    )
     store = get_v4_session_store()
     state = {
         "session_id": str(session.id),

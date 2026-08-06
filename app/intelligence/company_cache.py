@@ -5,6 +5,8 @@ recomputed every time a session starts.
 The cache returns deep copies so a session can never mutate a shared entry.
 Entries expire after ``TTL_SECONDS``; ``invalidate_company_brain`` clears a
 specific key (or the whole cache) when department documents are refreshed.
+Builds whose RAG retrieval returned nothing are never cached, so a session
+re-tries retrieval instead of serving a stale fallback for the TTL window.
 """
 import copy
 import logging
@@ -52,8 +54,21 @@ async def get_or_build_company_brain(
         use_llm=use_llm,
     )
 
-    with _lock:
-        _cache[key] = (now, brain)
+    # Only cache a successful build. A failed/empty RAG retrieval (e.g. docs
+    # not yet indexed, or a slow embedding warm-up) must not be served to the
+    # next session for up to 24h — sessions should re-try the retrieval until
+    # it actually works.
+    rag = brain.get("rag_metadata") or {}
+    if rag.get("success", False) or rag.get("documents_retrieved", 0) > 0:
+        with _lock:
+            _cache[key] = (now, brain)
+    else:
+        logger.warning(
+            "Company brain not cached for %s: retrieval returned no documents "
+            "(reason=%s) — the next session will retry.",
+            key,
+            rag.get("reason", "unknown"),
+        )
     return copy.deepcopy(brain)
 
 

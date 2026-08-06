@@ -14,7 +14,23 @@ from app.data.competency_resolver import derive_required_competencies
 
 logger = logging.getLogger(__name__)
 
-COVERAGE_THRESHOLD = 0.7
+# HACK: High-priority competency IDs based on taxonomy order and general importance
+# This overlays priority logic for the coverage finish check
+_HIGH_PRIORITY_IDS = {
+    # Technical (highest immediate impact)
+    "tech_core", "tech_system_design", "tech_data", "behav_teamwork",
+    # Behavioral
+    "behav_communication",
+}
+_HIGH_MIDS = {
+    "tech_framework", "tech_db", "behav_leadership", "behav_conflict",
+    "cog_problem_solving", "cog_analytical",
+}
+
+# Fix: Reduce coverage threshold from 0.7 to 0.5 to allow early-stage interviews
+# to progress with partial competency coverage (was too restrictive at 70%)
+COVERAGE_THRESHOLD = 0.5
+# Keep minimum at 2 to avoid very shallow probing
 MIN_QUESTIONS_PER_COMPETENCY = 2
 # Fix 11: the interview can never finish before this many answered questions —
 # a hiring decision needs a minimum evidence base regardless of saturation or
@@ -145,6 +161,81 @@ def detect_contradictions(
     return contradictions, consistency_checks
 
 
+def compute_canonical_score(
+    competency_average_score: float,
+    hypothesis_confidence: float,
+    coverage_ratio: float,
+) -> float:
+    """The single canonical 0..10 composite every downstream component must use.
+
+    Blends the evidence-weighted competency average (0.5), hypothesis
+    resolution confidence scaled to 0..10 (0.3) and coverage scaled to 0..10
+    (0.2). This is THE canonical score: the recommendation's ``composite_score``,
+    the persisted session ``final_score``, the synthesis ``holistic_score`` and
+    the hiring-decision anchor all read from this one formula so the report can
+    never show competing truths.
+    """
+    return round(
+        float(competency_average_score) * 0.5
+        + (float(hypothesis_confidence) * 10.0) * 0.3
+        + (float(coverage_ratio) * 10.0) * 0.2,
+        2,
+    )
+
+
+def canonical_score_from_state(state: dict) -> float | None:
+    """The canonical composite for a session, sourced from the live state.
+
+    Returns the engine's ``hiring_recommendation.composite_score`` when present;
+    otherwise recomputes it from the competency summary, hypotheses and
+    coverage (so reporting stages that run before a recommendation still anchor
+    on the same formula).
+    """
+    rec = state.get("hiring_recommendation") or {}
+    score = rec.get("composite_score")
+    if score is not None:
+        return round(float(score), 2)
+
+    summary = state.get("competency_summary") or {}
+    hypotheses = state.get("hypotheses") or []
+    weights = competency_weights(state)
+    required = state.get("required_competencies") or list(weights.keys())
+    total_weight = 0.0
+    weighted_sum = 0.0
+    for comp in required:
+        weight = weights.get(comp, 1.0)
+        total_weight += weight
+        weighted_sum += (
+            float(summary.get(comp, {}).get("average_score", 0.0) or 0.0) * weight
+        )
+    competency_average = weighted_sum / total_weight if total_weight > 0 else 0.0
+
+    confirmed = sum(1 for h in hypotheses if h.get("status") == "confirmed")
+    refuted = sum(1 for h in hypotheses if h.get("status") == "refuted")
+    if confirmed + refuted > 0:
+        hypothesis_confidence = confirmed / (confirmed + refuted)
+    else:
+        hypothesis_confidence = average_evidence_confidence(summary) or 0.5
+
+    coverage = rec.get("coverage_ratio")
+    if coverage is None:
+        covered = sum(
+            1
+            for comp in required
+            if int(summary.get(comp, {}).get("evidence_count", 0) or 0)
+            >= MIN_QUESTIONS_PER_COMPETENCY
+            and float(
+                summary.get(comp, {}).get("gap")
+                if summary.get(comp, {}).get("gap") is not None
+                else 1.0
+            )
+            <= SUFFICIENCY_GAP_THRESHOLD
+        )
+        coverage = covered / len(required) if required else 0.0
+
+    return compute_canonical_score(competency_average, hypothesis_confidence, coverage)
+
+
 def evaluate_sufficiency(
     competency_summary: dict,
     required_competencies: list[str],
@@ -195,6 +286,21 @@ def evaluate_sufficiency(
         }
 
     coverage_ratio = covered_weight / total_weight if total_weight > 0 else 0.0
+
+    # Fix for coverage: Allow finishing if enough high-priority competencies are covered
+    # even if total coverage_ratio is lower, as high-priority competencies are most critical
+    # Use predefined high-priority IDs as proxy for priority checking
+    def is_high_priority(comp_id: str) -> bool:
+        return comp_id in _HIGH_PRIORITY_IDS or comp_id in _HIGH_MIDS
+
+    high_priority_covered = sum(
+        1 for cid, d in comp_details.items() if d.get("covered") and is_high_priority(cid)
+    )
+    if filtered_required:
+        high_priority_count = sum(1 for cid in filtered_required if is_high_priority(cid))
+        high_priority_ratio = high_priority_covered / high_priority_count if high_priority_count > 0 else 0
+    else:
+        high_priority_ratio = coverage_ratio
 
     serious_contradictions = [
         c for c in contradictions if c.get("severity") in ("high", "medium")
@@ -264,14 +370,13 @@ def evaluate_sufficiency(
 
     # coverage_ratio already computed (0..1)
 
-    # Final scoring: scale hypothesis_confidence and coverage to 0..10 before weighting
-    # so final_score is on 0..10 range. Interpreting the requested formula to
-    # keep a 0..10 composite.
-    final_score = round(
-        competency_average_score * 0.5
-        + (hypothesis_confidence * 10.0) * 0.3
-        + (coverage_ratio * 10.0) * 0.2,
-        2,
+    # Final scoring: the canonical composite (single source of truth — see
+    # ``compute_canonical_score``). Scales hypothesis confidence and coverage
+    # to 0..10 before weighting so the result is on the 0..10 range.
+    final_score = compute_canonical_score(
+        competency_average_score=competency_average_score,
+        hypothesis_confidence=hypothesis_confidence,
+        coverage_ratio=coverage_ratio,
     )
 
     # Verdict mapping based on final_score thresholds
@@ -395,9 +500,14 @@ def decide_next_action(
         if h.get("status") in ("untested", "testing")
     ]
     if hypotheses and not open_hypotheses:
-        # All hypotheses settled. If we've answered enough questions, finish;
-        # otherwise rotate to allow probing any uncovered competencies before final.
-        if question_number >= MIN_QUESTIONS_BEFORE_FINISH:
+        # All hypotheses settled. Finish only when the required competencies
+        # are actually covered — otherwise rotate to probe the uncovered ones
+        # (each rotation seeds a fresh hypothesis for the next competency).
+        coverage_ratio = evidence_sufficiency.get("coverage_ratio", 0.0)
+        if (
+            question_number >= MIN_QUESTIONS_BEFORE_FINISH
+            and coverage_ratio >= COVERAGE_THRESHOLD
+        ):
             return "finish"
         return "change_competency"
 
@@ -442,10 +552,27 @@ def decide_next_action(
     # Top difficulty + decent coverage + at least 5 questions = pushed far
     # enough to decide without burning the remaining budget.
     coverage_ratio = evidence_sufficiency.get("coverage_ratio", 0.0)
+
+    # Fix for coverage: Allow finishing with partial coverage if:
+    # 1. High priority coverage is good (60% of HIGH/MEDIUM competencies)
+    # 2. OR high difficulty reached with 50% total coverage
+    details = evidence_sufficiency.get("details") or {}
+    high_priority_items = [
+        d for c, d in details.items()
+        if c in _HIGH_PRIORITY_IDS or c in _HIGH_MIDS
+    ]
+    high_priority_ratio = (
+        (sum(1 for d in high_priority_items if d.get("covered")) / len(high_priority_items))
+        if high_priority_items
+        else 0.0
+    )
+    high_priority_coverage_ok = high_priority_ratio >= 0.6  # 60% of high-priority covered
+    partial_coverage_ok = coverage_ratio >= 0.5 and question_number >= 5
+
     if (
         difficulty_reached
         and difficulty_reached >= HIGH_DIFFICULTY_FINISH
-        and coverage_ratio >= COVERAGE_THRESHOLD
+        and (high_priority_coverage_ok or partial_coverage_ok)
         and question_number >= 5
     ):
         return "finish"

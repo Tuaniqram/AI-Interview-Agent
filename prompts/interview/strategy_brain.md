@@ -28,9 +28,8 @@ Design a strategy that:
 3. Sets a strategic intent — what to focus on and what to watch for
 4. Orders phases logically for this candidate
 
-Return JSON only:
+Return ONLY a single valid JSON object matching the schema below. No markdown code fences, no prose, no commentary — nothing before or after the JSON object.
 
-```json
 {
     "phase_order": ["intro", "experience", "technical", "behavioral", "conclusion"],
     "competency_priority": {
@@ -44,6 +43,5 @@ Return JSON only:
     "strategic_intent": "Focus on system design depth and leadership capability. Watch for over-engineering.",
     "early_termination_threshold": 0.8
 }
-```
 
 Use the default persona unless the candidate profile suggests a different approach. If the candidate has identified weaknesses in the profile, prioritize those competencies.

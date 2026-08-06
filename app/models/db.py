@@ -846,6 +846,7 @@ class Hypothesis(Base):
         nullable=False,
     )
     statement: Mapped[str] = mapped_column(Text, nullable=False)
+    competency: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     direction: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[float] = mapped_column(nullable=False, default=0.0)
     supporting_evidence: Mapped[Optional[list]] = mapped_column(
@@ -922,6 +923,14 @@ class ConsistencyCheck(Base):
     answers_compared: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     consistency_score: Mapped[float] = mapped_column(nullable=False)
     contradictions: Mapped[Optional[dict]] = mapped_column(JSONB, default=list, nullable=True)
+    check_type: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    assessment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    score: Mapped[Optional[float]] = mapped_column(nullable=True)
+    confidence: Mapped[Optional[float]] = mapped_column(nullable=True)
+    evidence: Mapped[Optional[dict]] = mapped_column(JSONB, default=list, nullable=True)
+    checked_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -1072,6 +1081,7 @@ class CompanyBrain(Base):
     red_flags: Mapped[Optional[dict]] = mapped_column(JSONB, default=list, nullable=True)
     source_documents: Mapped[Optional[dict]] = mapped_column(JSONB, default=list, nullable=True)
     source_version: Mapped[str] = mapped_column(Text, nullable=False, server_default="1")
+    snapshot: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict, nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -1103,6 +1113,7 @@ class Scorecard(Base):
     role: Mapped[str] = mapped_column(Text, nullable=False)
     competencies: Mapped[dict] = mapped_column(JSONB, nullable=False, default=list)
     required_level: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    snapshot: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict, nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -1136,6 +1147,7 @@ class InterviewBlueprint(Base):
     phases: Mapped[dict] = mapped_column(JSONB, nullable=False, default=list)
     hypothesis_template: Mapped[dict] = mapped_column(JSONB, nullable=False, default=list)
     evidence_requirements: Mapped[dict] = mapped_column(JSONB, nullable=False, default=list)
+    snapshot: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict, nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -1173,6 +1185,7 @@ class CandidateBrain(Base):
     inferred_seniority: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     persona: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict, nullable=True)
     source_version: Mapped[str] = mapped_column(Text, nullable=False, server_default="1")
+    snapshot: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict, nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -1233,6 +1246,7 @@ class CandidateEvidenceRequirement(Base):
     dimension: Mapped[str] = mapped_column(Text, nullable=False)
     required_probes: Mapped[Optional[dict]] = mapped_column(JSONB, default=list, nullable=True)
     evidence_level: Mapped[str] = mapped_column(Text, nullable=False, server_default="behavioral")
+    snapshot: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict, nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

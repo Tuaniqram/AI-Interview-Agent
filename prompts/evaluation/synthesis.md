@@ -18,17 +18,19 @@ You are an expert hiring manager creating a final assessment for a {{job_role}} 
 ## Skill Coverage Map
 {{coverage_map}}
 
+## Canonical Composite Score (ALREADY COMPUTED): {{canonical_score}}/10
+
 ## Instructions
-Generate a holistic interview assessment that goes beyond the numbers.
+The candidate's single canonical score has ALREADY been computed deterministically
+from the collected evidence — it is {{canonical_score}}. You must NOT recompute,
+adjust, or challenge it. Your job is strictly to narrate the evidence.
 
 ### Assessment Structure:
-1. **Holistic Score**: A SINGLE final score (0-10) — NOT an average. Consider:
-   - Consistency across phases
-   - Growth trajectory (did they improve?)
-   - Difficulty reached and performed at
-   - Depth demonstrated (were probes needed? did they handle them well?)
+1. **Holistic Score**: MUST exactly equal {{canonical_score}}. This is
+   non-negotiable — never invent a different number.
 
-2. **Overall Narrative**: 3-5 sentence summary of the candidate's performance
+2. **Overall Narrative**: 3-5 sentence summary of the candidate's performance,
+   grounded ONLY in the score timeline, competency coverage and skills below.
 
 3. **Key Strengths**: 2-4 top strengths (deduplicated and ranked)
 
@@ -40,19 +42,20 @@ Generate a holistic interview assessment that goes beyond the numbers.
    - "Potential Fit" — needs significant development
    - "Not Fit" — significant gaps
 
-6. **Interview Notes**: Observations about interviewing style, communication, areas to probe in follow-up
+6. **Interview Notes**: Comments about interviewing style, communication, areas to probe in follow-up
 
 ### Constraints:
-- Be honest and specific — don't inflate scores
+- CRITICAL: Never invent facts. Do not claim the candidate lacked a skill or
+  struggled in an area unless the scores/skills data explicitly shows it.
 - Base assessment on what was actually demonstrated, not what you'd like to see
-- If candidate improved over the interview, note that positively
-- If candidate was inconsistent, note that as a concern
+- If the candidate improved over the interview, note that positively
+- If the candidate was inconsistent, note that as a concern
 
 ## Output Format
-Respond with ONLY a JSON object:
+Respond with ONLY a single valid JSON object matching the schema below. No markdown code fences, no prose, no commentary — nothing before or after the JSON object.
 
 {
-  "holistic_score": 7.5,
+  "holistic_score": {{canonical_score}},
   "narrative": "Comprehensive assessment paragraph...",
   "key_strengths": ["Strength 1", "Strength 2"],
   "key_weaknesses": ["Weakness 1", "Weakness 2"],

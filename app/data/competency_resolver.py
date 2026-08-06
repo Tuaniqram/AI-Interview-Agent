@@ -108,9 +108,45 @@ def derive_domain_label(taxonomy: list[dict]) -> str:
     return "Domain Knowledge"
 
 
-def taxonomy_for_state(taxonomy: list[dict]) -> tuple[list[dict], list[str], str]:
-    """Build the state slice needed by the interview engine."""
-    required = [c["id"] for c in taxonomy]
+# Fix 6: an interview targets at most this many competencies. The full
+# taxonomy (15+ ids) spread the question budget so thin that coverage stayed
+# near 0% and the interview never reached sufficiency.
+MAX_REQUIRED_COMPETENCIES = 6
+
+
+def derive_required_competencies(
+    taxonomy: list[dict],
+    priority_map: dict | None = None,
+    max_competencies: int = MAX_REQUIRED_COMPETENCIES,
+) -> list[str]:
+    """Required competencies = HIGH/MEDIUM priority subset, capped.
+
+    HIGH-priority competencies come first (taxonomy order preserved), then
+    MEDIUM, up to ``max_competencies``. When no priorities are declared the
+    first ``max_competencies`` taxonomy entries are used, so priority-less
+    sessions still get a focused interview rather than an empty one.
+    """
+    priority_map = priority_map or {}
+    high = [c["id"] for c in taxonomy if priority_map.get(c["id"]) == "HIGH"]
+    medium = [c["id"] for c in taxonomy if priority_map.get(c["id"]) == "MEDIUM"]
+    selected = (high + medium)[:max_competencies]
+    if selected:
+        return selected
+    return [c["id"] for c in taxonomy][:max_competencies]
+
+
+def taxonomy_for_state(
+    taxonomy: list[dict],
+    priority_map: dict | None = None,
+    max_competencies: int = MAX_REQUIRED_COMPETENCIES,
+) -> tuple[list[dict], list[str], str]:
+    """Build the state slice needed by the interview engine.
+
+    ``required`` is the HIGH/MEDIUM priority subset (capped at
+    ``MAX_REQUIRED_COMPETENCIES``) so coverage and sufficiency targets a
+    focused, achievable set instead of the whole taxonomy.
+    """
+    required = derive_required_competencies(taxonomy, priority_map, max_competencies)
     label = derive_domain_label(taxonomy)
     return taxonomy, required, label
 

@@ -372,6 +372,16 @@ async def upload_resume(
         existing_skills.update(s.lower() for s in skills_list)
         candidate.skills = ", ".join(sorted(existing_skills))
 
+    from app.models.db import CandidateDocument
+
+    db.add(CandidateDocument(
+        candidate_id=candidate.id,
+        filename=file.filename or f"resume{ext}",
+        document_type="resume",
+        extracted_text=(text or "")[:20000],
+        document_metadata={"ext": ext.lstrip("."), "parsed_keys": list(parsed.keys())},
+    ))
+
     candidate.resume_url = filepath
     candidate.profile_data = profile_data
     await db.commit()

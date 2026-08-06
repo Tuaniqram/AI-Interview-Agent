@@ -17,14 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.deps import get_db
 from app.intelligence import build_interview_intelligence
-from app.models.db import (
-    CompanyBrain,
-    EvidenceGraph,
-    InterviewBlueprint,
-    InterviewBrain,
-    InterviewTimeline,
-    Scorecard,
-)
+from app.intelligence.persist import persist_intelligence_bundle
+from app.models.db import CandidateProfile, EvidenceGraph, InterviewBrain, InterviewTimeline
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +49,22 @@ async def build_intelligence(
     (company_brains, interview_blueprints, scorecards, candidate_brains,
     candidate_evidence_requirements).
     """
+    candidate_profile = req.candidate_profile
+    resume_text = req.resume_text
+
+    if req.candidate_id and candidate_profile is None and not resume_text:
+        loaded_profile, loaded_text = await _load_candidate_from_db(
+            db, req.candidate_id
+        )
+        candidate_profile = loaded_profile
+        resume_text = resume_text or loaded_text
+
     bundle = await build_interview_intelligence(
         job_role=req.job_role,
         department_id=req.department_id,
         candidate_id=req.candidate_id,
-        candidate_profile=req.candidate_profile,
-        resume_text=req.resume_text,
+        candidate_profile=candidate_profile,
+        resume_text=resume_text,
         required_competencies=req.required_competencies,
         scorecard_competencies=req.scorecard_competencies,
         use_rag=req.use_rag,
@@ -70,7 +74,9 @@ async def build_intelligence(
     session_id = UUID(req.session_id) if req.session_id else None
     persisted = None
     if session_id:
-        persisted = await _persist_bundle(db, session_id, req.department_id, req.job_role, bundle)
+        persisted = await persist_intelligence_bundle(
+            session_id, req.department_id, req.job_role, bundle, db=db
+        )
 
     return {
         "intelligence": bundle,
@@ -79,88 +85,40 @@ async def build_intelligence(
     }
 
 
-async def _persist_bundle(
-    db: AsyncSession,
-    session_id: UUID,
-    department_id: int | None,
-    job_role: str,
-    bundle: dict,
-) -> dict:
-    """Best-effort persist of the bundle into the V5 tables."""
-    saved = {"company_brain": False, "scorecard": False, "blueprint": False,
-             "candidate_brain": False, "evidence_requirements": False}
+async def _load_candidate_from_db(
+    db: AsyncSession, candidate_id: str
+) -> tuple[dict | None, str | None]:
+    """Resolve the candidate profile + resume-ish text from the DB.
+
+    Used when a build request only carries ``candidate_id`` so the candidate
+    brain is not seeded from an empty profile.
+    """
     try:
-        cb = bundle.get("company_brain") or {}
-        db.add(CompanyBrain(
-            session_id=session_id,
-            department_id=department_id,
-            company_name=cb.get("company_name") or job_role or "Unknown Company",
-            industry=cb.get("industry"),
-            company_vision=cb.get("company_vision") or cb.get("mission"),
-            values=cb.get("values") or [],
-            technical_stack=cb.get("technical_stack") or cb.get("tech_stack") or [],
-            culture=cb.get("culture") or [],
-            success_signals=cb.get("success_signals") or [],
-            red_flags=cb.get("red_flags") or [],
-            source_documents=cb.get("source_documents") or [],
-        ))
-        saved["company_brain"] = True
+        result = await db.execute(
+            select(CandidateProfile).where(
+                CandidateProfile.id == UUID(candidate_id)
+            )
+        )
+    except ValueError:
+        return None, None
+    profile = result.scalar_one_or_none()
+    if profile is None:
+        return None, None
 
-        blueprint = bundle.get("interview_blueprint") or {}
-        db.add(InterviewBlueprint(
-            session_id=session_id,
-            department_id=department_id,
-            role=job_role,
-            objectives=blueprint.get("objectives") or [],
-            phases=blueprint.get("phases") or [],
-            hypothesis_template=blueprint.get("hypothesis_template") or [],
-            evidence_requirements=blueprint.get("evidence_requirements") or [],
-        ))
-        saved["blueprint"] = True
+    data = dict(profile.profile_data or {})
+    data.setdefault("full_name", profile.name)
+    data.setdefault("headline", "")
+    data.setdefault("strengths", [])
+    data.setdefault("weaknesses", [])
 
-        if blueprint.get("scorecard_competencies"):
-            db.add(Scorecard(
-                session_id=session_id,
-                department_id=department_id,
-                role=job_role,
-                competencies=blueprint["scorecard_competencies"],
-                required_level=blueprint.get("required_level"),
-            ))
-            saved["scorecard"] = True
-
-        cand = bundle.get("candidate_brain") or {}
-        from app.models.db import CandidateBrain
-        db.add(CandidateBrain(
-            session_id=session_id,
-            candidate_id=UUID(bundle.get("candidate_id") or "") if bundle.get("candidate_id") else None,
-            full_name=(cand.get("full_name") or cand.get("name") or "Unknown Candidate"),
-            resume_summary=cand.get("resume_summary"),
-            skills=cand.get("skills") or [],
-            strengths=cand.get("strengths") or [],
-            weaknesses=cand.get("weaknesses") or [],
-            work_history=cand.get("work_history") or [],
-            inferred_seniority=cand.get("inferred_seniority"),
-            persona=cand.get("persona") or {},
-        ))
-        saved["candidate_brain"] = True
-
-        requirements = bundle.get("evidence_requirements") or []
-        from app.models.db import CandidateEvidenceRequirement
-        for req in requirements:
-            db.add(CandidateEvidenceRequirement(
-                session_id=session_id,
-                competency=req.get("competency") or "unknown",
-                dimension=req.get("dimension") or "technical",
-                required_probes=req.get("required_probes") or [],
-                evidence_level=req.get("evidence_level") or "behavioral",
-            ))
-        saved["evidence_requirements"] = bool(requirements)
-
-        await db.commit()
-    except Exception as e:
-        logger.warning(f"V5 intelligence persistence failed (best-effort): {e}")
-        await db.rollback()
-    return saved
+    parts = [profile.name or "", profile.skills or ""]
+    for value in data.values():
+        if isinstance(value, str) and value.strip():
+            parts.append(value)
+        elif isinstance(value, list):
+            parts.append(", ".join(str(v) for v in value if v))
+    resume_text = "\n".join(p for p in parts if p.strip()) or None
+    return data, resume_text
 
 
 @router.get("/brain/{session_id}")
