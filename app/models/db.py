@@ -402,6 +402,9 @@ class InterviewTemplate(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     interview_style: Mapped[Optional[str]] = mapped_column(Text, server_default="STANDARD")
     competencies: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True, default=list)
+    suggested_competencies: Mapped[Optional[dict]] = mapped_column(
+        JSONB, nullable=True
+    )
     total_questions: Mapped[Optional[int]] = mapped_column(Integer, server_default="10")
     scorecard_template_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),

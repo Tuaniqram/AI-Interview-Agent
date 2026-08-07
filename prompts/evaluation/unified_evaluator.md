@@ -9,6 +9,7 @@ You are an expert interview evaluator. Assess the candidate's answer across 6 di
 - **Target Competency**: {{competency}}
 - **Interviewer Persona**: {{persona}}
 - **Knowledge Dimension**: {{domain_label}}
+- **Candidate Memory**: {{candidate_memory}}
 
 ## Question
 
@@ -68,6 +69,13 @@ Also note these behavioral signals from the answer text:
 - **sentiment_shift** ("positive", "neutral", "defensive", "excited", "fatigued")
 - **response_latency_estimate** ("quick", "medium", "hesitant", "very_hesitant")
 - **notable_patterns** (list of observed behavioral patterns)
+
+## Candidate Memory
+
+When Candidate Memory is not "None", it lists previously learned strengths, weaknesses and risk signals. Use it only as prior context:
+- If this answer directly contradicts (or evades) an earlier claimed strength, reduce confidence in that dimension and note it.
+- If this answer confirms growth in a previous weakness, reflect that honestly.
+- Never invent a memory item that is not listed; never let memory override the evidence directly in front of you.
 
 ## Output Format
 

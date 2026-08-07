@@ -18,6 +18,29 @@ from app.engine.persistence import (
 logger = logging.getLogger(__name__)
 
 
+def apply_calibration_verdict(state: dict) -> dict:
+    """Drive the report verdict from the V5 calibration brain.
+
+    The calibration layer never lets a shallow interview (thin evidence, low
+    difficulty reached) be a hire even when the raw composite is high. It
+    overrides the decision chain's draft with the calibrated verdict/score,
+    keeping the draft under ``hiring_decision.draft`` for the report.
+    """
+    aura = state.get("aura_brain") or {}
+    calibration_state = aura.get("calibration_state") or {}
+    calibrated_verdict = calibration_state.get("calibrated_verdict")
+    if not calibrated_verdict:
+        return state
+    decision = dict(state.get("hiring_decision") or {})
+    decision["draft"] = decision.get("decision")
+    decision["decision"] = calibrated_verdict
+    calibrated_score = calibration_state.get("calibrated_score")
+    if calibrated_score is not None:
+        decision["decision_score"] = calibrated_score
+    decision["calibration_source"] = "aura_v5_calibration"
+    return {**state, "hiring_decision": decision}
+
+
 async def finalize_session(engine, brain: InterviewBrain) -> dict:
     store = engine._get_store()
     events = engine._get_events()
@@ -52,6 +75,25 @@ async def finalize_session(engine, brain: InterviewBrain) -> dict:
     from app.agents.decision.decision_review import decision_review_node
     s = await decision_review_node(s)
     brain = sync_brain(brain, s)
+
+    # AURA V5: assemble the full multi-layer brain over the final state so the
+    # report carries calibration + contradiction + decision intelligence.
+    try:
+        from app.brain.assembler import build_aura_from_state
+
+        aura = build_aura_from_state(s)
+        brain.aura_brain = aura
+        s["aura_brain"] = aura
+    except Exception as exc:  # noqa: BLE001 - brain assembly is best-effort
+        logger.warning(f"Final AURA brain assembly failed (non-fatal): {exc}")
+
+    # V5 calibration is the source of truth for the verdict: never let a
+    # shallow interview be a hire regardless of the raw composite.
+    try:
+        s = apply_calibration_verdict(s)
+        brain.hiring_decision = s.get("hiring_decision")
+    except Exception as exc:  # noqa: BLE001 - calibration override is best-effort
+        logger.warning(f"Calibration verdict override failed (non-fatal): {exc}")
 
     await persist_answer_turn(session_id, brain)
     await persist_completion(session_id, brain)

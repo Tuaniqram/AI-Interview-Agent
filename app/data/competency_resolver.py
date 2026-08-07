@@ -4,21 +4,41 @@ Competency resolution layer.
 Determines which competency taxonomy an interview session uses so the engine can
 interview for ANY field, not just software engineering.
 
-Resolution order (first non-empty wins):
+Resolution order (first decisive wins):
     1. Scorecard template  (org-curated competencies, highest priority)
     2. Interview template  (department-level competencies)
-    3. Default taxonomy    (app/data/competency_taxonomy.py)
+    3. AI role profiler     (role-first: role context drives the LLM pass; the
+                            cached result lands on the newest department
+                            interview template for reuse)
+    4. Default taxonomy    (app/data/competency_taxonomy.py)
+
+Thin scorecards — declarations with fewer than
+``role_competency_profiler.MIN_SCORECARD_COMPETENCIES`` entries — are enriched
+by the AI pass instead of being taken at face value, so a 3-competency generic
+rubric cannot flatten a role's interview (F1).
 """
 import logging
+import re
+from collections import OrderedDict
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
+from app.intelligence.role_competency_profiler import (
+    build_role_context,
+    is_thin_scorecard,
+    role_cache_key,
+    suggest_competencies,
+)
 from app.models.db import InterviewTemplate, ScorecardTemplate
 
 logger = logging.getLogger(__name__)
+
+# In-memory LRU for AI-profiled resolutions: sha1 -> normalized entries.
+_MAX_RESOLUTION_CACHE = 128
+_RESOLUTION_CACHE: OrderedDict[str, list[dict]] = OrderedDict()
 
 CANONICAL_DIMENSIONS = {
     "technical",
@@ -84,19 +104,28 @@ def _normalize(raw: object) -> list[dict]:
             "completeness",
         ]
 
-        normalized.append(
-            {
-                "id": comp_id.replace(" ", "_").lower(),
-                "name": name,
-                "category": category,
-                "weight": float(item.get("weight") or 1.0),
-                "max_score": float(item.get("max_score") or 10.0),
-                "evidence_dimensions": dims,
-                "default_min_evidence": int(
-                    item.get("default_min_evidence") or item.get("min_evidence") or 2
-                ),
-            }
-        )
+        entry = {
+            "id": comp_id.replace(" ", "_").lower(),
+            "name": name,
+            "category": category,
+            "weight": float(item.get("weight") or 1.0),
+            "max_score": float(item.get("max_score") or 10.0),
+            "evidence_dimensions": dims,
+            "default_min_evidence": int(
+                item.get("default_min_evidence") or item.get("min_evidence") or 2
+            ),
+        }
+        probe = str(item.get("verification_probe") or "").strip()
+        if probe:
+            entry["verification_probe"] = probe
+        skills = [
+            str(s).strip().lower()
+            for s in (item.get("skills") or [])
+            if str(s).strip()
+        ]
+        if skills:
+            entry["skills"] = skills[:8]
+        normalized.append(entry)
     return normalized
 
 
@@ -121,11 +150,14 @@ def derive_required_competencies(
 ) -> list[str]:
     """Required competencies = HIGH/MEDIUM priority subset, capped.
 
-    HIGH-priority competencies come first (taxonomy order preserved), then
-    MEDIUM, up to ``max_competencies``. When no priorities are declared the
-    first ``max_competencies`` taxonomy entries are used, so priority-less
-    sessions still get a focused interview rather than an empty one.
+    A role-resolved taxonomy (scorecard/template/AI profiler output) is
+    already a focused, curated set — every entry is required, so the generic
+    priority map (keyed to default-taxonomy ids) must never shrink it to a
+    one-competency coverage denominator. Only the broad default taxonomy
+    needs the HIGH/MEDIUM cut.
     """
+    if taxonomy and len(taxonomy) <= max_competencies:
+        return [c["id"] for c in taxonomy]
     priority_map = priority_map or {}
     high = [c["id"] for c in taxonomy if priority_map.get(c["id"]) == "HIGH"]
     medium = [c["id"] for c in taxonomy if priority_map.get(c["id"]) == "MEDIUM"]
@@ -151,51 +183,201 @@ def taxonomy_for_state(
     return taxonomy, required, label
 
 
-async def resolve_competencies(
-    db: AsyncSession,
-    *,
-    scorecard_template_id: str | None = None,
-    department_id: int | None = None,
+async def _resolve_scorecard_defs(
+    db: AsyncSession, scorecard_template_id: str | None
 ) -> list[dict]:
-    """Resolve the competency taxonomy for a new interview session."""
-    if scorecard_template_id:
-        try:
-            result = await db.execute(
-                select(ScorecardTemplate).where(
-                    ScorecardTemplate.id == UUID(str(scorecard_template_id))
-                )
+    """Org-curated scorecard competencies (highest priority)."""
+    if not scorecard_template_id:
+        return []
+    try:
+        result = await db.execute(
+            select(ScorecardTemplate).where(
+                ScorecardTemplate.id == UUID(str(scorecard_template_id))
             )
-            template = result.scalar_one_or_none()
-            defs = _normalize(template.competencies if template else None)
+        )
+        template = result.scalar_one_or_none()
+        defs = _normalize(template.competencies if template else None)
+        if defs:
+            logger.info(
+                "Resolved %d competencies from scorecard template %s",
+                len(defs),
+                scorecard_template_id,
+            )
+        return defs
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to resolve scorecard template competencies: %s", exc)
+        return []
+
+
+async def _resolve_template_defs(
+    db: AsyncSession, department_id: int | None
+) -> tuple[list[dict], InterviewTemplate | None]:
+    """Department interview-template competencies + the newest template row
+    (the row the AI cache writes through to)."""
+    if not department_id:
+        return [], None
+    try:
+        result = await db.execute(
+            select(InterviewTemplate)
+            .where(InterviewTemplate.department_id == department_id)
+            .order_by(InterviewTemplate.created_at.desc())
+            .limit(10)
+        )
+        rows = list(result.scalars().all())
+        newest = rows[0] if rows else None
+        for template in rows:
+            defs = _normalize(template.competencies)
             if defs:
                 logger.info(
-                    "Resolved %d competencies from scorecard template %s",
+                    "Resolved %d competencies from interview template %s",
                     len(defs),
-                    scorecard_template_id,
+                    template.id,
                 )
-                return defs
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Failed to resolve scorecard template competencies: %s", exc)
+                return defs, newest
+        return [], newest
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to resolve interview template competencies: %s", exc)
+        return [], None
 
-    if department_id:
+
+async def _db_suggestion_cache(db: AsyncSession, department_id: int | None) -> list[dict]:
+    """Best-effort read of a previously persisted AI profile for the department."""
+    if not department_id:
+        return []
+    try:
+        result = await db.execute(
+            select(InterviewTemplate)
+            .where(
+                InterviewTemplate.department_id == department_id,
+                InterviewTemplate.suggested_competencies.is_not(None),
+            )
+            .order_by(InterviewTemplate.created_at.desc())
+            .limit(1)
+        )
+        template = result.scalar_one_or_none()
+        return _normalize(template.suggested_competencies if template else None)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to read AI competency cache: %s", exc)
+        return []
+
+
+async def _persist_suggestion(
+    db: AsyncSession,
+    department_id: int | None,
+    template_row: InterviewTemplate | None,
+    entries: list[dict],
+) -> None:
+    """Best-effort write-through of an AI profile onto the newest department
+    interview template so future sessions resolve deterministically."""
+    target = template_row
+    if target is None and department_id:
         try:
             result = await db.execute(
                 select(InterviewTemplate)
                 .where(InterviewTemplate.department_id == department_id)
                 .order_by(InterviewTemplate.created_at.desc())
-                .limit(10)
+                .limit(1)
             )
-            for template in result.scalars().all():
-                defs = _normalize(template.competencies)
-                if defs:
-                    logger.info(
-                        "Resolved %d competencies from interview template %s",
-                        len(defs),
-                        template.id,
-                    )
-                    return defs
+            target = result.scalars().first()
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Failed to resolve interview template competencies: %s", exc)
+            logger.warning("Failed to locate template for AI cache write: %s", exc)
+            return
+    if target is None:
+        return
+    try:
+        target.suggested_competencies = list(entries)
+        await db.commit()
+        logger.info("Persisted AI competency profile on template %s", target.id)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to persist AI competency cache: %s", exc)
+
+
+async def _ai_pass(
+    db: AsyncSession,
+    role_context: dict | None,
+    existing: list[dict] | None,
+    department_id: int | None,
+    template_row: InterviewTemplate | None,
+    use_llm: bool,
+) -> list[dict] | None:
+    """Stage 3 — the role-first AI pass. Returns None when no role context
+    exists or the pass fails, so callers fall through to the default taxonomy."""
+    if not role_context:
+        return None
+
+    key = role_cache_key(role_context)
+    cached = _RESOLUTION_CACHE.get(key)
+    if cached is not None:
+        _RESOLUTION_CACHE.move_to_end(key)
+        logger.info("Resolved %d competencies from AI role cache (memory)", len(cached))
+        return list(cached)
+
+    db_cached = await _db_suggestion_cache(db, department_id)
+    if db_cached:
+        _RESOLUTION_CACHE[key] = list(db_cached)
+        logger.info("Resolved %d competencies from AI role cache (db)", len(db_cached))
+        return list(db_cached)
+
+    entries, _source, _rationale = await suggest_competencies(
+        role_context,
+        existing_competencies=[
+            {
+                "id": c.get("id"),
+                "name": c.get("name"),
+                "category": c.get("category"),
+                "weight": c.get("weight"),
+            }
+            for c in (existing or [])
+        ]
+        if existing
+        else None,
+        use_llm=use_llm,
+    )
+    if not entries:
+        return None
+    _RESOLUTION_CACHE[key] = list(entries)
+    await _persist_suggestion(db, department_id, template_row, entries)
+    logger.info("Resolved %d competencies from AI role profiler", len(entries))
+    return entries
+
+
+async def resolve_competencies(
+    db: AsyncSession,
+    *,
+    scorecard_template_id: str | None = None,
+    department_id: int | None = None,
+    role_context: dict | None = None,
+    use_llm: bool = True,
+) -> list[dict]:
+    """Resolve the competency taxonomy for a new interview session.
+
+    ``role_context`` (see ``role_competency_profiler.build_role_context``)
+    activates the role-first AI pass: thin scorecards and empty templates are
+    enriched/proposed from the role, then cached. Pass ``use_llm=False`` to
+    keep resolution fully deterministic (tests, offline runs).
+    """
+    scorecard_defs = await _resolve_scorecard_defs(db, scorecard_template_id)
+    if scorecard_defs and not is_thin_scorecard(scorecard_defs):
+        return scorecard_defs
+
+    template_defs, template_row = await _resolve_template_defs(db, department_id)
+    if template_defs and not is_thin_scorecard(template_defs):
+        return template_defs
+
+    # Thin declarations are hints for the AI pass, not the final answer.
+    existing = (scorecard_defs or template_defs or []) if role_context else None
+    ai_entries = await _ai_pass(
+        db,
+        role_context,
+        existing,
+        department_id,
+        template_row,
+        use_llm,
+    )
+    if ai_entries:
+        return ai_entries
+    if existing:
+        return existing
 
     logger.info("No curated competencies found, falling back to default taxonomy")
     return default_taxonomy()

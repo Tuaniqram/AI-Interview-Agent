@@ -499,6 +499,7 @@ STYLES = {
         "name": "AURA Interview",
         "persona": "conductor",
         "evaluator_mode": "unified",
+        "apply_evaluator_calibration": True,  # F6: 8+ only with concrete/quantified evidence
         "base_competency_priority": {
             "tech_core": "HIGH",
             "tech_framework": "MEDIUM",

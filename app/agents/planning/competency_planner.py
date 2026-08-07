@@ -31,6 +31,16 @@ def plan_competencies(state: InterviewState) -> list[dict]:
 
     question_counts = competency_question_counts(state.get("questions_asked", []))
 
+    # T1.3: typed evidence-graph cursor — which competencies still need proof
+    # (contradicts edges ≻ demonstrated-but-unproven ≻ mentioned-only). The
+    # planner surfaces these first so the director can challenge/re-verify them.
+    cursor = state.get("evidence_cursor") or {}
+    cursor_rank = {
+        c: 3 for c in cursor.get("contradicted") or []
+    }
+    cursor_rank.update({c: 2 for c in cursor.get("demonstrated") or []})
+    cursor_rank.update({c: 1 for c in cursor.get("claimed") or []})
+
     results = []
     for comp_def in taxonomy:
         comp_id = comp_def["id"]
@@ -94,12 +104,15 @@ def plan_competencies(state: InterviewState) -> list[dict]:
             "unanswered_hypotheses": unanswered,
             "proven": proven,
             "difficulty_boost": difficulty_boost,
+            "cursor_need": cursor_rank.get(comp_id, 0),
         })
 
-    # Sorting prioritizes: priority, largest gap (weak competency), unanswered hypotheses,
-    # uncovered status (to prioritize exploring new competencies), difficulty progression boost, then lowest evidence_count
+    # Sorting prioritizes: priority, typed-graph proof cursor, largest gap (weak
+    # competency), unanswered hypotheses, uncovered status, difficulty boost,
+    # then lowest evidence_count.
     results.sort(key=lambda c: (
         -c["priority_score"],
+        -c["cursor_need"],
         -c["gap"],
         -c["unanswered_hypotheses"],
         # Fix: prioritize uncovered competencies (0 comes first) to ensure exploration

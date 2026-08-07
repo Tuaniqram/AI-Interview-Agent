@@ -83,6 +83,21 @@ class InterviewBrain:
     interview_strategy: Optional[dict] = None
     strategy_cache_valid: bool = False
 
+    # -- AURA Brain V5 ------------------------------------------------------
+    aura_brain: Optional[dict] = None
+    role_brain: Optional[dict] = None
+    competency_graph: dict = field(default_factory=dict)
+    uncertainty_map: dict = field(default_factory=dict)
+    question_strategy: Optional[dict] = None
+    calibration_state: Optional[dict] = None
+    contradiction_state: dict = field(default_factory=dict)
+    difficulty_state: dict = field(default_factory=dict)
+    decision_state: Optional[dict] = None
+    candidate_memory: dict = field(default_factory=dict)
+    brain_utilization: dict = field(default_factory=dict)  # per-layer live usage
+    evidence_cursor: dict = field(default_factory=dict)    # typed-graph targeting cursor
+    conclusive_turns: int = 0                              # runs of decisive calibration turns
+
     # -- Evaluation ---------------------------------------------------------
     unified_evaluation: Optional[dict] = None
     evaluator_mode: str = "unified"
@@ -106,6 +121,7 @@ class InterviewBrain:
     contradictions: list = field(default_factory=list)
     consistency_checks: list = field(default_factory=list)
     observations: list = field(default_factory=list)
+    claim_signals: dict = field(default_factory=dict)  # F5 authenticity signals
 
     # -- Question Objective -------------------------------------------------
     question_objective: Optional[dict] = None

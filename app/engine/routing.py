@@ -82,7 +82,17 @@ async def reflect_and_select(
     Returns ``(brain, finished_response)`` — when the flow decides to finish,
     the response dict is returned and the caller must short-circuit.
     """
+    from app.agents.reasoning.claim_validator import validate_answers
     from app.agents.reasoning.reflection_engine import reflection_engine
+
+    # F5: refresh authenticity signals over every answer so far.
+    user_answers = [
+        str(h.get("content", "")).strip()
+        for h in (brain.conversation_history or [])
+        if h.get("role") == "user" and str(h.get("content", "")).strip()
+    ]
+    if user_answers:
+        brain.claim_signals = validate_answers(user_answers)
 
     prev_hypotheses = list(brain.hypotheses)
 
@@ -93,6 +103,12 @@ async def reflect_and_select(
         "reflection_action": s.get("reflection_action"),
     })
     brain = sync_brain(brain, s)
+
+    # AURA V5: re-run the live brain layers so the planner/strategy always see
+    # the freshest uncertainty, contradiction and calibration state.
+    from app.brain.assembler import refresh_brain_layers
+
+    brain = refresh_brain_layers(brain)
 
     # Re-point the target at the post-evaluation hypothesis before the director
     # reads it, so fresh status/confidence drive PROBE vs CONTINUE correctly.

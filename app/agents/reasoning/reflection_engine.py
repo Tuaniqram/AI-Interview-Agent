@@ -25,6 +25,15 @@ from app.agents.reasoning.contradiction_engine import (
 logger = logging.getLogger(__name__)
 
 
+def _role_difficulty_floor(state: InterviewState) -> int:
+    """The effective difficulty floor: role seniority vs style minimum."""
+    from app.agents.planning.difficulty_engine import role_difficulty_floor
+
+    style = state.get("interview_style") or {}
+    diff_min = int((style.get("difficulty_range") or (1, 5))[0] or 1)
+    return max(role_difficulty_floor(state.get("job_role", "")), diff_min)
+
+
 async def reflection_engine(state: InterviewState) -> InterviewState:
     competency_summary = state.get("competency_summary", {})
     required_competencies = state.get("required_competencies", _DEFAULT_REQUIRED)
@@ -60,6 +69,7 @@ async def reflection_engine(state: InterviewState) -> InterviewState:
         unanswered_hypotheses=unanswered,
         question_counts=question_counts,
         last_competency=last_competency,
+        difficulty_floor=_role_difficulty_floor(state),
     )
 
     reflection_inputs = {

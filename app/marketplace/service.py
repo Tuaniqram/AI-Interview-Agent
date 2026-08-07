@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -32,7 +33,14 @@ from app.services.audit_log import AuditLogService
 from app.services.marketplace_generator import generate_rich_description
 from app.services.v4_session_store import get_v4_session_store
 from app.config.interview_styles import get_style
-from app.data.competency_resolver import resolve_competencies, taxonomy_for_state
+
+logger = logging.getLogger(__name__)
+
+from app.data.competency_resolver import (
+    resolve_competencies,
+    taxonomy_for_state,
+)
+from app.intelligence.role_competency_profiler import build_role_context
 
 
 async def list_organizations(
@@ -245,10 +253,41 @@ async def start_public_interview(
 
     # Seed v4 state with AURA (single conductor mode — style selection is gone)
     style = get_style("AURA")
+
+    # Role-first resolution (F1): the listing's role facts drive competency
+    # selection; the company brain is grounded separately at blueprint time.
+    role_context = None
+    try:
+        org_name = ""
+        dept_name = ""
+        org_result = await db.execute(
+            select(Organization).where(Organization.id == pi.org_id)
+        )
+        org_row = org_result.scalar_one_or_none()
+        if org_row:
+            org_name = org_row.name or ""
+        dept_result = await db.execute(
+            select(Department).where(Department.id == pi.department_id)
+        )
+        dept_row = dept_result.scalar_one_or_none()
+        if dept_row:
+            dept_name = dept_row.name or ""
+        role_context = build_role_context(
+            job_role=pi.title or "",
+            skills_required=list(pi.skills_required) if getattr(pi, "skills_required", None) else None,
+            description=pi.description or "",
+            department_id=pi.department_id,
+            department_name=dept_name,
+            org_name=org_name,
+        )
+    except Exception as exc:  # noqa: BLE001 - role context is best-effort
+        logger.warning("Failed to build role context: %s", exc)
+
     taxonomy = await resolve_competencies(
         db,
         scorecard_template_id=str(sc_template_id) if sc_template_id else None,
         department_id=pi.department_id,
+        role_context=role_context,
     )
     competency_taxonomy, required_competencies, domain_label = taxonomy_for_state(
         taxonomy, priority_map=style.get("base_competency_priority")

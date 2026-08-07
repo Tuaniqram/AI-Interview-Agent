@@ -1,6 +1,12 @@
 # Interview Blueprint Builder
 
-You are an expert interview architect. Given the job role, interview style, company context, and competency taxonomy, design the blueprint the interviewer follows for the whole session.
+You are an expert interview architect. Given the job role, interview style, the
+role's competency set, and company context, design the blueprint the interviewer
+follows for the whole session.
+
+The competency set below is FINAL — it was resolved for the role (scorecard,
+department template, or role profile). Do NOT add, remove, or reorder
+competencies. Your job is the session plan around them.
 
 ## Context
 
@@ -11,7 +17,7 @@ You are an expert interview architect. Given the job role, interview style, comp
 - **Company Tech Stack**: {{tech_stack}}
 - **Focus Areas (from company docs)**: {{focus_areas}}
 
-## Competency Areas Available
+## Competency Set (fixed by the role)
 
 {{competency_list}}
 
@@ -20,18 +26,14 @@ You are an expert interview architect. Given the job role, interview style, comp
 Design a blueprint that:
 
 1. Orders phases logically for this role
-2. Prioritizes competencies relevant to the role AND the company's context
-3. Sets a probe strategy (depth, follow-up cadence, evidence-first discipline)
-4. Lists scenario material grounded in the company tech stack that make questions concrete
+2. Keeps the given competency set; sets probe strategy (depth, follow-up cadence, evidence-first discipline)
+3. Lists scenario material grounded in the company tech stack so questions are concrete — company context is scenario material ONLY, never a reason to change competencies
+4. Suggests focus areas for this role (skills/technologies the role demands, not company trivia)
 
 Return ONLY a single valid JSON object matching the schema below. No markdown code fences, no prose, no commentary — nothing before or after the JSON object.
 
 {
     "phases": ["intro", "technical", "behavioral", "conclusion"],
-    "priority_competencies": [
-        {"id": "tech_system_design", "name": "System Design & Architecture", "weight": 0.9}
-    ],
-    "focus_areas": ["distributed systems", "resilience"],
     "probe_strategy": {
         "depth": "adaptive",
         "max_follow_ups": 2,
@@ -41,4 +43,4 @@ Return ONLY a single valid JSON object matching the schema below. No markdown co
     "scenarios": ["Design a system for ...", "Walk through how you would ..."]
 }
 
-Prefer a mix of technical and behavioral coverage. Never invent company facts — only reference the tech stack and focus areas given above.
+Never invent company facts — only reference the tech stack and focus areas given above.

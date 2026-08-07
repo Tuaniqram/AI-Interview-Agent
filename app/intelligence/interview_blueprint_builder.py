@@ -2,8 +2,11 @@
 
 Produces the ``interview_blueprint`` the engine injects at start: phases,
 priority competencies, focus areas, probe strategy and scenario material.
-The deterministic fallback is fully functional; the LLM pass (guarded) tailors
-it to the company brain and job role.
+
+Role-first (F1): the competency set is FIXED by the role's resolved taxonomy
+(scorecard → template → AI role profiler → default) — the company brain only
+grounds the scenario material (tech stack, focus areas). The LLM pass tailors
+scenarios to the company; it never redefines the competencies.
 """
 import logging
 
@@ -20,13 +23,15 @@ async def build_interview_blueprint(
     company_brain: dict | None = None,
     style: dict | None = None,
     required_competencies: list[str] | None = None,
+    competency_taxonomy: list[dict] | None = None,
     use_llm: bool = True,
 ) -> dict:
     """Build an ``interview_blueprint`` dict (best-effort)."""
     style = style or get_style()
     style_name = style.get("name", "STANDARD")
+    taxonomy = competency_taxonomy or COMPETENCY_TAXONOMY
 
-    fallback = _default_blueprint(job_role, style, required_competencies, company_brain)
+    fallback = _default_blueprint(job_role, style, required_competencies, company_brain, taxonomy)
 
     if not use_llm:
         return fallback
@@ -45,7 +50,7 @@ async def build_interview_blueprint(
             style_name=style_name,
             persona=style.get("persona", "friendly"),
             tech_stack=", ".join(tech_focus) or "not specified",
-            competency_list=", ".join(c["name"] for c in COMPETENCY_TAXONOMY[:10]),
+            competency_list=", ".join(c["name"] for c in taxonomy),
             difficulty_min=str(style.get("difficulty_range", (1, 3))[0]),
             difficulty_max=str(style.get("difficulty_range", (1, 3))[1]),
             focus_areas=", ".join(focus_areas) or "not specified",
@@ -59,6 +64,9 @@ async def build_interview_blueprint(
         blueprint["job_role"] = job_role
         blueprint["style_applied"] = style_name
         blueprint["source"] = "llm"
+        # The competency set is role-locked — the LLM may never override it.
+        blueprint["priority_competencies"] = fallback["priority_competencies"]
+        blueprint["focus_areas"] = fallback["focus_areas"]
         return blueprint
     except Exception as exc:  # noqa: BLE001
         logger.warning(f"Interview blueprint LLM failed ({exc}); using fallback")
@@ -70,12 +78,16 @@ def _default_blueprint(
     style: dict,
     required_competencies: list[str] | None,
     company_brain: dict | None,
+    taxonomy: list[dict],
 ) -> dict:
     phases = style.get("phase_order", ["intro", "technical", "behavioral", "conclusion"])
     priorities = [
-        c for c in COMPETENCY_TAXONOMY
+        c for c in taxonomy
         if c["id"] in (required_competencies or []) or c["category"] == "technical"
     ]
+    if not priorities:
+        priorities = list(taxonomy)
+    # Only the role's focus areas — company tech stack is scenario material.
     tech_focus = (company_brain or {}).get("tech_stack", [])[:6]
 
     return {
@@ -84,7 +96,11 @@ def _default_blueprint(
         "style_applied": style.get("name", "STANDARD"),
         "phases": phases,
         "priority_competencies": [
-            {"id": c["id"], "name": c["name"], "weight": 1.0}
+            {
+                "id": c["id"],
+                "name": c["name"],
+                "weight": float(c.get("weight") or 1.0),
+            }
             for c in priorities[:8]
         ],
         "focus_areas": [c["name"] for c in priorities[:6]],

@@ -17,6 +17,7 @@ INTELLIGENCE_KEYS = (
     "initial_hypotheses",
     "evidence_requirements",
     "candidate_assessment",
+    "aura_brain",
 )
 
 
@@ -74,6 +75,7 @@ async def start_session(engine, state: dict, build_intelligence: bool = False, i
                 resume_text=state.get("resume_text"),
                 required_competencies=state.get("required_competencies"),
                 scorecard_competencies=state.get("scorecard_competencies"),
+                competency_taxonomy=state.get("competency_taxonomy"),
                 company_brain=provided.get("company_brain"),
             )
             intelligence = {**bundle, **provided}
@@ -123,6 +125,12 @@ async def start_session(engine, state: dict, build_intelligence: bool = False, i
     for key in INTELLIGENCE_KEYS:
         if intelligence.get(key) is not None:
             setattr(brain, key, intelligence[key])
+
+    # AURA V5: the question planner already ranked uncertainty — seed the
+    # engine's planned competency from it unless a caller set one explicitly.
+    aura_plan = (intelligence.get("aura_brain") or {}).get("question_strategy") or {}
+    if not brain.planned_competency and aura_plan.get("planned_competency"):
+        brain.planned_competency = aura_plan["planned_competency"]
 
     s = brain_to_dict(brain)
     s = session_init_node(s)

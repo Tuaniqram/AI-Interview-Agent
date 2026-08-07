@@ -108,6 +108,8 @@ async def _get_legacy_summary(session_id: str) -> dict:
         "question_number": session.get("current_question_number"),
         "total_questions": total_questions_possible,
         "final_score": round(avg_score, 2) if avg_score else session.get("final_score"),
+        "hiring_score": session.get("final_score"),
+        "average_answer_score": round(avg_score, 2) if avg_score else None,
         "technical_score": round(avg_technical, 2) if avg_technical else None,
         "communication_score": round(avg_communication, 2) if avg_communication else None,
         "strengths": list(set(all_strengths)),

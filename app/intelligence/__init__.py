@@ -48,11 +48,22 @@ async def build_interview_intelligence(
     resume_text: str | None = None,
     required_competencies: list[str] | None = None,
     scorecard_competencies: list | None = None,
+    competency_taxonomy: list | None = None,
     use_rag: bool = True,
     use_llm: bool = True,
     company_brain: dict | None = None,
 ) -> dict:
     """One-shot V5 intelligence bundle for ``InterviewEngine.start_session``.
+
+    Pipeline order (F1, role-first):
+        1. company_brain      — org/dept context (RAG + LLM, cached)
+        2. competency set     — resolved by the caller (scorecard → template →
+                               AI role profiler → default) and passed in as
+                               ``competency_taxonomy``/``required_competencies``
+        3. interview_blueprint — the competency set is FIXED by the role; company
+                               context only grounds the scenario material
+        4. evidence_requirements — per-competency probes (verification_probe)
+        5. candidate intelligence + hypotheses
 
     All arguments are optional except ``job_role``; missing source material
     yields minimal-but-valid artifacts (no LLM or RAG calls are made when there
@@ -67,17 +78,19 @@ async def build_interview_intelligence(
             use_llm=use_llm,
         )
 
-    evidence_requirements = resolve_evidence_requirements(
-        scorecard_competencies,
-        max_requirements=12,
-    )
-
     blueprint = await build_interview_blueprint(
         job_role=job_role,
         company_brain=company_brain,
         style=style,
         required_competencies=required_competencies,
+        competency_taxonomy=competency_taxonomy,
         use_llm=use_llm,
+    )
+
+    evidence_requirements = resolve_evidence_requirements(
+        scorecard_competencies or competency_taxonomy,
+        taxonomy=competency_taxonomy,
+        max_requirements=12,
     )
 
     candidate = await build_candidate_intelligence(
@@ -86,7 +99,17 @@ async def build_interview_intelligence(
         candidate_profile=candidate_profile,
         resume_text=resume_text,
         required_competencies=required_competencies,
+        competency_taxonomy=competency_taxonomy,
         use_llm=use_llm and bool(resume_text),
+    )
+
+    aura_brain = _build_pre_interview_brain(
+        job_role=job_role,
+        company_brain=company_brain,
+        taxonomy=competency_taxonomy,
+        required_competencies=required_competencies,
+        candidate_bundle=candidate,
+        candidate_id=candidate_id,
     )
 
     return {
@@ -94,4 +117,42 @@ async def build_interview_intelligence(
         "interview_blueprint": blueprint,
         "evidence_requirements": evidence_requirements,
         **candidate,  # candidate_brain, initial_hypotheses, candidate_assessment
+        "aura_brain": aura_brain,
     }
+
+
+def _build_pre_interview_brain(
+    *,
+    job_role: str,
+    company_brain: dict | None,
+    taxonomy: list | None,
+    required_competencies: list[str] | None,
+    candidate_bundle: dict,
+    candidate_id: str,
+) -> dict:
+    """Assemble the V5 brain before any interview turn (pre-interview state).
+
+    Company + role + competency-graph + hypotheses + first question strategy.
+    Evidence layers start empty; they grow with each answer.
+    """
+    from app.brain.assembler import assemble_aura_brain
+
+    try:
+        return assemble_aura_brain(
+            job_role=job_role,
+            company_brain=company_brain,
+            taxonomy=taxonomy,
+            required_competencies=required_competencies,
+            candidate_brain=candidate_bundle.get("candidate_brain"),
+            candidate_assessment=candidate_bundle.get("candidate_assessment"),
+            candidate_id=candidate_id,
+            hypotheses=candidate_bundle.get("initial_hypotheses"),
+            evidence_store=[],
+            competency_summary={},
+            contradictions=[],
+            difficulty_reached=1,
+            role_floor=None,
+        )
+    except Exception as exc:  # noqa: BLE001 - brain assembly is best-effort
+        logger.warning(f"Pre-interview AURA brain assembly failed (non-fatal): {exc}")
+        return {}

@@ -17,16 +17,24 @@ def match_candidate_to_role(
     skills: list[str],
     job_role: str = "",
     required_competencies: list[str] | None = None,
+    skill_map: dict | None = None,
 ) -> dict:
     """Score how well a candidate's skills cover the role's competencies.
+
+    ``skill_map`` merges over the static mapping (F1): AI-suggested
+    competencies carry role-specific skill aliases so a candidate's skills
+    resolve onto the session's actual competencies.
 
     Returns:
         dict with match_score (0..1), signal_strength, matched_skills, gaps,
         recommended_probes, competency_coverage.
     """
     skills = [s.lower().strip() for s in (skills or [])]
-    matched_skills = [s for s in skills if s in SKILL_TO_COMPETENCY]
-    matched_comps = {SKILL_TO_COMPETENCY[s] for s in matched_skills}
+    mapping = dict(SKILL_TO_COMPETENCY)
+    if skill_map:
+        mapping.update(skill_map)
+    matched_skills = [s for s in skills if s in mapping]
+    matched_comps = {mapping[s] for s in matched_skills}
 
     req_comp = required_competencies or [c["id"] for c in COMPETENCY_TAXONOMY]
     covered = [c for c in req_comp if c in matched_comps]

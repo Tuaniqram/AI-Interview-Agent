@@ -125,6 +125,14 @@ class V5BrainPersister:
             "evidence_requirements": getattr(brain, "evidence_requirements", None),
             "initial_hypotheses": getattr(brain, "initial_hypotheses", None),
             "nodes_executed": getattr(brain, "nodes_executed", []) or [],
+            # AURA V5 layers: the full assembled brain plus the per-turn
+            # signals the planner/calibration expose after every answer.
+            "aura_brain": getattr(brain, "aura_brain", None),
+            "uncertainty_map": getattr(brain, "uncertainty_map", {}) or {},
+            "question_strategy": getattr(brain, "question_strategy", None),
+            "contradiction_state": getattr(brain, "contradiction_state", {}) or {},
+            "calibration_state": getattr(brain, "calibration_state", {}) or {},
+            "candidate_memory": getattr(brain, "candidate_memory", {}) or {},
         }
 
     async def _upsert_graph(self, session, session_id: UUID, brain) -> None:

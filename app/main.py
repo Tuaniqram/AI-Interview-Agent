@@ -25,7 +25,7 @@ from app.api.v1.intelligence import router as intelligence_router
 from app.api.v1.demo import router as demo_router
 from app.config import settings
 
-
+API_VERSION = "v1"
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -96,21 +96,21 @@ app.include_router(interview_agent)
 app.include_router(interview_ws_router)
 
 # v1 API routes
-app.include_router(auth_router, prefix="/api/v1")
-app.include_router(orgs_router, prefix="/api/v1")
-app.include_router(marketplace_router, prefix="/api/v1")
-app.include_router(scheduling_router, prefix="/api/v1")
-app.include_router(admin_router, prefix="/api/v1")
-app.include_router(candidates_router, prefix="/api/v1")
-app.include_router(invitations_router, prefix="/api/v1")
-app.include_router(departments_v1_router, prefix="/api/v1")
-app.include_router(analytics_v1_router, prefix="/api/v1")
-app.include_router(public_router, prefix="/api/v1")
-app.include_router(scorecards_router, prefix="/api/v1")
-app.include_router(candidate_ranking_router, prefix="/api/v1")
-app.include_router(audit_logs_router, prefix="/api/v1")
-app.include_router(intelligence_router, prefix="/api/v1")
-app.include_router(demo_router, prefix="/api/v1")
+app.include_router(auth_router, prefix=f"/api/{API_VERSION}")
+app.include_router(orgs_router, prefix=f"/api/{API_VERSION}")
+app.include_router(marketplace_router, prefix=f"/api/{API_VERSION}")
+app.include_router(scheduling_router, prefix=f"/api/{API_VERSION}")
+app.include_router(admin_router, prefix=f"/api/{API_VERSION}")
+app.include_router(candidates_router, prefix=f"/api/{API_VERSION}")
+app.include_router(invitations_router, prefix=f"/api/{API_VERSION}")
+app.include_router(departments_v1_router, prefix=f"/api/{API_VERSION}")
+app.include_router(analytics_v1_router, prefix=f"/api/{API_VERSION}")
+app.include_router(public_router, prefix=f"/api/{API_VERSION}")
+app.include_router(scorecards_router, prefix=f"/api/{API_VERSION}")
+app.include_router(candidate_ranking_router, prefix=f"/api/{API_VERSION}")
+app.include_router(audit_logs_router, prefix=f"/api/{API_VERSION}")
+app.include_router(intelligence_router, prefix=f"/api/{API_VERSION}")
+app.include_router(demo_router, prefix=f"/api/{API_VERSION}")
 app.include_router(system_router)
 
 

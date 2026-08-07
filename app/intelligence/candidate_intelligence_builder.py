@@ -18,6 +18,7 @@ async def build_candidate_intelligence(
     candidate_profile: dict | None = None,
     resume_text: str | None = None,
     required_competencies: list[str] | None = None,
+    competency_taxonomy: list | None = None,
     use_llm: bool = True,
 ) -> dict:
     """Build the candidate-side intelligence bundle.
@@ -39,6 +40,14 @@ async def build_candidate_intelligence(
     brain_data["candidate_id"] = candidate_id
     brain_data["job_role"] = job_role
 
+    # Session skill-map (F1): AI-suggested competencies carry their own
+    # skill aliases, so candidate skills map onto role-specific competencies
+    # instead of always resolving to the default taxonomy.
+    skill_map: dict[str, str] = {}
+    for comp in competency_taxonomy or []:
+        for skill in comp.get("skills") or []:
+            skill_map[str(skill).strip().lower()] = str(comp.get("id") or "")
+
     hypotheses = generate_initial_hypotheses(
         job_role,
         {
@@ -56,6 +65,7 @@ async def build_candidate_intelligence(
         skills=brain_data.get("skills", []),
         job_role=job_role,
         required_competencies=required_competencies,
+        skill_map=skill_map or None,
     )
 
     assessment = {

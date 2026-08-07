@@ -9,6 +9,27 @@ logger = logging.getLogger(__name__)
 _DIMENSION_KEYS = {"technical", "communication", "reasoning", "behavioral", "confidence", "completeness"}
 
 
+def _memory_context(state: dict) -> str:
+    """T2.5: fold the candidate-memory brain layer into the evaluation prompt —
+    known growth areas/biases let the evaluator weight an answer that either
+    confirms or contradicts an earlier claim. Compact, capped, never trusted
+    verbatim."""
+    mem = state.get("candidate_memory") or {}
+    parts = []
+    strengths = mem.get("learned_strengths") or []
+    weaknesses = mem.get("learned_weaknesses") or []
+    risks = mem.get("learned_risk_signals") or []
+    if strengths:
+        parts.append("prior strengths: " + ", ".join(strengths[:4]))
+    if weaknesses:
+        parts.append("prior weaknesses: " + ", ".join(weaknesses[:4]))
+    if risks:
+        parts.append("prior risk signals: " + ", ".join(risks[:3]))
+    if parts:
+        parts.append("flag only if THIS answer contradicts or evades them")
+    return "None" if not parts else "; ".join(parts)
+
+
 async def unified_evaluator_node(state: InterviewState) -> InterviewState:
     from app.services.llm_service import get_llm_service
     from app.services.prompt_loader import load_prompt
@@ -58,6 +79,7 @@ async def _unified_evaluator(
             persona=persona,
             competency=competency or "General",
             domain_label=domain_label,
+            candidate_memory=_memory_context(state),
         )
 
         response = await llm_service.invoke(

@@ -139,11 +139,65 @@ def _evaluation_composite(state: InterviewState) -> float | None:
     return sum(scores) / len(scores)
 
 
+_ROLE_FLOOR_RULES = (
+    (("principal", "staff", "lead", "architect"), 4),
+    (("senior",), 3),
+    (("mid", "intermediate", "regular"), 2),
+    (("junior", "intern", "entry", "trainee", "graduate"), 1),
+)
+
+
+def role_difficulty_floor(job_role: str) -> int:
+    """Minimum difficulty an interview must sustain for the role's seniority.
+
+    A senior interview that never leaves difficulty 1 cannot prove senior
+    ability — the governor and the session seed clamp to this floor.
+    """
+    label = (job_role or "").lower()
+    for keywords, floor in _ROLE_FLOOR_RULES:
+        if any(k in label for k in keywords):
+            return floor
+    return 1
+
+
+def _recent_answer_scores(state: InterviewState, window: int = 3) -> list[float]:
+    """The last ``window`` per-question evidence scores, in question order.
+
+    Uses the evidence store (the numbers the candidate and report actually
+    see) instead of the unified-evaluation dimension average, so the governor
+    reacts to sustained performance rather than one noisy answer.
+    """
+    by_question: dict[int, float] = {}
+    for ev in state.get("evidence_store") or []:
+        q = int(ev.get("question_number", 0) or 0)
+        s = ev.get("score")
+        if q > 0 and s is not None:
+            by_question[q] = float(s)
+    return [by_question[q] for q in sorted(by_question)][-window:]
+
+
 def _serious_contradiction_count(state: InterviewState) -> int:
+    # Single source of contradiction truth (T1.2): the brain layer assembled by
+    # build_contradiction_state carries the normalized list; fall back to the
+    # raw runtime list only when the layer was never assembled.
+    cs = state.get("contradiction_state") or {}
+    contradictions = cs.get("contradictions")
+    if contradictions is None:
+        contradictions = state.get("contradictions") or []
     return sum(
-        1 for c in (state.get("contradictions") or [])
+        1 for c in contradictions
         if c.get("severity") in ("high", "medium")
     )
+
+
+def _calibration_shallow(state: InterviewState) -> bool:
+    """True when the calibration brain says the evidence base is too thin to
+    conclude (low depth or claim-heavy proof ratio). The governor must never
+    ratchet difficulty UP into credit a level the thin evidence can't justify."""
+    cal = state.get("calibration_state") or {}
+    if (cal.get("evidence_depth") or "") == "low":
+        return True
+    return float(cal.get("proof_ratio", 1.0) or 1.0) < 0.35
 
 
 async def difficulty_governor(
@@ -175,17 +229,35 @@ async def difficulty_governor(
     else:
         delta, rationale, scaffold = _govern_deterministic(state)
 
-    composite = _evaluation_composite(state)
-    if composite is not None:
+    # Fix 11 (D1): the window average clamps whichever path ran — the LLM only
+    # tunes inside the deterministic rule's band. Above the band difficulty can
+    # never drop; at/above the hold threshold (7.0) it can never be lowered;
+    # below 7.0 it can never be raised.
+    recent_scores = _recent_answer_scores(state)
+    if recent_scores:
+        window_avg = sum(recent_scores) / len(recent_scores)
         serious = _serious_contradiction_count(state)
-        if composite >= 8.0 and serious < 2:
+        if window_avg > 8.3 and serious < 2:
             delta = max(delta, 1)
-        elif composite >= 7.5:
+        elif window_avg >= 7.0:
             delta = max(delta, 0)
-        elif composite <= 4.5 and serious < 2:
+        elif window_avg < 7.0 and serious < 2:
             delta = min(delta, -1)
 
-    next_difficulty = max(diff_min, min(diff_max, current + delta))
+    # Role floor: a senior interview never drops below senior-level probing,
+    # whatever the LLM or the window rule says. This is what keeps the demo
+    # session from pinning a Senior candidate at difficulty 1 forever.
+    floor = max(diff_min, role_difficulty_floor(state.get("job_role", "")))
+
+    # T2.4 / T1.1: never ratchet difficulty UP while the calibration brain
+    # still calls the evidence base shallow — a thin interview earning easy
+    # points must not be graded at a level it was never pushed to. The floor
+    # below still applies, only the upward move is blocked.
+    if _calibration_shallow(state) and delta > 0:
+        delta = 0
+        rationale = "evidence base still shallow — difficulty held (no ratchet-up): " + rationale
+
+    next_difficulty = max(floor, min(diff_max, current + delta))
 
     profile = build_difficulty_profile(state, delta, rationale)
     profile["level"] = next_difficulty
@@ -229,14 +301,17 @@ async def _govern_with_llm(state: InterviewState) -> tuple[int, str, str]:
 
     serious_contradictions = _serious_contradiction_count(state)
     answer_complexity = complexity_signal(last_answer)
-    composite = _evaluation_composite(state)
+    # D1: the governor speaks the report's language — the recent-answers
+    # window average, never an opaque dimension average.
+    recent_scores = _recent_answer_scores(state)
+    recent_average = (sum(recent_scores) / len(recent_scores)) if recent_scores else None
 
     prompt = load_prompt(
         "difficulty_governor",
         "difficulty_governor.md",
         current=current,
         score_summary=score_summary,
-        composite_score=f"{composite:.2f}" if composite is not None else "N/A",
+        recent_average_score=f"{recent_average:.2f}" if recent_average is not None else "N/A",
         target_confidence=f"{target_confidence:.2f}",
         target_status=target_status,
         last_answer=last_answer or "(none yet)",
@@ -255,51 +330,24 @@ async def _govern_with_llm(state: InterviewState) -> tuple[int, str, str]:
 
 
 def _govern_deterministic(state: InterviewState) -> tuple[int, str, str]:
-    """Fix 8: deterministic difficulty move from evaluation + hypothesis +
-    answer complexity + contradiction signals."""
-    evaluation = state.get("unified_evaluation", {}) or {}
-    scores = [
-        data["score"]
-        for data in evaluation.values()
-        if isinstance(data, dict) and data.get("score") is not None
-    ]
+    """D1: deterministic difficulty move from a recent-answers window.
 
-    hypothesis_target = state.get("hypothesis_target") or {}
-    confidence = float(hypothesis_target.get("confidence", 0.0) or 0.0)
-    # Fix 8: how far the belief moved from the 0.5 prior — decisive reads
-    # justify pushing, unresolved ones do not.
-    confidence_delta = abs(confidence - 0.5)
+    Window rule (matches the report's own per-question scores):
+        last-3 average > 8.3  -> +1 (sustained strong performance)
+        last-3 average < 7.0  -> -1 (sustained weak performance)
+        otherwise             ->  0 (hold)
 
-    # Fix 8: answer specificity — concrete, metric-heavy answers signal
-    # depth worth rewarding with harder questions.
-    last_answer = ""
-    conv = state.get("conversation_history", [])
-    for h in reversed(conv or []):
-        if h.get("role") == "user":
-            last_answer = h.get("content", "")
-            break
-    complexity = complexity_signal(last_answer)
+    A single noisy answer can no longer swing difficulty — the window
+    buffers it.
+    """
+    recent_scores = _recent_answer_scores(state)
+    if not recent_scores:
+        return 0, "No evidence yet, keeping difficulty steady", ""
 
-    # Fix 8: serious contradictions mean the profile is unstable — do not
-    # raise difficulty until the signal is coherent again.
-    serious_contradictions = sum(
-        1 for c in (state.get("contradictions") or [])
-        if c.get("severity") in ("high", "medium")
-    )
+    window_avg = sum(recent_scores) / len(recent_scores)
 
-    if not scores:
-        return 0, "No evaluation yet, keeping difficulty steady", ""
-
-    avg = sum(scores) / len(scores)
-
-    if avg <= 4.5:
-        return -1, "Weak performance — scaffolding down", "ask for a concrete example and walk through the thought process"
-    if serious_contradictions >= 2:
-        return 0, "Contradictory evidence — resolving the profile before pushing harder", "reconcile the conflicting answers first"
-    if avg >= 7.5 and confidence >= 0.6 and confidence_delta >= 0.25:
-        return 1, "Strong performance with decisive confidence — increasing difficulty", "push on trade-offs and edge cases"
-    if avg >= 7.5 and complexity == "high":
-        return 1, "Strong, concrete answers — increasing difficulty", "push on trade-offs and edge cases"
-    if avg >= 7.5:
-        return 1, "Strong performance — increasing difficulty", ""
-    return 0, "Mixed performance — keeping difficulty steady", ""
+    if window_avg > 8.3:
+        return 1, f"Recent answers averaging {window_avg:.2f} — increasing difficulty", "push on trade-offs and edge cases"
+    if window_avg < 7.0:
+        return -1, f"Recent answers averaging {window_avg:.2f} — scaffolding down", "ask for a concrete example and walk through the thought process"
+    return 0, f"Recent answers averaging {window_avg:.2f} — keeping difficulty steady", ""

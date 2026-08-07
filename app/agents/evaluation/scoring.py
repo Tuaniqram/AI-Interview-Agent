@@ -18,6 +18,7 @@ Default rubric (documented, overridable per interview style via
 Pure capability: state in → state out, no DB, no mutation of shared state.
 """
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -175,11 +176,17 @@ def build_score_reasons(
 
 
 def _apply_evaluator_calibration(evaluation: dict) -> dict:
-    """Adjust overly optimistic evaluator scores when evidence lacks concrete examples.
+    """Adjust overly optimistic evaluator scores when evidence lacks substance.
 
     This calibration is opt-in via the interview style to preserve test expectations
-    in CI/default local runs. When enabled, scores >=8 without concrete evidence
-    are reduced to 7, and 9+ without ownership signals are capped to 8.
+    in CI/default local runs. When enabled (AURA enables it — F6 score discipline):
+
+        score >= 8   without a concrete example keyword      -> 7.0
+        score >= 8.5 without quantification (numbers/units)  -> 8.0
+        score >= 9   without ownership signals               -> 8.0
+
+    So 8+ only stands when the answer demonstrably contains concrete, ideally
+    quantified, evidence.
     """
     if not evaluation:
         return evaluation
@@ -215,14 +222,33 @@ def _apply_evaluator_calibration(evaluation: dict) -> dict:
         if score_f >= 8.0:
             evidence_l = evidence.lower()
             has_example = any(k in evidence_l for k in EVIDENCE_KEYWORDS)
+            has_quantification = _has_quantification(evidence_l)
             if not has_example:
                 calibrated[dim] = dict(dim_data)
                 calibrated[dim]["score"] = 7.0
             else:
-                if score_f >= 9.0 and not any(w in evidence_l for w in ownership_words):
+                if score_f >= 8.5 and not has_quantification:
+                    calibrated[dim] = dict(dim_data)
+                    calibrated[dim]["score"] = 8.0
+                elif score_f >= 9.0 and not any(w in evidence_l for w in ownership_words):
                     calibrated[dim] = dict(dim_data)
                     calibrated[dim]["score"] = 8.0
     return calibrated
+
+
+def _has_quantification(text: str) -> bool:
+    """Does the evidence reference a measured quantity (40%, 9x, 20ms, 10k)?"""
+    if not text:
+        return False
+    return bool(re.search(
+        r"(?<!\w)\d+(?:\.\d+)?\s*(?:%|[x×]|ms|s\b|secs?|seconds|req/s|qps|rps|tps|"
+        r"users|requests|concurrent|gb|tb|mb|hours|days|weeks|usd|\$|k|m|million|thousand)\b",
+        text,
+    )) or bool(re.search(
+        r"\b(reduced?|increased?|cut|saved|boosted|optimized|dropped|halved|doubled|"
+        r"tripled|grew|scaled|achieved)\b[\s\S]{0,40}\d",
+        text,
+    ))
 
 
 def explainable_scoring_node(state: dict) -> dict:

@@ -64,6 +64,10 @@ async def hiring_decision_node(state: InterviewState) -> InterviewState:
             fit_assessment=report.get("fit_assessment", "unknown"),
             verdict=mapped["decision"],
             decision_score=mapped["decision_score"],
+            decision_rationale=mapped["rationale"],
+            decision_signals=", ".join(
+                f"{k}={v}" for k, v in mapped["signals"].items()
+            ),
             coverage_ratio=rec.get("coverage_ratio", "N/A"),
             evidence_summary=(
                 f"{len(evidence)} evidence items across {len(summary)} competencies"
@@ -99,8 +103,25 @@ async def hiring_decision_node(state: InterviewState) -> InterviewState:
 
     # Deterministic confidence: distance of the decision score from the 5.0
     # midpoint, capped — never borrowed from the LLM.
+    # D4: tempered by evidence of problems — flagged weaknesses, falsified
+    # hypotheses and serious contradictions each shave it, so a report full of
+    # "shallow analysis" findings can never carry a 0.9 confidence.
+    hypotheses = state.get("hypotheses") or []
+    falsified = sum(1 for h in hypotheses if h.get("status") == "refuted")
+    weakness_penalty = min(
+        0.25,
+        0.05 * len(report.get("key_weaknesses") or [])
+        + 0.05 * falsified
+        + 0.10 * signals["contradiction_count"],
+    )
     decision_confidence = round(
-        min(0.9, max(0.5, 0.5 + abs(mapped["decision_score"] - 5.0) / 10.0)),
+        min(
+            0.9,
+            max(
+                0.5,
+                0.5 + abs(mapped["decision_score"] - 5.0) / 10.0 - weakness_penalty,
+            ),
+        ),
         2,
     )
 

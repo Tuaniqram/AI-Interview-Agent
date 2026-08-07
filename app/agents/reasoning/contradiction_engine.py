@@ -48,6 +48,18 @@ CONFIDENCE_QUALITY_FLOOR = 0.5
 # strong signal the interview has probed far enough to decide.
 HIGH_DIFFICULTY_FINISH = 5
 
+# V5 role gate: an interview may only finish once it pushed the candidate
+# across most of the required set. 80% over the resolved blueprint is the
+# "senior hire needs breadth" floor — 5 required competencies need 8+ answers.
+FINISH_MIN_COVERAGE = 0.8
+
+# V5 difficulty caps: evidence earned without being pushed is discounted.
+# A session that never left the floor cannot produce the top verdicts —
+# same philosophy as the decision engine's difficulty credit, applied to the
+# recommendation scale so the two layers never disagree.
+_DIFFICULTY_VERDICT_CAPS = {1: "borderline", 2: "borderline", 3: "hire", 4: "hire"}
+_DIFFICULTY_VERDICT_ORDER = ("reject", "weak", "borderline", "hire", "strong_hire")
+
 # Fix 6: fallback required set mirrors the session default — the HIGH/MEDIUM
 # subset capped at 6 — so coverage/sufficiency never targets the whole
 # taxonomy (which kept coverage near 0%).
@@ -391,6 +403,15 @@ def evaluate_sufficiency(
     else:
         verdict = "reject"
 
+    # Difficulty cap: un-stress-tested evidence is discounted. A session stuck
+    # at difficulty 1-2 can never recommend hire — the decision engine applies
+    # the same restriction via its difficulty credit, so recommendation and
+    # decision cannot contradict each other.
+    if difficulty_reached is not None:
+        cap = _DIFFICULTY_VERDICT_CAPS.get(int(difficulty_reached))
+        if cap and _DIFFICULTY_VERDICT_ORDER.index(verdict) > _DIFFICULTY_VERDICT_ORDER.index(cap):
+            verdict = cap
+
     # Legacy confidence computation (preserved for backward compatibility/tests):
     legacy_confidence = 0.0
     if confirmed + refuted > 0:
@@ -474,6 +495,23 @@ def _required_gaps_ok(
     return True
 
 
+def _finish_gates_ok(
+    evidence_sufficiency: dict,
+    difficulty_reached: int | None,
+    difficulty_floor: int | None,
+) -> bool:
+    """Role-profile finish gates: most of the required set covered AND the
+    interview pushed the candidate past the role's difficulty floor. Weak
+    candidates burn the question budget instead of ending with a half-tested
+    profile — the hard ``max_questions`` cap is the only escape."""
+
+    if (evidence_sufficiency.get("coverage_ratio") or 0.0) < FINISH_MIN_COVERAGE:
+        return False
+    if difficulty_floor is not None and (difficulty_reached or 0) < difficulty_floor:
+        return False
+    return True
+
+
 def decide_next_action(
     competency_summary: dict,
     required_competencies: list[str],
@@ -485,6 +523,7 @@ def decide_next_action(
     unanswered_hypotheses: int = 0,
     question_counts: dict | None = None,
     last_competency: str | None = None,
+    difficulty_floor: int | None = None,
 ) -> str:
     max_questions = 14  # AURA cap — the only escape from evidence gating
 
@@ -494,9 +533,12 @@ def decide_next_action(
         # Fix 12: even sufficient evidence must not finish while a required
         # competency still has a gap or a required hypothesis was never
         # tested — keep probing until those are resolved (or the cap hits).
+        # V5: senior profiles must also reach both the coverage breadth and
+        # the role's difficulty floor before the committee can rule.
         if (
             question_number >= MIN_QUESTIONS_BEFORE_FINISH
             and _required_gaps_ok(competency_summary, required_competencies, hypotheses)
+            and _finish_gates_ok(evidence_sufficiency, difficulty_reached, difficulty_floor)
         ):
             return "finish"
         if question_number >= max_questions:
@@ -527,6 +569,7 @@ def decide_next_action(
         and all_required_covered
         and not required_open
         and average_evidence_confidence(competency_summary) >= 0.6
+        and _finish_gates_ok(evidence_sufficiency, difficulty_reached, difficulty_floor)
     ):
         return "finish"
 
@@ -546,6 +589,7 @@ def decide_next_action(
             question_number >= MIN_QUESTIONS_BEFORE_FINISH
             and coverage_ratio >= COVERAGE_THRESHOLD
             and _required_gaps_ok(competency_summary, required_competencies, hypotheses)
+            and _finish_gates_ok(evidence_sufficiency, difficulty_reached, difficulty_floor)
         ):
             return "finish"
         return "change_competency"
@@ -615,6 +659,7 @@ def decide_next_action(
         and (high_priority_coverage_ok or partial_coverage_ok)
         and question_number >= 5
         and _required_gaps_ok(competency_summary, required_competencies, hypotheses)
+        and _finish_gates_ok(evidence_sufficiency, difficulty_reached, difficulty_floor)
     ):
         return "finish"
 

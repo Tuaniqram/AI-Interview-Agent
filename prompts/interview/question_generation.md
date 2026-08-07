@@ -60,6 +60,15 @@ Generate ONE professional, open-ended interview question targeted at testing a s
 - Never ask a generic verification question ("How do you know?") without naming the claim
 - Never score, judge, or doubt the claim's truth — you are collecting the evidence
 
+**Brain Strategy Guidance ({{strategy_guidance}})**:
+- When present, this line states WHY the current mode was chosen and which competency/uncertainty to probe. Ground the question in that intent — e.g. a challenge mode must pressure-test claimed seniority (trade-offs, what they gave up), a verify mode must pin the level, a contradict mode must ask how the candidate reconciles the conflicting evidence.
+- The mode above is the strongest signal; only fall back to the generic persona when no strategy guidance is given.
+
+**Candidate Memory ({{candidate_memory}})**:
+- When present (not "None"), this is a learned record of earlier statements/rounds. Use it only to reference what the candidate previously said or claimed — e.g. "Earlier you mentioned X — walk me through the trade-offs" — so the conversation builds on itself.
+- Never reveal that you keep a record or that you are scoring. Never accuse the candidate of contradicting themselves; ask neutrally how the pieces fit together.
+- If memory is "None", ignore this section entirely.
+
 # Duplicate Avoidance
 - The candidate has already been asked about these topics: {{avoid_topics}}
 - The most recent question you asked was: "{{last_question}}"

@@ -184,14 +184,44 @@ async def _start_v4_engine(session_id: str) -> dict:
         raise SessionNotFoundException(session_id)
 
     style = get_style("AURA")
+    from app.agents.planning.difficulty_engine import role_difficulty_floor
+
     taxonomy = default_taxonomy()
     if db_session.department_id or db_session.scorecard_template_id:
         async with get_session_factory()() as db:
+            role_context = None
+            try:
+                from app.intelligence.role_competency_profiler import build_role_context
+                from app.models.db import Department, Organization
+
+                org_name = ""
+                dept_name = ""
+                org_result = await db.execute(
+                    select(Organization).where(Organization.id == db_session.org_id)
+                )
+                org_row = org_result.scalar_one_or_none()
+                if org_row:
+                    org_name = org_row.name or ""
+                dept_result = await db.execute(
+                    select(Department).where(Department.id == db_session.department_id)
+                )
+                dept_row = dept_result.scalar_one_or_none()
+                if dept_row:
+                    dept_name = dept_row.name or ""
+                role_context = build_role_context(
+                    job_role=db_session.job_role or "",
+                    department_id=db_session.department_id,
+                    department_name=dept_name,
+                    org_name=org_name,
+                )
+            except Exception as exc:  # noqa: BLE001 - role context is best-effort
+                logger.warning("Failed to build role context: %s", exc)
             taxonomy = await resolve_competencies(
                 db,
                 scorecard_template_id=str(db_session.scorecard_template_id)
                 if db_session.scorecard_template_id else None,
                 department_id=db_session.department_id,
+                role_context=role_context,
             )
     competency_taxonomy, required, domain_label = taxonomy_for_state(
         taxonomy, priority_map=style.get("base_competency_priority")
@@ -205,7 +235,10 @@ async def _start_v4_engine(session_id: str) -> dict:
         "department_id": db_session.department_id,
         "interview_style": style,
         "persona": style.get("persona", "friendly"),
-        "difficulty_level": style.get("difficulty_range", (1, 3))[0],
+        "difficulty_level": max(
+            style.get("difficulty_range", (1, 3))[0],
+            role_difficulty_floor(db_session.job_role or ""),
+        ),
         "candidate_profile": candidate_profile,
         "resume_text": resume_text,
         "scorecard_competencies": [

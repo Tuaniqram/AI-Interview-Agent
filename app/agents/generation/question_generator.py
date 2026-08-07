@@ -19,6 +19,71 @@ MAX_FOLLOWUPS_PER_COMPETENCY = 3
 # same outcome. The deterministic fallback guarantees a fresh question.
 MAX_DUPLICATE_RETRIES = 1
 
+# F2: fallback bank — the deterministic last resort must not regenerate a
+# rejected question verbatim. Variants are tried in order until one passes
+# the duplicate guard; the first variant is the absolute last resort.
+_FALLBACK_BANK = [
+    (
+        "Tell me about your experience with senior-level {comp} in your {role} role. "
+        "What complex challenges have you faced, what were the trade-offs, and how did "
+        "you scale your solution?"
+    ),
+    (
+        "Walk me through a difficult {comp} problem you solved recently in your {role} "
+        "work. What made it hard, and how did you decide between the options?"
+    ),
+    (
+        "Describe a time your {comp} skills were tested at work. What specifically did "
+        "you do, and what did you learn from how it turned out?"
+    ),
+    (
+        "How do you approach {comp} when the stakes are high? Give me a concrete example "
+        "from your {role} experience, including what you would do differently now."
+    ),
+]
+
+# F3: default phase budgets for the session plan. When a style declares its own
+# ``phase_budgets`` those win; otherwise intro/conclusion get fixed slots and
+# the middle phases split the remainder (technical ~55%, rest behavioral).
+_DEFAULT_PHASE_BUDGETS = {"intro": 2, "conclusion": 1, "technical": 0.55}
+
+
+def phase_for_question(question_number: int, style: dict | None = None, total_questions: int = 0) -> str:
+    """The interview phase the ``question_number``-th question (1-indexed) falls in.
+
+    F3: the phase line now actually advances through the style's ``phase_order``
+    with budgets, instead of every question staying in the session-start phase.
+    """
+    style = style or {}
+    order = style.get("phase_order") or ["intro", "technical", "behavioral", "conclusion"]
+    max_q = int(style.get("max_questions") or total_questions or 10)
+    budgets = style.get("phase_budgets") or _default_budgets(order, max_q)
+
+    seq = max(1, int(question_number or 1))
+    cursor = 0
+    for phase in order:
+        budget = max(0, int(budgets.get(phase, 0)))
+        cursor += budget
+        if seq <= cursor:
+            return phase
+    return order[-1]
+
+
+def _default_budgets(order: list[str], max_questions: int) -> dict:
+    budgets = dict(_DEFAULT_PHASE_BUDGETS)
+    intro = _DEFAULT_PHASE_BUDGETS["intro"] if "intro" in order else 0
+    conclusion = _DEFAULT_PHASE_BUDGETS["conclusion"] if "conclusion" in order else 0
+    middle = [p for p in order if p not in ("intro", "conclusion")]
+    remaining = max(1, int(max_questions) - intro - conclusion)
+    technical = max(0, int(round(remaining * 0.55)))
+    behavioral = max(0, remaining - technical)
+    for phase in middle:
+        if phase == "technical" and technical:
+            budgets[phase] = technical
+        elif behavioral:
+            budgets[phase] = behavioral
+    return budgets
+
 # Probe-mode → interviewer mode (Fix 4 depth strategy).
 _MODE_BY_PROBE_MODE = {
     "explore_new_competency": "EXPLORER",
@@ -26,6 +91,29 @@ _MODE_BY_PROBE_MODE = {
     "challenge_candidate": "CHALLENGER",
     "verify_claim": "VERIFIER",
     "finish_competency": "CLOSER",
+}
+
+# V5 brain strategy mode → conductor interviewer mode. The planner translates
+# its task into one of the conductor's five question personas so the brain's
+# uncertainty/contradiction reasoning actually shapes the next question.
+_MODE_BY_STRATEGY = {
+    "explore": "EXPLORER",
+    "deepen": "PROBER",
+    "verify": "VERIFIER",
+    "challenge": "CHALLENGER",
+    "contradict": "VERIFIER",
+    "validate": "CLOSER",
+    "conclude": "CLOSER",
+}
+
+_MODE_NOTES = {
+    "explore": "high uncertainty — open the area and ask for a concrete project or example",
+    "deepen": "push to depth — drill into ownership, trade-offs and failure handling",
+    "verify": "borderline coverage — reference the SPECIFIC claim and pin down the level",
+    "challenge": "pressure-test claimed seniority: trade-offs, alternatives, what they gave up",
+    "contradict": "resolve a direct contradiction in the evidence — ask how they reconcile it",
+    "validate": "evidence satisfied — confirm understanding and prepare conclusion",
+    "conclude": "no remaining uncertainty — wrap up",
 }
 
 _MODE_DESCRIPTIONS = {
@@ -51,6 +139,16 @@ def _resolve_interview_mode(
     the strongest evidence need — a follow-up on the current competency must
     pin it down before any other agenda, so VERIFIER wins over every mode.
     """
+    # V5 brain strategy is the first-class signal: the planner already ranks
+    # competencies by uncertainty and picks the mode that reduces risk most.
+    strategy = state.get("question_strategy") or {}
+    strategy_mode = ""
+    if isinstance(strategy, dict):
+        qs = strategy.get("question_strategy") or {}
+        strategy_mode = qs.get("mode") or ""
+        if strategy_mode in _MODE_BY_STRATEGY:
+            return _MODE_BY_STRATEGY[strategy_mode]
+
     director = state.get("director") or {}
     probe_mode = director.get("probe_mode")
     if probe_mode in _MODE_BY_PROBE_MODE:
@@ -71,6 +169,34 @@ def _resolve_interview_mode(
     if claims and followup_number > 0:
         return "VERIFIER"
     return mode
+
+
+def _strategy_guidance(state: InterviewState) -> str:
+    """Human-readable intent line from the V5 brain's question strategy.
+
+    The conductor prompt gets ``interview_mode`` (the persona) plus this
+    guidance so the LLM knows *why* the mode was chosen and which
+    uncertainty/contradiction it must resolve.
+    """
+    strategy = state.get("question_strategy") or {}
+    if not isinstance(strategy, dict):
+        return ""
+    qs = strategy.get("question_strategy") or {}
+    mode = qs.get("mode") or ""
+    if mode not in _MODE_NOTES:
+        return ""
+    note = qs.get("note") or _MODE_NOTES[mode]
+    target = qs.get("target_competency") or ""
+    uncertainty = qs.get("uncertainty")
+    parts = [f"Strategy: {mode} — {note}"]
+    if target:
+        parts.append(f"target competency: {target}")
+    if uncertainty is not None:
+        parts.append(f"uncertainty: {uncertainty:.2f}")
+    rationale = strategy.get("rationale") or ""
+    if rationale:
+        parts.append(f"rationale: {rationale}")
+    return " | ".join(parts)
 
 
 # A claim-bearing sentence asserts a quantified result (30%, 9x, 20ms, 10k
@@ -132,6 +258,13 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
     difficulty = state.get("difficulty_level", 1)
     memory = recent_memory(previous_questions)
 
+    # F3: the phase advances with the question budget, not the session start.
+    phase = phase_for_question(
+        question_number + 1,
+        state.get("interview_style"),
+        state.get("total_questions") or state.get("max_questions") or 10,
+    )
+
     target_competency = ""
     target_hypothesis = {}
 
@@ -186,6 +319,8 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
     claims_to_verify = ", ".join(claims) if claims else "None"
     company_context = _company_context(state, interview_mode)
     avoid_topics = avoid_topics_summary(memory)
+    strategy_guidance = _strategy_guidance(state)
+    candidate_memory = _memory_context(state)
 
     async def _emit(attempt: int = 0, last_rejected: str = "") -> tuple[dict | None, str]:
         """Generate one question, bumping the deterministic template slot on
@@ -193,7 +328,7 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
         if persona == "conductor":
             conversation_turn = await _generate_conductor_turn(
                 state=state,
-                phase=state.get("current_phase", "technical"),
+                phase=phase,
                 target_competency=target_competency or "general",
                 job_role=job_role,
                 difficulty=difficulty,
@@ -206,11 +341,13 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 last_rejected=last_rejected,
                 last_question=last_question,
                 claims_to_verify=claims_to_verify,
+                strategy_guidance=strategy_guidance,
+                candidate_memory=candidate_memory,
             )
             return conversation_turn, conversation_turn["question"]
         try:
             question_text = await _generate_llm_question(
-                phase=state.get("current_phase", "technical"),
+                phase=phase,
                 target_competency=target_competency or "general",
                 job_role=job_role,
                 difficulty=difficulty,
@@ -229,6 +366,8 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 last_rejected=last_rejected,
                 last_question=last_question,
                 claims_to_verify=claims_to_verify,
+                strategy_guidance=strategy_guidance,
+                candidate_memory=candidate_memory,
             )
         except Exception as e:
             logger.warning(f"LLM question generation failed ({e}), falling back to deterministic")
@@ -288,7 +427,7 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
     if not question_text:
         # Every attempt was rejected/errored — skip the templates that were
         # already tried (an offset can wrap back onto a rejected slot) and
-        # re-check the fallback against the guard before emitting it.
+        # re-check candidates against the guard before emitting them.
         question_text = ""
         for offset in range(MAX_DUPLICATE_RETRIES + 1):
             candidate = _generate_deterministic_question(
@@ -312,7 +451,22 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 question_text = candidate
                 break
         if not question_text:
-            question_text = _fallback_question(target_competency or "general", job_role, difficulty)
+            # F2: rotate the fallback bank — never emit a question the guard
+            # already rejected (Q6 == Q8 was exactly this path).
+            for variant in range(len(_FALLBACK_BANK)):
+                candidate = _fallback_question(
+                    target_competency or "general", job_role, difficulty, variant=variant
+                )
+                if candidate in rejected_texts:
+                    continue
+                is_dup, _ = guard.is_duplicate(candidate, guard_memory)
+                if not is_dup:
+                    question_text = candidate
+                    break
+            if not question_text:
+                question_text = _fallback_question(
+                    target_competency or "general", job_role, difficulty, variant=0
+                )
         conversation_turn = None
 
     question_id = str(uuid4())
@@ -348,6 +502,8 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
         "questions_asked": questions_asked,
         "question_number": question_number + 1,
         "interview_mode": interview_mode,
+        # F3: the phase the emitted question belongs to (advances with budget).
+        "current_phase": phase,
     }
 
 
@@ -387,6 +543,31 @@ def _company_context(state: dict, interview_mode: str = "") -> str:
     return " | ".join(parts) if parts else "N/A"
 
 
+def _memory_context(state: dict) -> str:
+    """T2.5: fold the candidate-memory brain layer into the prompt as concrete
+    follow-up fuel — \"you said / we previously saw X\" references.
+
+    Returns a compact human-readable line, or \"None\" when no usable learned
+    record exists. Safe: memory is assembled deterministically, never trusted
+    verbatim, capped, and only used to *reference earlier statements*, never to
+    reveal scoring.
+    """
+    mem = state.get("candidate_memory") or {}
+    parts = []
+    strengths = mem.get("learned_strengths") or []
+    weaknesses = mem.get("learned_weaknesses") or []
+    risks = mem.get("learned_risk_signals") or []
+    if strengths:
+        parts.append("prior strengths: " + ", ".join(strengths[:4]))
+    if weaknesses:
+        parts.append("prior growth areas: " + ", ".join(weaknesses[:4]))
+    if risks:
+        parts.append("prior risk signals (reconcile, never accuse): " + ", ".join(risks[:3]))
+    if not parts:
+        return "None"
+    return " | ".join(parts)
+
+
 def _question_prompt_vars(
     *,
     job_role: str,
@@ -409,6 +590,8 @@ def _question_prompt_vars(
     last_rejected: str = "",
     last_question: str = "",
     claims_to_verify: str = "None",
+    strategy_guidance: str = "",
+    candidate_memory: str = "None",
 ) -> dict:
     """Single source of truth for the question_generation prompt's variables."""
     history_lines = []
@@ -441,6 +624,8 @@ def _question_prompt_vars(
         "last_rejected": last_rejected or "None",
         "last_question": last_question or "None",
         "claims_to_verify": claims_to_verify or "None",
+        "strategy_guidance": strategy_guidance,
+        "candidate_memory": candidate_memory,
     }
 
 
@@ -459,6 +644,8 @@ async def _generate_conductor_turn(
     last_rejected: str = "",
     last_question: str = "",
     claims_to_verify: str = "None",
+    strategy_guidance: str = "",
+    candidate_memory: str = "None",
 ) -> dict:
     """One LLM call producing {acknowledgement, bridge, question} (AURA conductor)."""
     from app.services.llm_service import get_llm_service
@@ -498,6 +685,8 @@ async def _generate_conductor_turn(
                 last_rejected=last_rejected,
                 last_question=last_question,
                 claims_to_verify=claims_to_verify,
+                strategy_guidance=strategy_guidance,
+                candidate_memory=candidate_memory,
             ),
         )
 
@@ -588,6 +777,8 @@ async def _generate_llm_question(
     last_rejected: str = "",
     last_question: str = "",
     claims_to_verify: str = "None",
+    strategy_guidance: str = "",
+    candidate_memory: str = "None",
 ) -> str:
     """Generate the next question with the LLM using the question_generation prompt."""
     from app.services.llm_service import get_llm_service
@@ -619,6 +810,8 @@ async def _generate_llm_question(
             last_rejected=last_rejected,
             last_question=last_question,
             claims_to_verify=claims_to_verify,
+            strategy_guidance=strategy_guidance,
+            candidate_memory=candidate_memory,
         ),
     )
 
@@ -780,14 +973,18 @@ def _get_template_for_competency(competency: str, job_role: str, difficulty: int
     ]
 
 
-def _fallback_question(competency: str, job_role: str, difficulty: int) -> str:
+def _fallback_question(competency: str, job_role: str, difficulty: int, variant: int | None = None) -> str:
+    comp = competency.replace("_", " ")
+    if variant is not None:
+        template = _FALLBACK_BANK[variant % len(_FALLBACK_BANK)]
+        return template.format(comp=comp, role=job_role or "your role")
     if difficulty >= 5:
         return (
-            f"Tell me about your experience with senior-level {competency.replace('_', ' ')} in your {job_role} role. "
+            f"Tell me about your experience with senior-level {comp} in your {job_role} role. "
             f"What complex challenges have you faced, what were the trade-offs, and how did you scale your solution?"
         )
     return (
-        f"Tell me about your experience with {competency.replace('_', ' ')} in your {job_role} role. "
+        f"Tell me about your experience with {comp} in your {job_role} role. "
         f"What specific challenges have you faced and how did you overcome them?"
     )
 

@@ -161,6 +161,16 @@ def build_answer_response(session_id: str, state: StateLike) -> dict:
         },
         "contradictions": len(s.get("contradictions", [])),
         "hiring_recommendation": refresh_hiring_recommendation(s),
+        "brain": {
+            "question_strategy": s.get("question_strategy") or {},
+            "uncertainty": s.get("uncertainty_map") or {},
+            "contradiction_state": s.get("contradiction_state") or {},
+            "calibration_state": s.get("calibration_state") or {},
+            "difficulty_state": s.get("difficulty_state") or {},
+            "candidate_memory": s.get("candidate_memory") or {},
+            "brain_utilization": s.get("brain_utilization") or {},
+            "evidence_cursor": s.get("evidence_cursor") or {},
+        },
     }
 
 
@@ -199,18 +209,64 @@ def build_report_response(state: StateLike) -> dict:
     """Build the final ``{type: report}`` payload on interview completion."""
     s = _as_dict(state)
     rec = s.get("hiring_recommendation", {})
+    hd = s.get("hiring_decision") or {}
     cs = s.get("competency_summary", {})
     graph = s.get("evidence_graph") or {}
     profile = s.get("difficulty_profile")
 
+    # V5: ONE source of truth for the verdict — the deterministic 7-point
+    # decision (difficulty credit + coverage caps). The recommendation and any
+    # LLM draft explain it, they never replace it, so the report can never
+    # show "strong_hire" next to "lean_hire".
+    final_verdict = hd.get("decision") or rec.get("verdict", "insufficient_evidence")
+
+    # D3: separate the metrics a reader can see — the per-answer average is
+    # NOT the holistic fit score. ``composite_score`` stays the hiring
+    # anchor, but the report now exposes both plus the question progress so
+    # "73% coverage" can never be confused with "6 of 10 questions asked".
+    from app.agents.evaluation.synthesis import _score_timeline
+
+    timeline = _score_timeline(s)
+    avg_answer = (
+        round(sum(t["score"] for t in timeline) / len(timeline), 2)
+        if timeline
+        else None
+    )
+    answered = int(s.get("question_number", 0) or 0)
+    planned = int(s.get("total_questions", 0) or 0)
+
     report = {
         "status": "completed",
+        "verdict": final_verdict,
         "hiring_recommendation": {
-            "verdict": rec.get("verdict", "insufficient_evidence"),
+            "verdict": final_verdict,
             "confidence": rec.get("confidence", 0.0),
             "composite_score": rec.get("composite_score"),
+            "decision_score": hd.get("decision_score"),
             "coverage_ratio": rec.get("coverage_ratio"),
+            "composite_score_note": (
+                "holistic fit score (competency average 50%, hypothesis "
+                "confidence 30%, coverage 20%) — not the per-answer average; "
+                "the final verdict is the deterministic hiring_decision"
+            ),
         },
+        "interview_performance": {
+            "average_answer_score": avg_answer,
+            "score_timeline": timeline,
+        },
+        "question_progress": {
+            "answered": answered,
+            "planned": planned,
+            "ratio": round(answered / planned, 2) if planned > 0 else 0,
+        },
+        "coverage": {
+            "competency_coverage_ratio": rec.get("coverage_ratio"),
+            "note": (
+                "weighted fraction of required competencies with minimum "
+                "evidence and no gap — not the question-answered ratio"
+            ),
+        },
+        "difficulty_reached": (profile or {}).get("level", s.get("difficulty_level", 1)),
         "competency_summary": {
             comp: {
                 "average_score": s_.get("average_score", 0.0),
@@ -220,7 +276,7 @@ def build_report_response(state: StateLike) -> dict:
             for comp, s_ in cs.items()
         },
         "evidence_collected": len(s.get("evidence_store", [])),
-        "questions_asked": s.get("question_number", 0),
+        "questions_asked": answered,
         "hypothesis_outcomes": {
             "confirmed": sum(1 for h in (s.get("hypotheses") or []) if h.get("status") == "confirmed"),
             "refuted": sum(1 for h in (s.get("hypotheses") or []) if h.get("status") == "refuted"),
@@ -233,6 +289,7 @@ def build_report_response(state: StateLike) -> dict:
         },
         "difficulty_profile": profile,
         "hiring_decision": s.get("hiring_decision", {}),
+        "aura_brain": s.get("aura_brain") or {},
     }
     return report
 

@@ -14,7 +14,10 @@ Action vocabulary (four actions):
 The engine commits the decision to ``brain.director`` and routes on its
 ``action``.
 """
-from app.agents.reasoning.contradiction_engine import MIN_QUESTIONS_BEFORE_FINISH
+from app.agents.reasoning.contradiction_engine import (
+    MIN_QUESTIONS_BEFORE_FINISH,
+    _required_gaps_ok,
+)
 
 # How many consecutive turns the same hypothesis may be the target before the
 # director forces a rotation (prevents reflection loops).
@@ -62,12 +65,31 @@ def _probe_mode_for(action: str, state: dict) -> str:
         CONTINUE           → challenge_candidate when pushing a senior candidate,
                              verify_claim when the last answer scored high but the
                              belief is still open, else explore_new_competency.
+
+    AURA V5 overrides: a live calibration gate blocks topic rotation (challenge
+    the current target instead), a typed-graph contradicts edge forces
+    challenge_candidate over generic probing, and challenge requires the
+    role's difficulty floor to be satisfied first.
     """
     if action == "FINISH":
         return "finish_competency"
+
+    # T1.2: deterministic seniority-risk flag wins over every mode.
+    _, needs_challenge = _contradiction_signal(state)
+    if needs_challenge:
+        return "challenge_candidate"
+
     if action == "CHANGE_COMPETENCY":
+        # T1.1: evidence too shallow to conclude — don't rotate topics, stay
+        # and pressure-test the current claim instead.
+        if _calibration_gate(state):
+            return "challenge_candidate"
         return "explore_new_competency"
     if action == "PROBE":
+        # T1.3: typed evidence graph pin — the target competency has a
+        # contradicts edge, so re-verify instead of generic deep probing.
+        if _cursor_marks_target(state, "contradicted"):
+            return "challenge_candidate"
         return "deep_probe"
 
     difficulty = int(state.get("difficulty_level", 1) or 1)
@@ -77,11 +99,67 @@ def _probe_mode_for(action: str, state: dict) -> str:
     score = state.get("evaluation_score")
     score = float(score) if score is not None else 0.0
 
-    if status in ("testing", "confirmed") and difficulty >= CHALLENGE_DIFFICULTY_FLOOR:
+    # T2.4: difficulty floor not satisfied yet — no challenge mode, the
+    # candidate has not been stress-tested at the role's level (probe instead).
+    floor_ok = bool((state.get("difficulty_state") or {}).get("floor_satisfied", True))
+    if status in ("testing", "confirmed") and difficulty >= CHALLENGE_DIFFICULTY_FLOOR and floor_ok:
         return "challenge_candidate"
+    if _cursor_marks_target(state, "demonstrated") and not floor_ok:
+        return "deep_probe"
     if status == "testing" and score >= VERIFY_SCORE_FLOOR and confidence < VERIFY_CONFIDENCE_CEIL:
         return "verify_claim"
     return "explore_new_competency"
+
+
+def _cursor_marks_target(state: dict, kind: str) -> bool:
+    """T1.3: does the typed evidence-graph cursor flag the current target's
+    competency (``contradicted`` / ``demonstrated`` / ``claimed``)?"""
+    target = state.get("hypothesis_target") or {}
+    competency = target.get("competency", "")
+    if not competency:
+        return False
+    cursor = state.get("evidence_cursor") or {}
+    flagged = cursor.get(kind) or []
+    return competency in flagged
+
+
+def _contradiction_signal(state: dict) -> tuple[list[dict], bool]:
+    """Single source of contradiction truth: the V5 ``contradiction_state``
+    brain layer (assembled deterministically by ``build_contradiction_state``).
+
+    Returns ``(serious_contradictions, needs_challenge)`` where ``needs_challenge``
+    is the deterministic seniority-risk flag: a candidate who CLAIMS ownership
+    while proof stays thin must be challenged, never silently accepted.
+    """
+    cs = state.get("contradiction_state") or {}
+    if (cs.get("contradictions") is not None or cs.get("needs_challenge") is not None):
+        serious = [
+            c for c in (cs.get("contradictions") or [])
+            if c.get("severity") in _SERIOUS_SEVERITIES
+        ]
+        return serious, bool(cs.get("needs_challenge"))
+    # Fallback to the raw runtime list when the brain layer was not assembled.
+    return (
+        [c for c in (state.get("contradictions") or []) if c.get("severity") in _SERIOUS_SEVERITIES],
+        False,
+    )
+
+
+def _calibration_gate(state: dict) -> str:
+    """Live calibration gate: never let a shallow interview conclude.
+
+    Returns a blocking reason when the evidence base is too thin to be
+    conclusive (low evidence depth or claim-heavy proof ratio) — the director
+    must keep probing rather than allow a FINISH.
+    """
+    cal = state.get("calibration_state") or {}
+    depth = cal.get("evidence_depth", "")
+    proof = cal.get("proof_ratio", 1.0)
+    if depth == "low":
+        return f"calibration gate: evidence depth low ({depth})"
+    if float(proof or 0.0) < 0.35:
+        return f"calibration gate: proof ratio {float(proof or 0.0):.2f} < 0.35"
+    return ""
 
 
 def director_controller(state: dict) -> dict:
@@ -102,7 +180,6 @@ def director_controller(state: dict) -> dict:
 def _director_decision(state: dict) -> tuple[str, str, str]:
     reflection_action = state.get("reflection_action", "probe")
     evidence_sufficiency = state.get("evidence_sufficiency") or {}
-    contradictions = state.get("contradictions") or []
     question_number = int(state.get("question_number", 0) or 0)
     max_questions = int(state.get("max_questions", 14) or 14)
     target = state.get("hypothesis_target") or {}
@@ -110,26 +187,49 @@ def _director_decision(state: dict) -> tuple[str, str, str]:
     consecutive_probes = int(state.get("consecutive_probes", 0) or 0)
     last_target_id = state.get("last_hypothesis_target_id", "")
 
+    if question_number >= max_questions:
+        return (
+            "FINISH",
+            f"question budget exhausted (max {max_questions})",
+            target_id,
+        )
+
+    # AURA V5: the live calibration gate — evidence too shallow to decide means
+    # FINISH is never allowed, whatever the reflection signals. Fix 11
+    # (min-question count) and the required-gaps check still apply on top.
+    gate_reason = _calibration_gate(state)
     if reflection_action == "finish" or evidence_sufficiency.get("is_sufficient"):
+        if gate_reason:
+            return (
+                "CONTINUE",
+                f"{gate_reason} — keep probing before concluding",
+                target_id,
+            )
         # Fix 11: never finish before the minimum question count — a hiring
         # decision needs an evidence base, so keep probing even when the
         # reflection signals finish. Rotations still proceed normally.
+        # P2: "sufficient" coverage is not enough — every required competency
+        # must actually have its evidence (mirrors decide_next_action's gate).
         if question_number >= MIN_QUESTIONS_BEFORE_FINISH:
+            if _required_gaps_ok(
+                state.get("competency_summary") or {},
+                state.get("required_competencies") or [],
+                state.get("hypotheses") or [],
+            ):
+                return (
+                    "FINISH",
+                    "evidence sufficiency met or reflection signaled finish",
+                    target_id,
+                )
             return (
-                "FINISH",
-                "evidence sufficiency met or reflection signaled finish",
+                "CONTINUE",
+                "coverage sufficient but required competencies still have "
+                "evidence gaps — keep probing",
                 target_id,
             )
         return (
             "CONTINUE",
             f"below minimum question count ({MIN_QUESTIONS_BEFORE_FINISH}) — keep probing",
-            target_id,
-        )
-
-    if question_number >= max_questions:
-        return (
-            "FINISH",
-            f"question budget exhausted (max {max_questions})",
             target_id,
         )
 
@@ -140,10 +240,37 @@ def _director_decision(state: dict) -> tuple[str, str, str]:
             target_id,
         )
 
-    serious = [
-        c for c in contradictions
-        if c.get("severity") in _SERIOUS_SEVERITIES
-    ]
+    # T2.6: live decision loop-close — N decisive turns in a row (with the
+    # replay of the min-question count and the required-gaps gate) means the
+    # evidence has been conclusive for a while; close early instead of burning
+    # the budget re-asking the settled story.
+    conclusive_streak = int(state.get("conclusive_turns", 0) or 0)
+    if (
+        conclusive_streak >= 2
+        and not gate_reason
+        and question_number >= MIN_QUESTIONS_BEFORE_FINISH
+        and _required_gaps_ok(
+            state.get("competency_summary") or {},
+            state.get("required_competencies") or [],
+            state.get("hypotheses") or [],
+        )
+    ):
+        return (
+            "FINISH",
+            f"{conclusive_streak} consecutive decisive calibration turns — closing early",
+            target_id,
+        )
+
+    # AURA V5: a deterministic seniority-risk challenge overrules rotation —
+    # the candidate claimed architecture ownership with evidence too thin to
+    # believe it, so the next turn must CHALLENGE, not move on.
+    serious, needs_challenge = _contradiction_signal(state)
+    if needs_challenge and not gate_reason:
+        return (
+            "PROBE",
+            "seniority signal: claimed ownership lacks proof — challenge it",
+            target_id,
+        )
     if len(serious) >= 2:
         return (
             "CHANGE_COMPETENCY",

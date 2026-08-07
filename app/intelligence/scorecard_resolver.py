@@ -68,7 +68,9 @@ def resolve_evidence_requirements(
             "min_evidence": meta.get("default_min_evidence", 2),
             "dimensions": meta.get("evidence_dimensions", ["technical", "completeness"]),
             "weight": round(float(weight), 4) if weight is not None else 1.0,
-            "verification_probe": _DEFAULT_PROBES.get(cid, f"Probe for evidence of {cid}"),
+            "verification_probe": meta.get("verification_probe")
+            or _DEFAULT_PROBES.get(cid, f"Probe for evidence of {cid}"),
+            "skills": meta.get("skills") or [],
         }
 
     if competencies:
