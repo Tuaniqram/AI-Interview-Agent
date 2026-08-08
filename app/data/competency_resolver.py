@@ -55,14 +55,34 @@ DEFAULT_DIMENSIONS_BY_CATEGORY = {
     "behavioral": ["behavioral", "communication"],
     "cognitive": ["reasoning", "completeness"],
     "experience": ["domain", "completeness"],
+    "commerce": ["domain", "communication"],
+    "marketing": ["domain", "completeness"],
+    "design": ["domain", "communication"],
+    "product": ["domain", "reasoning"],
+    "hr": ["domain", "behavioral"],
+    "finance": ["domain", "reasoning"],
+    "operations": ["domain", "completeness"],
+    "customer_success": ["domain", "communication"],
 }
 
 _FALLBACK_WEIGHTS = {
     "tech_core": 3.0,
     "tech_system_design": 3.0,
+    "tech_event_driven": 3.0,
     "cog_problem_solving": 3.0,
     "behav_teamwork": 2.0,
     "behav_communication": 2.0,
+    "tech_deployment": 2.0,
+    "tech_caching": 2.0,
+    "tech_data_modeling": 2.0,
+    "com_sales_strategy": 3.0,
+    "mkt_brand_strategy": 3.0,
+    "des_ux_research": 2.0,
+    "prd_product_strategy": 3.0,
+    "hr_talent_acquisition": 2.0,
+    "fin_financial_analysis": 3.0,
+    "ops_process_improvement": 2.0,
+    "cs_churn_retention": 2.0,
 }
 
 

@@ -34,6 +34,31 @@ _CANONICAL_IMPORTANCE = {
     "exp_project_depth": 7,
     "exp_scaling": 8,
     "exp_domain": 6,
+    "com_sales_strategy": 9,
+    "com_negotiation": 8,
+    "com_customer_acumen": 8,
+    "com_revenue_growth": 8,
+    "mkt_brand_strategy": 9,
+    "mkt_campaign_management": 8,
+    "mkt_analytics_growth": 8,
+    "des_ux_research": 9,
+    "des_visual_design": 8,
+    "des_product_thinking": 8,
+    "prd_product_strategy": 9,
+    "prd_roadmap_prioritization": 8,
+    "prd_data_metrics": 8,
+    "hr_talent_acquisition": 8,
+    "hr_org_design": 8,
+    "hr_employee_relations": 7,
+    "fin_financial_analysis": 9,
+    "fin_budgeting_forecasting": 8,
+    "fin_compliance_risk": 8,
+    "ops_process_improvement": 8,
+    "ops_project_management": 8,
+    "ops_kpi_management": 7,
+    "cs_churn_retention": 8,
+    "cs_account_management": 8,
+    "cs_onboarding": 7,
 }
 
 _ROLE_CLASSES = [
@@ -71,6 +96,46 @@ _ROLE_CLASSES = [
         "mobile",
         ("mobile", "ios", "android", "react native", "flutter"),
         "Build polished, reliable mobile experiences",
+    ),
+    (
+        "sales",
+        ("sales", "account executive", "business development", "revenue", "account manager", "commercial"),
+        "Drive revenue and build durable customer relationships",
+    ),
+    (
+        "marketing",
+        ("marketing", "growth", "seo", "brand", "content", "social media", "ppc", "cmo"),
+        "Build the funnel and the narrative that grows the business",
+    ),
+    (
+        "design",
+        ("designer", "ux", "user experience", "ui", "visual", "figma", "product design"),
+        "Shape usable, desirable products grounded in user insight",
+    ),
+    (
+        "product",
+        ("product manager", "product owner", "product management", "head of product", "product lead"),
+        "Own the product vision and the decisions that ship it",
+    ),
+    (
+        "hr",
+        ("hr", "recruiter", "talent", "people ops", "people operations", "people partner"),
+        "Build the teams, practices, and culture the company runs on",
+    ),
+    (
+        "finance",
+        ("finance", "accounting", "accountant", "controller", "fp&a", "cfo", "treasurer", "financial analyst"),
+        "Keep the company financially healthy, honest, and forward-looking",
+    ),
+    (
+        "operations",
+        ("operations", "supply chain", "logistics", "operations manager", "program manager", "chief of staff"),
+        "Make the business run reliably and scale predictably",
+    ),
+    (
+        "customer_success",
+        ("customer success", "cs manager", "client success", "renewal", "customer support"),
+        "Keep customers succeeding, renewing, and growing",
     ),
 ]
 
@@ -118,7 +183,20 @@ def _importance_for_competency(comp: dict, role_class: str) -> int:
     importance = _CANONICAL_IMPORTANCE.get(comp_id)
     if importance is None:
         category = str(comp.get("category") or "").lower()
-        base = {"technical": 7, "cognitive": 7, "experience": 6, "behavioral": 5}.get(category, 5)
+        base = {
+            "technical": 7,
+            "cognitive": 7,
+            "experience": 6,
+            "behavioral": 5,
+            "commerce": 7,
+            "marketing": 7,
+            "design": 7,
+            "product": 8,
+            "hr": 6,
+            "finance": 7,
+            "operations": 7,
+            "customer_success": 6,
+        }.get(category, 5)
         boost = 0
         for keyword, delta in _ID_IMPORTANCE_BOOST.items():
             if keyword in comp_id:
@@ -218,6 +296,30 @@ def default_probe_for(comp_id: str, role_class: str = "general") -> str:
         "tech_caching": "Explain a caching decision you made and how you handled invalidation.",
         "behav_leadership": "Describe a time you led an engineering effort across teams.",
         "behav_communication": "Describe a technical tradeoff you had to explain to non-engineers.",
+        "com_sales_strategy": "Walk me through a territory or pipeline you built and the revenue outcome you owned.",
+        "com_negotiation": "Tell me about the hardest deal negotiation you closed and how you structured it.",
+        "com_customer_acumen": "Describe how you uncovered a customer's real buying drivers for a deal.",
+        "mkt_brand_strategy": "Walk me through a positioning decision you made and how you measured its impact.",
+        "mkt_campaign_management": "Describe a multi-channel campaign you ran end to end and what the metrics showed.",
+        "mkt_analytics_growth": "Show me an experiment or growth lever you ran and how you judged the result.",
+        "des_ux_research": "Walk me through a research insight that changed a product decision.",
+        "des_visual_design": "Show me a design decision you made and the tradeoff you resolved.",
+        "des_prototyping": "Describe how you iterate from a rough idea to a validated design.",
+        "prd_product_strategy": "Walk me through a product strategy you owned and the tradeoffs you made.",
+        "prd_roadmap_prioritization": "Show me how you prioritized a roadmap under constraint.",
+        "prd_user_stories": "Describe how you turned a vague request into a shippable requirement.",
+        "hr_talent_acquisition": "Describe a sourcing or hiring process you ran and the outcome.",
+        "hr_employee_relations": "Tell me about a sensitive employee situation you handled well.",
+        "hr_org_design": "Walk me through an organizational or culture change you drove.",
+        "fin_financial_analysis": "Show me a financial model or analysis you built and the decision it informed.",
+        "fin_budgeting_forecasting": "Describe how you forecasted a budget and how accurate it proved.",
+        "fin_compliance_risk": "Tell me about a compliance or risk issue you identified and resolved.",
+        "ops_process_improvement": "Show me a process you redesigned and the measurable improvement.",
+        "ops_project_management": "Describe a complex program you delivered on time and how you de-risked it.",
+        "ops_kpi_management": "Walk me through the metrics you run a business unit on and how you act on them.",
+        "cs_onboarding": "Describe an onboarding or enablement program you built and its retention effect.",
+        "cs_churn_retention": "Show me a churn risk you turned around and what you did.",
+        "cs_relationship_management": "Tell me about a key account you grew and how you built the relationship.",
     }
     for keyword, probe in probes.items():
         if keyword in comp_id:

@@ -28,17 +28,24 @@ declared competency without a reason stated in the rationale.
 ## Output rules
 
 1. Exactly 4-6 competencies, ordered by priority (highest first).
-2. `id`: lowercase snake_case, 3-32 chars, MUST be prefixed by its category:
-   `tech_`, `behav_`, `cog_`, or `exp_` (e.g. `tech_frontend`, `behav_stakeholder_mgmt`).
-3. `category` must be one of: `technical`, `behavioral`, `cognitive`, `experience`.
+2. `id`: lowercase snake_case, 3-32 chars, MUST be prefixed by its family:
+   `tech_` (technical), `behav_` (behavioral), `cog_` (cognitive), `exp_` (experience),
+   `com_` (commerce/sales), `mkt_` (marketing), `des_` (design), `prd_` (product),
+   `hr_` (HR), `fin_` (finance), `ops_` (operations), `cs_` (customer success).
+   e.g. `prd_product_strategy`, `mkt_brand_strategy`, `fin_financial_analysis`.
+3. `category` must be one of: `technical`, `behavioral`, `cognitive`, `experience`,
+   `commerce`, `marketing`, `design`, `product`, `hr`, `finance`, `operations`,
+   `customer_success`. Match the prefix: `prd_*` ids use `product`, `cs_*` use
+   `customer_success`, and so on.
 4. `evidence_dimensions`: 1-3 items from:
    `technical, communication, behavioral, reasoning, confidence, completeness, domain`.
+   Non-engineering competencies should lead with `domain`.
 5. `weight`: 1.0-3.0 — how much this competency decides the hiring outcome.
 6. `default_min_evidence`: 1-3 — evidence items needed before the competency counts as covered.
 7. `verification_probe`: one sentence (interviewer tone) that forces the candidate
    to quantify or demonstrate the competency with concrete evidence.
 8. `skills`: 3-6 lowercase skill keywords/aliases an evidence extractor should map
-   to this competency (e.g. `react`, `typescript`, `accessibility`).
+   to this competency (e.g. `roadmap`, `seo`, `retention`, `sales`).
 
 Return ONLY JSON, no prose:
 

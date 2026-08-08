@@ -33,8 +33,35 @@ MIN_SUGGESTED_COMPETENCIES = 4
 MAX_SUGGESTED_COMPETENCIES = 6
 
 _ID_RE = re.compile(r"^[a-z][a-z0-9_]{2,31}$")
-_CATEGORY_PREFIXES = ("tech_", "behav_", "cog_", "exp_")
-_CATEGORIES = {"technical", "behavioral", "cognitive", "experience", "general"}
+_CATEGORY_PREFIXES = (
+    "tech_",
+    "behav_",
+    "cog_",
+    "exp_",
+    "com_",
+    "mkt_",
+    "des_",
+    "prd_",
+    "hr_",
+    "fin_",
+    "ops_",
+    "cs_",
+)
+_CATEGORIES = {
+    "technical",
+    "behavioral",
+    "cognitive",
+    "experience",
+    "commerce",
+    "marketing",
+    "design",
+    "product",
+    "hr",
+    "finance",
+    "operations",
+    "customer_success",
+    "general",
+}
 _VALID_DIMENSIONS = {
     "technical",
     "communication",
@@ -44,6 +71,98 @@ _VALID_DIMENSIONS = {
     "completeness",
     "domain",
 }
+
+# Family detection for the deterministic fallback: a role title/description is
+# matched (most-specific first) onto the job family so a Marketing Manager with
+# no declared skills still gets marketing competencies instead of tech ones.
+_FAMILY_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "product": (
+        "product manager",
+        "product owner",
+        "product management",
+        "head of product",
+        "product lead",
+    ),
+    "design": (
+        "designer",
+        "ux",
+        "user experience",
+        "ui design",
+        "visual design",
+        "product design",
+        "figma",
+    ),
+    "hr": ("hr", "recruiter", "recruiting", "talent", "people ops", "people operations"),
+    "finance": (
+        "finance",
+        "accounting",
+        "accountant",
+        "controller",
+        "fp&a",
+        "cfo",
+        "treasurer",
+        "financial",
+    ),
+    "operations": (
+        "operations",
+        "supply chain",
+        "logistics",
+        "operations manager",
+        "program manager",
+        "chief of staff",
+    ),
+    "customer_success": (
+        "customer success",
+        "cs manager",
+        "client success",
+        "account manager",
+        "renewal",
+    ),
+    "marketing": ("marketing", "growth", "seo", "brand", "content", "social media", "ppc", "cmo"),
+    "commerce": (
+        "sales",
+        "account executive",
+        "business development",
+        "revenue",
+        "quota",
+        "partnership",
+        "commercial",
+    ),
+}
+
+_FAMILY_FALLBACKS: dict[str, tuple[str, ...]] = {
+    "product": ("prd_product_strategy", "prd_roadmap_prioritization", "prd_user_stories"),
+    "design": ("des_ux_research", "des_visual_design", "des_prototyping"),
+    "hr": ("hr_talent_acquisition", "hr_employee_relations", "hr_org_design"),
+    "finance": ("fin_financial_analysis", "fin_budgeting_forecasting", "fin_compliance_risk"),
+    "operations": ("ops_process_improvement", "ops_project_management", "ops_kpi_management"),
+    "customer_success": ("cs_onboarding", "cs_churn_retention", "cs_relationship_management"),
+    "marketing": ("mkt_brand_strategy", "mkt_content_creation", "mkt_analytics_growth"),
+    "commerce": ("com_sales_strategy", "com_customer_acumen", "com_negotiation"),
+}
+
+# Every family pads with these universal competencies after its own anchors.
+_UNIVERSAL_FALLBACK = ("cog_problem_solving", "behav_communication", "exp_project_depth")
+
+# Matches the pre-T1 tech fallback exactly so backend/frontend behaviour is unchanged.
+_TECH_FAMILY_FALLBACK = ("tech_core", "cog_problem_solving", "behav_communication", "exp_project_depth")
+
+
+def detect_family(job_role: str = "", description: str = "") -> str:
+    """Map a role onto a job family ('technical' when nothing matches).
+
+    The corpus is the role title first, then the description. Keys are matched
+    in family order (product/design/hr/finance/operations/customer_success are
+    checked before marketing/commerce so compound titles like "Sales Operations
+    Manager" resolve to the more specific family).
+    """
+    corpus = " ".join(
+        [str(job_role or "").lower(), str(description or "").lower()]
+    )
+    for family, keywords in _FAMILY_KEYWORDS.items():
+        if any(kw in corpus for kw in keywords):
+            return family
+    return "technical"
 
 # In-memory LRU: sha1(role context) -> {"entries": [...], "source": str}
 _MAX_CACHE_ENTRIES = 128
@@ -189,10 +308,16 @@ def _suggest_from_taxonomy(role_context: dict) -> list[dict]:
     by_id = {c["id"]: c for c in COMPETENCY_TAXONOMY}
     ranked = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)
     picked: list[str] = [cid for cid, _ in ranked if cid in by_id]
-    for fallback_id in ("tech_core", "cog_problem_solving", "behav_communication", "exp_project_depth"):
+
+    family = detect_family(
+        str(role_context.get("job_role") or ""),
+        str(role_context.get("description") or ""),
+    )
+    anchors = _FAMILY_FALLBACKS.get(family, _TECH_FAMILY_FALLBACK)
+    for fallback_id in anchors + _UNIVERSAL_FALLBACK + ("tech_core",):
         if len(picked) >= MIN_SUGGESTED_COMPETENCIES:
             break
-        if fallback_id not in picked:
+        if fallback_id not in picked and fallback_id in by_id:
             picked.append(fallback_id)
 
     entries = []

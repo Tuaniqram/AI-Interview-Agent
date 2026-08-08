@@ -1,0 +1,1037 @@
+<!-- AURA V5 — Brain Graph. Obsidian-style, self-contained, no CDN.
+     Open:      backend_url/public/brain_graph.html                    → embedded sample
+     Live view: backend_url/public/brain_graph.html?sid=<session_id>   → fetches the brain from the API
+     Drag nodes · empty-space drag to pan · scrub or play the timeline to replay the interview's
+     reasoning growing turn by turn. -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AURA Brain · Neuron Graph</title>
+<style>
+  :root{
+    --bg:#05070f; --panel:rgba(16,20,38,.72); --line:rgba(148,163,184,.14);
+    --mut:#8a93ad; --text:#e6e9f5; --violet:#8b5cf6; --sky:#38bdf8;
+    --em:#34d399; --rose:#fb7185; --amber:#fbbf24; --slate:#64748b; --lime:#a3e635;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:
+    radial-gradient(1100px 700px at 78% -10%, rgba(139,92,246,.16), transparent 60%),
+    radial-gradient(900px 620px at 8% 108%, rgba(56,189,248,.10), transparent 60%),
+    var(--bg);color:var(--text);font:14px/1.45 "Segoe UI",system-ui,-apple-system,sans-serif}
+  canvas#view{position:fixed;left:0;top:0;bottom:0;right:340px;z-index:0;display:block;cursor:grab}
+  @media (max-width:900px){
+    #hud{display:none !important}
+    canvas#view{right:0}
+  }
+  canvas#view.dragging{cursor:grabbing}
+  .glass{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 10px 40px rgba(0,0,0,.45)}
+  #hud{position:fixed;top:12px;right:12px;bottom:84px;z-index:5;width:340px;border-radius:16px;
+    overflow:auto;padding:18px 20px}
+  #hud h1{font-size:14px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+    background:linear-gradient(90deg,#c4b5fd,#7dd3fc);-webkit-background-clip:text;background-clip:text;color:transparent}
+  #hud .sid{font-size:10.5px;color:var(--mut);margin:2px 0 10px;word-break:break-all}
+  #hud .verdictRow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  #verdictChip{font-size:12px;font-weight:700;padding:4px 12px;border-radius:99px;letter-spacing:.05em}
+  .chip-borderline,.chip-insufficient_evidence{background:rgba(251,191,36,.14);color:var(--amber);border:1px solid rgba(251,191,36,.4)}
+  .chip-hire,.chip-strong_hire,.chip-lean_hire{background:rgba(52,211,153,.14);color:var(--em);border:1px solid rgba(52,211,153,.4)}
+  .chip-no_hire,.chip-lean_no_hire,.chip-strong_no_hire{background:rgba(251,113,133,.14);color:var(--rose);border:1px solid rgba(251,113,133,.4)}
+  .stat{display:inline-block;font-size:11px;color:var(--mut);margin-top:8px;margin-right:12px}
+  .stat b{color:var(--text);font-weight:600}
+  .stat b.hot{color:var(--amber)}
+  #controls{position:fixed;top:16px;right:16px;z-index:5;padding:12px 14px;width:216px}
+  #controls .lbl{font-size:10px;letter-spacing:.12em;color:var(--mut);text-transform:uppercase;margin:8px 0 4px}
+  #controls label{display:flex;align-items:center;gap:8px;font-size:12px;color:#cdd4e8;margin:3px 0;cursor:pointer}
+  #controls input[type=checkbox]{accent-color:var(--violet);width:12px;height:12px}
+  #search{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text);
+    border-radius:9px;padding:6px 10px;font-size:12px;outline:none}
+  #search:focus{border-color:rgba(139,92,246,.6)}
+  .btns{display:flex;gap:6px;margin-top:10px}
+  .btn{flex:1;background:rgba(139,92,246,.16);border:1px solid rgba(139,92,246,.4);color:#c4b5fd;
+    border-radius:9px;padding:5px 0;font-size:11px;cursor:pointer;transition:.15s}
+  .btn:hover{background:rgba(139,92,246,.3)}
+  .hint{font-size:10px;color:var(--mut);margin-top:10px;line-height:1.5}
+  #scrub{position:fixed;left:12px;right:12px;bottom:12px;z-index:5;height:60px;
+    padding:0 14px;display:flex;align-items:center;gap:12px;border-radius:16px}
+  #playBtn{width:38px;height:38px;border-radius:99px;flex:0 0 auto;background:rgba(139,92,246,.18);
+    border:1px solid rgba(139,92,246,.45);color:#c4b5fd;font-size:13px;cursor:pointer;transition:.15s}
+  #playBtn:hover{background:rgba(139,92,246,.32)}
+  #phaseBadge{font-size:10.5px;padding:3px 10px;border-radius:99px;background:rgba(56,189,248,.14);
+    color:var(--sky);border:1px solid rgba(56,189,248,.35);white-space:nowrap}
+  #scrub input[type=range]{flex:1;accent-color:var(--violet);height:4px;cursor:pointer}
+  #turnLabel{font-size:10.5px;color:var(--mut);min-width:86px;text-align:right}
+  #feed{position:fixed;bottom:92px;left:50%;transform:translateX(-50%);z-index:5;max-width:min(680px,92vw);
+    padding:7px 14px;font-size:11.5px;color:#cdd4e8;text-align:center;pointer-events:none;min-height:24px}
+  #feed b{color:var(--sky)}
+  #feed .ph{color:#a78bfa}
+  #feed .d{color:var(--amber)}
+  #feed .new{color:var(--em)}
+  #legend{position:fixed;right:16px;bottom:18px;z-index:5;padding:10px 12px;font-size:11px;width:172px}
+  #legend .row{display:flex;align-items:center;gap:8px;margin:3px 0;color:#cdd4e8}
+  .dot{width:10px;height:10px;border-radius:99px;flex:0 0 auto}
+  #tooltip{position:fixed;z-index:9;pointer-events:none;max-width:320px;padding:10px 13px;display:none;font-size:12px}
+  #tooltip .tt{font-weight:700;margin-bottom:4px}
+  #tooltip .ts{color:var(--mut);font-size:11px;line-height:1.55}
+  #detail{position:fixed;top:50%;right:16px;transform:translateY(-50%);z-index:7;width:304px;max-height:74vh;
+    overflow:auto;padding:14px 16px;display:none}
+  #detail .x{float:right;cursor:pointer;color:var(--mut);font-size:15px;background:none;border:none}
+  #detail h2{font-size:13px;margin-bottom:6px;padding-right:22px}
+  #detail .metric{display:flex;justify-content:space-between;font-size:12px;margin:4px 0;
+    border-top:1px dashed rgba(148,163,255,.14);padding-top:4px}
+  #detail .metric span{color:var(--mut)}
+  /* clean graph view: no overlays on the canvas; info lives in the side panel */
+  #controls, #scrub, #feed, #legend{display:none !important}
+  @media(max-width:840px){ #controls{display:none} #legend{display:none} }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<div id="hud" class="glass">
+  <h1>AURA V5 · Interview Brain</h1>
+  <div class="sid" id="sidLine">session —</div>
+  <div class="verdictRow">
+    <span id="verdictChip" class="chip-borderline">?</span>
+    <span style="font-size:12px;color:var(--mut)">final verdict</span>
+  </div>
+  <div>
+    <span class="stat">composite <b id="stComposite">—</b></span>
+    <span class="stat">confidence <b id="stConf">—</b></span>
+    <span class="stat">coverage <b id="stCov">—</b></span>
+    <span class="stat">difficulty <b class="hot" id="stDiff">—</b></span>
+    <span class="stat">evidence <b id="stEv">—</b></span>
+    <span class="stat">hyps <b id="stHyp">—</b></span>
+  </div>
+</div>
+
+<div id="controls" class="glass">
+  <div class="lbl">focus</div>
+  <input id="search" placeholder="search node…" autocomplete="off" spellcheck="false" />
+  <div class="lbl">layers</div>
+  <label><input type="checkbox" id="tgCore" checked /> decision core</label>
+  <label><input type="checkbox" id="tgComp" checked /> competencies</label>
+  <label><input type="checkbox" id="tgHyp" checked /> hypotheses</label>
+  <label><input type="checkbox" id="tgEv" checked /> evidence</label>
+  <label><input type="checkbox" id="tgQ" checked /> questions</label>
+  <label><input type="checkbox" id="tgEdge" checked /> connections</label>
+  <div class="lbl">status</div>
+  <label><input type="checkbox" id="tgStConf" checked /> confirmed</label>
+  <label><input type="checkbox" id="tgStRef" checked /> refuted</label>
+  <label><input type="checkbox" id="tgStTest" checked /> testing</label>
+  <label><input type="checkbox" id="tgStUnt" checked /> untested</label>
+  <div class="btns"><button class="btn" id="btnFit">fit view</button><button class="btn" id="btnReset">relayout</button></div>
+  <div class="hint">drag nodes · empty-space drag to pan<br/>click a node for its full detail</div>
+</div>
+
+<div id="scrub" class="glass">
+  <button id="playBtn" title="play / pause replay">▶</button>
+  <span id="phaseBadge">intro</span>
+  <input type="range" id="timeline" min="0" max="1" value="1" step="1" />
+  <span id="turnLabel">turn 1/1</span>
+</div>
+
+<div id="feed" class="glass"><!-- replay announcements --></div>
+
+<div id="legend" class="glass">
+  <div class="row"><span class="dot" style="background:#fbbf24"></span> decision</div>
+  <div class="row"><span class="dot" style="background:#60a5fa"></span> competency</div>
+  <div class="row"><span class="dot" style="background:#34d399"></span> confirmed</div>
+  <div class="row"><span class="dot" style="background:#fb7185"></span> refuted</div>
+  <div class="row"><span class="dot" style="background:#38bdf8"></span> testing</div>
+  <div class="row"><span class="dot" style="background:#a78bfa"></span> untested</div>
+  <div class="row"><span class="dot" style="background:#94a3b8"></span> evidence</div>
+  <div class="row"><span class="dot" style="background:#22d3ee"></span> question</div>
+  <div class="row" style="margin-top:6px;color:var(--mut)">— solid green: supports · dashed red: contradicts</div>
+</div>
+
+<div id="tooltip" class="glass"></div>
+<div id="detail" class="glass">
+  <button class="x" id="detailClose" title="close">✕</button>
+  <h2 id="dtTitle">node</h2>
+  <div id="dtBody"></div>
+  <div class="hint">related nodes pulse while you hover the graph</div>
+</div>
+
+<script>
+"use strict";
+/* ==============================================================
+   EMBEDDED DATA — compact snapshot of a finished interview.
+   Overridden by a live fetch when the page has ?sid=…
+   ============================================================== */
+const EMBEDDED = {"sid": "d0e0b2e7-3faf-46db-b6bb-a81b8415dba1", "verdict": "borderline", "composite": 6.69, "confidence": 0.69, "coverage": 0.68, "difficulty_reached": 5, "evidence_total": 15, "hypothesis_outcomes": {"confirmed": 9, "refuted": 2, "unanswered": 1}, "sufficiency": {"severity": "sufficient", "is_sufficient": true, "remaining_gaps": 2, "coverage": 0.68}, "phases": [{"n": 1, "phase": "intro", "difficulty": 3, "evidence_count": 0}, {"n": 2, "phase": "intro", "difficulty": 3, "evidence_count": 1}, {"n": 3, "phase": "technical", "difficulty": 3, "evidence_count": 2}, {"n": 4, "phase": "technical", "difficulty": 3, "evidence_count": 3}, {"n": 5, "phase": "technical", "difficulty": 3, "evidence_count": 5}, {"n": 6, "phase": "technical", "difficulty": 3, "evidence_count": 6}, {"n": 7, "phase": "technical", "difficulty": 4, "evidence_count": 7}, {"n": 8, "phase": "technical", "difficulty": 4, "evidence_count": 8}, {"n": 9, "phase": "behavioral", "difficulty": 5, "evidence_count": 10}, {"n": 10, "phase": "behavioral", "difficulty": 5, "evidence_count": 11}, {"n": 11, "phase": "behavioral", "difficulty": 5, "evidence_count": 12}, {"n": 12, "phase": "behavioral", "difficulty": 5, "evidence_count": 13}, {"n": 13, "phase": "behavioral", "difficulty": 5, "evidence_count": 14}, {"n": 14, "phase": "conclusion", "difficulty": 5, "evidence_count": 15}, {"n": 14, "phase": "conclusion", "difficulty": 5, "evidence_count": 15}], "competencies": [{"id": "tech_core", "avg": 8.67, "count": 3, "gap": 1.0, "scores": [8.5, 8.5, 9.0]}, {"id": "tech_deployment", "avg": 8.5, "count": 2, "gap": 1.0, "scores": [8.5, 8.5]}, {"id": "tech_event_driven", "avg": 8.5, "count": 4, "gap": 1.0, "scores": [8.0, 8.0, 9.0, 9.0]}, {"id": "tech_system_design", "avg": 8.33, "count": 3, "gap": 1.0, "scores": [8.0, 9.0, 8.0]}, {"id": "behav_communication", "avg": 8.17, "count": 3, "gap": 1.0, "scores": [8.0, 8.0, 8.5]}], "hypotheses": [{"id": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50", "status": "confirmed", "confidence": 1.0, "competency": "tech_core", "statement": "Candidate has strong strong technical depth in Python and related technologies", "evidence": 9, "required": 3}, {"id": "3eb0521f-372a-4fc6-987f-e543d37c0255", "status": "confirmed", "confidence": 1.0, "competency": "tech_core", "statement": "Candidate has strong experience with scalable system tools like Docker and Kubernetes", "evidence": 5, "required": 3}, {"id": "d013bd61-cd67-4aa9-aa24-f924a77bc5b8", "status": "refuted", "confidence": 0.02, "competency": "tech_core", "statement": "Candidate is weak in limited testing exposure", "evidence": 3, "required": 3}, {"id": "0ef5436c-19c6-4eeb-8ce2-7d26556d6e6d", "status": "refuted", "confidence": 0.02, "competency": "tech_core", "statement": "Candidate is weak in potentially limited experience with agile development or CI/CD due to lack of specific mentions", "evidence": 3, "required": 3}, {"id": "2b3128d7-8bf2-433c-886c-b1823efd97c7", "status": "confirmed", "confidence": 0.98, "competency": "tech_core", "statement": "Candidate has strong python skills for this role", "evidence": 3, "required": 3}, {"id": "dc368d9a-2417-4e68-946b-37088b8f3548", "status": "confirmed", "confidence": 0.99, "competency": "behav_communication", "statement": "Candidate communicates clearly and effectively", "evidence": 4, "required": 3}, {"id": "0bc9a2b1-6721-422d-a0ff-13ad6687e7ad", "status": "confirmed", "confidence": 0.98, "competency": "tech_system_design", "statement": "Candidate demonstrates System Design & Scalability", "evidence": 4, "required": 2}, {"id": "c79ec838-79af-4edd-a95a-02a2e3b05ab8", "status": "confirmed", "confidence": 0.82, "competency": "tech_system_design", "statement": "Candidate demonstrates System Design & Scalability", "evidence": 2, "required": 2}, {"id": "d1920647-0a3c-49ca-943a-844768487d14", "status": "confirmed", "confidence": 0.93, "competency": "tech_deployment", "statement": "Candidate demonstrates Reliable Deployments & AWS", "evidence": 2, "required": 2}, {"id": "595d37c4-3f09-4367-9ff4-d08b1ef97c2e", "status": "confirmed", "confidence": 0.99, "competency": "tech_event_driven", "statement": "Candidate demonstrates Event-Driven Processing & Kafka", "evidence": 4, "required": 1}, {"id": "9b5cb423-2069-41b1-805b-d54267758fad", "status": "confirmed", "confidence": 0.96, "competency": "tech_event_driven", "statement": "Candidate demonstrates Event-Driven Processing & Kafka", "evidence": 2, "required": 1}, {"id": "132ade6d-91a5-43a2-9304-6c106980fde9", "status": "untested", "confidence": 0.5, "competency": "tech_event_driven", "statement": "Candidate demonstrates Event-Driven Processing & Kafka", "evidence": 0, "required": 1}], "graph_edges": [{"from": "04fbfc15-fa65-4c66-a516-60584f269b95", "to": "595d37c4-3f09-4367-9ff4-d08b1ef97c2e", "w": 0.85, "support": true}, {"from": "18eb4495-8d3a-4259-be84-5085e0f50ca5", "to": "0bc9a2b1-6721-422d-a0ff-13ad6687e7ad", "w": 0.4, "support": true}, {"from": "18eb4495-8d3a-4259-be84-5085e0f50ca5", "to": "3eb0521f-372a-4fc6-987f-e543d37c0255", "w": 0.4, "support": true}, {"from": "18eb4495-8d3a-4259-be84-5085e0f50ca5", "to": "c79ec838-79af-4edd-a95a-02a2e3b05ab8", "w": 0.4, "support": true}, {"from": "18eb4495-8d3a-4259-be84-5085e0f50ca5", "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50", "w": 0.7, "support": true}, {"from": "18eb4495-8d3a-4259-be84-5085e0f50ca5", "to": "dc368d9a-2417-4e68-946b-37088b8f3548", "w": 0.85, "support": true}, {"from": "26926639-bb99-4085-9bd7-df02270af36d", "to": "0bc9a2b1-6721-422d-a0ff-13ad6687e7ad", "w": 0.85, "support": true}, {"from": "26926639-bb99-4085-9bd7-df02270af36d", "to": "c79ec838-79af-4edd-a95a-02a2e3b05ab8", "w": 0.85, "support": true}, {"from": "32f84a5c-2f9c-456c-8a0e-62e48407c636", "to": "0ef5436c-19c6-4eeb-8ce2-7d26556d6e6d", "w": 0.85, "support": false}, {"from": "32f84a5c-2f9c-456c-8a0e-62e48407c636", "to": "2b3128d7-8bf2-433c-886c-b1823efd97c7", "w": 0.85, "support": true}, {"from": "32f84a5c-2f9c-456c-8a0e-62e48407c636", "to": "3eb0521f-372a-4fc6-987f-e543d37c0255", "w": 0.85, "support": true}, {"from": "32f84a5c-2f9c-456c-8a0e-62e48407c636", "to": "d013bd61-cd67-4aa9-aa24-f924a77bc5b8", "w": 0.85, "support": false}, {"from": "32f84a5c-2f9c-456c-8a0e-62e48407c636", "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50", "w": 0.85, "support": true}, {"from": "64fd68a5-2dae-43f7-9ebb-6d33eb59c018", "to": "0bc9a2b1-6721-422d-a0ff-13ad6687e7ad", "w": 0.85, "support": true}, {"from": "64fd68a5-2dae-43f7-9ebb-6d33eb59c018", "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50", "w": 0.7, "support": true}, {"from": "693823f3-154c-4f7d-ae8a-fe58e5114b43", "to": "0ef5436c-19c6-4eeb-8ce2-7d26556d6e6d", "w": 0.85, "support": false}, {"from": "693823f3-154c-4f7d-ae8a-fe58e5114b43", "to": "2b3128d7-8bf2-433c-886c-b1823efd97c7", "w": 0.85, "support": true}, {"from": "693823f3-154c-4f7d-ae8a-fe58e5114b43", "to": "3eb0521f-372a-4fc6-987f-e543d37c0255", "w": 0.85, "support": true}, {"from": "693823f3-154c-4f7d-ae8a-fe58e5114b43", "to": "d013bd61-cd67-4aa9-aa24-f924a77bc5b8", "w": 0.85, "support": false}, {"from": "693823f3-154c-4f7d-ae8a-fe58e5114b43", "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50", "w": 0.85, "support": true}, {"from": "6b8fea85-46a2-4c60-8601-6cfe4947dca2", "to": "d1920647-0a3c-49ca-943a-844768487d14", "w": 0.85, "support": true}, {"from": "9657f4fd-43a1-42d8-a5e4-8ed20f2597c6", "to": "dc368d9a-2417-4e68-946b-37088b8f3548", "w": 0.85, "support": true}, {"from": "a060e5a0-16ae-4b22-a968-a05b7fd29227", "to": "595d37c4-3f09-4367-9ff4-d08b1ef97c2e", "w": 0.85, "support": true}, {"from": "a060e5a0-16ae-4b22-a968-a05b7fd29227", "to": "9b5cb423-2069-41b1-805b-d54267758fad", "w": 0.85, "support": true}, {"from": "a060e5a0-16ae-4b22-a968-a05b7fd29227", "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50", "w": 0.7, "support": true}, {"from": "c1c1fd41-b6f4-4ac4-adb9-bde00a53e5eb", "to": "0bc9a2b1-6721-422d-a0ff-13ad6687e7ad", "w": 0.85, "support": true}, {"from": "c1c1fd41-b6f4-4ac4-adb9-bde00a53e5eb", "to": "3eb0521f-372a-4fc6-987f-e543d37c0255", "w": 0.45, "support": true}, {"from": "c1c1fd41-b6f4-4ac4-adb9-bde00a53e5eb", "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50", "w": 0.7, "support": true}, {"from": "da5bb392-1fcd-4490-a63f-38fae32f6ef5", "to": "0ef5436c-19c6-4eeb-8ce2-7d26556d6e6d", "w": 0.85, "support": false}, {"from": "da5bb392-1fcd-4490-a63f-38fae32f6ef5", "to": "2b3128d7-8bf2-433c-886c-b1823efd97c7", "w": 0.85, "support": true}, {"from": "da5bb392-1fcd-4490-a63f-38fae32f6ef5", "to": "3eb0521f-372a-4fc6-987f-e543d37c0255", "w": 0.85, "support": true}, {"from": "da5bb392-1fcd-4490-a63f-38fae32f6ef5", "to": "d013bd61-cd67-4aa9-aa24-f924a77bc5b8", "w": 0.85, "support": false}, {"from": "da5bb392-1fcd-4490-a63f-38fae32f6ef5", "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50", "w": 0.85, "support": true}, {"from": "dad8d6d2-91c3-41cf-84d8-bc8414a61e83", "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50", "w": 0.7, "support": true}, {"from": "dad8d6d2-91c3-41cf-84d8-bc8414a61e83", "to": "dc368d9a-2417-4e68-946b-37088b8f3548", "w": 0.85, "support": true}, {"from": "e2a6b489-cd86-451e-8ac6-e267c929676b", "to": "595d37c4-3f09-4367-9ff4-d08b1ef97c2e", "w": 0.85, "support": true}, {"from": "e54928df-5616-40c4-92bd-ef87cbad7a49", "to": "595d37c4-3f09-4367-9ff4-d08b1ef97c2e", "w": 0.85, "support": true}, {"from": "e54928df-5616-40c4-92bd-ef87cbad7a49", "to": "9b5cb423-2069-41b1-805b-d54267758fad", "w": 0.85, "support": true}, {"from": "e54928df-5616-40c4-92bd-ef87cbad7a49", "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50", "w": 0.7, "support": true}, {"from": "ebfc4371-a2ee-4325-9e65-6b5a7a8776e8", "to": "d1920647-0a3c-49ca-943a-844768487d14", "w": 0.85, "support": true}]};
+const PARAMS = new URLSearchParams(location.search);
+const SID = PARAMS.get("sid");
+
+/* ---------------- tiny helpers ---------------- */
+const $ = (id) => document.getElementById(id);
+const r2 = (v) => Math.round((Number(v)||0) * 100) / 100;
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function label(statement){
+  let s = String(statement || "").trim();
+  s = s.replace(/^Candidate (has |demonstrates |is |was |uses? |communicates |shows |provides |builds |leads? )/i, "");
+  s = s.replace(/\.?$/, "");
+  return s.length > 46 ? s.slice(0, 45) + "…" : s;
+}
+const compName = (id) => String(id || "").replace(/^(tech_|behav_)/, "").replace(/_/g, " ");
+
+/* ==============================================================
+   MODEL — build nodes + edges from the (embedded or live) data
+   ============================================================== */
+function buildModel(m){
+  const hypById = new Map((m.hypotheses||[]).map(h => [h.id, h]));
+  const compById = new Map((m.competencies||[]).map(c => [c.id, c]));
+  const nodes = [], edges = [], index = {};
+
+  function add(id, type, lvl){
+    if (index[id]) return index[id];
+    const n = {id, type, lvl, x:0, y:0, vx:0, vy:0, r:6, alpha:1, glow:0,
+               pulse:0, order:0, phase: nodes.length * 1.7, lit:true, hidden:false, neighbors:new Set()};
+    nodes.push(n); index[id] = n; return n;
+  }
+  function link(a, b, w, sup){
+    const e = {a, b, w: Math.max(0.05, Math.min(1, w || 0.3)), sup: !!sup};
+    edges.push(e); a.neighbors.add(b.id); b.neighbors.add(a.id);
+    return e;
+  }
+
+  const core = add("__core__", "core", 0);
+  core.r = 8.5; /* gold decision hub — the focal center */
+
+  for (const c of (m.competencies||[])){
+    const n = add("comp:" + c.id, "comp", 1);
+    n.cmeta = c;
+    /* size = base + avg*3 + count*2 (spec), scaled to world units */
+    n.r = 5 + (c.avg||0) * 0.75 + (c.count||0) * 0.6;
+    n.ringR = 115;
+    link(n, core, 0.5);
+  }
+  for (const h of (m.hypotheses||[])){
+    const n = add("hyp:" + h.id, "hyp", 2);
+    n.hmeta = h;
+    n.r = 3 + (h.confidence||0) * 5;               /* base + confidence*30 (scaled) */
+    n.ringR = 190 - (h.confidence||0) * 45;         /* high confidence → closer in */
+    const comp = compById.get(h.competency);
+    if (comp) link(n, index["comp:" + comp.id], 0.7);
+  }
+  const evByComp = {};
+  for (const e of (m.graph_edges||[])){
+    const hyp = hypById.get(e.to);
+    if (!hyp) continue;
+    const cid = hyp.competency || "?";
+    let n = index["ev:" + e.from];
+    if (!n){
+      n = add("ev:" + e.from, "ev", 3);
+      n.emeta = {w:0, sup:0, hyp:e.to, comp:cid};
+      n.hypId = e.to; n.compId = cid;
+      (evByComp[cid] = evByComp[cid] || []).push(n);
+    }
+    n.emeta.w = Math.max(n.emeta.w, e.w || 0);
+    n.emeta.sup += e.support ? 1 : 0;
+    n.r = 2.5 + (e.w || 0) * 3;                    /* base + strength*10 (scaled) */
+    n.ringR = 285 - (e.w || 0) * 70;                /* strong evidence → closer in */
+    link(n, index["hyp:" + hyp.id], e.w || 0.5, e.support);
+  }
+  for (const k in evByComp) evByComp[k].sort((p, q) => q.emeta.w - p.emeta.w);
+
+  /* question nodes — one per question that produced new evidence. Each gets
+     the evidence that lit up during its turn, so replay fires them in order.
+     (Deterministic by id, since the compact data has no explicit link.) */
+  const evOrder = nodes.filter(x => x.type === "ev").sort((p, q) => p.id < q.id ? -1 : 1);
+  let prev = 0, evIdx = 0;
+  for (let i = 0; i < (m.phases||[]).length; i++){
+    const t = m.phases[i];
+    const cnt = t.evcount || 0;
+    if (cnt <= prev) continue;
+    const q = add("q:" + i, "q", 4);
+    q.qmeta = {n: t.n, phase: t.phase || "technical", diff: t.diff, evcount: cnt,
+               delta: cnt - prev, turnIdx: i, newEvs: []};
+    q.r = 3.5; q.ringR = 325;
+    for (let k = 0; k < cnt - prev && evIdx < evOrder.length; k++){
+      const ev = evOrder[evIdx++];
+      q.qmeta.newEvs.push(ev.id);
+      link(q, ev, 0.35);
+    }
+    prev = cnt;
+  }
+
+  return {nodes, edges, index, core, evByComp, evTotal: m.evidence_total || 0};
+}
+
+/* ==============================================================
+   DATA — normalize either the embedded compact shape or the
+   live brain_view shape (interview_brain / evidence_graph / timeline)
+   ============================================================== */
+function normalize(raw){
+  if (!raw) return null;
+  const hasLive = !!raw.interview_brain;
+  let b, ds, rec, es, graph, hyps, summary, phases, diff, rawEdges;
+  if (hasLive){
+    b = raw.interview_brain || {};
+    ds = b.decision_state || {};
+    rec = ds.hiring_recommendation || {};
+    es = ds.evidence_sufficiency || {};
+    graph = raw.evidence_graph || {};
+    hyps = b.current_hypotheses || [];
+    summary = b.evidence_summary || {};
+    diff = (b.difficulty_profile || {}).level;
+    phases = (raw.timeline || []).map(t => ({
+      n: t.question_number,
+      phase: (t.event_data || {}).phase || "technical",
+      diff: (t.event_data || {}).difficulty_level,
+      evcount: (t.event_data || {}).evidence_count || 0,
+    }));
+    const g = graph.edges || {};
+    rawEdges = Array.isArray(g)
+      ? g.map(e => ({from:e.source, to:e.target, w:e.weight, support:!!e.support}))
+      : Object.values(g).map(e => ({from:e.source, to:e.target, w:e.weight, support:!!e.support}));
+  } else {
+    rec = raw; es = raw.sufficiency || {};
+    hyps = raw.hypotheses || [];
+    summary = {}; for (const c of (raw.competencies||[])) summary[c.id] = {average_score:c.avg, evidence_count:c.count, gap:c.gap, scores:c.scores||[]};
+    diff = raw.difficulty_reached;
+    phases = (raw.phases || []).map(t => ({
+      n: t.n,
+      phase: t.phase || "technical",
+      diff: t.difficulty != null ? t.difficulty : t.difficulty_level,
+      evcount: t.evcount != null ? t.evcount : (t.evidence_count || 0),
+    }));
+    rawEdges = Array.isArray(raw.graph_edges) ? raw.graph_edges : [];
+  }
+
+  const competencies = Object.keys(summary).map(c => ({
+    id: c,
+    avg: r2(summary[c].average_score != null ? summary[c].average_score : 0),
+    count: summary[c].evidence_count || 0,
+    gap: summary[c].gap != null ? r2(summary[c].gap) : 1,
+    scores: (graph && graph.nodes && graph.nodes[c] && graph.nodes[c].scores || summary[c].scores || []).map(r2),
+  }));
+
+  const hypotheses = hyps.map(h => ({
+    id: h.id,
+    status: h.status || "untested",
+    confidence: r2(Number(h.confidence) != null && !isNaN(Number(h.confidence)) ? Number(h.confidence) : Number(h.probability) || 0),
+    competency: h.competency,
+    statement: h.statement || "",
+    evidence: h.evidence_count != null ? h.evidence_count : (h.evidence || 0),
+    required: h.required_evidence || 3,
+  }));
+
+  let evTotal = 0;
+  for (const c of competencies) evTotal += c.count;
+
+return {
+    sid: raw.session_id,
+    verdict: rec.verdict,
+    composite: raw.composite != null ? raw.composite : rec.composite_score,
+    confidence: raw.confidence != null ? raw.confidence : rec.confidence,
+    coverage: raw.coverage != null ? raw.coverage : rec.coverage_ratio,
+    difficulty: diff != null ? diff : rec.difficulty_reached,
+    evidence_total: evTotal,
+    hypotheses,
+    competencies,
+    graph_edges: rawEdges,
+    phases,
+    sufficiency: es,
+  };
+}
+
+/* ==============================================================
+   SIMULATION — relaxed force layout (repulsion + springs + ring pull)
+   ============================================================== */
+const sim = {nodes:[], edges:[], index:{}, core:null, evTotal:0,
+             cam:{x:0, y:0, k:1}, dragging:false};
+let DATA = null;
+let dragNode = null, hoverNode = null, panning = false, panStart = null;
+const vis = {core:true, comp:true, hyp:true, ev:true, q:true, edges:true};
+let turns = [], curTurn = -1;
+
+function placeRing(nodes, rMin, rMax, jitter){
+  const n = nodes.length;
+  const base = Math.random() * Math.PI * 2;
+  nodes.forEach((nd, i) => {
+    const r = rMin + (rMax - rMin) * (n <= 1 ? 0 : i / (n - 1));
+    const a = (i / Math.max(1, n)) * Math.PI * 2 + base;
+    nd.x = Math.cos(a) * r + (Math.random() - .5) * jitter;
+    nd.y = Math.sin(a) * r + (Math.random() - .5) * jitter;
+  });
+}
+
+function resetSim(){
+  sim.nodes = []; sim.edges = []; sim.index = {}; sim.evTotal = 0;
+  sim.core = null; turns = []; curTurn = -1; dragNode = null; hoverNode = null;
+
+  if (!DATA) return;
+  const model = buildModel(DATA);
+  sim.core = model.core;
+  sim.edges = model.edges;
+  sim.evTotal = model.evTotal;
+  for (const n of model.nodes){
+    sim.nodes.push(n); sim.index[n.id] = n;
+  }
+  const W = 1600, H = 1000;
+  sim.core.x = 0; sim.core.y = 0;
+  /* even-angle circular rings — the layout you called beautiful: each layer a
+     clean circle, organic jitter, no wedges, no gaps. Edges run straight. */
+  placeRing(model.nodes.filter(n => n.type === "comp"),  95  * disp.space, 135 * disp.space, 12);
+  placeRing(model.nodes.filter(n => n.type === "hyp"),  165 * disp.space, 215 * disp.space, 22);
+  placeRing(model.nodes.filter(n => n.type === "ev"),   250 * disp.space, 320 * disp.space, 30);
+  placeRing(model.nodes.filter(n => n.type === "q"),    300 * disp.space, 350 * disp.space, 20);
+  turns = DATA.phases || [];
+  if (!turns.length) turns = [{n:1, phase:"technical", diff:1, evcount:0}];
+  curTurn = turns.length - 1;
+  const t = $("timeline");
+  t.max = turns.length - 1; t.value = turns.length - 1;
+  setHud();
+}
+
+/* per-frame forces — circular rings: ring-pull owns the radius, springs steer
+   angles, gentle gravity keeps everything gathered around the core */
+const REP = 3800, DAMP = 0.86, SPRING = 0.5, RING_PULL = 0.09, GRAV = 0.006, VMAX = 26, V = VMAX;
+
+function ringOf(lvl){
+  if (lvl === 1) return 115;
+  if (lvl === 2) return 190;
+  if (lvl === 3) return 285;
+  return 0;
+}
+
+function relax(elapsed, coef){
+  /* coef drives how hard the forces act — 1 during the settle pass at boot,
+     a small fraction afterwards so the graph stays calm but alive. */
+  const ns = sim.nodes, n = ns.length;
+  for (let i = 0; i < n; i++){
+    for (let j = i + 1; j < n; j++){
+      const a = ns[i], b = ns[j];
+      if (a.hidden || b.hidden) continue;
+      let dx = a.x - b.x, dy = a.y - b.y;
+      let d2 = dx*dx + dy*dy;
+      if (d2 < 4) { const s = Math.random()-.5; dx += s; dy += (Math.random()-.5); d2 = 4; }
+      const d = Math.sqrt(d2);
+      const minD = (a.r + b.r) * disp.node + 14 * disp.space;
+      const f = d < minD ? (minD - d) * 6 * REP : REP / d2;
+      const fx = dx / d * f, fy = dy / d * f;
+      a.vx += fx * elapsed * coef; a.vy += fy * elapsed * coef;
+      b.vx -= fx * elapsed * coef; b.vy -= fy * elapsed * coef;
+    }
+  }
+  for (const e of sim.edges){
+    if (e.a.hidden || e.b.hidden) continue;
+    const dx = e.b.x - e.a.x, dy = e.b.y - e.a.y;
+    const d = Math.max(1e-3, Math.sqrt(dx*dx + dy*dy));
+    const f = (d - (120 - (e.w - 0.5) * 40) * disp.space) * SPRING * (0.3 + e.w);
+    const cross = e.a.lvl !== e.b.lvl && e.a.lvl > 0 && e.b.lvl > 0;
+    if (cross){
+      /* radius belongs to the rings — springs only steer angles */
+      for (const nd of [e.a, e.b]){
+        const rad = Math.hypot(nd.x, nd.y);
+        if (rad < 1) continue;
+        const tangX = -nd.y / rad, tangY = nd.x / rad;
+        const comp = f * ((dx / d) * tangX + (dy / d) * tangY);
+        nd.vx += tangX * comp * elapsed * coef;
+        nd.vy += tangY * comp * elapsed * coef;
+      }
+      continue;
+    }
+    const fx = dx / d * f, fy = dy / d * f;
+    e.a.vx += fx * elapsed * coef; e.a.vy += fy * elapsed * coef;
+    e.b.vx -= fx * elapsed * coef; e.b.vy -= fy * elapsed * coef;
+  }
+  for (let k = 0; k < n; k++){
+    const nd = ns[k];
+    if (nd.hidden) continue;
+    if (nd === dragNode){ nd.vx = 0; nd.vy = 0; continue; }
+    if (nd === sim.core){ nd.vx *= DAMP * .5; nd.vy *= DAMP * .5; nd.x *= .85; nd.y *= .85; continue; }
+    const targetR = (nd.ringR || ringOf(nd.lvl)) * disp.space;
+    const ang = Math.atan2(nd.y, nd.x);
+    const rad = Math.sqrt(nd.x*nd.x + nd.y*nd.y) || 1;
+    const radial = (targetR - rad) * RING_PULL;
+    nd.vx += (Math.cos(ang) * radial) * elapsed * coef;
+    nd.vy += (Math.sin(ang) * radial) * elapsed * coef;
+    /* gentle central gravity — keeps everything gathered around the core */
+    nd.vx -= nd.x * GRAV * elapsed * coef;
+    nd.vy -= nd.y * GRAV * elapsed * coef;
+    /* hard cap: no node may wander far from its ring */
+    if (rad > targetR * 1.5){
+      nd.vx -= Math.cos(ang) * 60 * elapsed * coef;
+      nd.vy -= Math.sin(ang) * 60 * elapsed * coef;
+    }
+    nd.vx *= Math.pow(DAMP, elapsed * 60);
+    nd.vy *= Math.pow(DAMP, elapsed * 60);
+    const sp = Math.hypot(nd.vx, nd.vy);
+    if (sp > V){ nd.vx = nd.vx / sp * V; nd.vy = nd.vy / sp * V; }
+    if (!isFinite(nd.vx) || !isFinite(nd.vy)){ nd.vx = 0; nd.vy = 0; }
+    nd.x += nd.vx * elapsed;
+    nd.y += nd.vy * elapsed;
+  }
+}
+function setPhysics(elapsed, coef){ relax(elapsed, coef); } /* alias kept for clarity */
+function relaxNow(iterations){
+  /* synchronous boot settle: layout the graph before the first paint */
+  for (let i = 0; i < iterations; i++) relax(0.16, 1);
+  relax(0, 0);
+}
+
+/* ==============================================================
+   TIMELINE — ignition per turn (evidence nodes light up as the
+   interview progressed; phases/difficulty come from the snapshots)
+   ============================================================== */
+function applyTurn(ti){
+  curTurn = Math.max(0, Math.min(turns.length - 1, ti));
+  const t = turns[curTurn];
+  const cum = t.evcount || 0;
+  const total = Math.max(1, sim.evTotal);
+  const litCount = Math.round(sim.evTotal * Math.min(1, cum / total));
+
+  let lit = 0;
+  const litBy = {};
+  const evNodes = sim.nodes.filter(n => n.type === "ev");
+  const seen = new Set();
+  for (const n of evNodes){
+    const key = n.id;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const group = n.compId ? (sim.index["comp:" + n.compId] ? n.compId : null) : null;
+    (litBy[group || "?"] = litBy[group || "?"] || []).push(n);
+  }
+  for (const k in litBy){
+    litBy[k].sort((p, q) => q.emeta.w - p.emeta.w);
+    let on = 0;
+    for (const n of litBy[k]){ if (on < litCount) { n.lit = true; on++; } else n.lit = false; }
+  }
+
+  for (const n of sim.nodes){
+    if (n.type === "core"){ n.alpha = 1; n.glow = 0.9; continue; }
+    if (n.type === "comp"){
+      const arr = litBy[n.id] || [];
+      if (!arr.length){ n.alpha = 1; continue; }
+      const on = arr.filter(x => x.lit).length;
+      n.alpha = Math.max(0.25, Math.min(1, on / arr.length));
+      n.glow = n.alpha;
+      continue;
+    }
+    if (n.type === "hyp"){
+      const hyp = n.hmeta || {};
+      const litEv = countLitForHyp(n, sim.edges);
+      const need = hyp.required || 3;
+      n.alpha = Math.max(0.22, Math.min(1, need ? Math.min(1, litEv / need) : 0.5));
+      if (hyp.status === "refuted") n.alpha = Math.min(n.alpha, 0.5);  /* inactive — dimmed */
+      n.glow = (hyp.status === "confirmed" && litEv >= need) ? 0.9 : 0.3;
+      n.pulse = (hyp.status === "testing" || hyp.status === "untested") ? 1 : 0;
+      continue;
+    }
+    if (n.type === "ev"){
+      n.alpha = n.lit ? 1 : 0.14;
+      n.glow = n.lit ? 0.5 : 0;
+      continue;
+    }
+    if (n.type === "q"){
+      const q = n.qmeta || {};
+      const done = q.turnIdx <= curTurn;
+      n.alpha = done ? 0.95 : 0.14;
+      n.glow = q.turnIdx === curTurn ? 0.7 : 0.15;
+      n.pulse = q.turnIdx === curTurn ? 1 : 0;
+    }
+  }
+
+  const ph = t.phase || "technical";
+  $("phaseBadge").textContent = ph;
+  $("turnLabel").textContent = "turn " + (curTurn + 1) + "/" + turns.length;
+  $("timeline").value = curTurn;
+  const evNow = $("stEv"); if (evNow) evNow.textContent = cum + " / " + sim.evTotal;
+  const df = $("stDiff"); if (df) df.textContent = t.diff != null ? "lvl " + t.diff + " / 5" : "—";
+  updateFeed(t);
+}
+
+/* replay announcements — what this turn of the interview produced */
+function updateFeed(t){
+  const feed = $("feed");
+  if (!feed) return;
+  const q = sim.nodes.find(x => x.type === "q" && x.qmeta && x.qmeta.turnIdx === curTurn);
+  const n = t.n != null ? t.n : (q && q.qmeta ? q.qmeta.n : curTurn + 1);
+  let html = "<b>Q" + esc(n) + "</b> <span class=ph>· " + esc(t.phase || "") + "</span>";
+  if (t.diff != null) html += " <span class=d>· d" + esc(t.diff) + "</span>";
+  const pts = turns[curTurn - 1];
+  const delta = t.evcount || 0;
+  const prevC = pts ? (pts.evcount || 0) : 0;
+  const d = delta - prevC;
+  if (d > 0){
+    const names = (q && q.qmeta && q.qmeta.newEvs || []).slice(0, 3).map(id => id.slice(3, 9));
+    html += " <span class=new>· +" + d + " evidence" + (names.length ? ": " + names.join(" · ") : "") + "</span>";
+  }
+  feed.innerHTML = html;
+}
+
+function countLitForHyp(n, edges){
+  let c = 0;
+  for (const e of edges) if (e.b === n && e.a.type === "ev" && e.a.lit) c++;
+  return c;
+}
+
+/* ==============================================================
+   RENDER
+   ============================================================== */
+const canvas = $("view");
+const ctx = canvas.getContext("2d");
+let DPR = 1, WW = 0, WH = 0;
+
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  WW = canvas.clientWidth; WH = canvas.clientHeight;
+  canvas.width = WW * DPR; canvas.height = WH * DPR;
+  canvas.style.width = WW + "px"; canvas.style.height = WH + "px";
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener("resize", resize);
+
+function toScreen(p){
+  return {x: p.x * sim.cam.k + sim.cam.x, y: p.y * sim.cam.k + sim.cam.y};
+}
+function toWorld(p){
+  return {x: (p.x - sim.cam.x) / sim.cam.k, y: (p.y - sim.cam.y) / sim.cam.k};
+}
+
+const STAT_COLORS = {
+  confirmed:"#34d399", refuted:"#fb7185", testing:"#38bdf8", untested:"#a78bfa",
+};
+function nodeColor(n){
+  if (n.type === "core") return "#fbbf24";   /* gold decision hub */
+  if (n.type === "comp") return "#60a5fa";   /* blue competencies */
+  if (n.type === "q") return "#22d3ee";      /* cyan questions */
+  if (n.type === "hyp") return STAT_COLORS[(n.hmeta||{}).status] || "#a78bfa";
+  return "#94a3b8";                          /* gray evidence */
+}
+
+function draw(){
+  ctx.clearRect(0, 0, WW, WH);
+  ctx.save();
+  ctx.translate(sim.cam.x, sim.cam.y);
+  ctx.scale(sim.cam.k, sim.cam.k);
+
+  const hoverId = hoverNode ? hoverNode.id : null;
+
+  /* center glow — anchors the graph around its focal point */
+  const gx = sim.core ? sim.core.x : 0, gy = sim.core ? sim.core.y : 0;
+  const cglow = ctx.createRadialGradient(gx, gy, 0, gx, gy, 760);
+  cglow.addColorStop(0, "rgba(139,92,246,0.08)");
+  cglow.addColorStop(0.45, "rgba(139,92,246,0.035)");
+  cglow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = cglow;
+  ctx.beginPath(); ctx.arc(gx, gy, 760, 0, Math.PI * 2); ctx.fill();
+
+  /* edges */
+  if (vis.edges){
+    ctx.lineCap = "round";
+    for (const e of sim.edges){
+      if (e.a.hidden || e.b.hidden) continue;
+      const hl = hoverId === e.a.id || hoverId === e.b.id || searchId === e.a.id || searchId === e.b.id;
+      const isEv = e.a.type === "ev" || e.b.type === "ev";
+      let c, al, dash;
+      if (isEv){
+        if (e.sup){ c = "52,211,153"; al = 0.8; dash = []; }            /* supporting → green */
+        else { c = "251,113,133"; al = 0.45; dash = [6,5]; }            /* contradicting → red dashed */
+      } else {
+        c = "148,163,190"; al = 0.4; dash = [];                         /* derived → neutral */
+      }
+      ctx.setLineDash(dash);
+      ctx.strokeStyle = "rgba(" + c + "," + al * (hl ? 1.25 : 1) + ")";
+      ctx.lineWidth = Math.max(0.35, Math.min(1.5, (0.35 + e.w * 0.5) * (hl ? 1.3 : 1) * disp.edge * Math.min(1 / sim.cam.k, 1.4)));
+      ctx.beginPath();
+      ctx.moveTo(e.a.x, e.a.y);
+      ctx.lineTo(e.b.x, e.b.y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+
+  /* nodes */
+  const time = performance.now() / 1000;
+  for (const n of sim.nodes){
+    if (n.hidden) continue;
+    const px = n.x, py = n.y;
+    if (!isFinite(px) || !isFinite(py)) continue;
+    const col = nodeColor(n);
+    const r = n.r * disp.node * (hoverId === n.id ? 1.45 : 1);
+    const pulse = n.pulse ? (0.7 + 0.3 * Math.sin(time * 2.2 + (n.phase || 0))) : 0;
+    const A = n.alpha * (hoverId === n.id ? 1 : 0.85);
+
+    ctx.save();
+    ctx.globalAlpha = A;
+    /* halo */
+    const halo = r * (2.6 + pulse);
+    if (!isFinite(halo)){ ctx.restore(); continue; }
+    const grd = ctx.createRadialGradient(px, py, r * .2, px, py, halo);
+    grd.addColorStop(0, col + "66");
+    grd.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.arc(px, py, halo, 0, Math.PI * 2); ctx.fill();
+    /* body */
+    ctx.shadowColor = col; ctx.shadowBlur = 14 + n.glow * 22;
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    /* core rings */
+    if (n.type === "core"){
+      ctx.strokeStyle = "rgba(139,92,246,.5)";
+      for (let i = 1; i <= 2; i++){
+        ctx.beginPath();
+        ctx.arc(px, py, r + 9 * i + Math.sin(time * .8 + i) * 2.5, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(px, py, r * .35, 0, Math.PI * 2); ctx.fill();
+    }
+    /* competency gap ring */
+    if (n.type === "comp" && n.cmeta && (n.cmeta.gap || 0) >= 0.3){
+      ctx.strokeStyle = "rgba(251,113,133,.65)";
+      ctx.lineWidth = Math.max(0.4, Math.min(1.3, 0.5 * disp.edge * Math.min(1 / sim.cam.k, 1.4)));
+      ctx.beginPath(); ctx.arc(px, py, r + 3.5, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.restore();
+
+    /* labels */
+    if (visLabels(n)){
+      const nodeLabel =
+        n.type === "comp" ? compName(n.id.replace("comp:","")) :
+        n.type === "hyp" ? (n.hmeta ? label(n.hmeta.statement) : "") :
+        n.type === "core" ? String(DATA.verdict || "AURA").toUpperCase() : "";
+      if (nodeLabel){
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, n.alpha + .25);
+        ctx.font = (n.type === "core" ? "700 " : "500 ") + Math.max(10, 12 / sim.cam.k) + "px Segoe UI, sans-serif";
+        ctx.fillStyle = n.type === "core" ? "#fcd34d" : "#b9c1da";
+        ctx.textAlign = "center";
+        const ly = py + r + 16 / sim.cam.k;
+        ctx.fillText(nodeLabel, px, ly);
+        ctx.restore();
+      }
+    }
+  }
+  ctx.restore();
+}
+
+let searchId = null;
+function visLabels(n){
+  return hoverNode === n; /* labels only on hover — clean at rest */
+}
+
+/* ==============================================================
+   LOOP
+   ============================================================== */
+let last = performance.now();
+function loop(){
+  requestAnimationFrame(loop);
+  const now = performance.now();
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  try{
+    relax(dt, q);
+    draw();
+  }catch(err){
+    console.error(err);
+  }
+}
+
+/* ==============================================================
+   INPUT
+   ============================================================== */
+function nodeAt(wx, wy){
+  for (let i = sim.nodes.length - 1; i >= 0; i--){
+    const n = sim.nodes[i];
+    if (n.hidden) continue;
+    const dx = n.x - wx, dy = n.y - wy;
+    if (dx*dx + dy*dy <= (n.r * disp.node + 8/sim.cam.k) * (n.r * disp.node + 8/sim.cam.k)) return n;
+  }
+  return null;
+}
+
+canvas.addEventListener("pointerdown", (ev) => {
+  const w = toWorld({x: ev.clientX, y: ev.clientY});
+  const n = nodeAt(w.x, w.y);
+  if (n){
+    dragNode = n;
+    canvas.classList.add("dragging");
+    return;
+  }
+  panning = true;
+  panStart = {x: ev.clientX, y: ev.clientY, cx: sim.cam.x, cy: sim.cam.y};
+  canvas.classList.add("dragging");
+});
+canvas.addEventListener("pointermove", (ev) => {
+  const w = toWorld({x: ev.clientX, y: ev.clientY});
+  if (dragNode){
+    dragNode.x = w.x; dragNode.y = w.y; dragNode.vx = 0; dragNode.vy = 0;
+    return;
+  }
+  if (panning && panStart){
+    sim.cam.x = panStart.cx + (ev.clientX - panStart.x);
+    sim.cam.y = panStart.cy + (ev.clientY - panStart.y);
+    return;
+  }
+  const n = nodeAt(w.x, w.y);
+  if (n !== hoverNode){
+    hoverNode = n;
+    updateTooltip(n, ev.clientX, ev.clientY);
+  } else if (n){
+    moveTooltip(ev.clientX, ev.clientY);
+  }
+});
+window.addEventListener("pointerup", () => {
+  dragNode = null;
+  panning = false; canvas.classList.remove("dragging");
+});
+
+/* tooltip */
+function updateTooltip(n, cx, cy){
+  const tt = $("tooltip");
+  if (!n){ tt.style.display = "none"; return; }
+  let title = "", rows = [];
+  if (n.type === "core"){
+    title = "AURA decision";
+    rows.push(["verdict", DATA.verdict],
+               ["composite", DATA.composite != null ? Number(DATA.composite).toFixed(1) : "—"],
+               ["confidence", DATA.confidence != null ? Math.round(Number(DATA.confidence) * 100) + "%" : "—"],
+               ["coverage", DATA.coverage != null ? Math.round(Number(DATA.coverage) * 100) + "%" : "—"],
+               ["difficulty", DATA.difficulty != null ? "lvl " + DATA.difficulty + " / 5" : "—"]);
+  } else if (n.type === "comp"){
+    const c = n.cmeta || {};
+    title = compName(n.id.replace("comp:",""));
+    rows.push(["avg score", c.avg], ["evidence", c.count], ["gap", c.gap],
+               ["scores", (c.scores||[]).join(" · ") || "—"]);
+  } else if (n.type === "hyp"){
+    const h = n.hmeta || {};
+    title = (h.statement || "hypothesis");
+    rows.push(["status", h.status], ["confidence", h.confidence], ["evidence", h.evidence + " / " + (h.required||3) + " req"]);
+  } else if (n.type === "ev"){
+    const m = n.emeta || {};
+    title = "evidence " + n.id.slice(3, 9);
+    rows.push(["weight", m.w], ["support", m.sup > 0 ? "supporting" : "against"], ["target", n.hypId ? "hypothesis" : "—"]);
+    const qe = sim.edges.find(e => (e.a === n && e.b.type === "q") || (e.b === n && e.a.type === "q"));
+    if (qe){
+      const q = qe.a.type === "q" ? qe.a : qe.b;
+      if (q.qmeta) rows.push(["asked in", "Q" + q.qmeta.n]);
+    }
+  } else if (n.type === "q"){
+    const q = n.qmeta || {};
+    title = "question " + (q.n || "—");
+    rows.push(["phase", q.phase], ["difficulty", q.diff != null ? "lvl " + q.diff + " / 5" : "—"],
+               ["evidence so far", q.evcount], ["new evidence", q.delta]);
+  }
+  tt.innerHTML = '<div class="tt">' + esc(title) + '</div><div class="ts">' +
+    rows.map(r => "<b>" + esc(r[0]) + ":</b> " + esc(String(r[1] != null ? r[1] : "—"))).join(" · ") + "</div>";
+  tt.style.display = "block";
+  moveTooltip(cx, cy);
+}
+function moveTooltip(cx, cy){
+  const tt = $("tooltip");
+  const pad = 14;
+  tt.style.left = Math.min(cx + pad, WW - tt.offsetWidth - pad) + "px";
+  tt.style.top = Math.min(cy + pad, WH - tt.offsetHeight - pad) + "px";
+}
+
+/* detail card */
+function openDetail(n){
+  const d = $("detail"), t = $("dtTitle"), b = $("dtBody");
+  let html = "";
+  if (n.type === "core"){
+    t.textContent = "AURA decision";
+    html += mRow("verdict", DATA.verdict) + mRow("composite score", DATA.composite) +
+            mRow("confidence", DATA.confidence) + mRow("coverage ratio", r2(DATA.coverage)) +
+            mRow("difficulty reached", DATA.difficulty != null ? "d" + DATA.difficulty : "—") +
+            mRow("evidence total", sim.evTotal) +
+            mRow("hypotheses", sim.nodes.filter(x => x.type === "hyp").length) +
+            mRow("phases", (turns.map(t => t.phase).filter(Boolean) || []).join(" → "));
+  } else if (n.type === "comp"){
+    const c = n.cmeta || {};
+    t.textContent = compName(n.id.replace("comp:",""));
+    html += mRow("average score", c.avg) + mRow("evidence items", c.count) + mRow("gap", c.gap) +
+            mRow("scores", (c.scores||[]).join(" · ") || "—");
+  } else if (n.type === "hyp"){
+    const h = n.hmeta || {};
+    t.textContent = "Hypothesis";
+    const qs = [];
+    for (const e of sim.edges){
+      if (e.b !== n || e.a.type !== "ev") continue;
+      const qe = sim.edges.find(x => (x.a === e.a && x.b.type === "q") || (x.b === e.a && x.a.type === "q"));
+      if (qe){
+        const qn = (qe.a.type === "q" ? qe.a : qe.b).qmeta;
+        if (qn) qs.push("Q" + qn.n);
+      }
+    }
+    html += '<div style="font-size:12px;color:#cdd4e8;margin-bottom:8px">' + esc(h.statement || "") + "</div>" +
+            mRow("status", h.status) + mRow("confidence", h.confidence) +
+            mRow("evidence", h.evidence + " / " + (h.required||3) + " required") +
+            mRow("competency", compName(h.competency));
+    if (qs.length) html += mRow("questions tested", [...new Set(qs)].sort((a, b) => a.slice(1) - b.slice(1)).join(" · "));
+  } else if (n.type === "q"){
+    const q = n.qmeta || {};
+    t.textContent = "Question " + (q.n || "—");
+    html += mRow("phase", q.phase) + mRow("difficulty", q.diff != null ? "d" + q.diff : "—") +
+            mRow("evidence at this point", q.evcount) + mRow("new evidence", q.delta) +
+            mRow("evidence ids", (q.newEvs || []).map(id => id.slice(3, 9)).join(" · ") || "—");
+  } else if (n.type === "ev"){
+    const m = n.emeta || {};
+    t.textContent = "Evidence " + n.id.slice(3, 9);
+    html += mRow("weight", m.w) + mRow("support", m.sup > 0 ? "supporting" : "against");
+  }
+  b.innerHTML = html;
+  d.style.display = "block";
+  $("detailClose").onclick = () => d.style.display = "none";
+}
+function mRow(k, v){
+  return '<div class="metric"><span>' + esc(k) + '</span><b>' + esc(String(v != null ? v : "—")) + "</b></div>";
+}
+
+/* search */
+const searchInput = $("search");
+searchInput.addEventListener("input", () => {
+  const q = searchInput.value.trim().toLowerCase();
+  searchId = null;
+  if (!q){
+    for (const n of sim.nodes) n.hidden = false;
+    return;
+  }
+  for (const n of sim.nodes){
+    const hay = (n.hmeta && n.hmeta.statement || "") + " " + (n.id) + " " +
+                (n.cmeta ? n.id : "") + " " + (n.qmeta ? "Q" + n.qmeta.n + " " + n.qmeta.phase : "");
+    const hit = hay.toLowerCase().includes(q);
+    n.hidden = !hit && !(n.type === "ev" && n.hypId && sim.index["hyp:"+n.hypId] && !sim.index["hyp:"+n.hypId].hidden);
+    if (hit) searchId = n.id;
+  }
+  for (const n of sim.nodes){
+    if (searchId && n.neighbors.has(searchId)) n.hidden = false;
+  }
+});
+
+/* toggles */
+const visStatus = {confirmed:true, refuted:true, testing:true, untested:true};
+$("tgCore").onchange = (e) => { vis.core = e.target.checked; applyVis(); };
+$("tgComp").onchange = (e) => { vis.comp = e.target.checked; applyVis(); };
+$("tgHyp").onchange = (e) => { vis.hyp = e.target.checked; applyVis(); };
+$("tgEv").onchange = (e) => { vis.ev = e.target.checked; applyVis(); };
+$("tgQ").onchange = (e) => { vis.q = e.target.checked; applyVis(); };
+$("tgEdge").onchange = (e) => { vis.edges = e.target.checked; };
+$("tgStConf").onchange = (e) => { visStatus.confirmed = e.target.checked; applyVis(); };
+$("tgStRef").onchange = (e) => { visStatus.refuted = e.target.checked; applyVis(); };
+$("tgStTest").onchange = (e) => { visStatus.testing = e.target.checked; applyVis(); };
+$("tgStUnt").onchange = (e) => { visStatus.untested = e.target.checked; applyVis(); };
+function applyVis(){
+  for (const n of sim.nodes){
+    if (n.type === "core") n.hidden = !vis.core;
+    if (n.type === "comp") n.hidden = !vis.comp;
+    if (n.type === "hyp") n.hidden = !vis.hyp || !visStatus[(n.hmeta||{}).status];
+    if (n.type === "ev") n.hidden = !vis.ev;
+  }
+}
+
+/* timeline */
+$("timeline").addEventListener("input", (e) => setTurn(Number(e.target.value)));
+function setTurn(ti){
+  if (!turns.length) return;
+  applyTurn(ti);
+  draw();
+}
+
+/* play / pause the replay in the bottom bar */
+let playing = false, playTimer = null;
+$("playBtn").addEventListener("click", () => {
+  playing = !playing;
+  $("playBtn").textContent = playing ? "⏸" : "▶";
+  if (playing){
+    playTimer = setInterval(() => {
+      if (curTurn >= turns.length - 1){
+        playing = false; clearInterval(playTimer); playTimer = null;
+        $("playBtn").textContent = "▶"; curTurn = 0;
+      } else curTurn++;
+      setTurn(curTurn);
+    }, 1600);
+  } else { clearInterval(playTimer); playTimer = null; }
+});
+
+/* fit / reset */
+$("btnFit").addEventListener("click", fitView);
+$("btnReset").addEventListener("click", () => { resetSim(); applyVis(); fitView(); });
+
+/* display defaults: readable nodes · calm spacing · thin-but-visible edges */
+const disp = { node: 1.15, space: 1.0, edge: 0.7 };
+function applyDisp(){
+  relaxNow(50); fitView(); applyVis(); applyTurn(curTurn); draw();
+}
+window.addEventListener("message", (ev) => {
+  const d = ev.data;
+  if (!d || d.type !== "aura-ui") return;
+  if (typeof d.node === "number") disp.node = d.node;
+  if (typeof d.space === "number") disp.space = d.space;
+  if (typeof d.edge === "number") disp.edge = d.edge;
+  applyDisp();
+});
+function fitView(){
+  if (!sim.nodes.length) return;
+  /* fit the outermost node, centered on the core (the focal point) */
+  let maxR = 0;
+  for (const n of sim.nodes){
+    if (n.hidden) continue;
+    const r = Math.hypot(n.x - sim.core.x, n.y - sim.core.y) + n.r * disp.node + 26;
+    if (r > maxR) maxR = r;
+  }
+  const R = Math.max(160, maxR);
+  const w = R * 2, h = R * 2;
+  sim.cam.k = Math.max(0.12, Math.min(1.3, Math.min(WW * 0.92 / w, WH * 0.9 / h)));
+  sim.cam.x = WW / 2 - sim.core.x * sim.cam.k;
+  sim.cam.y = WH / 2 - sim.core.y * sim.cam.k;
+}
+
+/* HUD */
+function setHud(){
+  if (!DATA) return;
+  const chip = $("verdictChip");
+  chip.textContent = DATA.verdict || "—";
+  chip.className = "chip-" + String(DATA.verdict || "").toLowerCase().replace(/\s+/g, "_") || "chip-borderline";
+  $("sidLine").textContent = "session " + (DATA.sid || "—") + (SID ? " · live" : " · embedded sample");
+  $("stComposite").textContent = DATA.composite != null ? Number(DATA.composite).toFixed(1) : "—";
+  $("stConf").textContent = DATA.confidence != null ? Math.round(Number(DATA.confidence) * 100) + "%" : "—";
+  $("stCov").textContent = DATA.coverage != null ? Math.round(Number(DATA.coverage) * 100) + "%" : "—";
+  $("stDiff").textContent = DATA.difficulty != null ? "lvl " + DATA.difficulty + " / 5" : "—";
+  $("stEv").textContent = sim.evTotal + " / " + sim.evTotal;
+  $("stHyp").textContent = sim.nodes.filter(n => n.type === "hyp").length;
+  $("turnLabel").textContent = "turn 1/" + turns.length;
+}
+
+/* ---------------- boot ---------------- */
+let q = 0.06; /* physics energy: light drift, rings stay put */
+async function boot(){
+  try{
+    resize();
+    let raw = EMBEDDED;
+    if (SID){
+      try{
+        const r = await fetch("/api/v1/intelligence/brain/" + encodeURIComponent(SID), {headers:{Accept:"application/json"}});
+        if (r.ok) raw = await r.json();
+        else console.warn("live fetch failed, using embedded sample");
+      }catch(err){ console.warn("live fetch failed, using embedded sample", err); }
+    }
+    DATA = normalize(raw);
+    if (!DATA){ throw new Error("no data"); }
+    resetSim();
+    applyVis();
+    q = 0.06;               /* light drift only — keep the fresh ring layout */
+    fitView();
+    applyTurn(turns.length - 1);
+    loop();
+  }catch(err){
+    console.error(err);
+    const e = typeof err === "string" ? err : (err && err.message) || String(err);
+    const box = document.createElement("div");
+    box.style.cssText = "position:fixed;left:14px;bottom:14px;z-index:99;max-width:80vw;padding:12px 16px;" +
+      "background:rgba(50,14,24,.94);border:1px solid rgba(251,113,133,.5);border-radius:12px;" +
+      "color:#fecdd3;font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap;box-shadow:0 10px 30px rgba(0,0,0,.5)";
+    box.textContent = "AURA viewer error: " + e;
+    document.body.appendChild(box);
+  }
+}
+boot();
+</script>
+</body>
+</html>
