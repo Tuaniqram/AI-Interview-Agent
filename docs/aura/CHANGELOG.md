@@ -279,4 +279,37 @@
   Captures committed: `docs/aura/output/brain_view_v3.json` +
   `docs/aura/output/summary-9f025266.json`.
 
+## [AURA-1.7][bug-basin-closure] — 2026-08-09
+- **Engine-bug closure (B1–B8 from `docs/aura/engine_plan.md`)**:
+  - **B1 duplicate question + snapshot** — `question_generator.py` now enforces
+    a hard invariant at the single emission point: the emitted question is
+    never byte-identical to the one just asked (rotates the fallback bank via
+    `_distinct_from_last_question`). `v5_brain_persister._append_timeline`
+    upserts one `brain_snapshot` row per (session, question_number) instead of
+    appending a second row on the finalize save (15 events / 14 questions).
+  - **B3 difficulty mismatch** — `difficulty_governor` tracks
+    `max_difficulty_reached` monotonicly; every `difficulty_reached` read site
+    (assembler difficulty_state/calibration_state, reflection, hiring decision,
+    sufficiency, report) now reports the peak instead of the closing level.
+  - **B7 stale candidate memory** — `_consolidate` is recency-aware: the latest
+    round is authoritative, later rounds win de-dup ordering, and an old
+    weakness/risk ages out when a newer round's strengths refute it (prior
+    "limited testing" no longer persists past a strong-testing round).
+  - **B8 cross-layer shape drift** — `difficulty_state.evidence_depth` (a raw
+    count) renamed to `evidence_total` so it never collides with
+    calibration's labeled `evidence_depth`; frontend difficulty_state panel
+    updated. The headline-vs-calibrated score gap remains intended
+    (calibration override, documented in AURA-1.5).
+  - **B5 / B6 verified in code** — hypothesis evidence deduped by id in
+    `update_hypotheses` + `collect_evidence_for_hypothesis` (≤2 records/answer,
+    top-dimension only); coverage counts only competencies that meet
+    `evidence_count ≥ min ∧ gap ≤ threshold`, and zero-evidence required
+    competencies are backfilled (gap=1.0). **B2 / B4 confirmed decided** —
+    downgrade-only `effective_claim` (AURA-1.6) and `cross_answer_risk`.
+- **Tracker**: `docs/aura/engine_plan.md` statuses updated to ✅ with dates.
+- **Tests**: 6 new regressions — B1 snapshot upsert, B3 governor peak +
+    fallback helper, B7 stale-weakness + absence-is-not-refutation, B8
+    difficulty_state shape. Suite: **592 passed / 1 deselected**; frontend
+    `tsc --noEmit` clean.
+
 _Next entries appended below as changes are confirmed and tested.__

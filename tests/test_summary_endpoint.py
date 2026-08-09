@@ -43,6 +43,7 @@ def _record(**overrides) -> InterviewBrainRecord:
         current_hypotheses=[
             {"status": "confirmed"},
             {"status": "refuted"},
+            {"status": "testing"},
             {"status": "untested"},
         ],
         evidence_summary={
@@ -82,6 +83,7 @@ async def test_engine_summary_reads_brain_snapshot(monkeypatch):
     assert data["v4_hypothesis_outcomes"] == {
         "confirmed": 1,
         "refuted": 1,
+        "testing": 1,
         "untested": 1,
     }
 

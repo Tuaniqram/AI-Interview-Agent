@@ -29,6 +29,7 @@ const OppHubOrgProfile = React.lazy(() => import('../pages/opportunity-hub/OrgPr
 const OppHubInterviewDetail = React.lazy(() => import('../pages/opportunity-hub/InterviewDetail'));
 const PublicInterviewPage = React.lazy(() => import('../pages/public-interview/PublicInterview'));
 const AuraPreview = React.lazy(() => import('../pages/AuraPreview').then(m => ({ default: m.AuraPreview })));
+const BrainGraphPage = React.lazy(() => import('./BrainGraphPage').then(m => ({ default: m.BrainGraphPage })));
 const NotFound = React.lazy(() => import('../pages/NotFound'));
 const ContactUs = React.lazy(() => import('../pages/ContactUs'));
 const OrgDashboard = React.lazy(() => import('../pages/org/OrgDashboard'));
@@ -74,6 +75,7 @@ export function AppRoutes() {
       <Route path="/accept-org-invite/:token" element={<Suspense fallback={<LoadingFallback />}><AcceptOrgInvite /></Suspense>} />
       <Route path="/contact" element={<Suspense fallback={<LoadingFallback />}><ContactUs /></Suspense>} />
       <Route path="/aura-preview" element={<Suspense fallback={<LoadingFallback />}><AuraPreview /></Suspense>} />
+      <Route path="/brain-graph" element={<Suspense fallback={<LoadingFallback />}><BrainGraphPage /></Suspense>} />
 
       <Route element={<OpportunityHubLayout />}>
         <Route path="opportunity-hub" element={<Suspense fallback={<ContentSkeleton />}><OpportunityHubHome /></Suspense>} />

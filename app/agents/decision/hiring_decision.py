@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 
 def _decision_signals(state: InterviewState) -> dict:
+    from app.agents.planning.difficulty_engine import max_difficulty_reached
+
     report = state.get("final_report") or {}
     rec = state.get("hiring_recommendation") or {}
     hypotheses = state.get("hypotheses") or []
@@ -36,7 +38,7 @@ def _decision_signals(state: InterviewState) -> dict:
         "coverage_ratio": rec.get("coverage_ratio"),
         "confirmed_ratio": confirmed_ratio,
         "contradiction_count": contradictions,
-        "difficulty_reached": state.get("difficulty_level"),
+        "difficulty_reached": max_difficulty_reached(state),
         "evidence_count": len(state.get("evidence_store") or []),
     }
 

@@ -2,66 +2,67 @@ export interface EmbeddedBrain {
   sid: string; role: string; verdict: string; composite: number; confidence: number; coverage: number;
   difficulty_reached: number; evidence_total: number;
   hypothesis_outcomes?: Record<string, number>;
-  sufficiency?: { severity?: string; is_sufficient?: boolean; remaining_gaps?: number; coverage?: number };
+  sufficiency?: { severity?: string; is_sufficient?: boolean; remaining_gaps?: number; coverage?: number; details?: Record<string, any> };
   phases: Array<{ n: number; phase: string; difficulty: number; evidence_count: number }>;
   competencies: Array<{ id: string; avg: number; count: number; gap: number; scores: number[] }>;
   hypotheses: Array<Record<string, unknown>>;
   graph_edges: Array<{ from: string; to: string; w?: number; weight?: number; support?: boolean }>;
 }
 
-export const EMBEDDED = {
-  "sid": "d0e0b2e7-3faf-46db-b6bb-a81b8415dba1",
-  "role": "Senior Python Backend Engineer",
-  "verdict": "borderline",
-  "composite": 6.69,
-  "confidence": 0.69,
-  "coverage": 0.68,
-  "difficulty_reached": 5,
-  "evidence_total": 15,
+export const EMBEDDED: EmbeddedBrain = {
+  "sid": "9f025266-26b8-4cbe-8b8c-b883c5436eea",
+  "role": "Senior Backend Engineer",
+  "verdict": "hire",
+  "composite": 8.55,
+  "confidence": 0.71,
+  "coverage": 0.86,
+  "difficulty_reached": 3,
+  "evidence_total": 13,
   "hypothesis_outcomes": {
-    "confirmed": 9,
-    "refuted": 2,
-    "unanswered": 1
+    "confirmed": 5,
+    "testing": 3,
+    "refuted": 0,
+    "unanswered": 6
   },
   "sufficiency": {
     "severity": "sufficient",
-    "is_sufficient": true,
-    "remaining_gaps": 2,
-    "coverage": 0.68,
+    "is_sufficient": false,
+    "remaining_gaps": 1,
+    "coverage": 0.86,
     "details": {
       "tech_caching": {
-        "gap": 1.0,
+        "gap": 0.0,
         "weight": 1.5,
         "covered": false,
-        "average_score": 0.0,
-        "evidence_count": 0
+        "average_score": 8.0,
+        "evidence_count": 1
       },
       "tech_deployment": {
         "gap": 0.0,
         "weight": 2.5,
         "covered": true,
-        "average_score": 8.5,
-        "evidence_count": 2
+        "average_score": 6.67,
+        "evidence_count": 3
       },
       "tech_event_driven": {
         "gap": 0.0,
         "weight": 2.0,
         "covered": true,
-        "average_score": 8.5,
-        "evidence_count": 4
+        "average_score": 8.17,
+        "evidence_count": 3
       },
       "tech_data_modeling": {
-        "gap": 1.0,
+        "gap": 0.0,
         "weight": 2.0,
-        "covered": false,
-        "average_score": 0.0,
-        "evidence_count": 0
+        "covered": true,
+        "average_score": 7.5,
+        "evidence_count": 3
       },
       "tech_system_design": {
         "gap": 0.0,
         "weight": 3.0,
         "covered": true,
-        "average_score": 8.33,
+        "average_score": 8.0,
         "evidence_count": 3
       }
     }
@@ -95,474 +96,364 @@ export const EMBEDDED = {
       "n": 5,
       "phase": "technical",
       "difficulty": 3,
-      "evidence_count": 5
+      "evidence_count": 4
     },
     {
       "n": 6,
       "phase": "technical",
       "difficulty": 3,
-      "evidence_count": 6
+      "evidence_count": 5
     },
     {
       "n": 7,
       "phase": "technical",
       "difficulty": 4,
-      "evidence_count": 7
+      "evidence_count": 6
     },
     {
       "n": 8,
       "phase": "technical",
-      "difficulty": 4,
-      "evidence_count": 8
+      "difficulty": 5,
+      "evidence_count": 7
     },
     {
       "n": 9,
       "phase": "behavioral",
       "difficulty": 5,
-      "evidence_count": 10
+      "evidence_count": 8
     },
     {
       "n": 10,
       "phase": "behavioral",
       "difficulty": 5,
-      "evidence_count": 11
+      "evidence_count": 9
     },
     {
       "n": 11,
       "phase": "behavioral",
-      "difficulty": 5,
-      "evidence_count": 12
+      "difficulty": 4,
+      "evidence_count": 10
     },
     {
       "n": 12,
       "phase": "behavioral",
-      "difficulty": 5,
-      "evidence_count": 13
+      "difficulty": 3,
+      "evidence_count": 11
     },
     {
       "n": 13,
       "phase": "behavioral",
-      "difficulty": 5,
-      "evidence_count": 14
+      "difficulty": 3,
+      "evidence_count": 12
     },
     {
       "n": 14,
       "phase": "conclusion",
-      "difficulty": 5,
-      "evidence_count": 15
+      "difficulty": 3,
+      "evidence_count": 13
     },
     {
       "n": 14,
       "phase": "conclusion",
-      "difficulty": 5,
-      "evidence_count": 15
+      "difficulty": 3,
+      "evidence_count": 13
     }
   ],
   "competencies": [
     {
-      "id": "tech_core",
-      "avg": 8.67,
-      "count": 3,
-      "gap": 1,
+      "id": "tech_caching",
+      "avg": 8.0,
+      "count": 1,
+      "gap": 0.0,
       "scores": [
-        8.5,
-        8.5,
-        9
+        8.0
       ]
     },
     {
       "id": "tech_deployment",
-      "avg": 8.5,
-      "count": 2,
-      "gap": 1,
+      "avg": 6.67,
+      "count": 3,
+      "gap": 0.0,
       "scores": [
-        8.5,
-        8.5
+        8.0,
+        4.0,
+        8.0
       ]
     },
     {
       "id": "tech_event_driven",
-      "avg": 8.5,
-      "count": 4,
-      "gap": 1,
+      "avg": 8.17,
+      "count": 3,
+      "gap": 0.0,
       "scores": [
-        8,
-        8,
-        9,
-        9
+        8.0,
+        8.5,
+        8.0
+      ]
+    },
+    {
+      "id": "tech_data_modeling",
+      "avg": 7.5,
+      "count": 3,
+      "gap": 0.0,
+      "scores": [
+        9.0,
+        8.5,
+        5.0
       ]
     },
     {
       "id": "tech_system_design",
-      "avg": 8.33,
+      "avg": 8.0,
       "count": 3,
-      "gap": 1,
+      "gap": 0.0,
       "scores": [
-        8,
-        9,
-        8
-      ]
-    },
-    {
-      "id": "behav_communication",
-      "avg": 8.17,
-      "count": 3,
-      "gap": 1,
-      "scores": [
-        8,
-        8,
-        8.5
+        8.0,
+        8.0,
+        8.0
       ]
     }
   ],
   "hypotheses": [
     {
-      "id": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
-      "status": "confirmed",
-      "confidence": 1,
-      "competency": "tech_core",
-      "statement": "Candidate has strong strong technical depth in Python and related technologies",
-      "evidence": 9,
-      "required": 3
-    },
-    {
-      "id": "3eb0521f-372a-4fc6-987f-e543d37c0255",
-      "status": "confirmed",
-      "confidence": 1,
-      "competency": "tech_core",
-      "statement": "Candidate has strong experience with scalable system tools like Docker and Kubernetes",
-      "evidence": 5,
-      "required": 3
-    },
-    {
-      "id": "d013bd61-cd67-4aa9-aa24-f924a77bc5b8",
-      "status": "refuted",
-      "confidence": 0.02,
-      "competency": "tech_core",
-      "statement": "Candidate is weak in limited testing exposure",
-      "evidence": 3,
-      "required": 3
-    },
-    {
-      "id": "0ef5436c-19c6-4eeb-8ce2-7d26556d6e6d",
-      "status": "refuted",
-      "confidence": 0.02,
-      "competency": "tech_core",
-      "statement": "Candidate is weak in potentially limited experience with agile development or CI/CD due to lack of specific mentions",
-      "evidence": 3,
-      "required": 3
-    },
-    {
-      "id": "2b3128d7-8bf2-433c-886c-b1823efd97c7",
-      "status": "confirmed",
-      "confidence": 0.98,
-      "competency": "tech_core",
-      "statement": "Candidate has strong python skills for this role",
-      "evidence": 3,
-      "required": 3
-    },
-    {
-      "id": "dc368d9a-2417-4e68-946b-37088b8f3548",
-      "status": "confirmed",
-      "confidence": 0.99,
-      "competency": "behav_communication",
-      "statement": "Candidate communicates clearly and effectively",
-      "evidence": 4,
-      "required": 3
-    },
-    {
-      "id": "0bc9a2b1-6721-422d-a0ff-13ad6687e7ad",
-      "status": "confirmed",
-      "confidence": 0.98,
-      "competency": "tech_system_design",
-      "statement": "Candidate demonstrates System Design & Scalability",
-      "evidence": 4,
-      "required": 2
-    },
-    {
-      "id": "c79ec838-79af-4edd-a95a-02a2e3b05ab8",
-      "status": "confirmed",
-      "confidence": 0.82,
-      "competency": "tech_system_design",
-      "statement": "Candidate demonstrates System Design & Scalability",
-      "evidence": 2,
-      "required": 2
-    },
-    {
-      "id": "d1920647-0a3c-49ca-943a-844768487d14",
+      "id": "0e6dbaee-5438-4f29-8037-89681a1edd3b",
       "status": "confirmed",
       "confidence": 0.93,
-      "competency": "tech_deployment",
-      "statement": "Candidate demonstrates Reliable Deployments & AWS",
-      "evidence": 2,
+      "competency": "tech_core",
+      "statement": "Candidate has strong strong technical depth in Python and FastAPI",
+      "evidence": 3,
+      "required": 3
+    },
+    {
+      "id": "9cb04c09-733b-4acd-97ac-199b23bc9dc4",
+      "status": "untested",
+      "confidence": 0.5,
+      "competency": "tech_core",
+      "statement": "Candidate is weak in limited testing exposure and version control experience",
+      "evidence": 0,
+      "required": 3
+    },
+    {
+      "id": "2dc8ab5a-9f57-42b4-832f-aabb2fefb2ac",
+      "status": "untested",
+      "confidence": 0.5,
+      "competency": "tech_core",
+      "statement": "Candidate has strong backend skills for this role",
+      "evidence": 0,
+      "required": 3
+    },
+    {
+      "id": "bd02fc5e-6238-4194-9ebd-325bf2ceda43",
+      "status": "untested",
+      "confidence": 0.5,
+      "competency": "tech_core",
+      "statement": "Candidate demonstrates Core Language Proficiency",
+      "evidence": 0,
+      "required": 3
+    },
+    {
+      "id": "bb56d771-fe8c-4d23-80fe-cad740f66c78",
+      "status": "untested",
+      "confidence": 0.5,
+      "competency": "tech_framework",
+      "statement": "Candidate demonstrates Framework & Library Knowledge",
+      "evidence": 0,
+      "required": 3
+    },
+    {
+      "id": "5bb4c737-0cbf-42c5-a095-98295097e894",
+      "status": "untested",
+      "confidence": 0.5,
+      "competency": "behav_communication",
+      "statement": "Candidate communicates clearly and effectively",
+      "evidence": 0,
+      "required": 3
+    },
+    {
+      "id": "cd95b26c-07b3-4944-9d81-285ed745c780",
+      "status": "confirmed",
+      "confidence": 0.96,
+      "competency": "tech_system_design",
+      "statement": "Candidate demonstrates System Design & Scalability",
+      "evidence": 3,
       "required": 2
     },
     {
-      "id": "595d37c4-3f09-4367-9ff4-d08b1ef97c2e",
-      "status": "confirmed",
-      "confidence": 0.99,
-      "competency": "tech_event_driven",
-      "statement": "Candidate demonstrates Event-Driven Processing & Kafka",
-      "evidence": 4,
-      "required": 1
+      "id": "f03d00f0-5268-4595-bbcc-31608bd99126",
+      "status": "testing",
+      "confidence": 0.74,
+      "competency": "tech_system_design",
+      "statement": "Candidate demonstrates System Design & Scalability",
+      "evidence": 1,
+      "required": 2
     },
     {
-      "id": "9b5cb423-2069-41b1-805b-d54267758fad",
+      "id": "6b5234ba-047f-4dd2-8eca-4e4e1836ea90",
+      "status": "confirmed",
+      "confidence": 0.85,
+      "competency": "tech_deployment",
+      "statement": "Candidate demonstrates Reliable Deployments & AWS",
+      "evidence": 3,
+      "required": 2
+    },
+    {
+      "id": "155dd71e-86f0-4bf3-b08c-e69b7829e5be",
       "status": "confirmed",
       "confidence": 0.96,
       "competency": "tech_event_driven",
       "statement": "Candidate demonstrates Event-Driven Processing & Kafka",
-      "evidence": 2,
+      "evidence": 3,
       "required": 1
     },
     {
-      "id": "132ade6d-91a5-43a2-9304-6c106980fde9",
-      "status": "untested",
-      "confidence": 0.5,
+      "id": "7feeb809-088e-4743-992d-7c3d13cd864d",
+      "status": "confirmed",
+      "confidence": 0.94,
+      "competency": "tech_data_modeling",
+      "statement": "Candidate demonstrates PostgreSQL Data Modeling & SQLAlchemy",
+      "evidence": 4,
+      "required": 2
+    },
+    {
+      "id": "29002272-394d-45bb-9497-7edd5edc99ee",
+      "status": "testing",
+      "confidence": 0.74,
+      "competency": "tech_caching",
+      "statement": "Candidate demonstrates Caching & Redis",
+      "evidence": 1,
+      "required": 1
+    },
+    {
+      "id": "287cda39-66e1-41ed-b96e-9628e4a1802d",
+      "status": "testing",
+      "confidence": 0.74,
       "competency": "tech_event_driven",
       "statement": "Candidate demonstrates Event-Driven Processing & Kafka",
-      "evidence": 0,
+      "evidence": 1,
       "required": 1
+    },
+    {
+      "id": "9cc3e4d6-95ae-479c-841f-342f5435ddf8",
+      "status": "untested",
+      "confidence": 0.5,
+      "competency": "tech_data_modeling",
+      "statement": "Candidate demonstrates PostgreSQL Data Modeling & SQLAlchemy",
+      "evidence": 2,
+      "required": 2
     }
   ],
   "graph_edges": [
     {
-      "from": "04fbfc15-fa65-4c66-a516-60584f269b95",
-      "to": "595d37c4-3f09-4367-9ff4-d08b1ef97c2e",
-      "w": 0.85,
-      "support": true
-    },
-    {
-      "from": "18eb4495-8d3a-4259-be84-5085e0f50ca5",
-      "to": "0bc9a2b1-6721-422d-a0ff-13ad6687e7ad",
-      "w": 0.4,
-      "support": true
-    },
-    {
-      "from": "18eb4495-8d3a-4259-be84-5085e0f50ca5",
-      "to": "3eb0521f-372a-4fc6-987f-e543d37c0255",
-      "w": 0.4,
-      "support": true
-    },
-    {
-      "from": "18eb4495-8d3a-4259-be84-5085e0f50ca5",
-      "to": "c79ec838-79af-4edd-a95a-02a2e3b05ab8",
-      "w": 0.4,
-      "support": true
-    },
-    {
-      "from": "18eb4495-8d3a-4259-be84-5085e0f50ca5",
-      "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
+      "from": "19437a26-1a84-45ce-ac3c-214d3a752fb6",
+      "to": "0e6dbaee-5438-4f29-8037-89681a1edd3b",
       "w": 0.7,
       "support": true
     },
     {
-      "from": "18eb4495-8d3a-4259-be84-5085e0f50ca5",
-      "to": "dc368d9a-2417-4e68-946b-37088b8f3548",
+      "from": "19437a26-1a84-45ce-ac3c-214d3a752fb6",
+      "to": "cd95b26c-07b3-4944-9d81-285ed745c780",
       "w": 0.85,
       "support": true
     },
     {
-      "from": "26926639-bb99-4085-9bd7-df02270af36d",
-      "to": "0bc9a2b1-6721-422d-a0ff-13ad6687e7ad",
+      "from": "19437a26-1a84-45ce-ac3c-214d3a752fb6",
+      "to": "f03d00f0-5268-4595-bbcc-31608bd99126",
       "w": 0.85,
       "support": true
     },
     {
-      "from": "26926639-bb99-4085-9bd7-df02270af36d",
-      "to": "c79ec838-79af-4edd-a95a-02a2e3b05ab8",
+      "from": "21951193-4827-41ff-a9dc-38ad86eb9d7e",
+      "to": "6b5234ba-047f-4dd2-8eca-4e4e1836ea90",
       "w": 0.85,
       "support": true
     },
     {
-      "from": "32f84a5c-2f9c-456c-8a0e-62e48407c636",
-      "to": "0ef5436c-19c6-4eeb-8ce2-7d26556d6e6d",
+      "from": "49836ca7-42fa-4de5-adf3-6ca5f5cfc782",
+      "to": "6b5234ba-047f-4dd2-8eca-4e4e1836ea90",
       "w": 0.85,
       "support": false
     },
     {
-      "from": "32f84a5c-2f9c-456c-8a0e-62e48407c636",
-      "to": "2b3128d7-8bf2-433c-886c-b1823efd97c7",
-      "w": 0.85,
-      "support": true
-    },
-    {
-      "from": "32f84a5c-2f9c-456c-8a0e-62e48407c636",
-      "to": "3eb0521f-372a-4fc6-987f-e543d37c0255",
-      "w": 0.85,
-      "support": true
-    },
-    {
-      "from": "32f84a5c-2f9c-456c-8a0e-62e48407c636",
-      "to": "d013bd61-cd67-4aa9-aa24-f924a77bc5b8",
-      "w": 0.85,
-      "support": false
-    },
-    {
-      "from": "32f84a5c-2f9c-456c-8a0e-62e48407c636",
-      "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
-      "w": 0.85,
-      "support": true
-    },
-    {
-      "from": "64fd68a5-2dae-43f7-9ebb-6d33eb59c018",
-      "to": "0bc9a2b1-6721-422d-a0ff-13ad6687e7ad",
-      "w": 0.85,
-      "support": true
-    },
-    {
-      "from": "64fd68a5-2dae-43f7-9ebb-6d33eb59c018",
-      "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
+      "from": "4c748ca0-1505-4364-a698-b49d4b6e8e64",
+      "to": "0e6dbaee-5438-4f29-8037-89681a1edd3b",
       "w": 0.7,
       "support": true
     },
     {
-      "from": "693823f3-154c-4f7d-ae8a-fe58e5114b43",
-      "to": "0ef5436c-19c6-4eeb-8ce2-7d26556d6e6d",
-      "w": 0.85,
-      "support": false
-    },
-    {
-      "from": "693823f3-154c-4f7d-ae8a-fe58e5114b43",
-      "to": "2b3128d7-8bf2-433c-886c-b1823efd97c7",
+      "from": "4c748ca0-1505-4364-a698-b49d4b6e8e64",
+      "to": "155dd71e-86f0-4bf3-b08c-e69b7829e5be",
       "w": 0.85,
       "support": true
     },
     {
-      "from": "693823f3-154c-4f7d-ae8a-fe58e5114b43",
-      "to": "3eb0521f-372a-4fc6-987f-e543d37c0255",
+      "from": "4c748ca0-1505-4364-a698-b49d4b6e8e64",
+      "to": "287cda39-66e1-41ed-b96e-9628e4a1802d",
       "w": 0.85,
       "support": true
     },
     {
-      "from": "693823f3-154c-4f7d-ae8a-fe58e5114b43",
-      "to": "d013bd61-cd67-4aa9-aa24-f924a77bc5b8",
-      "w": 0.85,
-      "support": false
-    },
-    {
-      "from": "693823f3-154c-4f7d-ae8a-fe58e5114b43",
-      "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
+      "from": "84d21c51-6e49-475f-939d-3f8d931af491",
+      "to": "7feeb809-088e-4743-992d-7c3d13cd864d",
       "w": 0.85,
       "support": true
     },
     {
-      "from": "6b8fea85-46a2-4c60-8601-6cfe4947dca2",
-      "to": "d1920647-0a3c-49ca-943a-844768487d14",
+      "from": "84d21c51-6e49-475f-939d-3f8d931af491",
+      "to": "9cc3e4d6-95ae-479c-841f-342f5435ddf8",
       "w": 0.85,
       "support": true
     },
     {
-      "from": "9657f4fd-43a1-42d8-a5e4-8ed20f2597c6",
-      "to": "dc368d9a-2417-4e68-946b-37088b8f3548",
+      "from": "9bfbea61-7790-4872-97ee-11b9edabc836",
+      "to": "7feeb809-088e-4743-992d-7c3d13cd864d",
       "w": 0.85,
       "support": true
     },
     {
-      "from": "a060e5a0-16ae-4b22-a968-a05b7fd29227",
-      "to": "595d37c4-3f09-4367-9ff4-d08b1ef97c2e",
+      "from": "b7843cb0-c861-4e42-afe6-70ac9ade0771",
+      "to": "155dd71e-86f0-4bf3-b08c-e69b7829e5be",
       "w": 0.85,
       "support": true
     },
     {
-      "from": "a060e5a0-16ae-4b22-a968-a05b7fd29227",
-      "to": "9b5cb423-2069-41b1-805b-d54267758fad",
-      "w": 0.85,
-      "support": true
-    },
-    {
-      "from": "a060e5a0-16ae-4b22-a968-a05b7fd29227",
-      "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
+      "from": "ba08e580-7015-4401-8ea1-477b78edad58",
+      "to": "0e6dbaee-5438-4f29-8037-89681a1edd3b",
       "w": 0.7,
       "support": true
     },
     {
-      "from": "c1c1fd41-b6f4-4ac4-adb9-bde00a53e5eb",
-      "to": "0bc9a2b1-6721-422d-a0ff-13ad6687e7ad",
+      "from": "ba08e580-7015-4401-8ea1-477b78edad58",
+      "to": "29002272-394d-45bb-9497-7edd5edc99ee",
       "w": 0.85,
       "support": true
     },
     {
-      "from": "c1c1fd41-b6f4-4ac4-adb9-bde00a53e5eb",
-      "to": "3eb0521f-372a-4fc6-987f-e543d37c0255",
-      "w": 0.45,
-      "support": true
-    },
-    {
-      "from": "c1c1fd41-b6f4-4ac4-adb9-bde00a53e5eb",
-      "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
-      "w": 0.7,
-      "support": true
-    },
-    {
-      "from": "da5bb392-1fcd-4490-a63f-38fae32f6ef5",
-      "to": "0ef5436c-19c6-4eeb-8ce2-7d26556d6e6d",
-      "w": 0.85,
-      "support": false
-    },
-    {
-      "from": "da5bb392-1fcd-4490-a63f-38fae32f6ef5",
-      "to": "2b3128d7-8bf2-433c-886c-b1823efd97c7",
+      "from": "c80f10c4-a83e-44f5-9bea-cd9cbfd92636",
+      "to": "cd95b26c-07b3-4944-9d81-285ed745c780",
       "w": 0.85,
       "support": true
     },
     {
-      "from": "da5bb392-1fcd-4490-a63f-38fae32f6ef5",
-      "to": "3eb0521f-372a-4fc6-987f-e543d37c0255",
+      "from": "d3d1400a-6f85-4e9a-8bfa-bf7ac40be877",
+      "to": "155dd71e-86f0-4bf3-b08c-e69b7829e5be",
       "w": 0.85,
       "support": true
     },
     {
-      "from": "da5bb392-1fcd-4490-a63f-38fae32f6ef5",
-      "to": "d013bd61-cd67-4aa9-aa24-f924a77bc5b8",
-      "w": 0.85,
-      "support": false
-    },
-    {
-      "from": "da5bb392-1fcd-4490-a63f-38fae32f6ef5",
-      "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
+      "from": "e83e285a-3b50-4d70-bd70-27c83c2bcf70",
+      "to": "7feeb809-088e-4743-992d-7c3d13cd864d",
       "w": 0.85,
       "support": true
     },
     {
-      "from": "dad8d6d2-91c3-41cf-84d8-bc8414a61e83",
-      "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
-      "w": 0.7,
-      "support": true
-    },
-    {
-      "from": "dad8d6d2-91c3-41cf-84d8-bc8414a61e83",
-      "to": "dc368d9a-2417-4e68-946b-37088b8f3548",
+      "from": "e8f996cc-9133-4d0d-880b-8c724bc1860b",
+      "to": "cd95b26c-07b3-4944-9d81-285ed745c780",
       "w": 0.85,
       "support": true
     },
     {
-      "from": "e2a6b489-cd86-451e-8ac6-e267c929676b",
-      "to": "595d37c4-3f09-4367-9ff4-d08b1ef97c2e",
-      "w": 0.85,
-      "support": true
-    },
-    {
-      "from": "e54928df-5616-40c4-92bd-ef87cbad7a49",
-      "to": "595d37c4-3f09-4367-9ff4-d08b1ef97c2e",
-      "w": 0.85,
-      "support": true
-    },
-    {
-      "from": "e54928df-5616-40c4-92bd-ef87cbad7a49",
-      "to": "9b5cb423-2069-41b1-805b-d54267758fad",
-      "w": 0.85,
-      "support": true
-    },
-    {
-      "from": "e54928df-5616-40c4-92bd-ef87cbad7a49",
-      "to": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
-      "w": 0.7,
-      "support": true
-    },
-    {
-      "from": "ebfc4371-a2ee-4325-9e65-6b5a7a8776e8",
-      "to": "d1920647-0a3c-49ca-943a-844768487d14",
+      "from": "fecfd1fa-7172-4ea6-a5d8-be6d8cac7f3d",
+      "to": "6b5234ba-047f-4dd2-8eca-4e4e1836ea90",
       "w": 0.85,
       "support": true
     }

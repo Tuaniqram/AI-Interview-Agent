@@ -8,8 +8,32 @@ into fresh builds so the next interview starts from history instead of zero.
 Deterministic; persistence rides the existing candidate-brain snapshot tables.
 """
 import logging
+import re
 
 logger = logging.getLogger(__name__)
+
+_STOP_TOPIC_WORDS = {
+    "about", "able", "across", "also", "approach", "area", "back", "been",
+    "being", "best", "came", "case", "cases", "challenging", "company",
+    "complex", "confidence", "deep", "domain", "during", "even", "every",
+    "field", "focus", "getting", "good", "hand", "hard", "having", "high",
+    "highly", "including", "into", "large", "learned", "less", "level",
+    "limited", "long", "made", "main", "many", "more", "most", "much",
+    "need", "needed", "often", "one", "over", "past", "people", "prior",
+    "problem", "problems", "rather", "really", "related", "role", "round",
+    "show", "showed", "sign", "significant", "skills", "solid", "specific",
+    "still", "strong", "stronger", "strongest", "take", "team", "things",
+    "time", "took", "use", "used", "using", "very", "weak", "weakness",
+    "weaknesses", "well", "when", "where", "which", "while", "worked",
+}
+
+
+def _topic_words(text) -> set[str]:
+    """Content words of a strength/weakness phrase, minus filler."""
+    if not text:
+        return set()
+    words = re.findall(r"[a-z][a-z'-]{2,}", str(text).lower())
+    return {w for w in words if w not in _STOP_TOPIC_WORDS}
 
 
 def build_candidate_memory(
@@ -46,11 +70,42 @@ def build_candidate_memory(
 
 
 def _consolidate(history: list[dict], key: str) -> list[str]:
+    """Consolidate a signal (strengths / weaknesses / risk) across rounds.
+
+    B7: the *latest* round is authoritative. Later rounds win the de-dup
+    ordering, and an older weakness/risk ages out when a newer round's
+    strengths already refute it — a prior "limited testing" weakness must not
+    survive a round whose testing answers were the strongest. Absence alone is
+    not refutation: items a newer round merely stopped mentioning are kept.
+    """
+    if not history:
+        return []
+
+    newest_strength_by_topic: dict[str, int] = {}
+    for idx, record in enumerate(history):
+        for s in record.get("strengths") or []:
+            for word in _topic_words(s):
+                newest_strength_by_topic[word] = idx
+
     seen: list[str] = []
-    for record in history:
+    for idx in range(len(history) - 1, -1, -1):
+        record = history[idx]
         for item in record.get(key) or []:
-            if item and item not in seen:
-                seen.append(item)
+            item = str(item).strip()
+            if not item or item in seen:
+                continue
+            if key in ("weaknesses", "risk_signals"):
+                refuted_by = max(
+                    (
+                        newest_strength_by_topic[w]
+                        for w in _topic_words(item)
+                        if w in newest_strength_by_topic
+                    ),
+                    default=-1,
+                )
+                if refuted_by > idx:
+                    continue
+            seen.append(item)
     return seen[:12]
 
 

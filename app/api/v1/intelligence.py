@@ -155,9 +155,19 @@ async def get_brain(
         "difficulty_profile": brain_row.difficulty_profile if brain_row else None,
         "decision_state": brain_row.decision_state if brain_row else None,
     }
-    # Additive-only: the evidence_reading layer surfaces only when present.
-    if aura_brain.get("evidence_reading"):
-        interview_brain["evidence_reading"] = aura_brain["evidence_reading"]
+    # Additive-only: the 13-layer aura brain surfaces under `brain_layers`.
+    # The layers share entity ids (evidence/hypothesis/competency) and link
+    # through the evidence_graph edges + the decision pipeline below.
+    role_brain = aura_brain.get("role_brain") or {}
+    if role_brain.get("role"):
+        interview_brain["role"] = role_brain["role"]
+    brain_layers = dict(aura_brain)
+    # `evidence_summary` lives on the V5 column, not inside aura_brain.
+    brain_layers.setdefault(
+        "evidence_summary", brain_row.evidence_summary if brain_row else {}
+    )
+    if brain_layers:
+        interview_brain["brain_layers"] = brain_layers
 
     return {
         "session_id": str(session_id),

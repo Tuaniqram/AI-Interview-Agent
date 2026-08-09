@@ -188,6 +188,7 @@ async def _get_engine_summary(session_id: str) -> dict:
         "v4_hypothesis_outcomes": {
             "confirmed": sum(1 for h in hypotheses if h.get("status") == "confirmed"),
             "refuted": sum(1 for h in hypotheses if h.get("status") == "refuted"),
+            "testing": sum(1 for h in hypotheses if h.get("status") == "testing"),
             "untested": sum(1 for h in hypotheses if h.get("status") == "untested"),
         },
     }

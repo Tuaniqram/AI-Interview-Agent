@@ -279,6 +279,10 @@ def test_assemble_aura_brain_full_shape():
         assert section in brain, section
     assert brain["difficulty_state"]["floor_satisfied"] is True
     assert brain["calibration_state"]["evidence_depth"] == "low"
+    # B8: difficulty_state carries the evidence *count* under its own key and
+    # never collides with calibration's labeled ``evidence_depth``.
+    assert isinstance(brain["difficulty_state"].get("evidence_total"), int)
+    assert "evidence_depth" not in brain["difficulty_state"]
     assert brain["decision_state"]["decision"] == "hire"
 
 
@@ -428,3 +432,38 @@ def test_default_taxonomy_assembly_is_safe():
     assert brain["competency_graph"]["nodes"]
     assert brain["role_brain"]["critical_competencies"]
     assert brain["question_strategy"]["question_strategy"]["mode"] in ("explore", "conclude")
+
+
+def test_candidate_memory_drops_stale_weakness_refuted_by_latest_round():
+    """B7 regression: a prior "limited testing" weakness must not persist into
+    a round whose strengths say testing was the strongest area."""
+    from app.brain.candidate_memory import _consolidate
+
+    history = [
+        {
+            "role": "Backend Engineer",
+            "strengths": ["database design"],
+            "weaknesses": ["limited testing", "documentation"],
+        },
+        {
+            "role": "Backend Engineer",
+            "strengths": ["testing methodology", "database design"],
+            "weaknesses": [],
+        },
+    ]
+    weaknesses = _consolidate(history, "weaknesses")
+    assert "limited testing" not in weaknesses
+    assert "documentation" in weaknesses
+    assert "database design" in _consolidate(history, "strengths")
+
+
+def test_candidate_memory_absent_signal_is_not_refutation():
+    """Absence alone must not erase history — a weakness merely unmentioned in
+    the latest round is still consolidated."""
+    from app.brain.candidate_memory import _consolidate
+
+    history = [
+        {"role": "Engineer", "strengths": ["design"], "weaknesses": ["time management"]},
+        {"role": "Engineer", "strengths": ["design"], "weaknesses": []},
+    ]
+    assert "time management" in _consolidate(history, "weaknesses")

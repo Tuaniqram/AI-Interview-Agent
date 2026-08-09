@@ -35,6 +35,8 @@ def _role_difficulty_floor(state: InterviewState) -> int:
 
 
 async def reflection_engine(state: InterviewState) -> InterviewState:
+    from app.agents.planning.difficulty_engine import max_difficulty_reached
+
     competency_summary = state.get("competency_summary", {})
     required_competencies = state.get("required_competencies", _DEFAULT_REQUIRED)
     comp_weights = competency_weights(state)
@@ -49,7 +51,7 @@ async def reflection_engine(state: InterviewState) -> InterviewState:
         unified_evaluation,
     )
 
-    difficulty_reached = state.get("difficulty_level")
+    difficulty_reached = max_difficulty_reached(state)
     unanswered = unanswered_hypothesis_count(hypotheses)
     question_counts = competency_question_counts(state.get("questions_asked", []))
     last_asked = (state.get("questions_asked") or [])

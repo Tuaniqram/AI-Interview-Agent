@@ -183,18 +183,36 @@ class V5BrainPersister:
         record.version = int(getattr(brain, "state_version", 0) or 0) + 1
 
     async def _append_timeline(self, session, session_id: UUID, brain) -> None:
+        qnum = int(getattr(brain, "question_number", 0) or 0)
+        event_data = {
+            "version": int(getattr(brain, "state_version", 0) or 0) + 1,
+            "phase": getattr(brain, "current_phase", None),
+            "difficulty_level": getattr(brain, "difficulty_level", None),
+            "evidence_count": len(getattr(brain, "evidence_store", []) or []),
+            "hypothesis_count": len(getattr(brain, "hypotheses", []) or []),
+        }
+        # B1: the engine persists a snapshot after every turn *and* again at
+        # finalize, so the last question would otherwise emit two identical
+        # brain_snapshot rows (15 events / 14 questions). Upsert per
+        # (session, question_number) keeps one snapshot per question.
+        existing = await session.execute(
+            select(InterviewTimelineRecord).where(
+                InterviewTimelineRecord.session_id == session_id,
+                InterviewTimelineRecord.event_type == "brain_snapshot",
+                InterviewTimelineRecord.question_number == qnum,
+            )
+        )
+        record = existing.scalars().first()
+        if record is not None:
+            record.event_data = event_data
+            session.add(record)
+            return
         session.add(
             InterviewTimelineRecord(
                 session_id=session_id,
                 event_type="brain_snapshot",
-                question_number=getattr(brain, "question_number", 0),
-                event_data={
-                    "version": int(getattr(brain, "state_version", 0) or 0) + 1,
-                    "phase": getattr(brain, "current_phase", None),
-                    "difficulty_level": getattr(brain, "difficulty_level", None),
-                    "evidence_count": len(getattr(brain, "evidence_store", []) or []),
-                    "hypothesis_count": len(getattr(brain, "hypotheses", []) or []),
-                },
+                question_number=qnum,
+                event_data=event_data,
             )
         )
 

@@ -392,6 +392,30 @@ async def test_question_generator_final_fallback_skips_rejected_templates(monkey
     assert state["current_question"] not in qg._get_template_for_competency("general", "Software Engineer", 1)
 
 
+async def test_question_generator_never_repeats_last_question(monkeypatch):
+    """B1 regression: even when the mode-aware guard is bypassed (or the LLM
+    echoes the previous question verbatim), the emitted question must never be
+    byte-identical to the one just asked (Q13 == Q14)."""
+    import app.agents.generation.question_generator as qg
+
+    last = qg._fallback_question("general", "Software Engineer", 1, variant=3)
+    monkeypatch.setattr(
+        qg.QuestionSimilarityGuard, "is_duplicate",
+        lambda self, text, memory: (False, {}),  # guard lets everything through
+    )
+    monkeypatch.setattr(qg, "_generate_llm_question", lambda **kw: last)
+
+    state = await qg.question_generator_node(make_v4_state(
+        difficulty_level=1,
+        questions_asked=[
+            {"id": "q12", "text": "An earlier question.", "competency": "tech_core"},
+            {"id": "q13", "text": last, "competency": "tech_core"},
+        ],
+    ))
+    assert state["current_question"] != last
+    assert state["questions_asked"][-1]["text"] == state["current_question"]
+
+
 async def test_question_generator_guard_is_mode_aware(stub_llm, monkeypatch):
     """EXPLORER (new competency) questions must be checked against ALL prior
     questions with a stricter bar; PROBER follow-ups only against their own

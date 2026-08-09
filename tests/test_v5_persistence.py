@@ -56,10 +56,28 @@ class _ScalarResult:
     def scalar_one_or_none(self):
         return self._row
 
+    def scalars(self):
+        return _ScalarRows(self._row)
+
+
+class _ScalarRows:
+    def __init__(self, row=None):
+        self._row = row
+
+    def first(self):
+        return self._row
+
+
+class _Namespace:
+    """Attribute-assignable row stand-in (an ``object()`` cannot take attrs)."""
+
+    def __init__(self):
+        self.event_data = None
+
 
 class FakeSession:
     """Async context-manager stand-in for an AsyncSession: records adds,
-    never finds an existing row, commits silently."""
+    optionally finds an existing row, commits silently."""
 
     def __init__(self, existing: bool = False):
         self.added = []
@@ -69,7 +87,7 @@ class FakeSession:
         self.added.append(record)
 
     async def execute(self, statement):
-        return _ScalarResult(object()) if self.existing else _ScalarResult(None)
+        return _ScalarResult(_Namespace()) if self.existing else _ScalarResult(None)
 
     async def commit(self):
         return None
@@ -157,6 +175,29 @@ async def test_save_snapshot_writes_brain_graph_and_timeline_rows():
     assert tl_rec.event_type == "brain_snapshot"
     assert tl_rec.question_number == 2
     assert tl_rec.event_data["version"] == brain.state_version + 1
+
+
+async def test_save_snapshot_upserts_timeline_row_per_question():
+    """B1 regression: the engine persists a snapshot after every turn *and* at
+    finalize, so the same question must never produce two brain_snapshot rows
+    (15 events / 14 questions). A second snapshot for the same question
+    updates the existing row instead of appending a duplicate."""
+    factory = FakeSessionFactory()
+    persister = V5BrainPersister(session_factory=lambda: factory)
+    brain = _make_brain()
+
+    await persister.save_snapshot(brain)
+    assert len(factory.session.added) == 3
+
+    # Re-save the same question_number (finalize path) — must upsert, not add.
+    factory.session.existing = True
+    factory.session.added.clear()
+    brain.state_version = 4
+    await persister.save_snapshot(brain)
+
+    assert len(factory.session.added) == 1
+    (updated,) = factory.session.added
+    assert updated.event_data["version"] == brain.state_version + 1
 
 
 def test_backfill_evidence_summary_unions_zero_evidence_required_competencies():

@@ -196,6 +196,7 @@ export function Landing() {
             <a href="#graph">brain graph</a>
             <a href="#why">evidence-first</a>
             <a href="#pipeline">pipeline</a>
+            <Link to="/brain-graph">13 layers</Link>
             <Link to="/candidate/login">candidate</Link>
           </div>
           <div className="el-nav-cta">
@@ -215,11 +216,11 @@ export function Landing() {
             </p>
             <div className="el-hero-btns">
               <Link className="el-btn el-btn-primary" to="/register">run an interview</Link>
-              <a className="el-btn el-btn-ghost" href="#graph">explore the graph ↓</a>
+              <Link className="el-btn el-btn-ghost" to="/brain-graph">explore the 13 layers →</Link>
             </div>
             <div className="el-hero-stats">
               <div><div className="el-num">100%</div><div className="el-stat-label">evidence-backed verdicts</div></div>
-              <div><div className="el-num">5</div><div className="el-stat-label">brain layers</div></div>
+              <div><div className="el-num">13</div><div className="el-stat-label">brain layers</div></div>
               <div><div className="el-num">∞</div><div className="el-stat-label">replayable timeline</div></div>
             </div>
           </div>
@@ -227,7 +228,8 @@ export function Landing() {
           <div className="el-stage" id="graph">
             <BrainGraph />
             <div className="el-stage-cap">
-              <b>live demo — the engine's own brain graph.</b> drag nodes · play the timeline · hover any node
+              <b>live demo — the engine's own brain graph.</b> drag nodes · play the timeline · click a layer to see what fed the verdict ·{" "}
+              <Link to="/brain-graph" style={{ textDecoration: "underline" }}>open full view →</Link>
             </div>
           </div>
         </section>

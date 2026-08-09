@@ -82,6 +82,7 @@ def refresh_sufficiency_and_recommendation(state: StateLike) -> tuple[dict, dict
     """
     s = _as_dict(state)
     try:
+        from app.agents.planning.difficulty_engine import max_difficulty_reached
         from app.agents.reasoning.contradiction_engine import (
             competency_weights,
             evaluate_sufficiency,
@@ -94,7 +95,7 @@ def refresh_sufficiency_and_recommendation(state: StateLike) -> tuple[dict, dict
             hypotheses=s.get("hypotheses", []),
             question_number=int(s.get("question_number", 0) or 0),
             comp_weights=competency_weights(s),
-            difficulty_reached=s.get("difficulty_level"),
+            difficulty_reached=max_difficulty_reached(s),
             unanswered_hypotheses=sum(
                 1
                 for h in (s.get("hypotheses") or [])
@@ -260,6 +261,7 @@ def build_report_response(state: StateLike) -> dict:
     # anchor, but the report now exposes both plus the question progress so
     # "73% coverage" can never be confused with "6 of 10 questions asked".
     from app.agents.evaluation.synthesis import _score_timeline
+    from app.agents.planning.difficulty_engine import max_difficulty_reached
 
     timeline = _score_timeline(s)
     avg_answer = (
@@ -301,7 +303,7 @@ def build_report_response(state: StateLike) -> dict:
                 "evidence and no gap — not the question-answered ratio"
             ),
         },
-        "difficulty_reached": (profile or {}).get("level", s.get("difficulty_level", 1)),
+        "difficulty_reached": (profile or {}).get("level", max_difficulty_reached(s)),
         "competency_summary": {
             comp: {
                 "average_score": s_.get("average_score", 0.0),

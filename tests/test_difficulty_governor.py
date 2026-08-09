@@ -164,3 +164,37 @@ async def test_governor_llm_prompt_carries_recent_average(stub_llm):
     state["difficulty_level"] = 2
     await difficulty_governor(state, use_llm=True)
     assert "7.20" in stub.calls[0]["prompt"]
+
+
+def test_max_difficulty_reached_falls_back_to_current_level():
+    from app.agents.planning.difficulty_engine import max_difficulty_reached
+
+    assert max_difficulty_reached({"difficulty_level": 3}) == 3
+    assert max_difficulty_reached({"max_difficulty_reached": 5, "difficulty_level": 3}) == 5
+    assert max_difficulty_reached({"difficulty_level": "nonsense"}) == 1
+
+
+async def test_governor_tracks_peak_difficulty_monotonically(monkeypatch):
+    """B3 regression: difficulty_reached must report the peak, not the closing
+    level. After hitting level 5, a governor pass that lowers back to 3 must
+    keep ``max_difficulty_reached == 5``."""
+
+    class FailLLM:
+        async def invoke(self, prompt, **kwargs):
+            raise Exception("LLM down")
+
+    monkeypatch.setattr("app.services.llm_service.get_llm_service", lambda: FailLLM())
+
+    state = _state_with_evidence([8.5, 8.8], job_role="Senior Backend Engineer")
+    state["difficulty_level"] = 5
+    state["max_difficulty_reached"] = 5
+    raised = await difficulty_governor(state)
+    assert raised["max_difficulty_reached"] == 5
+
+    # Now a weak window would normally lower difficulty — the peak must stay.
+    weak = _state_with_evidence([4.0, 4.5], job_role="Senior Backend Engineer")
+    weak["difficulty_level"] = raised["difficulty_level"]
+    weak["max_difficulty_reached"] = raised["max_difficulty_reached"]
+    lowered = await difficulty_governor(weak)
+    assert lowered["difficulty_level"] < raised["difficulty_level"]
+    assert lowered["max_difficulty_reached"] == 5

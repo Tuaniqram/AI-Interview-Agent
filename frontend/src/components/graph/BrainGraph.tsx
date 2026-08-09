@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { EMBEDDED } from "./embedded";
+import { apiClient } from "../../services/apiClient";
+
+const DEFAULT_SID = "9f025266-26b8-4cbe-8b8c-b883c5436eea";
 
 /* =========================================================================
    AURA V5 · Brain Graph — pure canvas force-layout of an interview brain.
@@ -61,6 +64,7 @@ interface BrainData {
   phases: Phase[];
   hypothesis_outcomes?: Record<string, number>;
   sufficiency?: { severity?: string; is_sufficient?: boolean; remaining_gaps?: number; coverage?: number };
+  layers?: Record<string, any>;
 }
 
 interface SimStore {
@@ -79,6 +83,7 @@ interface SimStore {
   WH: number;
   DPR: number;
   evTotal: number;
+  layer: string | null;
 }
 
 interface Tip {
@@ -172,6 +177,30 @@ const CSS = `
 .bg-metric{display:flex;justify-content:space-between;gap:10px;font-size:12px;margin:5px 0;color:#cdd4e8}
 .bg-metric span{color:#8a93ad;white-space:nowrap}
 .bg-metric b{color:#e8ecff;text-align:right;word-break:break-word}
+.bg-layerbar{position:absolute;left:0;right:0;bottom:0;z-index:6;display:flex;gap:6px;align-items:center;
+  overflow-x:auto;padding:10px 14px 12px;scrollbar-width:none;
+  background:linear-gradient(0deg,rgba(5,7,15,.94),rgba(5,7,15,.5) 74%,transparent)}
+.bg-layerbar::-webkit-scrollbar{display:none}
+.bg-layerbar-title{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:#8a93ad;
+  padding-right:4px;flex:0 0 auto}
+.bg-layer{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;font-size:11px;color:#aab3cc;
+  padding:5px 11px;border-radius:99px;border:1px solid rgba(148,163,255,.16);background:rgba(10,14,28,.7);
+  cursor:pointer;transition:color .15s,border-color .15s,background .15s;white-space:nowrap}
+.bg-layer:hover{color:#e8ecff;border-color:rgba(148,163,255,.4)}
+.bg-layer.active{color:#0a0e1c;background:#e8ecff;border-color:#e8ecff;font-weight:700}
+.bg-layer-dot{width:8px;height:8px;border-radius:50%;box-shadow:0 0 6px var(--ld,#888);background:var(--ld,#888)}
+.bg-trail{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px;align-items:center}
+.bg-trail-step{display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;cursor:pointer;
+  padding:4px 9px;border-radius:10px;border:1px solid rgba(148,163,255,.16);background:rgba(10,14,28,.6);
+  transition:border-color .15s,background .15s}
+.bg-trail-step:hover{border-color:rgba(148,163,255,.5);background:rgba(10,14,28,.95)}
+.bg-trail-v{font-size:12.5px;font-weight:700;color:#e8ecff}
+.bg-trail-k{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#8a93ad}
+.bg-trail-arrow{color:#4b5478;font-size:12px}
+.bg-note{font-size:11px;color:#8a93ad;line-height:1.55;margin:8px 0 2px}
+.bg-list-item{font-size:11px;color:#fda4af;padding:4px 0;border-top:1px solid rgba(148,163,255,.08)}
+.bg-list-item.ok{color:#86efac}
+.bg-list-item::before{content:"— "}
 @media (max-width:900px){
   .bg-card{grid-template-columns:minmax(0,1fr);grid-template-rows:auto;height:auto}
   .bg-aside{display:none}
@@ -266,6 +295,7 @@ function normalize(raw: any): BrainData | null {
     phases,
     hypothesis_outcomes: raw.hypothesis_outcomes || (hasLive ? b.hypothesis_outcomes || undefined : undefined),
     sufficiency: es,
+    layers: (hasLive ? b.brain_layers : (raw as any).brain_layers) || undefined,
   };
 }
 
@@ -611,6 +641,122 @@ const label = (statement?: string) => {
   return s.length > 46 ? s.slice(0, 45) + "…" : s;
 };
 
+/* =========================================================================
+   THE 13 LAYERS — one connected graph viewed through thirteen lenses.
+   Every layer is keyed to the same evidence / hypothesis / competency ids,
+   so selecting a layer only re-focuses the existing graph (see layerFocus /
+   edgeFocus) — it never opens a disconnected view.
+   ========================================================================= */
+interface LayerDef {
+  key: string;
+  name: string;
+  desc: string;
+  color: string;
+}
+
+const LAYER_DEFS: LayerDef[] = [
+  { key: "decision_state", name: "Decision", desc: "verdict, confidence, review flags", color: "#fbbf24" },
+  { key: "hypotheses", name: "Hypotheses", desc: "claims tested across the interview", color: "#a78bfa" },
+  { key: "evidence_graph", name: "Evidence graph", desc: "supports / contradicts edges", color: "#94a3b8" },
+  { key: "evidence_reading", name: "Answer reading", desc: "per-answer verifiability & specificity", color: "#38bdf8" },
+  { key: "competency_graph", name: "Competency graph", desc: "scores, skills, coverage gaps", color: "#60a5fa" },
+  { key: "calibration_state", name: "Calibration", desc: "raw vs calibrated score", color: "#34d399" },
+  { key: "difficulty_state", name: "Difficulty", desc: "depth reached vs role floor", color: "#fb923c" },
+  { key: "uncertainty_map", name: "Uncertainty", desc: "missing evidence per competency", color: "#fda4af" },
+  { key: "contradiction_state", name: "Contradictions", desc: "conflicting evidence flags", color: "#fb7185" },
+  { key: "question_strategy", name: "Question strategy", desc: "which competencies were probed", color: "#22d3ee" },
+  { key: "candidate_memory", name: "Candidate memory", desc: "carried strengths & weaknesses", color: "#a3e635" },
+  { key: "role_brain", name: "Role context", desc: "the job being evaluated", color: "#e2e8f0" },
+  { key: "company_brain", name: "Company context", desc: "org, culture, tech stack", color: "#c4b5fd" },
+];
+
+/* Per-node dim factor for the active layer — everything else falls away so
+   the chosen layer's slice of the one graph reads clearly. */
+function layerFocus(store: SimStore, type: LayerType): number {
+  const lk = store.layer;
+  if (!lk) return 1;
+  switch (lk) {
+    case "decision_state":
+    case "calibration_state":
+      return type === "core" ? 1 : 0.3;
+    case "hypotheses":
+      return type === "hyp" ? 1 : 0.18;
+    case "evidence_graph":
+    case "evidence_reading":
+      return type === "ev" ? 1 : type === "hyp" ? 0.5 : 0.18;
+    case "competency_graph":
+      return type === "comp" ? 1 : 0.18;
+    case "difficulty_state":
+    case "question_strategy":
+      return type === "q" ? 1 : type === "ev" ? 0.4 : 0.2;
+    case "uncertainty_map":
+      return type === "comp" ? 1 : 0.2;
+    case "contradiction_state":
+      return type === "ev" ? 0.7 : 0.25;
+    case "candidate_memory":
+    case "role_brain":
+    case "company_brain":
+      return 0.45;
+    default:
+      return 1;
+  }
+}
+
+function edgeFocus(store: SimStore, e: GEdge): number {
+  const lk = store.layer;
+  if (!lk) return 1;
+  switch (lk) {
+    case "contradiction_state":
+      return e.sup ? 0.12 : 1;
+    case "evidence_graph":
+    case "evidence_reading":
+      return e.a.type === "ev" || e.b.type === "ev" ? 1 : 0.25;
+    case "hypotheses":
+      return e.a.type === "hyp" || e.b.type === "hyp" ? 1 : 0.15;
+    case "competency_graph":
+      return e.a.type === "comp" || e.b.type === "comp" ? 1 : 0.2;
+    case "difficulty_state":
+    case "question_strategy":
+      return e.a.type === "q" || e.b.type === "q" ? 1 : 0.15;
+    case "decision_state":
+    case "calibration_state":
+      return 0.3;
+    case "candidate_memory":
+    case "role_brain":
+    case "company_brain":
+    case "uncertainty_map":
+      return 0.3;
+    default:
+      return 1;
+  }
+}
+
+/* Verdict trail — how the hiring summary was reached, step by step. Each step
+   maps back to the layer that produced it. */
+interface TrailStep {
+  label: string;
+  value: string;
+  layer: string;
+}
+
+function buildTrail(d: BrainData | null): TrailStep[] {
+  if (!d) return [];
+  const layers = d.layers || {};
+  const st: TrailStep[] = [];
+  const s = (label: string, value: string, layer: string) => st.push({ label, value, layer });
+  const confirmed = d.hypothesis_outcomes?.confirmed ?? d.hypotheses?.filter((h) => h.status === "confirmed").length ?? 0;
+  s("evidence", String(d.evidence_total), "evidence_graph");
+  s("confirmed", String(confirmed), "hypotheses");
+  s("coverage", d.coverage != null ? Math.round(d.coverage * 100) + "%" : "—", "uncertainty_map");
+  const cal: any = layers.calibration_state;
+  s("calibrated", cal?.calibrated_score != null ? Number(cal.calibrated_score).toFixed(1) : (d.composite != null ? Number(d.composite).toFixed(1) : "—"), "calibration_state");
+  const cs: any = layers.contradiction_state;
+  const nContr = Array.isArray(cs?.contradictions) ? cs.contradictions.length : 0;
+  if (nContr) s("contradictions", "−" + nContr, "contradiction_state");
+  s("verdict", String(d.verdict ?? "—"), "decision_state");
+  return st;
+}
+
 function draw(store: SimStore, ctx: CanvasRenderingContext2D, time: number) {
   const WW = store.WW, WH = store.WH;
   ctx.clearRect(0, 0, WW, WH);
@@ -640,7 +786,7 @@ function draw(store: SimStore, ctx: CanvasRenderingContext2D, time: number) {
       c = "148,163,190"; al = 0.4; dash = [];
     }
     ctx.setLineDash(dash);
-    ctx.strokeStyle = "rgba(" + c + "," + al * (hl ? 1.25 : 1) + ")";
+    ctx.strokeStyle = "rgba(" + c + "," + al * (hl ? 1.25 : 1) * edgeFocus(store, e) + ")";
     ctx.lineWidth = Math.max(0.35, Math.min(1.5, (0.35 + e.w * 0.5) * (hl ? 1.3 : 1) * DISP.edge * Math.min(1 / store.cam.k, 1.4)));
     ctx.beginPath();
     ctx.moveTo(e.a.x, e.a.y);
@@ -656,7 +802,7 @@ function draw(store: SimStore, ctx: CanvasRenderingContext2D, time: number) {
     const col = nodeColor(n);
     const r = n.r * DISP.node * (hoverId === n.id ? 1.45 : 1);
     const pulse = n.pulse ? (0.7 + 0.3 * Math.sin(time * 2.2 + (n.phase || 0))) : 0;
-    const A = n.alpha * (hoverId === n.id ? 1 : 0.85) * (n.revealAt != null ? Math.min(1, Math.max(0, (time - n.revealAt) / 0.35)) : 1);
+    const A = n.alpha * (hoverId === n.id ? 1 : 0.85) * layerFocus(store, n.type) * (n.revealAt != null ? Math.min(1, Math.max(0, (time - n.revealAt) / 0.35)) : 1);
 
     ctx.save();
     ctx.globalAlpha = A;
@@ -864,9 +1010,194 @@ function detailRows(n: GNode, store: SimStore): [string, string][] {
 }
 
 /* =========================================================================
+   LAYER DETAIL — what each of the 13 layers contains, rendered as a card.
+   Keyed to the same ids as the graph nodes; each section ends with a short
+   "so what" note tying it into the hiring summary.
+   ========================================================================= */
+interface LayerSection {
+  rows: Array<[string, string]>;
+  notes: string[];
+}
+
+function layerSections(key: string, d: BrainData | null): LayerSection[] {
+  if (!d) return [];
+  const L: any = (d.layers || {})[key];
+  const scalar = (v: unknown): string | null => {
+    if (v == null || v === "") return null;
+    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return String(v);
+    try { return JSON.stringify(v); } catch { return null; }
+  };
+  const pct = (v: unknown) => (v != null && !isNaN(Number(v)) ? Math.round(Number(v) * 100) + "%" : "—");
+  const n = (v: unknown) => scalar(v) ?? "—";
+  const sects: LayerSection[] = [];
+  const sec = (rows: Array<[string, string]>, notes: string[] = []) => sects.push({ rows, notes });
+
+  if (!L) {
+    sec([["source", "embedded snapshot"]], ["This layer streams in with the live brain — open /brain-graph to see it."]);
+    return sects;
+  }
+
+  switch (key) {
+    case "decision_state":
+      sec([
+        ["decision", n(L.decision)],
+        ["decision score", n(L.decision_score)],
+        ["calibrated score", n(L.calibrated_score)],
+        ["confidence", pct(L.confidence)],
+        ["recommendation", n(L.recommendation_verdict)],
+      ], Array.isArray(L.risk_flags) ? L.risk_flags.map((f: unknown) => String(f)) : []);
+      break;
+    case "hypotheses": {
+      const hyps = d.hypotheses || [];
+      const cnt = (s: string) => hyps.filter((h) => h.status === s).length;
+      sec([
+        ["total", n(hyps.length)],
+        ["confirmed", n(cnt("confirmed"))],
+        ["testing", n(cnt("testing"))],
+        ["untested", n(cnt("untested"))],
+      ], ["Each claim needs enough supporting evidence to be confirmed; untested claims stay dim."]);
+      break;
+    }
+    case "evidence_graph": {
+      const edges = (L.edges && typeof L.edges === "object" ? Object.values(L.edges) : []) as any[];
+      const isSup = (e: any) => e.relation === "supports" || e.support === true;
+      const isCon = (e: any) => e.relation === "contradicts" || e.support === false;
+      const sup = edges.filter(isSup).length;
+      const con = edges.filter(isCon).length;
+      sec([
+        ["evidence items", n(d.evidence_total)],
+        ["supporting edges", n(sup)],
+        ["contradicting edges", n(con)],
+      ], ["The spine of the brain — every score traces to the evidence that supports or contradicts it."]);
+      break;
+    }
+    case "evidence_reading": {
+      const pa = (L.per_answer && typeof L.per_answer === "object" ? Object.values(L.per_answer) : []) as any[];
+      const v = pa.filter((a: any) => a.verifiable).length;
+      const demo = pa.filter((a: any) => a.claim_classification === "demonstrated").length;
+      const off = L.off_rubric || {};
+      const flags = [...(off.red_flags || []), ...(off.hidden_strengths || [])];
+      sec([
+        ["answers read", n(pa.length)],
+        ["verifiable", n(v)],
+        ["demonstrated", n(demo)],
+      ], flags.length ? flags.map((f: unknown) => String(f)) : ["The engine reads each answer for verifiability and specificity — vague claims get flagged, not trusted."]);
+      break;
+    }
+    case "competency_graph": {
+      const cg = d.competencies || [];
+      const gap = cg.filter((c) => (c.gap ?? 1) >= 0.3 || !c.count).length;
+      sec([
+        ["competencies", n(cg.length)],
+        ["with gaps", n(gap)],
+        ["avg score", d.composite != null ? Number(d.composite).toFixed(1) : "—"],
+      ], ["Gaps are competencies with little or no evidence — they hold the verdict back."]);
+      break;
+    }
+    case "calibration_state": {
+      const er: any = ((d.layers || {}).evidence_reading || {}).per_answer || {};
+      const pa = (typeof er === "object" ? Object.values(er) : []) as any[];
+      const cc = (s: string) => pa.filter((a: any) => a.claim_classification === s).length;
+      sec([
+        ["raw composite", n(L.raw_composite)],
+        ["calibrated score", n(L.calibrated_score)],
+        ["calibrated verdict", n(L.calibrated_verdict)],
+        ["proof ratio", pct(L.proof_ratio)],
+        ["claims", cc("proven") + " proven · " + cc("demonstrated") + " demonstrated · " + cc("mentioned") + " mentioned"],
+        ["contradiction penalty", n(L.contradiction_penalty)],
+        ["decision confidence", pct(L.decision_confidence)],
+      ], ["Proof ratio counts only claims that clear the deterministic floor — the semantic read can confirm or downgrade, never inflate. " + cc("demonstrated") + " of " + pa.length + " answers read as demonstrated but carried no first-person ownership signal."]);
+      break;
+    }
+    case "difficulty_state":
+      sec([
+        ["role floor", n(L.role_floor)],
+        ["difficulty reached", n(L.difficulty_reached)],
+        ["evidence total", n(L.evidence_total)],
+        ["floor satisfied", n(L.floor_satisfied)],
+      ], ["The interview only scores depth up to what the role demands. Evidence depth (low/medium/high) is reported by the calibration layer."]);
+      break;
+    case "uncertainty_map": {
+      const rows: Array<[string, string]> = [];
+      for (const [cid, vv] of Object.entries(L)) {
+        const v = vv as any;
+        if (typeof v !== "object" || !v) continue;
+        rows.push([compName(cid), pct(v.uncertainty) + " · miss " + ((v.missing_evidence || []).length || 0)]);
+      }
+      sec(rows, ["Competencies with high uncertainty or missing evidence are where the graph stays unlit."]);
+      break;
+    }
+    case "contradiction_state": {
+      const list = Array.isArray(L.contradictions) ? L.contradictions : [];
+      const sev: Record<string, number> = {};
+      for (const c of list) sev[c.severity] = (sev[c.severity] || 0) + 1;
+      const sr: any = L.seniority_risk || {};
+      const riskLabel = [n(sr.level), n(sr.action), sr.proven_claims != null ? "proven " + sr.proven_claims + "/" + (d.evidence_total || "—") : null].filter(Boolean).join(" · ") || "—";
+      sec([
+        ["flags", n(list.length)],
+        ["severities", n(Object.entries(sev).map(([k, v]) => k + "×" + v).join(", "))],
+        ["seniority risk", riskLabel],
+        ["needs challenge", n(L.needs_challenge)],
+      ], ["Contradicting evidence is the red dashed edges — it triggers the review step that trims confidence."]);
+      break;
+    }
+    case "question_strategy":
+      sec([
+        ["planned competency", n(L.planned_competency)],
+      ], [n(L.rationale || L.next_question_strategy || "Questions target the competencies with the largest open gaps.")]);
+      break;
+    case "candidate_memory": {
+      const rows: Array<[string, string]> = [["interviews", n(L.interview_count)]];
+      sec(rows, [...(L.learned_strengths || []).map((s: unknown) => "strength: " + s), ...(L.learned_weaknesses || []).map((s: unknown) => "weakness: " + s)]);
+      break;
+    }
+    case "role_brain":
+      sec([
+        ["role", n(L.role)],
+        ["seniority", n(L.seniority)],
+        ["floor", n(L.seniority_floor)],
+        ["competencies", n((L.critical_competencies || []).length)],
+      ], [String(L.mission || "")]);
+      break;
+    case "company_brain":
+      sec([
+        ["job role", n(L.job_role)],
+        ["tech stack", n((L.tech_stack || []).join(", "))],
+      ], [String(L.summary || L.mission || "")]);
+      break;
+    default:
+      sec([["layer", n(key)]], []);
+  }
+  return sects;
+}
+
+function renderLayerPanel(key: string, d: BrainData | null) {
+  if (!d) return null;
+  const def = LAYER_DEFS.find((x) => x.key === key);
+  const sects = layerSections(key, d);
+  return (
+    <>
+      <h2>{def?.name || key}</h2>
+      <div className="bg-note">{def?.desc}</div>
+      {sects.map((s, i) => (
+        <div key={i}>
+          {s.rows.map(([k, v]) => (
+            <div className="bg-metric" key={k}><span>{k}</span><b>{v}</b></div>
+          ))}
+          {s.notes.map((note, j) => (
+            <div className="bg-list-item" key={j}>{note}</div>
+          ))}
+        </div>
+      ))}
+    </>
+  );
+}
+
+/* =========================================================================
    COMPONENT
    ========================================================================= */
-export default function BrainGraph() {
+export default function BrainGraph({ sid, title }: { sid?: string; title?: string } = {}) {
+  const liveSid = sid || DEFAULT_SID;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const storeRef = useRef<SimStore | null>(null);
@@ -876,6 +1207,7 @@ export default function BrainGraph() {
   const [hud, setHud] = useState<BrainData | null>(null);
   const [tip, setTip] = useState<Tip | null>(null);
   const [sel, setSel] = useState<GNode | null>(null);
+  const [layer, setLayer] = useState<string | null>(null);
 
   const playTimer = useRef<number | null>(null);
 
@@ -888,7 +1220,7 @@ export default function BrainGraph() {
     const store: SimStore = {
       data: null, nodes: [], edges: [], index: {}, core: null,
       cam: { x: 0, y: 0, k: 1 }, turns: [], cur: 0, hover: null, drag: null, sel: null,
-      WW: 0, WH: 0, DPR: 1, evTotal: 0,
+      WW: 0, WH: 0, DPR: 1, evTotal: 0, layer: null,
     };
     storeRef.current = store;
 
@@ -905,23 +1237,34 @@ export default function BrainGraph() {
 
     let raf = 0;
 
-    const data = normalize(EMBEDDED);
-    if (!data) return;
-    resetSim(store, data);
-    relaxNow(store, 60);
-    setHud(data);
-    setReady(true);
-    applyTurn(store, store.cur);
-    syncBar();
+    let cancelled = false;
+    const load = async () => {
+      let data: BrainData | null = normalize(EMBEDDED);
+      try {
+        const raw = await apiClient.get(`/api/v1/intelligence/brain/${encodeURIComponent(liveSid)}`);
+        const live = normalize(raw);
+        if (live) data = live;
+      } catch {
+        /* fall back to the embedded snapshot of the same session */
+      }
+      if (cancelled || !data) return;
+      resetSim(store, data);
+      relaxNow(store, 60);
+      setHud(data);
+      setReady(true);
+      applyTurn(store, store.cur);
+      syncBar();
 
-    /* fit the graph centered in the box — retry until the canvas actually has
-       layout size (on the very first mount it can still be 0×0) */
-    const fitCentered = () => {
-      resize();
-      if (store.WW > 20 && store.WH > 20 && store.nodes.length) fitView(store);
-      else raf = requestAnimationFrame(fitCentered);
+      /* fit the graph centered in the box — retry until the canvas actually has
+         layout size (on the very first mount it can still be 0×0) */
+      const fitCentered = () => {
+        resize();
+        if (store.WW > 20 && store.WH > 20 && store.nodes.length) fitView(store);
+        else raf = requestAnimationFrame(fitCentered);
+      };
+      fitCentered();
     };
-    fitCentered();
+    load();
 
     const ro = new ResizeObserver(() => {
       resize();
@@ -945,13 +1288,14 @@ export default function BrainGraph() {
     raf = requestAnimationFrame(loop);
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(raf);
       ro.disconnect();
       window.removeEventListener("resize", onWinResize);
       if (playTimer.current != null) { clearInterval(playTimer.current); playTimer.current = null; }
       storeRef.current = null;
     };
-  }, []);
+  }, [liveSid]);
 
   /* keep React bar state in sync with the sim's current turn */
   const syncBar = () => {
@@ -1000,8 +1344,21 @@ export default function BrainGraph() {
 
   const selectNode = (n: GNode | null) => {
     const store = storeRef.current;
-    if (store) store.sel = n;
+    if (store) { store.sel = n; if (n) store.layer = null; }
     setSel(n);
+    if (n) setLayer(null);
+  };
+
+  const selectLayer = (key: string | null) => {
+    const store = storeRef.current;
+    if (store) { store.layer = key; if (key) store.sel = null; }
+    setLayer(key);
+    if (key) setSel(null);
+  };
+
+  const closeOverlay = () => {
+    selectNode(null);
+    selectLayer(null);
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1082,7 +1439,7 @@ export default function BrainGraph() {
       <div className="bg-panel bg-graph">
       <div className="bg-head">
         <div className="bg-head-main">
-          <div className="bg-head-title">Interview Evidence Graph</div>
+          <div className="bg-head-title">{title || "Interview Evidence Graph"}</div>
           <div className="bg-head-sub">
             {hud
               ? hud.competencies.length + " competencies · " + (hud.gap_competencies || []).length + " uncovered · " + hud.hypotheses.length + " hypotheses · " + hud.evidence_total + " evidence · " + hud.phases.length + " turns"
@@ -1129,18 +1486,38 @@ export default function BrainGraph() {
           onPointerLeave={onPointerLeave}
         />
         {!ready && <div className="bg-loading">LOADING BRAIN…</div>}
-        {sel && storeRef.current && (
+        {(sel || layer) && (
           <div className="bg-detail">
-            <button className="bg-detail-x" onClick={() => selectNode(null)} title="close">✕</button>
-            <h2>{detailTitle(sel)}</h2>
-            {detailRows(sel, storeRef.current).map(([k, v], i) => (
-              <div className="bg-metric" key={i}>
-                <span>{k}</span>
-                <b>{v}</b>
-              </div>
-            ))}
+            <button className="bg-detail-x" onClick={closeOverlay} title="close">✕</button>
+            {sel ? (
+              <>
+                <h2>{detailTitle(sel)}</h2>
+                {detailRows(sel, storeRef.current!).map(([k, v], i) => (
+                  <div className="bg-metric" key={i}>
+                    <span>{k}</span>
+                    <b>{v}</b>
+                  </div>
+                ))}
+              </>
+            ) : layer ? (
+              renderLayerPanel(layer, hud)
+            ) : null}
           </div>
         )}
+        <div className="bg-layerbar">
+          <span className="bg-layerbar-title">13 layers</span>
+          {LAYER_DEFS.map((l) => (
+            <button
+              key={l.key}
+              className={"bg-layer" + (layer === l.key ? " active" : "")}
+              onClick={() => selectLayer(layer === l.key ? null : l.key)}
+              title={l.desc}
+            >
+              <span className="bg-layer-dot" style={{ "--ld": l.color } as React.CSSProperties} />
+              {l.name}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="bg-aside">
@@ -1166,6 +1543,17 @@ export default function BrainGraph() {
 
         <aside className="bg-panel bg-hiring">
           <h1 className="bg-title">Hiring Summary</h1>
+          <div className="bg-trail">
+            {buildTrail(hud).map((s, i) => (
+              <React.Fragment key={s.layer + "-" + i}>
+                {i > 0 && <span className="bg-trail-arrow">→</span>}
+                <button className="bg-trail-step" onClick={() => selectLayer(s.layer)} title={"focus the " + s.label + " layer"}>
+                  <span className="bg-trail-v">{s.value}</span>
+                  <span className="bg-trail-k">{s.label}</span>
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
           <div className="bg-verdict">
             <span className={"bg-chip bg-chip-" + String(hud?.sufficiency?.severity || "borderline").toLowerCase().replace(/\s+/g, "_")}>
               {hud?.sufficiency?.severity || "—"}

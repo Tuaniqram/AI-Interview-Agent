@@ -121,7 +121,11 @@ def assemble_aura_brain(
         "difficulty_reached": difficulty_reached or 1,
         "role_floor": role_floor,
         "floor_satisfied": (difficulty_reached or 1) >= (role_floor or 1),
-        "evidence_depth": evidence_stats.get("total", 0),
+        # B8: a raw count here (was mislabeled ``evidence_depth``), while the
+        # calibration layer uses ``evidence_depth`` as a low/medium/high label —
+        # same name, different shape. ``evidence_total`` keeps the count
+        # semantics unambiguous; calibration stays the only ``evidence_depth``.
+        "evidence_total": evidence_stats.get("total", 0),
     }
 
     calibration_state = build_calibration_state(
@@ -203,7 +207,10 @@ def _turn_is_conclusive(aura: dict) -> bool:
 
 def build_aura_from_state(state: dict) -> dict:
     """Assemble the V5 brain from a runtime state dict (engine path)."""
-    from app.agents.planning.difficulty_engine import role_difficulty_floor
+    from app.agents.planning.difficulty_engine import (
+        max_difficulty_reached,
+        role_difficulty_floor,
+    )
 
     job_role = state.get("job_role", "")
     return assemble_aura_brain(
@@ -219,7 +226,7 @@ def build_aura_from_state(state: dict) -> dict:
         evidence_store=state.get("evidence_store"),
         competency_summary=state.get("competency_summary"),
         contradictions=state.get("contradictions"),
-        difficulty_reached=int(state.get("difficulty_level") or 1),
+        difficulty_reached=max_difficulty_reached(state),
         role_floor=role_difficulty_floor(job_role),
         hiring_recommendation=state.get("hiring_recommendation"),
         hiring_decision=state.get("hiring_decision"),

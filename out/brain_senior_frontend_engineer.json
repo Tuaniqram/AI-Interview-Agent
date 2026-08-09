@@ -1,0 +1,603 @@
+{
+  "company_brain": {
+    "version": "v1",
+    "department_id": 6,
+    "job_role": "Senior Frontend Engineer",
+    "summary": "",
+    "mission": "",
+    "tech_stack": [],
+    "process": [],
+    "culture": [],
+    "challenges": [],
+    "role_context": "",
+    "documents_analyzed": 0,
+    "rag_metadata": {
+      "success": false,
+      "department_id": 6,
+      "documents_retrieved": 0,
+      "reason": "no_department_id"
+    },
+    "source": "fallback",
+    "engineering_philosophy": {
+      "speed_vs_quality": "balanced",
+      "architecture_style": "monolith",
+      "ownership_model": "shared_ownership"
+    },
+    "technical_expectations": {
+      "junior": {
+        "expected_behavior": [
+          "complete code review cycles",
+          "follow team standards",
+          "raise questions about ambiguity"
+        ]
+      },
+      "mid": {
+        "expected_behavior": [
+          "design within an owned service or component",
+          "deploy and operate what you ship",
+          "don't leave final decisions undiscussed"
+        ]
+      },
+      "senior": {
+        "expected_behavior": [
+          "design independently",
+          "mentor others",
+          "handle ambiguity",
+          "debate tradeoffs with evidence",
+          "own production systems"
+        ]
+      }
+    },
+    "senior_expectations": [
+      "design independently",
+      "mentor others",
+      "handle ambiguity",
+      "debate tradeoffs with evidence",
+      "own production systems"
+    ],
+    "culture_signals": [],
+    "failure_patterns": {
+      "avoid": [
+        "clickers who only implement assigned tickets",
+        "no tradeoff discussion in designs",
+        "cannot explain why a decision was made",
+        "no production / operational experience",
+        "milestone-driven without ownership"
+      ]
+    }
+  },
+  "role_brain": {
+    "role": "Senior Frontend Engineer",
+    "class": "frontend",
+    "mission": "Build high-quality, accessible user interfaces with solid UX performance",
+    "seniority": "senior",
+    "critical_competencies": [
+      {
+        "id": "tech_core",
+        "name": "Core Language Proficiency",
+        "importance": 10,
+        "must_prove": "Ask the candidate to demonstrate Core Language Proficiency with a concrete, quantified example",
+        "category": "technical"
+      },
+      {
+        "id": "mkt_brand_strategy",
+        "name": "Brand & Positioning Strategy",
+        "importance": 10,
+        "must_prove": "Ask the candidate to demonstrate Brand & Positioning Strategy with a concrete, quantified example",
+        "category": "marketing"
+      },
+      {
+        "id": "tech_framework",
+        "name": "Framework & Library Knowledge",
+        "importance": 9,
+        "must_prove": "Ask the candidate to demonstrate Framework & Library Knowledge with a concrete, quantified example",
+        "category": "technical"
+      },
+      {
+        "id": "exp_scaling",
+        "name": "Scale & Complexity Experience",
+        "importance": 9,
+        "must_prove": "Ask the candidate to demonstrate Scale & Complexity Experience with a concrete, quantified example",
+        "category": "experience"
+      },
+      {
+        "id": "des_design_systems",
+        "name": "Design Systems & Consistency",
+        "importance": 8,
+        "must_prove": "Ask the candidate to demonstrate Design Systems & Consistency with a concrete, quantified example",
+        "category": "design"
+      },
+      {
+        "id": "hr_learning_development",
+        "name": "Learning & Development",
+        "importance": 7,
+        "must_prove": "Ask the candidate to demonstrate Learning & Development with a concrete, quantified example",
+        "category": "hr"
+      }
+    ],
+    "level_expectations": [
+      "design independently",
+      "mentor others",
+      "handle ambiguity",
+      "own production systems"
+    ],
+    "seniority_floor": 3,
+    "emphasis_keywords": [],
+    "source": "knowledge_base"
+  },
+  "competency_graph": {
+    "nodes": {
+      "tech_framework": {
+        "id": "tech_framework",
+        "name": "Framework & Library Knowledge",
+        "category": "technical",
+        "type": "competency",
+        "default_min_evidence": 2,
+        "scope": "required"
+      },
+      "framework_patterns": {
+        "id": "framework_patterns",
+        "name": "Framework idioms",
+        "type": "skill",
+        "default_min_evidence": 0
+      },
+      "api_design": {
+        "id": "api_design",
+        "name": "API surface design",
+        "type": "skill",
+        "default_min_evidence": 0
+      },
+      "tech_core": {
+        "id": "tech_core",
+        "name": "Core Language Proficiency",
+        "category": "technical",
+        "type": "competency",
+        "default_min_evidence": 2,
+        "scope": "required"
+      },
+      "language_ecosystem": {
+        "id": "language_ecosystem",
+        "name": "Language runtime & ecosystem",
+        "type": "skill",
+        "default_min_evidence": 0
+      },
+      "concurrency": {
+        "id": "concurrency",
+        "name": "Concurrency & async model",
+        "type": "skill",
+        "default_min_evidence": 0
+      },
+      "memory_management": {
+        "id": "memory_management",
+        "name": "Memory/alloc behavior",
+        "type": "skill",
+        "default_min_evidence": 0
+      },
+      "mkt_brand_strategy": {
+        "id": "mkt_brand_strategy",
+        "name": "Brand & Positioning Strategy",
+        "category": "marketing",
+        "type": "competency",
+        "default_min_evidence": 3,
+        "scope": "required"
+      },
+      "des_design_systems": {
+        "id": "des_design_systems",
+        "name": "Design Systems & Consistency",
+        "category": "design",
+        "type": "competency",
+        "default_min_evidence": 2,
+        "scope": "required"
+      },
+      "hr_learning_development": {
+        "id": "hr_learning_development",
+        "name": "Learning & Development",
+        "category": "hr",
+        "type": "competency",
+        "default_min_evidence": 2,
+        "scope": "required"
+      },
+      "exp_scaling": {
+        "id": "exp_scaling",
+        "name": "Scale & Complexity Experience",
+        "category": "experience",
+        "type": "competency",
+        "default_min_evidence": 2,
+        "scope": "required"
+      },
+      "performance_patterns": {
+        "id": "performance_patterns",
+        "name": "Performance patterns",
+        "type": "skill",
+        "default_min_evidence": 0
+      },
+      "load_characteristics": {
+        "id": "load_characteristics",
+        "name": "Understanding load",
+        "type": "skill",
+        "default_min_evidence": 0
+      },
+      "failure_modes": {
+        "id": "failure_modes",
+        "name": "Failure-mode reasoning",
+        "type": "skill",
+        "default_min_evidence": 0
+      }
+    },
+    "edges": [
+      {
+        "source": "tech_framework",
+        "target": "framework_patterns",
+        "relation": "specializes",
+        "weight": 1.0
+      },
+      {
+        "source": "tech_framework",
+        "target": "api_design",
+        "relation": "specializes",
+        "weight": 1.0
+      },
+      {
+        "source": "tech_core",
+        "target": "language_ecosystem",
+        "relation": "specializes",
+        "weight": 1.0
+      },
+      {
+        "source": "tech_core",
+        "target": "concurrency",
+        "relation": "specializes",
+        "weight": 1.0
+      },
+      {
+        "source": "tech_core",
+        "target": "memory_management",
+        "relation": "specializes",
+        "weight": 1.0
+      },
+      {
+        "source": "exp_scaling",
+        "target": "performance_patterns",
+        "relation": "specializes",
+        "weight": 1.0
+      },
+      {
+        "source": "exp_scaling",
+        "target": "load_characteristics",
+        "relation": "specializes",
+        "weight": 1.0
+      },
+      {
+        "source": "exp_scaling",
+        "target": "failure_modes",
+        "relation": "specializes",
+        "weight": 1.0
+      }
+    ]
+  },
+  "hypotheses": [
+    {
+      "id": "18b03279-1694-48a1-b24b-17d46a9cdc92",
+      "competency": "tech_system_design",
+      "statement": "Candidate has strong system design",
+      "direction": "positive",
+      "confidence": 0.5,
+      "probability": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "status": "untested",
+      "created_at": "2026-08-09T11:20:06.104958+00:00",
+      "last_updated": "2026-08-09T11:20:06.104958+00:00",
+      "evidence_based": false,
+      "source": "resume_profile",
+      "collected_evidence": [],
+      "collected_count": 0,
+      "required_evidence": 3,
+      "missing_evidence": [
+        "scalability",
+        "reliability",
+        "tradeoffs",
+        "architecture_decision",
+        "capacity_planning",
+        "observability"
+      ],
+      "importance": 5,
+      "uncertainty": 0.425
+    },
+    {
+      "id": "88784290-d857-4d30-a6ca-7aac53692ca7",
+      "competency": "tech_core",
+      "statement": "Candidate has strong event-driven architecture",
+      "direction": "positive",
+      "confidence": 0.5,
+      "probability": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "status": "untested",
+      "created_at": "2026-08-09T11:20:06.104958+00:00",
+      "last_updated": "2026-08-09T11:20:06.104958+00:00",
+      "evidence_based": false,
+      "source": "resume_profile",
+      "collected_evidence": [],
+      "collected_count": 0,
+      "required_evidence": 3,
+      "missing_evidence": [
+        "language_ecosystem",
+        "concurrency",
+        "memory_management"
+      ],
+      "importance": 10,
+      "uncertainty": 0.85
+    },
+    {
+      "id": "cfc3f9be-68c8-4726-bc37-b9979e5a24ad",
+      "competency": "tech_event_driven",
+      "statement": "Candidate has strong Kafka",
+      "direction": "positive",
+      "confidence": 0.5,
+      "probability": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "status": "untested",
+      "created_at": "2026-08-09T11:20:06.104958+00:00",
+      "last_updated": "2026-08-09T11:20:06.104958+00:00",
+      "evidence_based": false,
+      "source": "resume_profile",
+      "collected_evidence": [],
+      "collected_count": 0,
+      "required_evidence": 3,
+      "missing_evidence": [
+        "kafka",
+        "event_ordering",
+        "failure_handling",
+        "idempotency",
+        "backpressure"
+      ],
+      "importance": 5,
+      "uncertainty": 0.425
+    },
+    {
+      "id": "db376c92-17d1-40e0-b925-75975c3751cc",
+      "competency": "tech_core",
+      "statement": "Candidate is weak in database optimization",
+      "direction": "negative",
+      "confidence": 0.5,
+      "probability": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "status": "untested",
+      "created_at": "2026-08-09T11:20:06.104958+00:00",
+      "last_updated": "2026-08-09T11:20:06.104958+00:00",
+      "evidence_based": false,
+      "source": "resume_profile",
+      "collected_evidence": [],
+      "collected_count": 0,
+      "required_evidence": 3,
+      "missing_evidence": [
+        "language_ecosystem",
+        "concurrency",
+        "memory_management"
+      ],
+      "importance": 10,
+      "uncertainty": 0.85
+    },
+    {
+      "id": "fc57f6ba-83e4-4770-940b-4c6e81b3d23e",
+      "competency": "tech_core",
+      "statement": "Candidate is weak in Limited exposure to senior",
+      "direction": "negative",
+      "confidence": 0.5,
+      "probability": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "status": "untested",
+      "created_at": "2026-08-09T11:20:06.104958+00:00",
+      "last_updated": "2026-08-09T11:20:06.104958+00:00",
+      "evidence_based": false,
+      "source": "resume_profile",
+      "collected_evidence": [],
+      "collected_count": 0,
+      "required_evidence": 3,
+      "missing_evidence": [
+        "language_ecosystem",
+        "concurrency",
+        "memory_management"
+      ],
+      "importance": 10,
+      "uncertainty": 0.85
+    },
+    {
+      "id": "aef85d7c-71f4-4b2a-9742-94277cd9ae5f",
+      "competency": "behav_communication",
+      "statement": "Candidate communicates clearly and effectively",
+      "direction": "positive",
+      "confidence": 0.5,
+      "probability": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "status": "untested",
+      "created_at": "2026-08-09T11:20:06.104958+00:00",
+      "last_updated": "2026-08-09T11:20:06.104958+00:00",
+      "evidence_based": false,
+      "source": "resume_profile",
+      "collected_evidence": [],
+      "collected_count": 0,
+      "required_evidence": 3,
+      "missing_evidence": [
+        "documentation",
+        "tradeoff_debate"
+      ],
+      "importance": 5,
+      "uncertainty": 0.425
+    }
+  ],
+  "evidence_graph": {
+    "nodes": {
+      "role:frontend": {
+        "id": "role:frontend",
+        "type": "role",
+        "name": "Senior Frontend Engineer"
+      }
+    },
+    "edges": []
+  },
+  "uncertainty_map": {
+    "tech_system_design": {
+      "competency": "tech_system_design",
+      "importance": 5,
+      "uncertainty": 0.425,
+      "placeholder_confidence": 0.5,
+      "missing_evidence": [
+        "scalability",
+        "reliability",
+        "tradeoffs",
+        "architecture_decision",
+        "capacity_planning",
+        "observability"
+      ]
+    },
+    "tech_core": {
+      "competency": "tech_core",
+      "importance": 10,
+      "uncertainty": 0.85,
+      "placeholder_confidence": 0.5,
+      "missing_evidence": [
+        "language_ecosystem",
+        "concurrency",
+        "memory_management"
+      ]
+    },
+    "tech_event_driven": {
+      "competency": "tech_event_driven",
+      "importance": 5,
+      "uncertainty": 0.425,
+      "placeholder_confidence": 0.5,
+      "missing_evidence": [
+        "kafka",
+        "event_ordering",
+        "failure_handling",
+        "idempotency",
+        "backpressure"
+      ]
+    },
+    "behav_communication": {
+      "competency": "behav_communication",
+      "importance": 5,
+      "uncertainty": 0.425,
+      "placeholder_confidence": 0.5,
+      "missing_evidence": [
+        "documentation",
+        "tradeoff_debate"
+      ]
+    }
+  },
+  "question_strategy": {
+    "question_strategy": {
+      "action": "ask",
+      "mode": "explore",
+      "note": "high uncertainty \u2014 collect base evidence",
+      "target_competency": "tech_core",
+      "uncertainty": 0.85
+    },
+    "planned_competency": "tech_core",
+    "next_question_strategy": {
+      "action": "explore",
+      "target": "tech_core",
+      "reduce_uncertainty": 0.85,
+      "note": "high uncertainty \u2014 collect base evidence"
+    },
+    "rationale": "highest uncertainty/importance \u2014 maximum information gain (uncertainty=0.85)"
+  },
+  "difficulty_state": {
+    "difficulty_reached": 1,
+    "role_floor": null,
+    "floor_satisfied": true,
+    "evidence_total": 0
+  },
+  "contradiction_state": {
+    "contradictions": [],
+    "seniority_risk": {
+      "level": "low",
+      "ownership_claims": 0,
+      "proven_claims": 0,
+      "proof_ratio": 0.0,
+      "serious_contradictions": 0,
+      "probe_questions": [],
+      "action": "validate"
+    },
+    "needs_challenge": false
+  },
+  "calibration_state": {
+    "calibrated_score": 0.0,
+    "raw_composite": 0.0,
+    "evidence_depth": "low",
+    "total_evidence": 0,
+    "proof_ratio": 0.0,
+    "difficulty_reached": 1,
+    "role_floor": null,
+    "calibrated_verdict": null,
+    "decision_confidence": 0.212,
+    "contradiction_penalty": 0
+  },
+  "decision_state": {
+    "decision": "insufficient_evidence",
+    "decision_score": null,
+    "confidence": 0.212,
+    "calibrated_score": 0.0,
+    "risk_flags": [
+      "evidence largely claimed, not proven",
+      "low evidence volume"
+    ],
+    "recommendation_verdict": null,
+    "decision_reasoning": "",
+    "source": "deterministic"
+  },
+  "candidate_memory": {
+    "candidate_id": "",
+    "history": [
+      {
+        "role": "Senior Frontend Engineer",
+        "strengths": [
+          "system design",
+          "event-driven architecture",
+          "Kafka"
+        ],
+        "weaknesses": [
+          "database optimization",
+          "Limited exposure to senior",
+          "Limited exposure to frontend",
+          "Limited exposure to engineer"
+        ],
+        "risk_signals": [
+          "No skills detected in resume/profile",
+          "Thin candidate profile \u2014 resume enrichment recommended"
+        ],
+        "gap_areas": [
+          "tech_framework",
+          "tech_core",
+          "mkt_brand_strategy",
+          "des_design_systems",
+          "hr_learning_development",
+          "exp_scaling"
+        ]
+      }
+    ],
+    "learned_strengths": [
+      "system design",
+      "event-driven architecture",
+      "Kafka"
+    ],
+    "learned_weaknesses": [
+      "database optimization",
+      "Limited exposure to senior",
+      "Limited exposure to frontend",
+      "Limited exposure to engineer"
+    ],
+    "learned_risk_signals": [
+      "No skills detected in resume/profile",
+      "Thin candidate profile \u2014 resume enrichment recommended"
+    ],
+    "interview_count": 1
+  },
+  "evidence_reading": {}
+}

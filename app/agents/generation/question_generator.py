@@ -469,6 +469,21 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 )
         conversation_turn = None
 
+    # B1: never emit a question identical to the one just asked. The mode-aware
+    # guard above only compares against the current competency bucket and the
+    # final fallback bypasses the guard entirely, so a byte-identical repeat can
+    # slip through (Q13 == Q14 conclusion question). Enforce the invariant here,
+    # at the single point where every generation path converges.
+    if question_text and last_question and question_text.strip() == last_question:
+        replacement = _distinct_from_last_question(
+            last_question, target_competency or "general", job_role, difficulty
+        )
+        logger.warning(
+            f"Duplicate consecutive question suppressed: swapped "
+            f"{question_text[:60]!r} for {replacement[:60]!r}"
+        )
+        question_text = replacement
+
     question_id = str(uuid4())
 
     probe_mode = next(
@@ -971,6 +986,21 @@ def _get_template_for_competency(competency: str, job_role: str, difficulty: int
         f"Describe a time when {comp_name} was critical to achieving a goal. What did you do?",
         f"How do you keep improving your {comp_name} abilities? Share a concrete example.",
     ]
+
+
+def _distinct_from_last_question(
+    last_question: str, competency: str, job_role: str, difficulty: int
+) -> str:
+    """Rotate the fallback bank until a text that differs from ``last_question``.
+
+    The four bank templates are mutually distinct, so one always exists; the
+    no-variant default is kept as an absolute last resort.
+    """
+    for variant in range(len(_FALLBACK_BANK)):
+        candidate = _fallback_question(competency, job_role, difficulty, variant=variant)
+        if candidate.strip() != last_question:
+            return candidate
+    return _fallback_question(competency, job_role, difficulty)
 
 
 def _fallback_question(competency: str, job_role: str, difficulty: int, variant: int | None = None) -> str:

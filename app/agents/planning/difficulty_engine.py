@@ -12,6 +12,27 @@ MIN_SCORE = 1
 MAX_SCORE = 5
 
 
+def max_difficulty_reached(state: dict) -> int:
+    """Highest difficulty level reached this session (B3).
+
+    ``difficulty_level`` is the *current* level and can drop after a tough
+    stretch, so reporting it as ``difficulty_reached`` understated the peak
+    (the timeline hit 5 on Q8–Q11 while ``difficulty_state`` said 3). Prefer
+    the governor's monotonic ``max_difficulty_reached`` and fall back to the
+    current level for states that never passed through it.
+    """
+    tracked = state.get("max_difficulty_reached")
+    try:
+        if tracked is not None:
+            return int(tracked)
+    except (TypeError, ValueError):
+        pass
+    try:
+        return int(state.get("difficulty_level") or 1)
+    except (TypeError, ValueError):
+        return 1
+
+
 def _extract_json_object(text: str) -> dict:
     """Parse a JSON object from an LLM response that may carry prose or fences.
 
@@ -259,12 +280,18 @@ async def difficulty_governor(
 
     next_difficulty = max(floor, min(diff_max, current + delta))
 
+    # B3: track the peak monotonicly so difficulty_reached reports what the
+    # candidate was actually pushed to, even when the governor lowers the level
+    # for a closing stretch.
+    max_reached = max_difficulty_reached(state)
+
     profile = build_difficulty_profile(state, delta, rationale)
     profile["level"] = next_difficulty
 
     return {
         **state,
         "difficulty_level": next_difficulty,
+        "max_difficulty_reached": max(max_reached, next_difficulty),
         "difficulty_delta": delta,
         "difficulty_rationale": rationale,
         "difficulty_scaffold": scaffold,
