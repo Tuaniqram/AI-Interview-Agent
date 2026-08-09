@@ -383,3 +383,119 @@ def test_report_verdict_is_single_source_deterministic():
     assert report["hiring_recommendation"]["verdict"] == "lean_hire"
     assert report["hiring_recommendation"]["decision_score"] == 7.09
     assert report["hiring_decision"]["decision"] == "lean_hire"
+
+
+# --------------------------------------------------------------------- #
+# Finalize refresh: sufficiency + recommendation must stay consistent
+# (regression for brain_view where hiring_recommendation.unanswered_hypotheses
+# was 1 while evidence_sufficiency.unanswered_hypotheses was 2 — the finalize
+# path refreshed only the recommendation, leaving the sufficiency stale).
+# --------------------------------------------------------------------- #
+
+
+def _state_with_open_hyps(open_count=3, short_competency=False):
+    confirmed = [{"id": f"c{i}", "competency": "problem_solvin", "status": "confirmed"} for i in range(2)]
+    open_hyps = [{"id": f"o{i}", "competency": "communication", "status": "untested"} for i in range(open_count)]
+    summary = _summary(system_count=2)
+    if short_competency:
+        # zero-evidence required competency — absent from competency_summary,
+        # exactly like the brain_view case that exposed the gap inconsistency
+        del summary["system_design"]
+    return {
+        "competency_summary": summary,
+        "required_competencies": REQUIRED,
+        "competency_taxonomy": [
+            {"id": "problem_solvin", "family": "core_engineering"},
+            {"id": "communication", "family": "collaboration"},
+            {"id": "system_design", "family": "architecture"},
+        ],
+        "contradictions": [],
+        "hypotheses": confirmed + open_hyps,
+        "question_number": 6,
+        "difficulty_level": 5,
+    }
+
+
+def test_finalize_refresh_keeps_sufficiency_and_recommendation_consistent():
+    """Both dicts must be recomputed from the same snapshot so they can never
+    disagree on unanswered_hypotheses (the brain_view 1-vs-2 regression)."""
+    from app.engine.builders import refresh_sufficiency_and_recommendation
+
+    state = _state_with_open_hyps(open_count=3)
+    sufficiency, rec = refresh_sufficiency_and_recommendation(state)
+
+    assert sufficiency["unanswered_hypotheses"] == 3
+    assert rec["unanswered_hypotheses"] == 3
+    assert sufficiency["details"]["system_design"]["covered"] is True
+    assert sufficiency["details"]["problem_solvin"]["covered"] is True
+    assert sufficiency["coverage_ratio"] == rec["coverage_ratio"]
+
+
+def test_refresh_falls_back_to_stored_values_on_evaluation_error():
+    from app.engine.builders import refresh_sufficiency_and_recommendation
+
+    state = {
+        "competency_summary": "not-a-dict",
+        "required_competencies": "also-not-a-list",
+        "contradictions": None,
+        "hypotheses": None,
+        "evidence_sufficiency": {"is_sufficient": True, "unanswered_hypotheses": 0},
+        "hiring_recommendation": {"verdict": "hire", "unanswered_hypotheses": 0},
+    }
+    sufficiency, rec = refresh_sufficiency_and_recommendation(state)
+    assert sufficiency == {"is_sufficient": True, "unanswered_hypotheses": 0}
+    assert rec == {"verdict": "hire", "unanswered_hypotheses": 0}
+
+
+def test_enriched_recommendation_exposes_dimension_scores_and_family():
+    """P1-4: the final recommendation surfaces the T2 dimension breakdown and
+    taxonomy family for every required competency (zero-evidence included), so
+    the brain view shows the same competency set as evidence_sufficiency."""
+    from app.engine.builders import refresh_sufficiency_and_recommendation
+    from app.engine.decision import _enrich_recommendation
+
+    state = _state_with_open_hyps(open_count=3, short_competency=True)
+    sufficiency, rec = refresh_sufficiency_and_recommendation(state)
+    enriched = _enrich_recommendation(state, rec, sufficiency)
+
+    dims = enriched["dimension_scores"]
+    assert set(dims.keys()) == set(REQUIRED)
+    assert dims["problem_solvin"]["covered"] is True
+    assert dims["problem_solvin"]["average_score"] == 8.5
+    assert dims["system_design"]["evidence_count"] == 0
+    assert dims["system_design"]["gap"] == 1.0
+    assert dims["system_design"]["covered"] is False
+    assert enriched["family"] == {
+        "problem_solvin": "core_engineering",
+        "communication": "collaboration",
+        "system_design": "architecture",
+    }
+    assert enriched["composite_score"] == rec["composite_score"]
+    assert enriched["verdict"] == rec["verdict"]
+
+
+def test_calibration_verdict_mirrors_calibrated_score_into_recommendation():
+    """P1-4: the calibrated verdict/score must appear next to the raw
+    recommendation in the brain view, not just under hiring_decision."""
+    from app.engine.decision import apply_calibration_verdict
+
+    state = {
+        "aura_brain": {
+            "calibration_state": {
+                "calibrated_verdict": "borderline",
+                "calibrated_score": 6.9,
+            }
+        },
+        "hiring_decision": {"decision": "hire", "decision_score": 8.2, "confidence": 0.7},
+        "hiring_recommendation": {
+            "verdict": "hire",
+            "confidence_v2": 0.84,
+            "composite_score": 8.2,
+        },
+    }
+    out = apply_calibration_verdict(state)
+    rec = out["hiring_recommendation"]
+    assert rec["calibrated_verdict"] == "borderline"
+    assert rec["calibrated_score"] == 6.9
+    assert rec["calibration_source"] == "aura_v5_calibration"
+    assert rec["confidence_v2"] == 0.84

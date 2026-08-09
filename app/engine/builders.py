@@ -67,13 +67,17 @@ def build_start_response(session_id: str, state: StateLike) -> dict:
     }
 
 
-def refresh_hiring_recommendation(state: StateLike) -> dict:
-    """Recompute the hiring recommendation from the *current* hypothesis state.
+def refresh_sufficiency_and_recommendation(state: StateLike) -> tuple[dict, dict]:
+    """Recompute ``evidence_sufficiency`` + ``hiring_recommendation`` from the
+    *current* hypothesis state in one pass.
 
-    The reflection computes ``hiring_recommendation`` before the turn's
-    hypothesis update, so payloads built later showed stale counts that
-    disagreed with ``hypothesis_progress``. This recomputes it from the
-    post-update state; falls back to the stored value if evaluation fails.
+    The reflection computes both before the turn's hypothesis update, so
+    payloads/snapshots built later showed stale counts that disagreed with
+    ``hypothesis_progress`` — and refreshing only the recommendation left the
+    persisted pair disagreeing (``hiring_recommendation.unanswered_hypotheses``
+    vs ``evidence_sufficiency.unanswered_hypotheses``). Recomputing both from
+    the same snapshot keeps them consistent; falls back to the stored values
+    if evaluation fails.
     """
     s = _as_dict(state)
     try:
@@ -82,7 +86,7 @@ def refresh_hiring_recommendation(state: StateLike) -> dict:
             evaluate_sufficiency,
         )
 
-        _, recommendation = evaluate_sufficiency(
+        return evaluate_sufficiency(
             competency_summary=s.get("competency_summary", {}),
             required_competencies=s.get("required_competencies", []) or [],
             contradictions=s.get("contradictions", []),
@@ -96,9 +100,18 @@ def refresh_hiring_recommendation(state: StateLike) -> dict:
                 if h.get("status") in ("untested", "testing")
             ),
         )
-        return recommendation or {}
     except Exception:
-        return s.get("hiring_recommendation", {})
+        return s.get("evidence_sufficiency", {}), s.get("hiring_recommendation", {})
+
+
+def refresh_hiring_recommendation(state: StateLike) -> dict:
+    """Recompute the hiring recommendation from the *current* hypothesis state.
+
+    Convenience wrapper over :func:`refresh_sufficiency_and_recommendation` for
+    payload builders that only need the recommendation (answer responses).
+    """
+    _, recommendation = refresh_sufficiency_and_recommendation(state)
+    return recommendation or {}
 
 
 def build_answer_response(session_id: str, state: StateLike) -> dict:

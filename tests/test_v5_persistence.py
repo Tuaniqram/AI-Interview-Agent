@@ -156,6 +156,52 @@ async def test_save_snapshot_writes_brain_graph_and_timeline_rows():
     assert tl_rec.event_data["version"] == brain.state_version + 1
 
 
+def test_backfill_evidence_summary_unions_zero_evidence_required_competencies():
+    """Regression for the brain_view gap inconsistency: evidence_summary must
+    include every required competency (zero-evidence ones with gap=1.0) so it
+    matches evidence_sufficiency.details instead of silently dropping them."""
+    from app.services.v5_brain_persister import _backfill_evidence_summary
+
+    summary = {
+        "tech_core": {"evidence_count": 3, "average_score": 8.0, "gap": 0.0},
+    }
+    out = _backfill_evidence_summary(
+        summary, ["tech_core", "tech_deployment", "tech_data_modeling"]
+    )
+    assert set(out.keys()) == {"tech_core", "tech_deployment", "tech_data_modeling"}
+    assert out["tech_core"] == summary["tech_core"]
+    assert out["tech_deployment"] == {
+        "evidence_count": 0,
+        "average_score": 0.0,
+        "average_confidence": 0.0,
+        "average_strength": 0.0,
+        "coverage": 0.0,
+        "gap": 1.0,
+    }
+    assert out["tech_data_modeling"]["gap"] == 1.0
+    assert out["tech_data_modeling"]["evidence_count"] == 0
+
+
+async def test_save_snapshot_backfills_zero_evidence_required_competencies():
+    factory = FakeSessionFactory()
+    persister = V5BrainPersister(session_factory=lambda: factory)
+    brain = _make_brain()
+    brain.required_competencies = ["tech_core", "tech_deployment"]
+
+    await persister.save_snapshot(brain)
+
+    brain_rec = next(r for r in factory.session.added if isinstance(r, InterviewBrainRecord))
+    assert brain_rec.evidence_summary["tech_core"]["average_score"] == 8.0
+    assert brain_rec.evidence_summary["tech_deployment"] == {
+        "evidence_count": 0,
+        "average_score": 0.0,
+        "average_confidence": 0.0,
+        "average_strength": 0.0,
+        "coverage": 0.0,
+        "gap": 1.0,
+    }
+
+
 async def test_save_snapshot_noops_without_database():
     persister = V5BrainPersister(session_factory=lambda: None)
     await persister.save_snapshot(_make_brain())  # must not raise

@@ -141,4 +141,40 @@
   new for T2/T4), zero external services; `alembic heads` resolves to the
   calibration-feedback migration.
 
+## [AURA-1.5][brain-view-consistency] — 2026-08-09
+- **Root-caused the `brain_view.json` inconsistencies** found in the 2026-08-07
+  capture (session `d0e0b2e7`):
+  - `unanswered_hypotheses` 1 vs 2 — `finalize_session` refreshed only
+    `hiring_recommendation` from the post-update hypothesis state while
+    `evidence_sufficiency` kept the last reflection frame's pre-update value;
+    both are persisted side-by-side in `decision_state`.
+  - `gap`/coverage surfaces disagreed — `competency_summary`→`evidence_summary`
+    only contained competencies that collected evidence, silently dropping
+    zero-evidence required competencies that `evidence_sufficiency.details`
+    still listed with `gap=1.0`.
+  - `calibrated_score` lived only under `hiring_decision`, never next to the
+    raw `hiring_recommendation`.
+- **`refresh_sufficiency_and_recommendation`** (`app/engine/builders.py`):
+  recomputes `evidence_sufficiency` + `hiring_recommendation` from the same
+  snapshot; `finalize_session` (`app/engine/decision.py`) refreshes both, so
+  the persisted pair can never disagree again.
+- **Persister backfill** (`app/services/v5_brain_persister.py`:
+  `_backfill_evidence_summary`): `interview_brain.evidence_summary` now unions
+  every required competency — zero-evidence ones appear with `gap=1.0`,
+  `evidence_count=0`, matching `evidence_sufficiency.details`. Pure
+  serialization change; live `competency_summary`/scorecard rows untouched.
+- **T2/T4 surfaced in the final recommendation** (`app/engine/decision.py`):
+  `hiring_recommendation` gains `dimension_scores` (per-required-competency
+  average/evidence_count/gap/covered), `family` (competency → taxonomy family),
+  and — when the T4 calibration override fires — `calibrated_verdict` /
+  `calibrated_score` / `calibration_source` mirrored from `hiring_decision`.
+  `confidence_v2` (blended, calibration-preferred) was confirmed deliberate and
+  documented in `BRAIN_VIEW.md`.
+- **Tests**: 6 new regression tests — refresh consistency (sufficiency ≡
+  recommendation `unanswered_hypotheses`), error fallback, dimension_scores +
+  family enrichment, calibration mirroring, and persister backfill (unit +
+  snapshot). Suite now 571 passed / 1 deselected.
+- **`BRAIN_VIEW.md`** ledger updated with AURA-1.5 (value changes for new
+  sessions + additive keys).
+
 _Next entries appended below as changes are confirmed and tested.__

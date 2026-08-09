@@ -48,6 +48,30 @@ def _clamp(value, lo: float = 0.0, hi: float = 1.0) -> float:
         return lo
 
 
+def _backfill_evidence_summary(summary: dict, required_competencies: list) -> dict:
+    """Union zero-evidence required competencies into the evidence summary.
+
+    ``competency_summary`` only contains competencies that have collected
+    evidence, so the brain view's ``evidence_summary`` silently dropped
+    unprobed required competencies while ``evidence_sufficiency.details``
+    listed them with ``gap=1.0``. Backfilling at the serialization boundary
+    makes both surfaces agree without touching the live scoring state.
+    """
+    out = dict(summary or {})
+    for comp in required_competencies or []:
+        if comp in out:
+            continue
+        out[comp] = {
+            "evidence_count": 0,
+            "average_score": 0.0,
+            "average_confidence": 0.0,
+            "average_strength": 0.0,
+            "coverage": 0.0,
+            "gap": 1.0,
+        }
+    return out
+
+
 class V5BrainPersister:
     """Upsert the V5 reasoning snapshot for a session."""
 
@@ -99,7 +123,10 @@ class V5BrainPersister:
 
         record.version = int(getattr(brain, "state_version", 0) or 0) + 1
         record.current_hypotheses = getattr(brain, "hypotheses", []) or []
-        record.evidence_summary = getattr(brain, "competency_summary", {}) or {}
+        record.evidence_summary = _backfill_evidence_summary(
+            getattr(brain, "competency_summary", {}) or {},
+            getattr(brain, "required_competencies", None) or [],
+        )
         nodes = (getattr(brain, "evidence_graph", {}) or {}).get("nodes", {}) or {}
         record.competency_scores = nodes
         record.difficulty_profile = getattr(brain, "difficulty_profile", None)

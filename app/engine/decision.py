@@ -18,13 +18,46 @@ from app.engine.persistence import (
 logger = logging.getLogger(__name__)
 
 
+def _enrich_recommendation(state: dict, recommendation: dict, sufficiency: dict) -> dict:
+    """Add the T2/T4 observability fields the final brain view needs.
+
+    ``dimension_scores`` is the per-required-competency breakdown (every
+    required competency, including zero-evidence ones so the brain view matches
+    ``evidence_sufficiency.details``); ``family`` maps each required competency
+    to its taxonomy family. Both are pure additions — they never alter the
+    verdict, confidence or composite.
+    """
+    rec = dict(recommendation or {})
+    details = (sufficiency or {}).get("details") or {}
+    rec["dimension_scores"] = {
+        comp: {
+            "average_score": d.get("average_score", 0.0),
+            "evidence_count": d.get("evidence_count", 0),
+            "gap": d.get("gap", 1.0),
+            "covered": bool(d.get("covered", False)),
+        }
+        for comp, d in details.items()
+    }
+    family_by_id = {
+        c.get("id"): c.get("family")
+        for c in (state.get("competency_taxonomy") or [])
+        if isinstance(c, dict) and c.get("id") and c.get("family")
+    }
+    rec["family"] = {
+        comp: family_by_id.get(comp) for comp in (state.get("required_competencies") or [])
+    }
+    return rec
+
+
 def apply_calibration_verdict(state: dict) -> dict:
     """Drive the report verdict from the V5 calibration brain.
 
     The calibration layer never lets a shallow interview (thin evidence, low
     difficulty reached) be a hire even when the raw composite is high. It
     overrides the decision chain's draft with the calibrated verdict/score,
-    keeping the draft under ``hiring_decision.draft`` for the report.
+    keeping the draft under ``hiring_decision.draft`` for the report. The
+    calibrated result is also mirrored into ``hiring_recommendation`` so the
+    brain view exposes it next to the uncalibrated recommendation.
     """
     aura = state.get("aura_brain") or {}
     calibration_state = aura.get("calibration_state") or {}
@@ -38,7 +71,16 @@ def apply_calibration_verdict(state: dict) -> dict:
     if calibrated_score is not None:
         decision["decision_score"] = calibrated_score
     decision["calibration_source"] = "aura_v5_calibration"
-    return {**state, "hiring_decision": decision}
+    recommendation = dict(state.get("hiring_recommendation") or {})
+    recommendation["calibrated_verdict"] = calibrated_verdict
+    if calibrated_score is not None:
+        recommendation["calibrated_score"] = calibrated_score
+    recommendation["calibration_source"] = "aura_v5_calibration"
+    return {
+        **state,
+        "hiring_decision": decision,
+        "hiring_recommendation": recommendation,
+    }
 
 
 async def finalize_session(engine, brain: InterviewBrain) -> dict:
@@ -46,7 +88,10 @@ async def finalize_session(engine, brain: InterviewBrain) -> dict:
     events = engine._get_events()
     session_id = brain.session_id
 
-    from app.engine.builders import build_report_response, refresh_hiring_recommendation
+    from app.engine.builders import (
+        build_report_response,
+        refresh_sufficiency_and_recommendation,
+    )
     from app.agents.evaluation.synthesis import synthesis_node
 
     s = brain_to_dict(brain)
@@ -61,7 +106,13 @@ async def finalize_session(engine, brain: InterviewBrain) -> dict:
             s["extracted_evidence"],
             required_evidence_map=_requirements_map(s),
         )
-    s["hiring_recommendation"] = refresh_hiring_recommendation(s)
+    # Refresh BOTH the sufficiency and the recommendation from the same
+    # post-update snapshot so the persisted pair never disagrees (e.g. the
+    # old code refreshed only the recommendation, leaving evidence_sufficiency
+    # with the pre-update ``unanswered_hypotheses``).
+    sufficiency, recommendation = refresh_sufficiency_and_recommendation(s)
+    s["evidence_sufficiency"] = sufficiency
+    s["hiring_recommendation"] = _enrich_recommendation(s, recommendation, sufficiency)
     try:
         s = await synthesis_node(s)
     except Exception as e:
@@ -92,6 +143,7 @@ async def finalize_session(engine, brain: InterviewBrain) -> dict:
     try:
         s = apply_calibration_verdict(s)
         brain.hiring_decision = s.get("hiring_decision")
+        brain.hiring_recommendation = s.get("hiring_recommendation")
     except Exception as exc:  # noqa: BLE001 - calibration override is best-effort
         logger.warning(f"Calibration verdict override failed (non-fatal): {exc}")
 

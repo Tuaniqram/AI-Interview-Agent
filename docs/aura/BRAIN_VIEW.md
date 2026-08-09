@@ -1,6 +1,6 @@
 # AURA Engine — `brain_view.json` change tracker
 
-> Last updated: 2026-08-09 · Tag: [AURA-1.3][T4-calibration-ranking]
+> Last updated: 2026-08-09 · Tag: [AURA-1.5][brain-view-consistency]
 
 `brain_view.json` is the captured output of `GET /api/v1/intelligence/brain/{sid}`
 (`app/api/v1/intelligence.py`), the full post-interview brain snapshot used by
@@ -54,6 +54,35 @@ Reference capture: `D:\UnityTemp\opencode\aura-run\brain_view.json` (session
   `interview_brain.brain_metadata.calibration_state`, which is **not** part of
   the brain_view output — by design, so the recruiter-facing snapshot stays
   stable while the feedback loop grows.
+
+### 2026-08-09 · AURA-1.5 brain-view consistency fixes — value changes for new sessions + additive keys
+- **Value changes (new sessions)**:
+  - `decision_state.hiring_recommendation.unanswered_hypotheses` now always
+    equals `decision_state.evidence_sufficiency.unanswered_hypotheses`.
+    Previously `finalize_session` refreshed only the recommendation from the
+    post-update hypothesis state while `evidence_sufficiency` kept the
+    pre-update frame, so the pair could disagree (1 vs 2 in the 2026-08-07
+    capture). `refresh_sufficiency_and_recommendation`
+    (`app/engine/builders.py`) recomputes both from one snapshot.
+  - `interview_brain.evidence_summary` now includes **every** required
+    competency — zero-evidence ones are backfilled with `gap=1.0`,
+    `evidence_count=0` (persister `_backfill_evidence_summary`). Previously it
+    silently dropped unprobed competencies that
+    `evidence_sufficiency.details` still listed with `gap=1.0`.
+- **Additive keys** (`decision_state.hiring_recommendation`, new sessions):
+  - `dimension_scores`: per-required-competency breakdown
+    (`average_score`, `evidence_count`, `gap`, `covered`) — mirrors
+    `evidence_sufficiency.details` for the T2 dimension view.
+  - `family`: required competency → taxonomy family map.
+  - `calibrated_verdict` / `calibrated_score` / `calibration_source`: mirrored
+    from `hiring_decision` when the T4 calibration override fires, so the
+    calibrated result is visible next to the raw recommendation.
+- **No shape change to existing keys**: all additions are new optional keys;
+  `confidence` (legacy) and `confidence_v2` (blended, preferred by
+  calibration) both remain. Stored rows from older sessions still render.
+- **Backfill caveat**: `interview_brain.evidence_summary` is a derived
+  serialization (pure addition at the persister boundary); the live
+  `competency_summary` and scorecard rows are unchanged.
 
 ## Compatibility rule
 
