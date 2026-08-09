@@ -134,6 +134,9 @@
   committed with the code in `2bb9e07`.
 - **`WAVE-PLAN.md`** added to `docs/aura/` and linked from the README index —
   tracks T1-taxonomy / T2-scoring / T4-calibration-ranking completion status.
+- **`BRAIN_VIEW.md`** added to `docs/aura/` — schema + change ledger for the
+  `brain_view.json` output (T2 → value changes for new sessions only; T4 →
+  no change).
 - **Verification**: `python -m pytest -q` → 565 passed (526 pre-existing + 39
   new for T2/T4), zero external services; `alembic heads` resolves to the
   calibration-feedback migration.
