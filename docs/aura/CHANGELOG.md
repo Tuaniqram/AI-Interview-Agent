@@ -174,6 +174,15 @@
   recommendation `unanswered_hypotheses`), error fallback, dimension_scores +
   family enrichment, calibration mirroring, and persister backfill (unit +
   snapshot). Suite now 571 passed / 1 deselected.
+- **`demo_autopilot.py`** (`scripts/`): new `--verify` flag runs integrity
+  checks on the finished session and exits non-zero on failure — V5 brain
+  layers present on every evaluation frame, monotonic evidence totals,
+  single-source verdict across WS report → `/summary` → `/brain`, and the
+  AURA-1.5 brain_view invariants (unanswered agreement, complete
+  evidence_summary/dimension_scores, zero-evidence gap=1.0, family coverage,
+  calibrated result surfaced). New `--calibration-feedback {outcome}` flag
+  runs the T4 round-trip: `PUT /calibration/feedback/{sid}` → `GET
+  /calibration/drift` + `/drift/summary` → `GET /candidates/ranking?sort_by=calibrated`.
 - **`BRAIN_VIEW.md`** ledger updated with AURA-1.5 (value changes for new
   sessions + additive keys).
 
