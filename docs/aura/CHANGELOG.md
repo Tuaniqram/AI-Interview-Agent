@@ -127,4 +127,15 @@
   calibration fallback, score bands, comparability notes, both sort orders) in
   `tests/unit/ranking/test_candidate_ranking.py`.
 
+## [AURA-1.4][docs-versioning] — 2026-08-09
+- **Docs + tests are now versioned**: `.gitignore` no longer excludes `docs/`
+  and `tests/` (previously untracked working artifacts). The Wave 1-3
+  documentation, `WAVE-PLAN.md`, and the full test suite (565 passing) are
+  committed with the code in `2bb9e07`.
+- **`WAVE-PLAN.md`** added to `docs/aura/` and linked from the README index —
+  tracks T1-taxonomy / T2-scoring / T3-calibration-ranking completion status.
+- **Verification**: `python -m pytest -q` → 565 passed (526 pre-existing + 39
+  new for T2/T3), zero external services; `alembic heads` resolves to the
+  calibration-feedback migration.
+
 _Next entries appended below as changes are confirmed and tested.__
