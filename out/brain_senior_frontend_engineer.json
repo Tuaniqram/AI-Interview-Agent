@@ -277,45 +277,17 @@
   },
   "hypotheses": [
     {
-      "id": "18b03279-1694-48a1-b24b-17d46a9cdc92",
-      "competency": "tech_system_design",
-      "statement": "Candidate has strong system design",
-      "direction": "positive",
-      "confidence": 0.5,
-      "probability": 0.5,
-      "supporting_evidence": [],
-      "contradicting_evidence": [],
-      "status": "untested",
-      "created_at": "2026-08-09T11:20:06.104958+00:00",
-      "last_updated": "2026-08-09T11:20:06.104958+00:00",
-      "evidence_based": false,
-      "source": "resume_profile",
-      "collected_evidence": [],
-      "collected_count": 0,
-      "required_evidence": 3,
-      "missing_evidence": [
-        "scalability",
-        "reliability",
-        "tradeoffs",
-        "architecture_decision",
-        "capacity_planning",
-        "observability"
-      ],
-      "importance": 5,
-      "uncertainty": 0.425
-    },
-    {
-      "id": "88784290-d857-4d30-a6ca-7aac53692ca7",
+      "id": "5fd04497-8cd6-445d-9d9e-14f5568c1aec",
       "competency": "tech_core",
-      "statement": "Candidate has strong event-driven architecture",
+      "statement": "Candidate has strong Backend services in Python/FastAPI",
       "direction": "positive",
       "confidence": 0.5,
       "probability": 0.5,
       "supporting_evidence": [],
       "contradicting_evidence": [],
       "status": "untested",
-      "created_at": "2026-08-09T11:20:06.104958+00:00",
-      "last_updated": "2026-08-09T11:20:06.104958+00:00",
+      "created_at": "2026-08-09T12:10:38.216575+00:00",
+      "last_updated": "2026-08-09T12:10:38.216575+00:00",
       "evidence_based": false,
       "source": "resume_profile",
       "collected_evidence": [],
@@ -330,44 +302,67 @@
       "uncertainty": 0.85
     },
     {
-      "id": "cfc3f9be-68c8-4726-bc37-b9979e5a24ad",
-      "competency": "tech_event_driven",
-      "statement": "Candidate has strong Kafka",
+      "id": "4f7fa68b-854a-4fd5-97f6-31ea3a146a15",
+      "competency": "tech_core",
+      "statement": "Candidate has strong Frontend work in React/TypeScript",
       "direction": "positive",
       "confidence": 0.5,
       "probability": 0.5,
       "supporting_evidence": [],
       "contradicting_evidence": [],
       "status": "untested",
-      "created_at": "2026-08-09T11:20:06.104958+00:00",
-      "last_updated": "2026-08-09T11:20:06.104958+00:00",
+      "created_at": "2026-08-09T12:10:38.216575+00:00",
+      "last_updated": "2026-08-09T12:10:38.216575+00:00",
       "evidence_based": false,
       "source": "resume_profile",
       "collected_evidence": [],
       "collected_count": 0,
       "required_evidence": 3,
       "missing_evidence": [
-        "kafka",
-        "event_ordering",
-        "failure_handling",
-        "idempotency",
-        "backpressure"
+        "language_ecosystem",
+        "concurrency",
+        "memory_management"
       ],
-      "importance": 5,
-      "uncertainty": 0.425
+      "importance": 10,
+      "uncertainty": 0.85
     },
     {
-      "id": "db376c92-17d1-40e0-b925-75975c3751cc",
+      "id": "9bce827b-78f2-42a7-88ca-b95f8c82b704",
       "competency": "tech_core",
-      "statement": "Candidate is weak in database optimization",
+      "statement": "Candidate has strong Distributed systems",
+      "direction": "positive",
+      "confidence": 0.5,
+      "probability": 0.5,
+      "supporting_evidence": [],
+      "contradicting_evidence": [],
+      "status": "untested",
+      "created_at": "2026-08-09T12:10:38.216575+00:00",
+      "last_updated": "2026-08-09T12:10:38.216575+00:00",
+      "evidence_based": false,
+      "source": "resume_profile",
+      "collected_evidence": [],
+      "collected_count": 0,
+      "required_evidence": 3,
+      "missing_evidence": [
+        "language_ecosystem",
+        "concurrency",
+        "memory_management"
+      ],
+      "importance": 10,
+      "uncertainty": 0.85
+    },
+    {
+      "id": "625b3047-2102-4ac9-b114-30055287e0b6",
+      "competency": "tech_core",
+      "statement": "Candidate is weak in Prefer depth over breadth on newer tooling",
       "direction": "negative",
       "confidence": 0.5,
       "probability": 0.5,
       "supporting_evidence": [],
       "contradicting_evidence": [],
       "status": "untested",
-      "created_at": "2026-08-09T11:20:06.104958+00:00",
-      "last_updated": "2026-08-09T11:20:06.104958+00:00",
+      "created_at": "2026-08-09T12:10:38.216575+00:00",
+      "last_updated": "2026-08-09T12:10:38.216575+00:00",
       "evidence_based": false,
       "source": "resume_profile",
       "collected_evidence": [],
@@ -382,7 +377,7 @@
       "uncertainty": 0.85
     },
     {
-      "id": "fc57f6ba-83e4-4770-940b-4c6e81b3d23e",
+      "id": "b95e960c-b5c2-4cd0-8404-d2feecd49801",
       "competency": "tech_core",
       "statement": "Candidate is weak in Limited exposure to senior",
       "direction": "negative",
@@ -391,8 +386,8 @@
       "supporting_evidence": [],
       "contradicting_evidence": [],
       "status": "untested",
-      "created_at": "2026-08-09T11:20:06.104958+00:00",
-      "last_updated": "2026-08-09T11:20:06.104958+00:00",
+      "created_at": "2026-08-09T12:10:38.216575+00:00",
+      "last_updated": "2026-08-09T12:10:38.216575+00:00",
       "evidence_based": false,
       "source": "resume_profile",
       "collected_evidence": [],
@@ -407,7 +402,7 @@
       "uncertainty": 0.85
     },
     {
-      "id": "aef85d7c-71f4-4b2a-9742-94277cd9ae5f",
+      "id": "9a62af2d-4b18-485a-9863-7958a1d66520",
       "competency": "behav_communication",
       "statement": "Candidate communicates clearly and effectively",
       "direction": "positive",
@@ -416,8 +411,8 @@
       "supporting_evidence": [],
       "contradicting_evidence": [],
       "status": "untested",
-      "created_at": "2026-08-09T11:20:06.104958+00:00",
-      "last_updated": "2026-08-09T11:20:06.104958+00:00",
+      "created_at": "2026-08-09T12:10:38.216575+00:00",
+      "last_updated": "2026-08-09T12:10:38.216575+00:00",
       "evidence_based": false,
       "source": "resume_profile",
       "collected_evidence": [],
@@ -442,20 +437,6 @@
     "edges": []
   },
   "uncertainty_map": {
-    "tech_system_design": {
-      "competency": "tech_system_design",
-      "importance": 5,
-      "uncertainty": 0.425,
-      "placeholder_confidence": 0.5,
-      "missing_evidence": [
-        "scalability",
-        "reliability",
-        "tradeoffs",
-        "architecture_decision",
-        "capacity_planning",
-        "observability"
-      ]
-    },
     "tech_core": {
       "competency": "tech_core",
       "importance": 10,
@@ -465,19 +446,6 @@
         "language_ecosystem",
         "concurrency",
         "memory_management"
-      ]
-    },
-    "tech_event_driven": {
-      "competency": "tech_event_driven",
-      "importance": 5,
-      "uncertainty": 0.425,
-      "placeholder_confidence": 0.5,
-      "missing_evidence": [
-        "kafka",
-        "event_ordering",
-        "failure_handling",
-        "idempotency",
-        "backpressure"
       ]
     },
     "behav_communication": {
@@ -553,28 +521,26 @@
     "source": "deterministic"
   },
   "candidate_memory": {
-    "candidate_id": "",
+    "candidate_id": "96def1c1-84f1-43e0-9c3f-8ae7380fe63d",
     "history": [
       {
         "role": "Senior Frontend Engineer",
         "strengths": [
-          "system design",
-          "event-driven architecture",
-          "Kafka"
+          "Backend services in Python/FastAPI",
+          "Frontend work in React/TypeScript",
+          "Distributed systems",
+          "python",
+          "javascript",
+          "typescript",
+          "java",
+          "react"
         ],
         "weaknesses": [
-          "database optimization",
-          "Limited exposure to senior",
-          "Limited exposure to frontend",
-          "Limited exposure to engineer"
+          "Prefer depth over breadth on newer tooling",
+          "Limited exposure to senior"
         ],
-        "risk_signals": [
-          "No skills detected in resume/profile",
-          "Thin candidate profile \u2014 resume enrichment recommended"
-        ],
+        "risk_signals": [],
         "gap_areas": [
-          "tech_framework",
-          "tech_core",
           "mkt_brand_strategy",
           "des_design_systems",
           "hr_learning_development",
@@ -583,20 +549,20 @@
       }
     ],
     "learned_strengths": [
-      "system design",
-      "event-driven architecture",
-      "Kafka"
+      "Backend services in Python/FastAPI",
+      "Frontend work in React/TypeScript",
+      "Distributed systems",
+      "python",
+      "javascript",
+      "typescript",
+      "java",
+      "react"
     ],
     "learned_weaknesses": [
-      "database optimization",
-      "Limited exposure to senior",
-      "Limited exposure to frontend",
-      "Limited exposure to engineer"
+      "Prefer depth over breadth on newer tooling",
+      "Limited exposure to senior"
     ],
-    "learned_risk_signals": [
-      "No skills detected in resume/profile",
-      "Thin candidate profile \u2014 resume enrichment recommended"
-    ],
+    "learned_risk_signals": [],
     "interview_count": 1
   },
   "evidence_reading": {}

@@ -312,4 +312,18 @@
     difficulty_state shape. Suite: **592 passed / 1 deselected**; frontend
     `tsc --noEmit` clean.
 
+## [AURA-1.7-demo][demo-real-candidate] — 2026-08-09
+- **Demo brains now start from a real candidate, not a stub** —
+  `scripts/build_brain_demo.py` loads the seeded `CandidateProfile` (Alex
+  Rivera / Jamie Chen) from the DB and shapes `candidate_profile` +
+  `resume_text` exactly like the live WS session
+  (`interview_ws._load_candidate_profile_data`), replacing the hardcoded
+  `aura_test_candidate` stub. The demo `candidate_memory.candidate_id` is now
+  the real profile id, and the strengths/weaknesses/initial hypotheses are
+  resume-derived. `use_rag`/`use_llm` flags now flow through (already
+  default-off; degrades to deterministic when no keys are set).
+- **Regenerated** `out/brain_senior_backend_engineer.json` +
+  `out/brain_senior_frontend_engineer.json` (pre-interview state:
+  `evidence_total 0`, 6 hypotheses).
+
 _Next entries appended below as changes are confirmed and tested.__
