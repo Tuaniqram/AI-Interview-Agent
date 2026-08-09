@@ -145,16 +145,23 @@ async def get_brain(
         )
     ).scalars().all()
 
+    brain_metadata = (brain_row.brain_metadata or {}) if brain_row else {}
+    aura_brain = brain_metadata.get("aura_brain") or {}
+    interview_brain = {
+        "version": brain_row.version if brain_row else None,
+        "current_hypotheses": brain_row.current_hypotheses if brain_row else [],
+        "evidence_summary": brain_row.evidence_summary if brain_row else {},
+        "competency_scores": brain_row.competency_scores if brain_row else {},
+        "difficulty_profile": brain_row.difficulty_profile if brain_row else None,
+        "decision_state": brain_row.decision_state if brain_row else None,
+    }
+    # Additive-only: the evidence_reading layer surfaces only when present.
+    if aura_brain.get("evidence_reading"):
+        interview_brain["evidence_reading"] = aura_brain["evidence_reading"]
+
     return {
         "session_id": str(session_id),
-        "interview_brain": {
-            "version": brain_row.version if brain_row else None,
-            "current_hypotheses": brain_row.current_hypotheses if brain_row else [],
-            "evidence_summary": brain_row.evidence_summary if brain_row else {},
-            "competency_scores": brain_row.competency_scores if brain_row else {},
-            "difficulty_profile": brain_row.difficulty_profile if brain_row else None,
-            "decision_state": brain_row.decision_state if brain_row else None,
-        },
+        "interview_brain": interview_brain,
         "evidence_graph": {
             "nodes": graph_row.nodes if graph_row else {},
             "edges": graph_row.edges if graph_row else {},

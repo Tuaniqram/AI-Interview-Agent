@@ -1,6 +1,6 @@
 # 09 — Decision engine
 
-> Last updated: 2026-08-09 · Tag: [AURA-1.3][T4-calibration-ranking]
+> Last updated: 2026-08-09 · Tag: [AURA-1.6][evidence-reading]
 
 ## Canonical composite (`compute_canonical_score` — contradiction_engine.py:176)
 
@@ -62,6 +62,15 @@ Draft → self-review → final:
 - `finalize_decision` (F9): any high-severity issue caps confidence at 0.5 and
   demotes decisive verdicts to `insufficient_evidence`; contradictions −0.2
   confidence; overconfidence −0.1; sets `flag_review`.
+
+### Semantic review checks (AURA-1.6)
+
+The evidence reading adds checks (`off_rubric_flag`, `cross_answer_risk`,
+`unverifiable_claims`) whose severity is **capped at `medium`** — they flag for
+review and trim confidence, but can never alone demote a decisive verdict
+(demotion requires a deterministic high-severity check). The reading's flags
+also land in `decision_state.risk_flags` via `evidence_reading_risk_flags`
+(additive only).
 
 ## Difficulty caps on verdicts (recommendation layer)
 

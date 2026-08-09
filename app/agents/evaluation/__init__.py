@@ -16,3 +16,6 @@ from app.agents.evaluation.scoring import (  # noqa: F401
 from app.agents.evaluation.synthesis import (  # noqa: F401
     synthesis_node,
 )
+from app.agents.evaluation.evidence_reading import (  # noqa: F401
+    evidence_reading_node,
+)

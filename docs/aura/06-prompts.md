@@ -1,6 +1,6 @@
 # 06 — Prompt inventory
 
-> Last updated: 2026-08-09 · Tag: [AURA-1.2][T2-scoring]
+> Last updated: 2026-08-09 · Tag: [AURA-1.6][evidence-reading]
 > Loader: `app/services/prompt_loader.py` — reads `prompts/<category>/<file>`,
 > renders `{{var}}` substitutions, caches per file.
 
@@ -34,6 +34,7 @@
 |---|---|---|---|
 | `unified_evaluator.md` | Score one answer across the family's **active dimensions** (tech: `technical` primary; non-tech families: `domain` primary, `technical` dropped) 0-10 with evidence, confidence, strengths/weaknesses + behavioral observations (verbosity, hedging, certainty_shift, sentiment_shift, latency, notable_patterns). Output: single JSON object. **T2**: rendered with the family rubric block and family-resolved labels | `question`, `answer`, `job_role`, `difficulty`, `persona`, `competency`, `domain_label`, `rubric`, `primary_dimension`, `candidate_memory` | `unified_evaluator_node` (candidate_evaluator.py:40) — `rubric`/`primary_dimension` sourced from `app/data/rubrics.py` (`render_rubric` :358, `active_dimensions` :313) |
 | `synthesis.md` | Final assessment narration. Canonical score is already computed deterministically — the LLM only narrates evidence | `job_role`, `score_timeline`, `avg_score`, `growth_trend`, `max_difficulty`, `skills_tested`, `skills_weak`, `coverage_map`, `evidence_strengths`, `evidence_weaknesses`, `canonical_score` | synthesis node |
+| `evidence_reading.md` | **Read** the raw answers semantically: classify each answer's claims (`proven`/`demonstrated`/`mentioned`) with `verifiable`/`specificity`/`ownership`, surface off-rubric red flags / hidden strengths and cross-answer risks. Must NOT score or set a verdict — the deterministic layers apply the downgrade-only rule | `job_role`, `evidence_transcript` | `evidence_reading_node` (evidence_reading.py) |
 
 ## difficulty_governor
 

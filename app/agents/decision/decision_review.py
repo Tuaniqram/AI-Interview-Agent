@@ -155,10 +155,20 @@ def review_decision(draft: dict, state: dict) -> list[dict]:
             "detail": "One contradictory evidence item detected; consider probing before deciding.",
         })
 
+    # 5. Semantic evidence-reading checks (LLM-informed, capped at medium so they
+    # can flag for review / trim confidence but never demote a decisive verdict).
+    checks.extend(_semantic_checks(state))
+
     return sorted(
         checks,
         key=lambda c: -REVIEW_SEVERITIES.index(c["severity"]),
     )
+
+
+def _semantic_checks(state: dict) -> list[dict]:
+    from app.agents.reasoning.evidence_reading import evidence_reading_checks
+
+    return evidence_reading_checks(state.get("evidence_reading"))
 
 
 def finalize_decision(draft: dict, checks: list[dict]) -> dict:
@@ -190,6 +200,18 @@ def finalize_decision(draft: dict, checks: list[dict]) -> dict:
 
     if any(c["issue"] == "missing_competency" and c["severity"] == "high" for c in checks):
         decision["flag_review"] = True
+
+    # Semantic (evidence-reading) findings: flag for human review and trim a
+    # little confidence, but they are capped at medium severity so they can
+    # never demote a decisive verdict on their own.
+    semantic_issues = [
+        c
+        for c in checks
+        if c.get("issue") in ("off_rubric_flag", "cross_answer_risk", "unverifiable_claims")
+    ]
+    if semantic_issues:
+        decision["flag_review"] = True
+        confidence = max(0.0, confidence - 0.05 * min(len(semantic_issues), 2))
 
     decision["confidence"] = round(confidence, 2)
     decision["demoted_to_undecided"] = demoted

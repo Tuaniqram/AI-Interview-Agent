@@ -1,6 +1,6 @@
 # AURA Engine — Documentation
 
-> Last updated: 2026-08-09 · Tag: [AURA-1.0-baseline]
+> Last updated: 2026-08-09 · Tag: [AURA-1.6][evidence-reading]
 
 AURA (Adaptive Unified Reasoning Assistant) is the interview-intelligence engine of
 AI-Interview-Agent. It runs adaptive, evidence-driven hiring interviews: every answer

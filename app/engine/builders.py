@@ -6,6 +6,7 @@ bottom keep the legacy import names working for tests (the original
 ``app/api/interview_v4.py`` module was deleted in the Phase 10 cleanup).
 """
 from typing import Any, Union
+from collections import Counter
 
 from app.core.interview_brain import InterviewBrain
 from app.core.interview_state import brain_to_dict
@@ -218,6 +219,27 @@ def build_state_response(session_id: str, state: StateLike) -> dict:
     }
 
 
+def _evidence_reading_summary(reading: dict | None) -> dict | None:
+    """Compact evidence_reading summary for the report payload (None when absent)."""
+    if not reading:
+        return None
+    per = reading.get("per_answer") or {}
+    counts = Counter(
+        entry.get("claim_classification", "mentioned")
+        for entry in per.values()
+        if isinstance(entry, dict)
+    )
+    return {
+        "answers_read": len(per),
+        "claim_classification": {
+            name: counts.get(name, 0) for name in ("mentioned", "demonstrated", "proven")
+        },
+        "off_rubric_red_flags": reading.get("off_rubric", {}).get("red_flags") or [],
+        "hidden_strengths": reading.get("off_rubric", {}).get("hidden_strengths") or [],
+        "semantic_risks": reading.get("semantic_risks") or [],
+    }
+
+
 def build_report_response(state: StateLike) -> dict:
     """Build the final ``{type: report}`` payload on interview completion."""
     s = _as_dict(state)
@@ -303,6 +325,7 @@ def build_report_response(state: StateLike) -> dict:
         "difficulty_profile": profile,
         "hiring_decision": s.get("hiring_decision", {}),
         "aura_brain": s.get("aura_brain") or {},
+        "evidence_reading": _evidence_reading_summary(s.get("evidence_reading")),
     }
     return report
 

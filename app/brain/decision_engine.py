@@ -14,6 +14,7 @@ def build_decision_state(
     hiring_decision: dict,
     hiring_recommendation: dict,
     calibration_state: dict,
+    evidence_reading: dict | None = None,
 ) -> dict:
     hd = hiring_decision or {}
     cal = calibration_state or {}
@@ -32,6 +33,10 @@ def build_decision_state(
         risks.append("low evidence volume")
     if cal.get("contradiction_penalty", 0) >= 2:
         risks.append("serious contradictions in evidence")
+    if evidence_reading:
+        from app.agents.reasoning.evidence_reading import evidence_reading_risk_flags
+
+        risks.extend(evidence_reading_risk_flags(evidence_reading))
 
     return {
         "decision": decision,

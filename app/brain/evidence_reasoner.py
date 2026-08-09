@@ -16,6 +16,7 @@ from app.agents.reasoning.evidence_engine import (
     complexity_signal,
     ownership_signal,
 )
+from app.agents.reasoning.evidence_reading import effective_claim
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +24,17 @@ _OWNERSHIP_WORDS = ("design", "architecture", "owned", "architected", "led", "dr
 _PROVEN_METRIC_RE = r"\d+\s*(%|ms|s\b|qps|rps|req|users|requests|gb|tb|million|billion|k\b|m\b)"
 
 
-def classify_claim(record: dict) -> str:
+def classify_claim(record: dict, semantic_claim: str | None = None) -> str:
     """mentioned / demonstrated / proven for an evidence record.
 
     * ``proven``      — first-person ownership + high complexity (concrete
                         metrics, code, multi-topic depth)
     * ``demonstrated`` — first-person/team ownership + medium+ depth
     * ``mentioned``   — anything else (named the tech, explained nothing)
+
+    When ``semantic_claim`` (the LLM evidence-reading classification) is given,
+    the effective result is the downgrade-only ``min(semantic, regex)`` — the
+    semantic layer can confirm or downgrade the regex result, never inflate it.
     """
     ownership = record.get("ownership") or ownership_signal(record.get("evidence_text", ""))
     complexity = record.get("complexity") or complexity_signal(record.get("evidence_text", ""))
@@ -37,18 +42,31 @@ def classify_claim(record: dict) -> str:
     import re
 
     if ownership == "first_person" and complexity == "high":
-        return "proven"
-    if ownership in ("first_person", "team") and complexity in ("high", "medium"):
-        return "demonstrated"
-    if ownership == "third_person":
-        return "mentioned"
-    return "mentioned"
+        claim_type = "proven"
+    elif ownership in ("first_person", "team") and complexity in ("high", "medium"):
+        claim_type = "demonstrated"
+    else:
+        claim_type = "mentioned"
+
+    if semantic_claim:
+        return effective_claim(semantic_claim, claim_type)
+    return claim_type
+
+
+def _semantic_for(reading: dict | None, evidence_id: str) -> str | None:
+    """Look up an LLM claim classification for a record from an evidence_reading."""
+    if not reading:
+        return None
+    per = reading.get("per_answer") or {}
+    entry = per.get(evidence_id) or {}
+    return entry.get("claim_classification")
 
 
 def evidence_to_graph(
     evidence_records: list[dict],
     competency_graph: dict | None = None,
     role_brain: dict | None = None,
+    evidence_reading: dict | None = None,
 ) -> dict:
     """Typed evidence graph: evidence -> competency (supports/required_for)
     plus claim confidence edges.
@@ -56,7 +74,7 @@ def evidence_to_graph(
     Every evidence node links to its competency node with ``relation``
     ``supports`` (score >= midpoint) or ``contradicts`` and to the role with
     ``required_for``. Claim confidence is the record's confidence tempered by
-    the claim classification.
+    the claim classification (downgrade-only when ``evidence_reading`` is given).
     """
     graph = {"nodes": {}, "edges": []}
     graph_comp = (competency_graph or {}).get("nodes") or {}
@@ -68,7 +86,7 @@ def evidence_to_graph(
         comp = ev.get("competency") or ""
         score = float(ev.get("score", 0.0))
         confidence = float(ev.get("confidence", 0.5))
-        claim_type = classify_claim(ev)
+        claim_type = classify_claim(ev, _semantic_for(evidence_reading, ev_id))
         claim_confidence = round(
             max(0.1, min(1.0, confidence * {"proven": 1.0, "demonstrated": 0.75, "mentioned": 0.45}[claim_type])),
             4,
@@ -110,11 +128,11 @@ def evidence_to_graph(
     return graph
 
 
-def evidence_summary_stats(evidence_records: list[dict]) -> dict:
+def evidence_summary_stats(evidence_records: list[dict], evidence_reading: dict | None = None) -> dict:
     records = evidence_records or []
     types = {}
     for ev in records:
-        t = classify_claim(ev)
+        t = classify_claim(ev, _semantic_for(evidence_reading, ev.get("id") or ""))
         types[t] = types.get(t, 0) + 1
     return {
         "total": len(records),

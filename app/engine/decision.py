@@ -140,6 +140,18 @@ async def finalize_session(engine, brain: InterviewBrain) -> dict:
         logger.warning(f"Synthesis failed (non-fatal): {type(e).__name__}")
     brain = sync_brain(brain, s)
 
+    # Semantic evidence reading: LLM reads the raw answers and maps them into
+    # deterministic claim classifications + off-rubric/risk signals that the
+    # decision review below can consume. Best-effort — failure keeps the
+    # fully deterministic path.
+    try:
+        from app.agents.evaluation.evidence_reading import evidence_reading_node
+
+        s = await evidence_reading_node(s)
+    except Exception as e:
+        logger.warning(f"Evidence reading failed (non-fatal): {type(e).__name__}")
+    brain = sync_brain(brain, s)
+
     from app.agents.decision.hiring_decision import hiring_decision_node
     s = await hiring_decision_node(s)
     brain = sync_brain(brain, s)

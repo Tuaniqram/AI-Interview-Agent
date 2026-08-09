@@ -229,4 +229,54 @@
   session `6636e6ce`), and the run log
   `docs/aura/output-demo/demo.log`.
 
+## [AURA-1.6][evidence-reading] — 2026-08-09
+- **Evidence Reading V5 — semantic read of the raw answers** (the 13th brain
+  layer). LLM produces signals, deterministic engine applies them:
+  - `app/agents/reasoning/evidence_reading.py` (deterministic core):
+    `effective_claim` is the **downgrade-only** override —
+    `min(semantic, regex)` over mentioned < demonstrated < proven — so the LLM
+    can only confirm or downgrade a claim, never inflate it past what the
+    deterministic (regex) signals already support. `map_evidence_reading`
+    normalizes the LLM output (drops hallucinated ids / invalid enums),
+    `evidence_reading_risk_flags` / `evidence_reading_checks` derive additive
+    risk flags and review checks (severity capped at `medium`), and
+    `transcript_payload` size-caps the transcript sent to the model.
+  - `app/agents/evaluation/evidence_reading.py` (`evidence_reading_node`):
+    best-effort async node run at finalization — builds the transcript, invokes
+    the LLM with `prompts/evaluation/evidence_reading.md`, maps the response
+    onto `state["evidence_reading"]`. Any failure degrades to the current
+    deterministic path (state returned unchanged); empty evidence skips.
+  - `app/brain/evidence_reasoner.py`: `classify_claim` / `evidence_summary_stats`
+    accept the reading and apply the downgrade-only rule per record, so
+    `calibration_state.proof_ratio` and the decision layers reflect semantic
+    corrections deterministically.
+  - `app/brain/decision_engine.py` + `app/agents/decision/decision_review.py`:
+    the reading's flags feed `decision_state.risk_flags` and the semantic
+    review checks (`off_rubric_flag`, `cross_answer_risk`,
+    `unverifiable_claims`) — additive only, capped at `medium`, so they flag
+    for review and trim confidence but never demote a decisive verdict.
+  - `app/brain/assembler.py`: `evidence_reading` is the **13th layer**
+    (`_LAYER_NAMES`), with a utilization status in the brain view.
+  - `app/engine/decision.py` runs the node in `finalize_session`;
+    `app/engine/builders.py` adds a compact `evidence_reading` summary to the
+    report; `app/api/v1/intelligence.py` surfaces the layer in the brain view
+    **additive-only** (absent on sessions without a reading).
+- **Prompt** (`prompts/evaluation/evidence_reading.md`): instructs the model to
+  read — never score, never decide — with a strict JSON schema
+  (`per_answer` / `off_rubric` / `semantic_risks`) and a hallucinated-id ban.
+- **Tests**: `tests/test_evidence_reading.py` (12) — downgrade-only rule,
+  regex-proven → semantic downgrade, corroboration, mapper normalization + id
+  dropping, risk flags/checks capped at medium, transcript cap, node
+  populate/fallback/skip, decision-review flag-but-never-demote. Extended
+  `tests/test_brain_assembler.py` (13-layer shape, proof_ratio downgrade 1.0 →
+  0.5, risk flags) and `tests/test_prompt_integrity.py`
+  (evidence_reading.md exists + renders completely). Suite: **586 passed /
+  1 deselected**.
+- **Live verification**: `scripts/demo_autopilot.py --verify
+  --calibration-feedback met_expectations` (Nova backend, session
+  `9f025266-26b8-4cbe-8b8c-b883c5436eea`, verdict `hire`): **VERIFY OK (all
+  checks passed)** and `evidence_reading` present in the persisted brain.
+  Captures committed: `docs/aura/output/brain_view_v3.json` +
+  `docs/aura/output/summary-9f025266.json`.
+
 _Next entries appended below as changes are confirmed and tested.__

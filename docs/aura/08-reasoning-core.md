@@ -1,6 +1,6 @@
 # 08 — Reasoning core
 
-> Last updated: 2026-08-09 · Tag: [AURA-1.2][T2-scoring]
+> Last updated: 2026-08-09 · Tag: [AURA-1.6][evidence-reading]
 
 ## Hypotheses
 
@@ -31,6 +31,30 @@ A hypothesis is "proven" when its competency's sub-capabilities
 (`COMPETENCY_CHILDREN` from `app/data/competency_graph.py`) appear in the
 collected evidence text. Anything past ~5 collected records is "enough"; the
 missing list is `sub-capabilities not yet covered` (max 1…`required*2 − collected`).
+
+## Evidence reading (semantic signals — AURA-1.6)
+
+`app/agents/reasoning/evidence_reading.py` turns the LLM's read of the **raw
+answers** into structured signals the deterministic layers consume:
+
+- `effective_claim` is the **downgrade-only** rule — `min(semantic, regex)` over
+  mentioned < demonstrated < proven. The LLM can only confirm or downgrade a
+  claim, never inflate it past what the deterministic (regex) signals already
+  support. `classify_claim` / `evidence_summary_stats`
+  (`app/brain/evidence_reasoner.py`) apply it per record, so
+  `calibration_state.proof_ratio` and the decision layers reflect the semantic
+  correction deterministically.
+- `map_evidence_reading` normalizes the LLM output into the canonical
+  `evidence_reading` dict: only declared fields are accepted, hallucinated
+  evidence ids and invalid enums are dropped — a fabricated id can never enter
+  the brain.
+- `evidence_reading_risk_flags` adds off-rubric red flags, cross-answer risks
+  and unverified-claim counts to `decision_state.risk_flags` (additive only).
+- `transcript_payload` size-caps the transcript sent to the model.
+
+Run at finalization by `evidence_reading_node`
+(`app/agents/evaluation/evidence_reading.py`); it is best-effort — any failure
+degrades to the deterministic path (state returned unchanged).
 
 ## Uncertainty (`hypothesis_uncertainty`, :69)
 

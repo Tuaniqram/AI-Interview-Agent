@@ -274,12 +274,34 @@ def test_assemble_aura_brain_full_shape():
         "company_brain", "role_brain", "competency_graph", "hypotheses",
         "evidence_graph", "uncertainty_map", "question_strategy",
         "difficulty_state", "contradiction_state", "calibration_state",
-        "decision_state",
+        "decision_state", "candidate_memory", "evidence_reading",
     ):
         assert section in brain, section
     assert brain["difficulty_state"]["floor_satisfied"] is True
     assert brain["calibration_state"]["evidence_depth"] == "low"
     assert brain["decision_state"]["decision"] == "hire"
+
+
+def test_evidence_reading_layer_downgrades_proof_ratio_and_risks():
+    reading = {
+        "per_answer": {
+            "e1": {"claim_classification": "mentioned", "verifiable": False,
+                   "specificity": "low", "ownership": "vague"},
+        },
+        "off_rubric": {"red_flags": ["overstated ownership"], "hidden_strengths": []},
+        "semantic_risks": ["says led X in Q3, says no role in Q8"],
+    }
+    brain = assemble_aura_brain(**_base_kwargs(evidence_reading=reading))
+
+    # 13th layer surfaced.
+    assert brain["evidence_reading"]["per_answer"]["e1"]["claim_classification"] == "mentioned"
+    # Semantic downgrade flowed into calibration: e1 regex-proven -> mentioned,
+    # e2 stays regex-proven, so proof_ratio drops 1.0 -> 0.5.
+    assert brain["calibration_state"]["proof_ratio"] == 0.5
+    # Decision risk flags include the semantic flags.
+    flags = brain["decision_state"]["risk_flags"]
+    assert any("off-rubric flag" in f for f in flags)
+    assert any("cross-answer risk" in f for f in flags)
 
 
 def test_two_roles_two_different_brains():

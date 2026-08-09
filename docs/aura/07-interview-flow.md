@@ -1,6 +1,6 @@
 # 07 — Interview flow (end to end)
 
-> Last updated: 2026-08-09 · Tag: [AURA-1.2][T2-scoring]
+> Last updated: 2026-08-09 · Tag: [AURA-1.6][evidence-reading]
 
 ## Sequence (demo_autopilot → brain view)
 
@@ -70,9 +70,11 @@ Frames to the client: `status/evaluating` → `evaluation` (result + assembled
 ## Finish
 
 When the budget is exhausted (or sufficiency/early-termination reached),
-`finalize_session` runs: synthesis → hiring decision → decision review → report.
-The `report` frame carries the verdict, score, rationale and next steps; the
-session is persisted as `completed` with `final_score`.
+`finalize_session` runs: **evidence reading** (best-effort semantic read of the
+raw answers → `evidence_reading` signals, AURA-1.6) → synthesis → hiring
+decision → decision review → report. The `report` frame carries the verdict,
+score, rationale and next steps; the session is persisted as `completed` with
+`final_score`.
 
 ## Brain view (read)
 

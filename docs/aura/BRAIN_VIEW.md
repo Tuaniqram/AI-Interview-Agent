@@ -1,6 +1,6 @@
 # AURA Engine — `brain_view.json` change tracker
 
-> Last updated: 2026-08-09 · Tag: [AURA-1.5][brain-view-consistency]
+> Last updated: 2026-08-09 · Tag: [AURA-1.6][evidence-reading]
 
 `brain_view.json` is the captured output of `GET /api/v1/intelligence/brain/{sid}`
 (`app/api/v1/intelligence.py`), the full post-interview brain snapshot used by
@@ -22,6 +22,7 @@ The endpoint serializes persisted rows (`InterviewBrain`, `EvidenceGraph`,
 | `interview_brain.competency_scores` | `InterviewBrain.competency_scores` | Per-competency score arrays + averages |
 | `interview_brain.difficulty_profile` | `InterviewBrain.difficulty_profile` | Adaptive difficulty dims + level |
 | `interview_brain.decision_state` | `InterviewBrain.decision_state` | `hiring_decision`, `hiring_recommendation`, `evidence_sufficiency`, `director`, `consistency_checks`, `contradictions`, `reflection_action`, `consecutive_probes` |
+| `interview_brain.evidence_reading` | surfaced from the assembled AURA brain (13th layer) | Semantic read of the raw answers — `per_answer` (evidence_id → claim classification, verifiable, specificity, ownership, metric, quote), `off_rubric` (`red_flags` / `hidden_strengths`), `semantic_risks`. **Additive-only**: absent on sessions without a reading |
 | `evidence_graph.nodes` / `.edges` | `EvidenceGraph.nodes` / `.edges` | Evidence→hypothesis support graph |
 | `timeline[]` | `InterviewTimeline` | Ordered brain snapshots per question |
 
@@ -94,6 +95,27 @@ Reference capture: `D:\UnityTemp\opencode\aura-run\brain_view.json` (session
 - **Backfill caveat**: `interview_brain.evidence_summary` is a derived
   serialization (pure addition at the persister boundary); the live
   `competency_summary` and scorecard rows are unchanged.
+
+### 2026-08-09 · AURA-1.6 evidence reading — additive key for new sessions
+- **Additive key** (`interview_brain.evidence_reading`, new sessions): the
+  assembled AURA brain's 13th layer. When the finalization pass produced a
+  semantic reading of the raw answers, the key carries `per_answer`
+  (evidence_id → `claim_classification` / `verifiable` / `specificity` /
+  `ownership` / `supporting_metric` / `quote`), `off_rubric`
+  (`red_flags` / `hidden_strengths`) and `semantic_risks`. Surfaced via
+  `app/api/v1/intelligence.py` **additive-only** — sessions without a reading
+  (or where the best-effort LLM pass failed) simply omit the key.
+- **Value changes (new sessions)**:
+  - `decision_state.hiring_recommendation.evidence_reading` (report payload):
+    compact summary `{answers_read, claim_classification counts,
+    off_rubric_red_flags, hidden_strengths, semantic_risks}`.
+  - `decision_state.consistency_checks` may carry semantic checks
+    (`off_rubric_flag`, `cross_answer_risk`, `unverifiable_claims`) at
+    `medium` severity — they flag for review and trim confidence, never demote
+    a decisive verdict.
+- **No shape change to existing keys**: all additions are new optional keys;
+  stored rows from older sessions still render. Additive-only per the
+  compatibility rule above.
 
 ## Compatibility rule
 

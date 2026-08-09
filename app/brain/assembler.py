@@ -65,6 +65,7 @@ def assemble_aura_brain(
     hiring_recommendation: dict | None = None,
     hiring_decision: dict | None = None,
     prior_candidate_memory: dict | None = None,
+    evidence_reading: dict | None = None,
 ) -> dict:
     """Assemble the complete V5 brain dict (used at build, start and report)."""
     taxonomy = list(taxonomy or [])
@@ -101,11 +102,12 @@ def assemble_aura_brain(
         role_brain,
     )
 
-    evidence_stats = evidence_summary_stats(evidence_store)
+    evidence_stats = evidence_summary_stats(evidence_store, evidence_reading=evidence_reading)
     typed_graph = evidence_to_graph(
         evidence_store,
         competency_graph=graph,
         role_brain=role_brain,
+        evidence_reading=evidence_reading,
     )
 
     question_strategy = generate_question_strategy(
@@ -140,6 +142,7 @@ def assemble_aura_brain(
         hiring_decision=hiring_decision or {},
         hiring_recommendation=hiring_recommendation or {},
         calibration_state=calibration_state,
+        evidence_reading=evidence_reading,
     )
 
     memory = build_candidate_memory(
@@ -162,6 +165,7 @@ def assemble_aura_brain(
         "calibration_state": calibration_state,
         "decision_state": decision_state,
         "candidate_memory": memory,
+        "evidence_reading": evidence_reading or {},
     }
 
 
@@ -220,6 +224,7 @@ def build_aura_from_state(state: dict) -> dict:
         hiring_recommendation=state.get("hiring_recommendation"),
         hiring_decision=state.get("hiring_decision"),
         prior_candidate_memory=(state.get("candidate_brain") or {}).get("candidate_memory"),
+        evidence_reading=state.get("evidence_reading"),
     )
 
 
@@ -236,6 +241,7 @@ _LAYER_NAMES = (
     "calibration_state",
     "decision_state",
     "candidate_memory",
+    "evidence_reading",
 )
 
 
@@ -305,6 +311,16 @@ def build_brain_utilization(aura: dict, state: dict) -> dict:
             mem = aura.get("candidate_memory") or {}
             learned = mem.get("learned_strengths") or []
             return ("drives_turn", f"{len(learned)} learned strengths") if learned else ("idle", "no prior memory")
+        if layer == "evidence_reading":
+            er = aura.get("evidence_reading") or {}
+            read = len((er.get("per_answer") or {}))
+            flags = er.get("off_rubric", {}).get("red_flags") or []
+            risks = er.get("semantic_risks") or []
+            return (
+                ("feeds_decision", f"read {read} answers, {len(flags)} flags, {len(risks)} risks")
+                if read
+                else ("idle", "no semantic reading")
+            )
 
     layers = {}
     for name in _LAYER_NAMES:

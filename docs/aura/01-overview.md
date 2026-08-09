@@ -1,6 +1,6 @@
 # 01 — AURA Overview
 
-> Last updated: 2026-08-09 · Tag: [AURA-1.0-baseline]
+> Last updated: 2026-08-09 · Tag: [AURA-1.6][evidence-reading]
 
 ## What AURA is
 
@@ -48,6 +48,11 @@ discover truth about candidate capability."*
 - **Competencies are never randomly generated** by the LLM — the resolved
   taxonomy (scorecard → template → AI profiler → default) is authoritative; the
   role brain only assigns importance and probes to it.
+- **LLM produces signals, deterministic engine applies them.** The evidence
+  reading (AURA-1.6) classifies each answer's claims semantically, but only
+  through the **downgrade-only** rule: the effective claim is
+  `min(semantic, regex)` over mentioned < demonstrated < proven — the LLM can
+  confirm or downgrade a claim, never inflate it past the deterministic floor.
 
 ## What the flow exercises (in one sentence)
 

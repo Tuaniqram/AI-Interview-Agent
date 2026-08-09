@@ -1,6 +1,6 @@
 # 05 — File map of the engine
 
-> Last updated: 2026-08-09 · Tag: [AURA-1.3][T4-calibration-ranking]
+> Last updated: 2026-08-09 · Tag: [AURA-1.6][evidence-reading]
 > Every file below is used by the interview flow (import-graph verified at audit time).
 
 ## Driver
@@ -46,7 +46,7 @@
 | `app/brain/role_brain.py` | `build_role_brain` (:135), `classify_seniority` (:103), `default_probe_for` (:211) |
 | `app/brain/company_brain.py` | company DNA layer |
 | `app/brain/hypothesis_engine.py` | `collect_evidence_for_hypothesis`, `missing_evidence_for` (:36), `hypothesis_uncertainty` (:69), `build_hypothesis_brain`, `uncertainty_map` (:132) |
-| `app/brain/evidence_reasoner.py` | `evidence_summary_stats` (:113), evidence cursor |
+| `app/brain/evidence_reasoner.py` | `evidence_summary_stats` (:113), evidence cursor — accepts the `evidence_reading` (13th layer) and applies the downgrade-only rule via `classify_claim` (:77) |
 | `app/brain/calibration.py` | `calibration_state` / director gate |
 | `app/brain/candidate_memory.py` | memory snapshot |
 | `app/brain/contradiction_detector.py` | `contradiction_state` |
@@ -67,7 +67,9 @@
 | `app/agents/evaluation/candidate_evaluator.py` | `unified_evaluator_node` (:40), `_unified_evaluator` (:55) — **family-aware** (T2): emits only `active_dimensions`, resolves `primary_dimension` + `domain_label` per family, renders `{{rubric}}` |
 | `app/agents/evaluation/scoring.py` | `reconcile_composite` (:88), `explainable_scoring_node` (:269), `_apply_evaluator_calibration` (:201), `DEFAULT_DIMENSION_WEIGHTS` (:42) — composite weights resolve per family via `dimension_weights(category)` |
 | `app/agents/evaluation/synthesis.py` | final synthesis |
+| `app/agents/evaluation/evidence_reading.py` | `evidence_reading_node` (:23) — best-effort semantic read of the raw answers at finalization; LLM failure degrades to the deterministic path |
 | `app/agents/reasoning/evidence_engine.py` | `evidence_extractor_node`, `_normalize_competency_alias` |
+| `app/agents/reasoning/evidence_reading.py` | `effective_claim` (:56) — **downgrade-only** semantic override, `map_evidence_reading` (:68), `evidence_reading_risk_flags` (:124), `evidence_reading_checks` (:149), `transcript_payload` (:185) — deterministic core of the 13th brain layer |
 | `app/agents/reasoning/hypothesis_engine.py` | `hypothesis_node` (:582), `update_hypotheses`, `_seed_hypothesis_for_competency` |
 | `app/agents/reasoning/reflection_engine.py` | reflection |
 | `app/agents/reasoning/contradiction_engine.py` | `evaluate_sufficiency` (:251), `compute_canonical_score` (:176), `_HIGH_PRIORITY_IDS` (:19) |
