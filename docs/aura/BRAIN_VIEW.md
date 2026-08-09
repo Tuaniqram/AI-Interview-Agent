@@ -21,7 +21,7 @@ The endpoint serializes persisted rows (`InterviewBrain`, `EvidenceGraph`,
 | `interview_brain.evidence_summary` | `InterviewBrain.evidence_summary` | Per-competency gap / score aggregates |
 | `interview_brain.competency_scores` | `InterviewBrain.competency_scores` | Per-competency score arrays + averages |
 | `interview_brain.difficulty_profile` | `InterviewBrain.difficulty_profile` | Adaptive difficulty dims + level |
-| `interview_brain.decision_state` | `InterviewBrain.decision_state` | `director`, `consistency_checks`, `evidence_sufficiency`, `hiring_recommendation` |
+| `interview_brain.decision_state` | `InterviewBrain.decision_state` | `hiring_decision`, `hiring_recommendation`, `evidence_sufficiency`, `director`, `consistency_checks`, `contradictions`, `reflection_action`, `consecutive_probes` |
 | `evidence_graph.nodes` / `.edges` | `EvidenceGraph.nodes` / `.edges` | Evidence→hypothesis support graph |
 | `timeline[]` | `InterviewTimeline` | Ordered brain snapshots per question |
 
@@ -70,13 +70,24 @@ Reference capture: `D:\UnityTemp\opencode\aura-run\brain_view.json` (session
     silently dropped unprobed competencies that
     `evidence_sufficiency.details` still listed with `gap=1.0`.
 - **Additive keys** (`decision_state.hiring_recommendation`, new sessions):
-  - `dimension_scores`: per-required-competency breakdown
-    (`average_score`, `evidence_count`, `gap`, `covered`) — mirrors
-    `evidence_sufficiency.details` for the T2 dimension view.
-  - `family`: required competency → taxonomy family map.
+  - `dimension_scores`: per-competency breakdown
+    (`average_score`, `evidence_count`, `gap`, `covered`) covering the **union**
+    of required competencies + any competency that collected evidence during the
+    interview, so its key set always equals `interview_brain.evidence_summary`
+    exactly (probed-beyond-plan competencies like `tech_core` /
+    `behav_communication` appear in both). Previously it covered only the
+    required set and silently missed probed extras the evidence_summary showed.
+  - `family`: competency → taxonomy family map (same key set as
+    `dimension_scores`).
   - `calibrated_verdict` / `calibrated_score` / `calibration_source`: mirrored
     from `hiring_decision` when the T4 calibration override fires, so the
     calibrated result is visible next to the raw recommendation.
+- **Additive key** (`decision_state.hiring_decision`, new sessions): the full
+  deterministic decision dict (`decision`, `decision_score`, `confidence`,
+  `rationale`, `next_steps`, …) is now persisted. Previously `decision_state`
+  carried only `hiring_recommendation` and the brain view could not surface the
+  single source of truth for the verdict, so the report/decision cross-check in
+  `demo_autopilot --verify` (`brain_decision_matches_report`) always saw `None`.
 - **No shape change to existing keys**: all additions are new optional keys;
   `confidence` (legacy) and `confidence_v2` (blended, preferred by
   calibration) both remain. Stored rows from older sessions still render.

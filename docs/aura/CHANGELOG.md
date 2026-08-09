@@ -196,4 +196,37 @@
   `tech_data_modeling`, `tech_security`, …), `floor_satisfied=true`, and the
   two role brains differ (Jaccard overlap 0.09).
 
+## [AURA-1.5][brain-view-consistency] — 2026-08-09 (round 2)
+- **`dimension_scores` union fix** (`app/engine/decision.py`
+  `_enrich_recommendation`): the final `hiring_recommendation.dimension_scores`
+  now covers the **union** of required competencies + any competency that
+  collected evidence, so its key set exactly equals
+  `interview_brain.evidence_summary`. The `--verify` check
+  `evidence_summary_complete` caught competencies probed beyond the plan
+  (`tech_core`, `behav_communication`) missing from `dimension_scores` while
+  present in `evidence_summary`. New regression test
+  `test_dimension_scores_cover_evidenced_but_unrequired_competencies`.
+- **`decision_state.hiring_decision` persistence** (`app/services/v5_brain_persister.py`):
+  the deterministic final decision is now stored in `decision_state`, surfacing
+  the single source of truth for the verdict in the brain view. Previously
+  `decision_state` only carried `hiring_recommendation`, so the `--verify` check
+  `brain_decision_matches_report` always read `None`. Persister test now asserts
+  `decision_state.hiring_decision` round-trips.
+- **`demo_autopilot.py` org-token refresh**: the org access token minted at
+  login can expire during a long interview; the T4 calibration round-trip now
+  re-logs-in the org before `PUT /calibration/feedback/{sid}` (same pattern as
+  the existing candidate re-login).
+- **Live end-to-end run**: `demo_autopilot.py --verify --calibration-feedback
+  met_expectations` against the Nova backend (session
+  `6636e6ce-b92d-457b-b990-1b3c16c9191a`, verdict `hire`): **VERIFY OK (all
+  checks passed)** — including `brain_decision_matches_report`,
+  `evidence_summary_complete` and (this session hit a calibration override)
+  `calibrated_surfaced`. T4 round-trip recorded `met_expectations`; drift
+  correctly flags the over-predictions (predicted `hire` vs calibrated
+  `6.5`/`lean_hire`). Captures committed:
+  `docs/aura/output/brain_view_v1.json` (pre-fix reference, session
+  `d0e0b2e7`), `docs/aura/output/brain_view_v2.json` + `summary.json` (post-fix
+  session `6636e6ce`), and the run log
+  `docs/aura/output-demo/demo.log`.
+
 _Next entries appended below as changes are confirmed and tested.__

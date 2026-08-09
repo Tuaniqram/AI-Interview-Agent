@@ -112,6 +112,7 @@ def _make_brain() -> InterviewBrain:
     brain.contradiction_state = {"needs_challenge": False}
     brain.calibration_state = {"calibrated_verdict": "hire"}
     brain.candidate_memory = {"prior_rounds": 1}
+    brain.hiring_decision = {"decision": "hire", "decision_score": 8.2, "confidence": 0.7}
     brain.state_version = 3
     return brain
 
@@ -134,6 +135,8 @@ async def test_save_snapshot_writes_brain_graph_and_timeline_rows():
     assert brain_rec.competency_scores == brain.evidence_graph["nodes"]
     assert brain_rec.difficulty_profile == brain.difficulty_profile
     assert brain_rec.decision_state["reflection_action"] == brain.reflection_action
+    assert brain_rec.decision_state["hiring_decision"] == brain.hiring_decision
+    assert brain_rec.decision_state["hiring_decision"]["decision"] == "hire"
     assert brain_rec.brain_metadata["conversation_turn"] == brain.conversation_turn
     assert brain_rec.brain_metadata["company_brain"] == brain.company_brain
     assert brain_rec.brain_metadata["question_number"] == 2

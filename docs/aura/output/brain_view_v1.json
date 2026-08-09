@@ -1,0 +1,1471 @@
+{
+  "session_id": "d0e0b2e7-3faf-46db-b6bb-a81b8415dba1",
+  "interview_brain": {
+    "version": 3,
+    "current_hypotheses": [
+      {
+        "id": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
+        "source": "resume_profile",
+        "status": "confirmed",
+        "direction": "positive",
+        "statement": "Candidate has strong strong technical depth in Python and related technologies",
+        "competency": "tech_core",
+        "confidence": 1.0,
+        "created_at": "2026-08-07T09:48:57.770483+00:00",
+        "session_id": "d0e0b2e7-3faf-46db-b6bb-a81b8415dba1",
+        "probability": 1.0,
+        "last_updated": "2026-08-07T10:02:34.160598+00:00",
+        "evidence_based": false,
+        "evidence_count": 9,
+        "required_evidence": 3,
+        "supporting_evidence": [
+          "64fd68a5-2dae-43f7-9ebb-6d33eb59c018",
+          "c1c1fd41-b6f4-4ac4-adb9-bde00a53e5eb",
+          "693823f3-154c-4f7d-ae8a-fe58e5114b43",
+          "a060e5a0-16ae-4b22-a968-a05b7fd29227",
+          "e54928df-5616-40c4-92bd-ef87cbad7a49",
+          "dad8d6d2-91c3-41cf-84d8-bc8414a61e83",
+          "da5bb392-1fcd-4490-a63f-38fae32f6ef5",
+          "18eb4495-8d3a-4259-be84-5085e0f50ca5",
+          "32f84a5c-2f9c-456c-8a0e-62e48407c636"
+        ],
+        "max_allowed_evidence": 6,
+        "contradicting_evidence": []
+      },
+      {
+        "id": "3eb0521f-372a-4fc6-987f-e543d37c0255",
+        "source": "resume_profile",
+        "status": "confirmed",
+        "direction": "positive",
+        "statement": "Candidate has strong experience with scalable system tools like Docker and Kubernetes",
+        "competency": "tech_core",
+        "confidence": 0.9953,
+        "created_at": "2026-08-07T09:48:57.770483+00:00",
+        "session_id": "d0e0b2e7-3faf-46db-b6bb-a81b8415dba1",
+        "probability": 0.9953,
+        "last_updated": "2026-08-07T10:02:34.160598+00:00",
+        "evidence_based": false,
+        "evidence_count": 5,
+        "required_evidence": 3,
+        "supporting_evidence": [
+          "c1c1fd41-b6f4-4ac4-adb9-bde00a53e5eb",
+          "693823f3-154c-4f7d-ae8a-fe58e5114b43",
+          "da5bb392-1fcd-4490-a63f-38fae32f6ef5",
+          "18eb4495-8d3a-4259-be84-5085e0f50ca5",
+          "32f84a5c-2f9c-456c-8a0e-62e48407c636"
+        ],
+        "max_allowed_evidence": 6,
+        "contradicting_evidence": []
+      },
+      {
+        "id": "d013bd61-cd67-4aa9-aa24-f924a77bc5b8",
+        "source": "resume_profile",
+        "status": "refuted",
+        "direction": "negative",
+        "statement": "Candidate is weak in limited testing exposure",
+        "competency": "tech_core",
+        "confidence": 0.0169,
+        "created_at": "2026-08-07T09:48:57.770483+00:00",
+        "session_id": "d0e0b2e7-3faf-46db-b6bb-a81b8415dba1",
+        "probability": 0.0169,
+        "last_updated": "2026-08-07T10:02:34.160598+00:00",
+        "evidence_based": false,
+        "evidence_count": 3,
+        "required_evidence": 3,
+        "supporting_evidence": [],
+        "max_allowed_evidence": 6,
+        "contradicting_evidence": [
+          "693823f3-154c-4f7d-ae8a-fe58e5114b43",
+          "da5bb392-1fcd-4490-a63f-38fae32f6ef5",
+          "32f84a5c-2f9c-456c-8a0e-62e48407c636"
+        ]
+      },
+      {
+        "id": "0ef5436c-19c6-4eeb-8ce2-7d26556d6e6d",
+        "source": "resume_profile",
+        "status": "refuted",
+        "direction": "negative",
+        "statement": "Candidate is weak in potentially limited experience with agile development or CI/CD due to lack of specific mentions",
+        "competency": "tech_core",
+        "confidence": 0.0169,
+        "created_at": "2026-08-07T09:48:57.770483+00:00",
+        "session_id": "d0e0b2e7-3faf-46db-b6bb-a81b8415dba1",
+        "probability": 0.0169,
+        "last_updated": "2026-08-07T10:02:34.160598+00:00",
+        "evidence_based": false,
+        "evidence_count": 3,
+        "required_evidence": 3,
+        "supporting_evidence": [],
+        "max_allowed_evidence": 6,
+        "contradicting_evidence": [
+          "693823f3-154c-4f7d-ae8a-fe58e5114b43",
+          "da5bb392-1fcd-4490-a63f-38fae32f6ef5",
+          "32f84a5c-2f9c-456c-8a0e-62e48407c636"
+        ]
+      },
+      {
+        "id": "2b3128d7-8bf2-433c-886c-b1823efd97c7",
+        "source": "resume_profile",
+        "status": "confirmed",
+        "direction": "positive",
+        "statement": "Candidate has strong python skills for this role",
+        "competency": "tech_core",
+        "confidence": 0.9831,
+        "created_at": "2026-08-07T09:48:57.770483+00:00",
+        "session_id": "d0e0b2e7-3faf-46db-b6bb-a81b8415dba1",
+        "probability": 0.9831,
+        "last_updated": "2026-08-07T10:02:34.160598+00:00",
+        "evidence_based": false,
+        "evidence_count": 3,
+        "required_evidence": 3,
+        "supporting_evidence": [
+          "693823f3-154c-4f7d-ae8a-fe58e5114b43",
+          "da5bb392-1fcd-4490-a63f-38fae32f6ef5",
+          "32f84a5c-2f9c-456c-8a0e-62e48407c636"
+        ],
+        "max_allowed_evidence": 6,
+        "contradicting_evidence": []
+      },
+      {
+        "id": "dc368d9a-2417-4e68-946b-37088b8f3548",
+        "source": "resume_profile",
+        "status": "confirmed",
+        "direction": "positive",
+        "statement": "Candidate communicates clearly and effectively",
+        "competency": "behav_communication",
+        "confidence": 0.9898,
+        "created_at": "2026-08-07T09:48:57.771520+00:00",
+        "session_id": "d0e0b2e7-3faf-46db-b6bb-a81b8415dba1",
+        "probability": 0.9898,
+        "last_updated": "2026-08-07T10:04:28.324549+00:00",
+        "evidence_based": false,
+        "evidence_count": 4,
+        "required_evidence": 3,
+        "supporting_evidence": [
+          "dad8d6d2-91c3-41cf-84d8-bc8414a61e83",
+          "18eb4495-8d3a-4259-be84-5085e0f50ca5",
+          "9657f4fd-43a1-42d8-a5e4-8ed20f2597c6"
+        ],
+        "max_allowed_evidence": 6,
+        "contradicting_evidence": []
+      },
+      {
+        "id": "0bc9a2b1-6721-422d-a0ff-13ad6687e7ad",
+        "status": "confirmed",
+        "direction": "positive",
+        "statement": "Candidate demonstrates System Design & Scalability",
+        "competency": "tech_system_design",
+        "confidence": 0.9834,
+        "created_at": "2026-08-07T09:49:02.160824+00:00",
+        "session_id": "d0e0b2e7-3faf-46db-b6bb-a81b8415dba1",
+        "probability": 0.9834,
+        "last_updated": "2026-08-07T10:01:51.495180+00:00",
+        "evidence_count": 4,
+        "required_evidence": 2,
+        "supporting_evidence": [
+          "64fd68a5-2dae-43f7-9ebb-6d33eb59c018",
+          "c1c1fd41-b6f4-4ac4-adb9-bde00a53e5eb",
+          "26926639-bb99-4085-9bd7-df02270af36d",
+          "18eb4495-8d3a-4259-be84-5085e0f50ca5"
+        ],
+        "max_allowed_evidence": 4,
+        "contradicting_evidence": []
+      },
+      {
+        "id": "c79ec838-79af-4edd-a95a-02a2e3b05ab8",
+        "status": "confirmed",
+        "direction": "positive",
+        "statement": "Candidate demonstrates System Design & Scalability",
+        "competency": "tech_system_design",
+        "confidence": 0.8191,
+        "created_at": "2026-08-07T09:51:55.997144+00:00",
+        "session_id": "d0e0b2e7-3faf-46db-b6bb-a81b8415dba1",
+        "probability": 0.8191,
+        "last_updated": "2026-08-07T10:01:51.495180+00:00",
+        "evidence_count": 2,
+        "required_evidence": 2,
+        "supporting_evidence": [
+          "26926639-bb99-4085-9bd7-df02270af36d",
+          "18eb4495-8d3a-4259-be84-5085e0f50ca5"
+        ],
+        "max_allowed_evidence": 4,
+        "contradicting_evidence": []
+      },
+      {
+        "id": "d1920647-0a3c-49ca-943a-844768487d14",
+        "status": "confirmed",
+        "direction": "positive",
+        "statement": "Candidate demonstrates Reliable Deployments & AWS",
+        "competency": "tech_deployment",
+        "confidence": 0.9256,
+        "created_at": "2026-08-07T09:53:29.209016+00:00",
+        "session_id": "d0e0b2e7-3faf-46db-b6bb-a81b8415dba1",
+        "probability": 0.9256,
+        "last_updated": "2026-08-07T09:54:24.679811+00:00",
+        "evidence_count": 2,
+        "required_evidence": 2,
+        "supporting_evidence": [
+          "6b8fea85-46a2-4c60-8601-6cfe4947dca2",
+          "ebfc4371-a2ee-4325-9e65-6b5a7a8776e8"
+        ],
+        "max_allowed_evidence": 4,
+        "contradicting_evidence": []
+      },
+      {
+        "id": "595d37c4-3f09-4367-9ff4-d08b1ef97c2e",
+        "status": "confirmed",
+        "direction": "positive",
+        "statement": "Candidate demonstrates Event-Driven Processing & Kafka",
+        "competency": "tech_event_driven",
+        "confidence": 0.9942,
+        "created_at": "2026-08-07T09:54:24.679811+00:00",
+        "session_id": "d0e0b2e7-3faf-46db-b6bb-a81b8415dba1",
+        "probability": 0.9942,
+        "last_updated": "2026-08-07T09:59:14.787052+00:00",
+        "evidence_count": 4,
+        "required_evidence": 1,
+        "supporting_evidence": [
+          "e2a6b489-cd86-451e-8ac6-e267c929676b",
+          "04fbfc15-fa65-4c66-a516-60584f269b95",
+          "a060e5a0-16ae-4b22-a968-a05b7fd29227",
+          "e54928df-5616-40c4-92bd-ef87cbad7a49"
+        ],
+        "max_allowed_evidence": 2,
+        "contradicting_evidence": []
+      },
+      {
+        "id": "9b5cb423-2069-41b1-805b-d54267758fad",
+        "status": "confirmed",
+        "direction": "positive",
+        "statement": "Candidate demonstrates Event-Driven Processing & Kafka",
+        "competency": "tech_event_driven",
+        "confidence": 0.9563,
+        "created_at": "2026-08-07T09:57:50.256433+00:00",
+        "session_id": "d0e0b2e7-3faf-46db-b6bb-a81b8415dba1",
+        "probability": 0.9563,
+        "last_updated": "2026-08-07T09:59:14.787052+00:00",
+        "evidence_count": 2,
+        "required_evidence": 1,
+        "supporting_evidence": [
+          "a060e5a0-16ae-4b22-a968-a05b7fd29227",
+          "e54928df-5616-40c4-92bd-ef87cbad7a49"
+        ],
+        "max_allowed_evidence": 2,
+        "contradicting_evidence": []
+      },
+      {
+        "id": "132ade6d-91a5-43a2-9304-6c106980fde9",
+        "status": "untested",
+        "direction": "positive",
+        "statement": "Candidate demonstrates Event-Driven Processing & Kafka",
+        "competency": "tech_event_driven",
+        "confidence": 0.5,
+        "created_at": "2026-08-07T09:59:14.787052+00:00",
+        "session_id": "d0e0b2e7-3faf-46db-b6bb-a81b8415dba1",
+        "probability": 0.5,
+        "last_updated": "2026-08-07T09:59:14.787052+00:00",
+        "evidence_count": 0,
+        "required_evidence": 1,
+        "supporting_evidence": [],
+        "max_allowed_evidence": 2,
+        "contradicting_evidence": []
+      }
+    ],
+    "evidence_summary": {
+      "tech_core": {
+        "gap": 0.0,
+        "scores": [
+          8.5,
+          8.5,
+          9.0
+        ],
+        "coverage": 1.0,
+        "latest_score": 9.0,
+        "average_score": 8.67,
+        "evidence_count": 3,
+        "latest_evidence": "Well-structured response with clear explanation flow, concise and easy to follow",
+        "average_strength": 0.795,
+        "average_confidence": 0.92
+      },
+      "tech_deployment": {
+        "gap": 0.0,
+        "scores": [
+          8.5,
+          8.5
+        ],
+        "coverage": 1.0,
+        "latest_score": 8.5,
+        "average_score": 8.5,
+        "evidence_count": 2,
+        "latest_evidence": "Used proper vocabulary and articulation.",
+        "average_strength": 0.8075,
+        "average_confidence": 0.95
+      },
+      "tech_event_driven": {
+        "gap": 0.0,
+        "scores": [
+          8.0,
+          8.0,
+          9.0,
+          9.0
+        ],
+        "coverage": 1.0,
+        "latest_score": 9.0,
+        "average_score": 8.5,
+        "evidence_count": 4,
+        "latest_evidence": "Correctly applied best practices for model drift.",
+        "average_strength": 0.7875,
+        "average_confidence": 0.93
+      },
+      "tech_system_design": {
+        "gap": 0.0,
+        "scores": [
+          8.0,
+          9.0,
+          8.0
+        ],
+        "coverage": 1.0,
+        "latest_score": 8.0,
+        "average_score": 8.33,
+        "evidence_count": 3,
+        "latest_evidence": "Well-structured response with clear explanation flow",
+        "average_strength": 0.765,
+        "average_confidence": 0.92
+      },
+      "behav_communication": {
+        "gap": 0.0,
+        "scores": [
+          8.0,
+          8.0,
+          8.5
+        ],
+        "coverage": 1.0,
+        "latest_score": 8.5,
+        "average_score": 8.17,
+        "evidence_count": 3,
+        "latest_evidence": "Well-structured response with clear explanation flow and concise language.",
+        "average_strength": 0.7217,
+        "average_confidence": 0.89
+      }
+    },
+    "competency_scores": {
+      "tech_core": {
+        "type": "competency",
+        "count": 3,
+        "scores": [
+          8.5,
+          8.5,
+          9.0
+        ],
+        "average_score": 8.6667
+      },
+      "tech_deployment": {
+        "type": "competency",
+        "count": 2,
+        "scores": [
+          8.5,
+          8.5
+        ],
+        "average_score": 8.5
+      },
+      "tech_event_driven": {
+        "type": "competency",
+        "count": 4,
+        "scores": [
+          8.0,
+          8.0,
+          9.0,
+          9.0
+        ],
+        "average_score": 8.5
+      },
+      "tech_system_design": {
+        "type": "competency",
+        "count": 3,
+        "scores": [
+          8.0,
+          9.0,
+          8.0
+        ],
+        "average_score": 8.3333
+      },
+      "behav_communication": {
+        "type": "competency",
+        "count": 3,
+        "scores": [
+          8.0,
+          8.0,
+          8.5
+        ],
+        "average_score": 8.1667
+      }
+    },
+    "difficulty_profile": {
+      "delta": 1,
+      "level": 5,
+      "rationale": "Recent-answers average < 7.0 and fewer than 2 serious contradictions: MUST choose -1.",
+      "dimensions": [
+        {
+          "name": "problem_complexity",
+          "value": 5,
+          "description": "Problem complexity presented to the candidate"
+        },
+        {
+          "name": "abstraction_depth",
+          "value": 4,
+          "description": "Level of abstraction the candidate must operate at"
+        },
+        {
+          "name": "time_pressure",
+          "value": 5,
+          "description": "Implicit time pressure applied"
+        },
+        {
+          "name": "scaffolding_needed",
+          "value": 1,
+          "description": "How much guidance the candidate is given (inverse)"
+        },
+        {
+          "name": "precision_required",
+          "value": 4,
+          "description": "Precision and correctness demanded from answers"
+        },
+        {
+          "name": "follow_up_aggression",
+          "value": 5,
+          "description": "Intensity of follow-up probing"
+        }
+      ],
+      "time_pressure": 5,
+      "abstraction_depth": 4,
+      "precision_required": 4,
+      "problem_complexity": 5,
+      "scaffolding_needed": 1,
+      "follow_up_aggression": 5
+    },
+    "decision_state": {
+      "director": {
+        "action": "CONTINUE",
+        "reason": "calibration gate: proof ratio 0.00 < 0.35 \u2014 keep probing before concluding",
+        "target_id": "dc368d9a-2417-4e68-946b-37088b8f3548",
+        "probe_mode": "challenge_candidate"
+      },
+      "contradictions": [],
+      "reflection_action": "probe",
+      "consecutive_probes": 0,
+      "consistency_checks": [
+        {
+          "type": "technical",
+          "score": 8.0,
+          "evidence": "Correctly explained async SQLAlchemy, JWT auth, versioned routes, and caching; demonstrated good conceptual understanding and proper terminology",
+          "timestamp": "2026-08-07T09:50:51.810723+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "confidence",
+          "score": 7.5,
+          "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps, and demonstrated honest acknowledgment of unknowns",
+          "timestamp": "2026-08-07T09:50:51.810723+00:00",
+          "assessment": "positive",
+          "confidence": 0.85
+        },
+        {
+          "type": "completeness",
+          "score": 7.0,
+          "evidence": "Covered main concepts but skipped edge cases, performance implications, and error handling patterns",
+          "timestamp": "2026-08-07T09:50:51.810723+00:00",
+          "assessment": "positive",
+          "confidence": 0.7
+        },
+        {
+          "type": "communication",
+          "score": 8.0,
+          "evidence": "Well-structured response with clear explanation flow; used clear vocabulary and articulation",
+          "timestamp": "2026-08-07T09:50:51.810723+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "technical",
+          "score": 9.0,
+          "evidence": "Demonstrated good understanding of async database connections and connection pools, along with experience with tools like SQLAlchemy and JWT auth",
+          "timestamp": "2026-08-07T09:51:45.240627+00:00",
+          "assessment": "positive",
+          "confidence": 0.95
+        },
+        {
+          "type": "confidence",
+          "score": 8.5,
+          "evidence": "Spoke with confidence on familiar topics and acknowledged knowledge gaps",
+          "timestamp": "2026-08-07T09:51:45.240627+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "completeness",
+          "score": 8.5,
+          "evidence": "Covered main concepts but could have provided more depth in edge cases and performance implications",
+          "timestamp": "2026-08-07T09:51:45.240627+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "reasoning",
+          "score": 8.5,
+          "evidence": "Provided a logical explanation of how to determine the optimal number of connection pools and considered factors like performance implications",
+          "timestamp": "2026-08-07T09:51:45.240627+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "communication",
+          "score": 9.0,
+          "evidence": "Clearly explained technical concepts and showed good structure in the response",
+          "timestamp": "2026-08-07T09:51:45.240627+00:00",
+          "assessment": "positive",
+          "confidence": 0.95
+        },
+        {
+          "type": "technical",
+          "score": 7.5,
+          "evidence": "Correctly explained async/await, async SQLAlchemy sessions, and caching but missed error handling patterns and did not discuss other system design considerations",
+          "timestamp": "2026-08-07T09:53:25.089570+00:00",
+          "assessment": "positive",
+          "confidence": 0.85
+        },
+        {
+          "type": "confidence",
+          "score": 7.0,
+          "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps, and demonstrated honest self-awareness",
+          "timestamp": "2026-08-07T09:53:25.089570+00:00",
+          "assessment": "positive",
+          "confidence": 0.8
+        },
+        {
+          "type": "completeness",
+          "score": 7.5,
+          "evidence": "Covered main concepts but skipped edge cases and performance implications",
+          "timestamp": "2026-08-07T09:53:25.089570+00:00",
+          "assessment": "positive",
+          "confidence": 0.8
+        },
+        {
+          "type": "communication",
+          "score": 8.0,
+          "evidence": "Well-structured response with clear explanation flow",
+          "timestamp": "2026-08-07T09:53:25.089570+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "technical",
+          "score": 8.0,
+          "evidence": "Demonstrated a strong understanding of testing concepts, Docker, and Kubernetes. Mentioned a layered test strategy, coverage, and mutation testing.",
+          "timestamp": "2026-08-07T09:54:17.403263+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "confidence",
+          "score": 8.0,
+          "evidence": "Spoke with certainty on testing concepts and deployment reliability, acknowledged knowledge gaps in advanced topics.",
+          "timestamp": "2026-08-07T09:54:17.403263+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "completeness",
+          "score": 8.0,
+          "evidence": "Covered the main concepts of testing and deployment reliability, including a layered test strategy and mutation testing.",
+          "timestamp": "2026-08-07T09:54:17.403263+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "reasoning",
+          "score": 7.0,
+          "evidence": "Explained a single approach to validating the reliability of deployments, but did not consider alternative approaches.",
+          "timestamp": "2026-08-07T09:54:17.403263+00:00",
+          "assessment": "positive",
+          "confidence": 0.7
+        },
+        {
+          "type": "communication",
+          "score": 8.5,
+          "evidence": "Provided a clear and structured response with a good explanation flow. Used proper vocabulary and articulation.",
+          "timestamp": "2026-08-07T09:54:17.403263+00:00",
+          "assessment": "positive",
+          "confidence": 0.95
+        },
+        {
+          "type": "technical",
+          "score": 7.5,
+          "evidence": "Correctly explained async/await and event-driven concepts, but missed error handling patterns and real-world examples",
+          "timestamp": "2026-08-07T09:55:37.689996+00:00",
+          "assessment": "positive",
+          "confidence": 0.85
+        },
+        {
+          "type": "confidence",
+          "score": 7.0,
+          "evidence": "Spoke with certainty on familiar topics (Python, async/await) but hesitated on advanced topics (event-driven architecture, error handling)",
+          "timestamp": "2026-08-07T09:55:37.689996+00:00",
+          "assessment": "positive",
+          "confidence": 0.8
+        },
+        {
+          "type": "completeness",
+          "score": 7.5,
+          "evidence": "Covered main concepts (async/await, event-driven architecture) but skipped edge cases (error handling) and performance implications",
+          "timestamp": "2026-08-07T09:55:37.689996+00:00",
+          "assessment": "positive",
+          "confidence": 0.8
+        },
+        {
+          "type": "communication",
+          "score": 8.0,
+          "evidence": "Well-structured response with clear explanation flow, but some technical jargon might be hard to follow",
+          "timestamp": "2026-08-07T09:55:37.689996+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "technical",
+          "score": 8.0,
+          "evidence": "Correctly explained async/await, introduced a layered test strategy and mutation testing.",
+          "timestamp": "2026-08-07T09:56:19.199315+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "confidence",
+          "score": 8.0,
+          "evidence": "Spoke with certainty on familiar topics, demonstrated ownership and accountability",
+          "timestamp": "2026-08-07T09:56:19.199315+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "completeness",
+          "score": 7.0,
+          "evidence": "Covered main concepts but skipped performance implications and edge cases",
+          "timestamp": "2026-08-07T09:56:19.199315+00:00",
+          "assessment": "positive",
+          "confidence": 0.8
+        },
+        {
+          "type": "reasoning",
+          "score": 7.0,
+          "evidence": "Explained one approach with consideration of real-world constraints",
+          "timestamp": "2026-08-07T09:56:19.199315+00:00",
+          "assessment": "positive",
+          "confidence": 0.8
+        },
+        {
+          "type": "communication",
+          "score": 8.5,
+          "evidence": "Well-structured response with clear explanation flow and concise language",
+          "timestamp": "2026-08-07T09:56:19.199315+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "technical",
+          "score": 7.5,
+          "evidence": "Correctly explained async/await but missed error handling patterns",
+          "timestamp": "2026-08-07T09:57:47.430254+00:00",
+          "assessment": "positive",
+          "confidence": 0.85
+        },
+        {
+          "type": "confidence",
+          "score": 7.0,
+          "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps",
+          "timestamp": "2026-08-07T09:57:47.430254+00:00",
+          "assessment": "positive",
+          "confidence": 0.8
+        },
+        {
+          "type": "completeness",
+          "score": 7.5,
+          "evidence": "Covered main concepts but skipped edge cases and performance implications",
+          "timestamp": "2026-08-07T09:57:47.430254+00:00",
+          "assessment": "positive",
+          "confidence": 0.8
+        },
+        {
+          "type": "communication",
+          "score": 8.0,
+          "evidence": "Well-structured response with clear explanation flow",
+          "timestamp": "2026-08-07T09:57:47.430254+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "technical",
+          "score": 9.0,
+          "evidence": "Demonstrated expertise in async/await, dataclasses, and Pinecone. Correctly applied best practices for model drift.",
+          "timestamp": "2026-08-07T09:59:08.223091+00:00",
+          "assessment": "positive",
+          "confidence": 0.95
+        },
+        {
+          "type": "confidence",
+          "score": 8.0,
+          "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps",
+          "timestamp": "2026-08-07T09:59:08.223091+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "completeness",
+          "score": 7.5,
+          "evidence": "Covered main concepts but skipped edge cases and performance implications",
+          "timestamp": "2026-08-07T09:59:08.224117+00:00",
+          "assessment": "positive",
+          "confidence": 0.8
+        },
+        {
+          "type": "communication",
+          "score": 8.0,
+          "evidence": "Well-structured response with clear explanation flow",
+          "timestamp": "2026-08-07T09:59:08.224117+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "technical",
+          "score": 8.0,
+          "evidence": "Correctly explained async/await, connection pooling, prepared-statement caching, and migration strategies with proper terminology",
+          "timestamp": "2026-08-07T10:00:05.993217+00:00",
+          "assessment": "positive",
+          "confidence": 0.85
+        },
+        {
+          "type": "confidence",
+          "score": 8.0,
+          "evidence": "Spoke with certainty on familiar topics and demonstrated honest acknowledgment of unknowns",
+          "timestamp": "2026-08-07T10:00:05.993217+00:00",
+          "assessment": "positive",
+          "confidence": 0.8
+        },
+        {
+          "type": "completeness",
+          "score": 7.0,
+          "evidence": "Provided a good overview of the topic but missed specific edge cases and performance implications",
+          "timestamp": "2026-08-07T10:00:05.993217+00:00",
+          "assessment": "positive",
+          "confidence": 0.8
+        },
+        {
+          "type": "reasoning",
+          "score": 7.0,
+          "evidence": "Correctly applied knowledge to explain a specific scenario but did not provide a detailed analysis",
+          "timestamp": "2026-08-07T10:00:05.993217+00:00",
+          "assessment": "positive",
+          "confidence": 0.7
+        },
+        {
+          "type": "communication",
+          "score": 8.0,
+          "evidence": "Well-structured response with clear explanation flow and concise explanation of complex concepts",
+          "timestamp": "2026-08-07T10:00:05.993217+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "technical",
+          "score": 8.0,
+          "evidence": "Correctly explained cache invalidation, connection pooling, and distributed locks with proper terminology",
+          "timestamp": "2026-08-07T10:00:55.340966+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "confidence",
+          "score": 8.0,
+          "evidence": "Spoke with certainty on familiar topics and acknowledged knowledge gaps in advanced topics",
+          "timestamp": "2026-08-07T10:00:55.340966+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "completeness",
+          "score": 7.0,
+          "evidence": "Covered main concepts of cache invalidation and connection pooling, but skipped edge cases and performance implications",
+          "timestamp": "2026-08-07T10:00:55.340966+00:00",
+          "assessment": "positive",
+          "confidence": 0.8
+        },
+        {
+          "type": "reasoning",
+          "score": 7.0,
+          "evidence": "Explained one approach to cache invalidation, but did not consider alternatives or performance implications",
+          "timestamp": "2026-08-07T10:00:55.340966+00:00",
+          "assessment": "positive",
+          "confidence": 0.8
+        },
+        {
+          "type": "communication",
+          "score": 8.5,
+          "evidence": "Well-structured and clear response with concise explanation flow and good vocabulary",
+          "timestamp": "2026-08-07T10:00:55.340966+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "technical",
+          "score": 8.0,
+          "evidence": "Demonstrated strong technical depth in system design and architecture, with correct terminology and conceptual understanding",
+          "timestamp": "2026-08-07T10:01:47.226501+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "confidence",
+          "score": 8.0,
+          "evidence": "Spoke with certainty on system design topics, demonstrated strong knowledge and expertise",
+          "timestamp": "2026-08-07T10:01:47.226501+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "technical",
+          "score": 8.0,
+          "evidence": "Correctly explained decision ownership and leadership in a technical context, demonstrated good understanding of Python and related technologies",
+          "timestamp": "2026-08-07T10:02:31.530699+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "confidence",
+          "score": 8.5,
+          "evidence": "Spoke with certainty on familiar topics, demonstrated a good balance of confidence and humility",
+          "timestamp": "2026-08-07T10:02:31.530699+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "completeness",
+          "score": 8.5,
+          "evidence": "Covered main concepts and various stakeholders, provided good examples of leadership and decision-making",
+          "timestamp": "2026-08-07T10:02:31.530699+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "reasoning",
+          "score": 8.5,
+          "evidence": "Logical structure of the argument, considered various stakeholders and their perspectives",
+          "timestamp": "2026-08-07T10:02:31.531703+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "communication",
+          "score": 9.0,
+          "evidence": "Well-structured response with clear explanation flow, concise and easy to follow",
+          "timestamp": "2026-08-07T10:02:31.531703+00:00",
+          "assessment": "positive",
+          "confidence": 0.95
+        },
+        {
+          "type": "technical",
+          "score": 8.0,
+          "evidence": "Demonstrated good understanding of test strategies, mocking, and Docker/Kubernetes.",
+          "timestamp": "2026-08-07T10:03:42.909188+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "confidence",
+          "score": 8.0,
+          "evidence": "Spoke confidently about test strategies but acknowledged the importance of continuous integration.",
+          "timestamp": "2026-08-07T10:03:42.909188+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "completeness",
+          "score": 8.0,
+          "evidence": "Covered essential concepts but could have delved deeper into performance implications and edge cases.",
+          "timestamp": "2026-08-07T10:03:42.909188+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        },
+        {
+          "type": "reasoning",
+          "score": 7.0,
+          "evidence": "Explained a test strategy with clear cause-effect reasoning, but didn't consider alternative approaches.",
+          "timestamp": "2026-08-07T10:03:42.909188+00:00",
+          "assessment": "positive",
+          "confidence": 0.8
+        },
+        {
+          "type": "communication",
+          "score": 8.5,
+          "evidence": "Well-structured response with clear explanation flow and concise language.",
+          "timestamp": "2026-08-07T10:03:42.909188+00:00",
+          "assessment": "positive",
+          "confidence": 0.9
+        }
+      ],
+      "evidence_sufficiency": {
+        "details": {
+          "tech_caching": {
+            "gap": 1.0,
+            "weight": 1.5,
+            "covered": false,
+            "average_score": 0.0,
+            "evidence_count": 0
+          },
+          "tech_deployment": {
+            "gap": 0.0,
+            "weight": 2.5,
+            "covered": true,
+            "average_score": 8.5,
+            "evidence_count": 2
+          },
+          "tech_event_driven": {
+            "gap": 0.0,
+            "weight": 2.0,
+            "covered": true,
+            "average_score": 8.5,
+            "evidence_count": 4
+          },
+          "tech_data_modeling": {
+            "gap": 1.0,
+            "weight": 2.0,
+            "covered": false,
+            "average_score": 0.0,
+            "evidence_count": 0
+          },
+          "tech_system_design": {
+            "gap": 0.0,
+            "weight": 3.0,
+            "covered": true,
+            "average_score": 8.33,
+            "evidence_count": 3
+          }
+        },
+        "severity": "sufficient",
+        "total_weight": 11.0,
+        "is_sufficient": true,
+        "coverage_ratio": 0.68,
+        "covered_weight": 7.5,
+        "remaining_gaps": 2,
+        "average_confidence": 0.9207,
+        "difficulty_reached": 5,
+        "unanswered_hypotheses": 2
+      },
+      "hiring_recommendation": {
+        "verdict": "borderline",
+        "confidence": 0.69,
+        "confidence_v2": 0.84,
+        "coverage_ratio": 0.68,
+        "composite_score": 6.69,
+        "average_confidence": 0.9207,
+        "difficulty_reached": 5,
+        "refuted_hypotheses": 2,
+        "testing_hypotheses": 0,
+        "confirmed_hypotheses": 9,
+        "contradictions_found": 0,
+        "unanswered_hypotheses": 1
+      }
+    }
+  },
+  "evidence_graph": {
+    "nodes": {
+      "tech_core": {
+        "type": "competency",
+        "count": 3,
+        "scores": [
+          8.5,
+          8.5,
+          9.0
+        ],
+        "average_score": 8.6667
+      },
+      "tech_deployment": {
+        "type": "competency",
+        "count": 2,
+        "scores": [
+          8.5,
+          8.5
+        ],
+        "average_score": 8.5
+      },
+      "tech_event_driven": {
+        "type": "competency",
+        "count": 4,
+        "scores": [
+          8.0,
+          8.0,
+          9.0,
+          9.0
+        ],
+        "average_score": 8.5
+      },
+      "tech_system_design": {
+        "type": "competency",
+        "count": 3,
+        "scores": [
+          8.0,
+          9.0,
+          8.0
+        ],
+        "average_score": 8.3333
+      },
+      "behav_communication": {
+        "type": "competency",
+        "count": 3,
+        "scores": [
+          8.0,
+          8.0,
+          8.5
+        ],
+        "average_score": 8.1667
+      }
+    },
+    "edges": {
+      "04fbfc15-fa65-4c66-a516-60584f269b95->595d37c4-3f09-4367-9ff4-d08b1ef97c2e": {
+        "source": "04fbfc15-fa65-4c66-a516-60584f269b95",
+        "target": "595d37c4-3f09-4367-9ff4-d08b1ef97c2e",
+        "weight": 0.85,
+        "support": true
+      },
+      "18eb4495-8d3a-4259-be84-5085e0f50ca5->0bc9a2b1-6721-422d-a0ff-13ad6687e7ad": {
+        "source": "18eb4495-8d3a-4259-be84-5085e0f50ca5",
+        "target": "0bc9a2b1-6721-422d-a0ff-13ad6687e7ad",
+        "weight": 0.4,
+        "support": true
+      },
+      "18eb4495-8d3a-4259-be84-5085e0f50ca5->3eb0521f-372a-4fc6-987f-e543d37c0255": {
+        "source": "18eb4495-8d3a-4259-be84-5085e0f50ca5",
+        "target": "3eb0521f-372a-4fc6-987f-e543d37c0255",
+        "weight": 0.4,
+        "support": true
+      },
+      "18eb4495-8d3a-4259-be84-5085e0f50ca5->c79ec838-79af-4edd-a95a-02a2e3b05ab8": {
+        "source": "18eb4495-8d3a-4259-be84-5085e0f50ca5",
+        "target": "c79ec838-79af-4edd-a95a-02a2e3b05ab8",
+        "weight": 0.4,
+        "support": true
+      },
+      "18eb4495-8d3a-4259-be84-5085e0f50ca5->d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50": {
+        "source": "18eb4495-8d3a-4259-be84-5085e0f50ca5",
+        "target": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
+        "weight": 0.7,
+        "support": true
+      },
+      "18eb4495-8d3a-4259-be84-5085e0f50ca5->dc368d9a-2417-4e68-946b-37088b8f3548": {
+        "source": "18eb4495-8d3a-4259-be84-5085e0f50ca5",
+        "target": "dc368d9a-2417-4e68-946b-37088b8f3548",
+        "weight": 0.85,
+        "support": true
+      },
+      "26926639-bb99-4085-9bd7-df02270af36d->0bc9a2b1-6721-422d-a0ff-13ad6687e7ad": {
+        "source": "26926639-bb99-4085-9bd7-df02270af36d",
+        "target": "0bc9a2b1-6721-422d-a0ff-13ad6687e7ad",
+        "weight": 0.85,
+        "support": true
+      },
+      "26926639-bb99-4085-9bd7-df02270af36d->c79ec838-79af-4edd-a95a-02a2e3b05ab8": {
+        "source": "26926639-bb99-4085-9bd7-df02270af36d",
+        "target": "c79ec838-79af-4edd-a95a-02a2e3b05ab8",
+        "weight": 0.85,
+        "support": true
+      },
+      "32f84a5c-2f9c-456c-8a0e-62e48407c636->0ef5436c-19c6-4eeb-8ce2-7d26556d6e6d": {
+        "source": "32f84a5c-2f9c-456c-8a0e-62e48407c636",
+        "target": "0ef5436c-19c6-4eeb-8ce2-7d26556d6e6d",
+        "weight": 0.85,
+        "support": false
+      },
+      "32f84a5c-2f9c-456c-8a0e-62e48407c636->2b3128d7-8bf2-433c-886c-b1823efd97c7": {
+        "source": "32f84a5c-2f9c-456c-8a0e-62e48407c636",
+        "target": "2b3128d7-8bf2-433c-886c-b1823efd97c7",
+        "weight": 0.85,
+        "support": true
+      },
+      "32f84a5c-2f9c-456c-8a0e-62e48407c636->3eb0521f-372a-4fc6-987f-e543d37c0255": {
+        "source": "32f84a5c-2f9c-456c-8a0e-62e48407c636",
+        "target": "3eb0521f-372a-4fc6-987f-e543d37c0255",
+        "weight": 0.85,
+        "support": true
+      },
+      "32f84a5c-2f9c-456c-8a0e-62e48407c636->d013bd61-cd67-4aa9-aa24-f924a77bc5b8": {
+        "source": "32f84a5c-2f9c-456c-8a0e-62e48407c636",
+        "target": "d013bd61-cd67-4aa9-aa24-f924a77bc5b8",
+        "weight": 0.85,
+        "support": false
+      },
+      "32f84a5c-2f9c-456c-8a0e-62e48407c636->d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50": {
+        "source": "32f84a5c-2f9c-456c-8a0e-62e48407c636",
+        "target": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
+        "weight": 0.85,
+        "support": true
+      },
+      "64fd68a5-2dae-43f7-9ebb-6d33eb59c018->0bc9a2b1-6721-422d-a0ff-13ad6687e7ad": {
+        "source": "64fd68a5-2dae-43f7-9ebb-6d33eb59c018",
+        "target": "0bc9a2b1-6721-422d-a0ff-13ad6687e7ad",
+        "weight": 0.85,
+        "support": true
+      },
+      "64fd68a5-2dae-43f7-9ebb-6d33eb59c018->d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50": {
+        "source": "64fd68a5-2dae-43f7-9ebb-6d33eb59c018",
+        "target": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
+        "weight": 0.7,
+        "support": true
+      },
+      "693823f3-154c-4f7d-ae8a-fe58e5114b43->0ef5436c-19c6-4eeb-8ce2-7d26556d6e6d": {
+        "source": "693823f3-154c-4f7d-ae8a-fe58e5114b43",
+        "target": "0ef5436c-19c6-4eeb-8ce2-7d26556d6e6d",
+        "weight": 0.85,
+        "support": false
+      },
+      "693823f3-154c-4f7d-ae8a-fe58e5114b43->2b3128d7-8bf2-433c-886c-b1823efd97c7": {
+        "source": "693823f3-154c-4f7d-ae8a-fe58e5114b43",
+        "target": "2b3128d7-8bf2-433c-886c-b1823efd97c7",
+        "weight": 0.85,
+        "support": true
+      },
+      "693823f3-154c-4f7d-ae8a-fe58e5114b43->3eb0521f-372a-4fc6-987f-e543d37c0255": {
+        "source": "693823f3-154c-4f7d-ae8a-fe58e5114b43",
+        "target": "3eb0521f-372a-4fc6-987f-e543d37c0255",
+        "weight": 0.85,
+        "support": true
+      },
+      "693823f3-154c-4f7d-ae8a-fe58e5114b43->d013bd61-cd67-4aa9-aa24-f924a77bc5b8": {
+        "source": "693823f3-154c-4f7d-ae8a-fe58e5114b43",
+        "target": "d013bd61-cd67-4aa9-aa24-f924a77bc5b8",
+        "weight": 0.85,
+        "support": false
+      },
+      "693823f3-154c-4f7d-ae8a-fe58e5114b43->d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50": {
+        "source": "693823f3-154c-4f7d-ae8a-fe58e5114b43",
+        "target": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
+        "weight": 0.85,
+        "support": true
+      },
+      "6b8fea85-46a2-4c60-8601-6cfe4947dca2->d1920647-0a3c-49ca-943a-844768487d14": {
+        "source": "6b8fea85-46a2-4c60-8601-6cfe4947dca2",
+        "target": "d1920647-0a3c-49ca-943a-844768487d14",
+        "weight": 0.85,
+        "support": true
+      },
+      "9657f4fd-43a1-42d8-a5e4-8ed20f2597c6->dc368d9a-2417-4e68-946b-37088b8f3548": {
+        "source": "9657f4fd-43a1-42d8-a5e4-8ed20f2597c6",
+        "target": "dc368d9a-2417-4e68-946b-37088b8f3548",
+        "weight": 0.85,
+        "support": true
+      },
+      "a060e5a0-16ae-4b22-a968-a05b7fd29227->595d37c4-3f09-4367-9ff4-d08b1ef97c2e": {
+        "source": "a060e5a0-16ae-4b22-a968-a05b7fd29227",
+        "target": "595d37c4-3f09-4367-9ff4-d08b1ef97c2e",
+        "weight": 0.85,
+        "support": true
+      },
+      "a060e5a0-16ae-4b22-a968-a05b7fd29227->9b5cb423-2069-41b1-805b-d54267758fad": {
+        "source": "a060e5a0-16ae-4b22-a968-a05b7fd29227",
+        "target": "9b5cb423-2069-41b1-805b-d54267758fad",
+        "weight": 0.85,
+        "support": true
+      },
+      "a060e5a0-16ae-4b22-a968-a05b7fd29227->d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50": {
+        "source": "a060e5a0-16ae-4b22-a968-a05b7fd29227",
+        "target": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
+        "weight": 0.7,
+        "support": true
+      },
+      "c1c1fd41-b6f4-4ac4-adb9-bde00a53e5eb->0bc9a2b1-6721-422d-a0ff-13ad6687e7ad": {
+        "source": "c1c1fd41-b6f4-4ac4-adb9-bde00a53e5eb",
+        "target": "0bc9a2b1-6721-422d-a0ff-13ad6687e7ad",
+        "weight": 0.85,
+        "support": true
+      },
+      "c1c1fd41-b6f4-4ac4-adb9-bde00a53e5eb->3eb0521f-372a-4fc6-987f-e543d37c0255": {
+        "source": "c1c1fd41-b6f4-4ac4-adb9-bde00a53e5eb",
+        "target": "3eb0521f-372a-4fc6-987f-e543d37c0255",
+        "weight": 0.45,
+        "support": true
+      },
+      "c1c1fd41-b6f4-4ac4-adb9-bde00a53e5eb->d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50": {
+        "source": "c1c1fd41-b6f4-4ac4-adb9-bde00a53e5eb",
+        "target": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
+        "weight": 0.7,
+        "support": true
+      },
+      "da5bb392-1fcd-4490-a63f-38fae32f6ef5->0ef5436c-19c6-4eeb-8ce2-7d26556d6e6d": {
+        "source": "da5bb392-1fcd-4490-a63f-38fae32f6ef5",
+        "target": "0ef5436c-19c6-4eeb-8ce2-7d26556d6e6d",
+        "weight": 0.85,
+        "support": false
+      },
+      "da5bb392-1fcd-4490-a63f-38fae32f6ef5->2b3128d7-8bf2-433c-886c-b1823efd97c7": {
+        "source": "da5bb392-1fcd-4490-a63f-38fae32f6ef5",
+        "target": "2b3128d7-8bf2-433c-886c-b1823efd97c7",
+        "weight": 0.85,
+        "support": true
+      },
+      "da5bb392-1fcd-4490-a63f-38fae32f6ef5->3eb0521f-372a-4fc6-987f-e543d37c0255": {
+        "source": "da5bb392-1fcd-4490-a63f-38fae32f6ef5",
+        "target": "3eb0521f-372a-4fc6-987f-e543d37c0255",
+        "weight": 0.85,
+        "support": true
+      },
+      "da5bb392-1fcd-4490-a63f-38fae32f6ef5->d013bd61-cd67-4aa9-aa24-f924a77bc5b8": {
+        "source": "da5bb392-1fcd-4490-a63f-38fae32f6ef5",
+        "target": "d013bd61-cd67-4aa9-aa24-f924a77bc5b8",
+        "weight": 0.85,
+        "support": false
+      },
+      "da5bb392-1fcd-4490-a63f-38fae32f6ef5->d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50": {
+        "source": "da5bb392-1fcd-4490-a63f-38fae32f6ef5",
+        "target": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
+        "weight": 0.85,
+        "support": true
+      },
+      "dad8d6d2-91c3-41cf-84d8-bc8414a61e83->d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50": {
+        "source": "dad8d6d2-91c3-41cf-84d8-bc8414a61e83",
+        "target": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
+        "weight": 0.7,
+        "support": true
+      },
+      "dad8d6d2-91c3-41cf-84d8-bc8414a61e83->dc368d9a-2417-4e68-946b-37088b8f3548": {
+        "source": "dad8d6d2-91c3-41cf-84d8-bc8414a61e83",
+        "target": "dc368d9a-2417-4e68-946b-37088b8f3548",
+        "weight": 0.85,
+        "support": true
+      },
+      "e2a6b489-cd86-451e-8ac6-e267c929676b->595d37c4-3f09-4367-9ff4-d08b1ef97c2e": {
+        "source": "e2a6b489-cd86-451e-8ac6-e267c929676b",
+        "target": "595d37c4-3f09-4367-9ff4-d08b1ef97c2e",
+        "weight": 0.85,
+        "support": true
+      },
+      "e54928df-5616-40c4-92bd-ef87cbad7a49->595d37c4-3f09-4367-9ff4-d08b1ef97c2e": {
+        "source": "e54928df-5616-40c4-92bd-ef87cbad7a49",
+        "target": "595d37c4-3f09-4367-9ff4-d08b1ef97c2e",
+        "weight": 0.85,
+        "support": true
+      },
+      "e54928df-5616-40c4-92bd-ef87cbad7a49->9b5cb423-2069-41b1-805b-d54267758fad": {
+        "source": "e54928df-5616-40c4-92bd-ef87cbad7a49",
+        "target": "9b5cb423-2069-41b1-805b-d54267758fad",
+        "weight": 0.85,
+        "support": true
+      },
+      "e54928df-5616-40c4-92bd-ef87cbad7a49->d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50": {
+        "source": "e54928df-5616-40c4-92bd-ef87cbad7a49",
+        "target": "d4ca2aff-93e3-4a0d-a4d5-d9c6b7147f50",
+        "weight": 0.7,
+        "support": true
+      },
+      "ebfc4371-a2ee-4325-9e65-6b5a7a8776e8->d1920647-0a3c-49ca-943a-844768487d14": {
+        "source": "ebfc4371-a2ee-4325-9e65-6b5a7a8776e8",
+        "target": "d1920647-0a3c-49ca-943a-844768487d14",
+        "weight": 0.85,
+        "support": true
+      }
+    }
+  },
+  "timeline": [
+    {
+      "id": "4bd539cd-340d-4d94-8265-26a22e96f676",
+      "event_type": "brain_snapshot",
+      "question_number": 1,
+      "event_data": {
+        "phase": "intro",
+        "version": 2,
+        "evidence_count": 0,
+        "difficulty_level": 3,
+        "hypothesis_count": 7
+      },
+      "created_at": "2026-08-07T09:50:11.972277+00:00"
+    },
+    {
+      "id": "877cd9cb-fed4-4386-8813-5cd5e7bc2eef",
+      "event_type": "brain_snapshot",
+      "question_number": 2,
+      "event_data": {
+        "phase": "intro",
+        "version": 3,
+        "evidence_count": 1,
+        "difficulty_level": 3,
+        "hypothesis_count": 7
+      },
+      "created_at": "2026-08-07T09:51:17.051869+00:00"
+    },
+    {
+      "id": "a8f7f33e-6205-4087-a572-f4aa8a754c93",
+      "event_type": "brain_snapshot",
+      "question_number": 3,
+      "event_data": {
+        "phase": "technical",
+        "version": 3,
+        "evidence_count": 2,
+        "difficulty_level": 3,
+        "hypothesis_count": 8
+      },
+      "created_at": "2026-08-07T09:52:26.035743+00:00"
+    },
+    {
+      "id": "19326b2f-9a29-4b41-89fa-1eb7feecda03",
+      "event_type": "brain_snapshot",
+      "question_number": 4,
+      "event_data": {
+        "phase": "technical",
+        "version": 3,
+        "evidence_count": 3,
+        "difficulty_level": 3,
+        "hypothesis_count": 9
+      },
+      "created_at": "2026-08-07T09:53:54.840369+00:00"
+    },
+    {
+      "id": "82eabff9-b447-4b6c-8be3-bc0d4b1f77d8",
+      "event_type": "brain_snapshot",
+      "question_number": 5,
+      "event_data": {
+        "phase": "technical",
+        "version": 3,
+        "evidence_count": 5,
+        "difficulty_level": 3,
+        "hypothesis_count": 10
+      },
+      "created_at": "2026-08-07T09:55:09.941358+00:00"
+    },
+    {
+      "id": "123415d9-6d67-45d3-9c0a-a1397791a658",
+      "event_type": "brain_snapshot",
+      "question_number": 6,
+      "event_data": {
+        "phase": "technical",
+        "version": 3,
+        "evidence_count": 6,
+        "difficulty_level": 3,
+        "hypothesis_count": 10
+      },
+      "created_at": "2026-08-07T09:56:01.052529+00:00"
+    },
+    {
+      "id": "6f528996-f089-41fc-a519-c50b37276c7d",
+      "event_type": "brain_snapshot",
+      "question_number": 7,
+      "event_data": {
+        "phase": "technical",
+        "version": 3,
+        "evidence_count": 7,
+        "difficulty_level": 4,
+        "hypothesis_count": 10
+      },
+      "created_at": "2026-08-07T09:57:20.717217+00:00"
+    },
+    {
+      "id": "6e60a6c5-fabc-46fe-88a5-b9d58db7141a",
+      "event_type": "brain_snapshot",
+      "question_number": 8,
+      "event_data": {
+        "phase": "technical",
+        "version": 3,
+        "evidence_count": 8,
+        "difficulty_level": 4,
+        "hypothesis_count": 11
+      },
+      "created_at": "2026-08-07T09:58:45.132907+00:00"
+    },
+    {
+      "id": "fc4e0024-a412-43fb-bc34-a08cf6458951",
+      "event_type": "brain_snapshot",
+      "question_number": 9,
+      "event_data": {
+        "phase": "behavioral",
+        "version": 3,
+        "evidence_count": 10,
+        "difficulty_level": 5,
+        "hypothesis_count": 12
+      },
+      "created_at": "2026-08-07T09:59:41.268683+00:00"
+    },
+    {
+      "id": "adad06af-997c-4dc4-ab53-4123a5c0753b",
+      "event_type": "brain_snapshot",
+      "question_number": 10,
+      "event_data": {
+        "phase": "behavioral",
+        "version": 3,
+        "evidence_count": 11,
+        "difficulty_level": 5,
+        "hypothesis_count": 12
+      },
+      "created_at": "2026-08-07T10:00:28.260695+00:00"
+    },
+    {
+      "id": "f88b11f6-0a8a-47f3-a4af-e17c9c896430",
+      "event_type": "brain_snapshot",
+      "question_number": 11,
+      "event_data": {
+        "phase": "behavioral",
+        "version": 3,
+        "evidence_count": 12,
+        "difficulty_level": 5,
+        "hypothesis_count": 12
+      },
+      "created_at": "2026-08-07T10:01:15.713026+00:00"
+    },
+    {
+      "id": "f29543ad-7a07-4ca3-8b33-f08d29499ef7",
+      "event_type": "brain_snapshot",
+      "question_number": 12,
+      "event_data": {
+        "phase": "behavioral",
+        "version": 3,
+        "evidence_count": 13,
+        "difficulty_level": 5,
+        "hypothesis_count": 12
+      },
+      "created_at": "2026-08-07T10:02:07.719633+00:00"
+    },
+    {
+      "id": "d076bedd-c565-4806-826c-df12f5ee4cfe",
+      "event_type": "brain_snapshot",
+      "question_number": 13,
+      "event_data": {
+        "phase": "behavioral",
+        "version": 3,
+        "evidence_count": 14,
+        "difficulty_level": 5,
+        "hypothesis_count": 12
+      },
+      "created_at": "2026-08-07T10:03:23.656075+00:00"
+    },
+    {
+      "id": "635b773b-9d9f-4ecb-8114-25b0b5ec33dc",
+      "event_type": "brain_snapshot",
+      "question_number": 14,
+      "event_data": {
+        "phase": "conclusion",
+        "version": 3,
+        "evidence_count": 15,
+        "difficulty_level": 5,
+        "hypothesis_count": 12
+      },
+      "created_at": "2026-08-07T10:04:17.263318+00:00"
+    },
+    {
+      "id": "67eacb1d-99b6-4304-8f08-ed7ef16bf035",
+      "event_type": "brain_snapshot",
+      "question_number": 14,
+      "event_data": {
+        "phase": "conclusion",
+        "version": 3,
+        "evidence_count": 15,
+        "difficulty_level": 5,
+        "hypothesis_count": 12
+      },
+      "created_at": "2026-08-07T10:04:44.729103+00:00"
+    }
+  ]
+}

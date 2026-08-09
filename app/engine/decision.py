@@ -21,31 +21,52 @@ logger = logging.getLogger(__name__)
 def _enrich_recommendation(state: dict, recommendation: dict, sufficiency: dict) -> dict:
     """Add the T2/T4 observability fields the final brain view needs.
 
-    ``dimension_scores`` is the per-required-competency breakdown (every
-    required competency, including zero-evidence ones so the brain view matches
-    ``evidence_sufficiency.details``); ``family`` maps each required competency
-    to its taxonomy family. Both are pure additions — they never alter the
-    verdict, confidence or composite.
+    ``dimension_scores`` is the per-competency breakdown for **every**
+    competency that is either required for the role OR collected evidence
+    during the interview (the union), so it always covers exactly the same set
+    as the persisted ``evidence_summary``. ``family`` maps each of those
+    competencies to its taxonomy family. Both are pure additions — they never
+    alter the verdict, confidence or composite.
     """
+    from app.agents.reasoning.contradiction_engine import (
+        MIN_QUESTIONS_PER_COMPETENCY,
+        SUFFICIENCY_GAP_THRESHOLD,
+    )
+
     rec = dict(recommendation or {})
     details = (sufficiency or {}).get("details") or {}
-    rec["dimension_scores"] = {
-        comp: {
-            "average_score": d.get("average_score", 0.0),
-            "evidence_count": d.get("evidence_count", 0),
-            "gap": d.get("gap", 1.0),
-            "covered": bool(d.get("covered", False)),
+    summary = state.get("competency_summary") or {}
+
+    dims: dict = {}
+    for comp in sorted(set(details) | set(summary)):
+        d = details.get(comp)
+        if d is not None:
+            dims[comp] = {
+                "average_score": d.get("average_score", 0.0),
+                "evidence_count": d.get("evidence_count", 0),
+                "gap": d.get("gap", 1.0),
+                "covered": bool(d.get("covered", False)),
+            }
+            continue
+        s = summary.get(comp, {})
+        evidence_count = int(s.get("evidence_count", 0) or 0)
+        gap = s.get("gap", 1.0)
+        dims[comp] = {
+            "average_score": s.get("average_score", 0.0),
+            "evidence_count": evidence_count,
+            "gap": gap,
+            "covered": bool(
+                evidence_count >= MIN_QUESTIONS_PER_COMPETENCY
+                and gap <= SUFFICIENCY_GAP_THRESHOLD
+            ),
         }
-        for comp, d in details.items()
-    }
+    rec["dimension_scores"] = dims
     family_by_id = {
         c.get("id"): c.get("family")
         for c in (state.get("competency_taxonomy") or [])
         if isinstance(c, dict) and c.get("id") and c.get("family")
     }
-    rec["family"] = {
-        comp: family_by_id.get(comp) for comp in (state.get("required_competencies") or [])
-    }
+    rec["family"] = {comp: family_by_id.get(comp) for comp in dims}
     return rec
 
 

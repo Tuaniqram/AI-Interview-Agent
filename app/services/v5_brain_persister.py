@@ -134,6 +134,10 @@ class V5BrainPersister:
             "reflection_action": getattr(brain, "reflection_action", None),
             "director": getattr(brain, "director", {}) or {},
             "consecutive_probes": int(getattr(brain, "consecutive_probes", 0) or 0),
+            # The deterministic final decision (single source of truth per the
+            # engine contract) is persisted so the brain view surfaces the
+            # verdict alongside the recommendation.
+            "hiring_decision": getattr(brain, "hiring_decision", {}) or {},
             "hiring_recommendation": getattr(brain, "hiring_recommendation", {}) or {},
             "evidence_sufficiency": getattr(brain, "evidence_sufficiency", {}) or {},
             "contradictions": getattr(brain, "contradictions", []) or [],

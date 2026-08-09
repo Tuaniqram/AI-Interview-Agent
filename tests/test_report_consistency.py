@@ -474,6 +474,34 @@ def test_enriched_recommendation_exposes_dimension_scores_and_family():
     assert enriched["verdict"] == rec["verdict"]
 
 
+def test_dimension_scores_cover_evidenced_but_unrequired_competencies():
+    """Regression: dimension_scores must match evidence_summary's key set. A
+    competency that collected evidence but was NOT in the required plan
+    (probed beyond the role blueprint) appeared in evidence_summary yet was
+    missing from dimension_scores — the live verify caught the mismatch."""
+    from app.engine.builders import refresh_sufficiency_and_recommendation
+    from app.engine.decision import _enrich_recommendation
+
+    state = _state_with_open_hyps(open_count=3, short_competency=True)
+    state["competency_summary"]["extra_probed"] = {
+        "evidence_count": 1,
+        "average_score": 7.5,
+        "gap": 0.5,
+    }
+    sufficiency, rec = refresh_sufficiency_and_recommendation(state)
+    enriched = _enrich_recommendation(state, rec, sufficiency)
+
+    dims = enriched["dimension_scores"]
+    assert set(dims) == set(REQUIRED) | {"extra_probed"}
+    assert dims["extra_probed"] == {
+        "average_score": 7.5,
+        "evidence_count": 1,
+        "gap": 0.5,
+        "covered": False,
+    }
+    assert set(enriched["family"]) == set(dims)
+
+
 def test_calibration_verdict_mirrors_calibrated_score_into_recommendation():
     """P1-4: the calibrated verdict/score must appear next to the raw
     recommendation in the brain view, not just under hiring_decision."""
