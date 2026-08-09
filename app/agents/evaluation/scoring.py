@@ -2,10 +2,15 @@
 
 The LLM evaluator returns a raw ``composite_score`` that is opaque and noisy.
 This module recomputes the composite deterministically from the per-dimension
-scores via a fixed rubric, and emits ``score`` + ``reasons`` so every number
+scores via a family rubric, and emits ``score`` + ``reasons`` so every number
 can be traced back to a dimension, its weight and its confidence.
 
-Default rubric (documented, overridable per interview style via
+Rubrics live in ``app/data/rubrics.py`` (T2). The default rubric is the tech
+one; family roles resolve their own dimension weights (domain-first, T1) and
+their own F6 calibration keywords. An interview style may still override any
+dimension weight via ``evaluator_weights``.
+
+Default tech rubric (documented, overridable per interview style via
 ``evaluator_weights``):
 
     technical      30%   domain correctness/depth
@@ -20,16 +25,21 @@ Pure capability: state in → state out, no DB, no mutation of shared state.
 import logging
 import re
 
+from app.data.rubrics import (
+    RUBRIC_DIMENSIONS,
+    category_from_taxonomy,
+    dimension_weights,
+    domain_label_for,
+    evidence_keywords,
+    normalize_category,
+    ownership_words,
+    quantification_terms,
+    rubric_for_category,
+)
+
 logger = logging.getLogger(__name__)
 
-DEFAULT_DIMENSION_WEIGHTS = {
-    "technical": 0.30,
-    "reasoning": 0.25,
-    "communication": 0.20,
-    "confidence": 0.10,
-    "behavioral": 0.10,
-    "completeness": 0.05,
-}
+DEFAULT_DIMENSION_WEIGHTS = dict(dimension_weights("technical"))
 
 # Calibration rubric (P5): maps any composite onto a score band with a fixed
 # anchor so the same number gets the same label everywhere.
@@ -175,7 +185,20 @@ def build_score_reasons(
     return reasons
 
 
-def _apply_evaluator_calibration(evaluation: dict) -> dict:
+def _category_for_competency(state: dict) -> str | None:
+    """The category of the current target competency, from the session taxonomy.
+
+    T2: the scoring node needs the family to pick the right rubric (weights +
+    calibration keywords). Falls back to ``None`` (tech default) when the
+    target cannot be resolved.
+    """
+    return category_from_taxonomy(
+        state.get("competency_taxonomy"),
+        (state.get("question_objective") or {}).get("target_competency") or "",
+    )
+
+
+def _apply_evaluator_calibration(evaluation: dict, category: str | None = None) -> dict:
     """Adjust overly optimistic evaluator scores when evidence lacks substance.
 
     This calibration is opt-in via the interview style to preserve test expectations
@@ -186,27 +209,15 @@ def _apply_evaluator_calibration(evaluation: dict) -> dict:
         score >= 9   without ownership signals               -> 8.0
 
     So 8+ only stands when the answer demonstrably contains concrete, ideally
-    quantified, evidence.
+    quantified, evidence. T2: the evidence/ownership keywords and the
+    quantification terms are family-aware (``app/data/rubrics.py``) so a
+    Marketing Manager's "campaign funnel" reads as concrete evidence just as a
+    backend engineer's "architecture tradeoff" does.
     """
     if not evaluation:
         return evaluation
-    EVIDENCE_KEYWORDS = [
-        "example",
-        "project",
-        "production",
-        "incident",
-        "trade-off",
-        "tradeoffs",
-        "trade offs",
-        "architecture",
-        "owned",
-        "ownership",
-        "scale",
-        "scalability",
-        "latency",
-        "bottleneck",
-    ]
-    ownership_words = ["architect", "architecture", "owner", "owned", "ownership", "define standards"]
+    family_keywords = evidence_keywords(category)
+    family_ownership = ownership_words(category)
     calibrated = dict(evaluation)
     for dim, dim_data in list(calibrated.items()):
         if not isinstance(dim_data, dict):
@@ -221,8 +232,8 @@ def _apply_evaluator_calibration(evaluation: dict) -> dict:
             continue
         if score_f >= 8.0:
             evidence_l = evidence.lower()
-            has_example = any(k in evidence_l for k in EVIDENCE_KEYWORDS)
-            has_quantification = _has_quantification(evidence_l)
+            has_example = any(k in evidence_l for k in family_keywords)
+            has_quantification = _has_quantification(evidence_l, category)
             if not has_example:
                 calibrated[dim] = dict(dim_data)
                 calibrated[dim]["score"] = 7.0
@@ -230,16 +241,17 @@ def _apply_evaluator_calibration(evaluation: dict) -> dict:
                 if score_f >= 8.5 and not has_quantification:
                     calibrated[dim] = dict(dim_data)
                     calibrated[dim]["score"] = 8.0
-                elif score_f >= 9.0 and not any(w in evidence_l for w in ownership_words):
+                elif score_f >= 9.0 and not any(w in evidence_l for w in family_ownership):
                     calibrated[dim] = dict(dim_data)
                     calibrated[dim]["score"] = 8.0
     return calibrated
 
 
-def _has_quantification(text: str) -> bool:
+def _has_quantification(text: str, category: str | None = None) -> bool:
     """Does the evidence reference a measured quantity (40%, 9x, 20ms, 10k)?"""
     if not text:
         return False
+    terms = "|".join(re.escape(t) for t in quantification_terms(category))
     return bool(re.search(
         r"(?<!\w)\d+(?:\.\d+)?\s*(?:%|[x×]|ms|s\b|secs?|seconds|req/s|qps|rps|tps|"
         r"users|requests|concurrent|gb|tb|mb|hours|days|weeks|usd|\$|k|m|million|thousand)\b",
@@ -247,6 +259,9 @@ def _has_quantification(text: str) -> bool:
     )) or bool(re.search(
         r"\b(reduced?|increased?|cut|saved|boosted|optimized|dropped|halved|doubled|"
         r"tripled|grew|scaled|achieved)\b[\s\S]{0,40}\d",
+        text,
+    )) or (bool(terms) and re.search(
+        rf"\b(?:{terms})\b[\s\S]{{0,40}}\d",
         text,
     ))
 
@@ -258,14 +273,20 @@ def explainable_scoring_node(state: dict) -> dict:
     it in after evaluation/evidence extraction without changing the flow.
     """
     evaluation = state.get("unified_evaluation") or {}
-    weights = (state.get("interview_style") or {}).get("evaluator_weights")
+    # T2: weights come from the family rubric (resolved by the target
+    # competency's category), overridable per style via ``evaluator_weights``.
+    category = _category_for_competency(state)
+    style_weights = (state.get("interview_style") or {}).get("evaluator_weights")
+    weights = dimension_weights(category, style_weights)
     confidence_weighted = bool(
         (state.get("interview_style") or {}).get("confidence_weighted", False)
     )
 
     # Calibration is opt-in via interview style to avoid unexpected changes in tests
     apply_calibration = bool((state.get("interview_style") or {}).get("apply_evaluator_calibration", False))
-    eval_for_scoring = _apply_evaluator_calibration(evaluation) if apply_calibration else evaluation
+    eval_for_scoring = (
+        _apply_evaluator_calibration(evaluation, category) if apply_calibration else evaluation
+    )
 
     composite, contributions = reconcile_composite(
         eval_for_scoring, weights, confidence_weighted=confidence_weighted

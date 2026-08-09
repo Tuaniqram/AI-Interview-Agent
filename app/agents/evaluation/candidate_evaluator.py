@@ -3,10 +3,17 @@ from uuid import uuid4
 from datetime import datetime, timezone
 
 from app.core.interview_state import InterviewState
+from app.data.rubrics import (
+    active_dimensions,
+    category_from_taxonomy,
+    dimension_weights,
+    domain_label_for,
+    render_rubric,
+)
 
 logger = logging.getLogger(__name__)
 
-_DIMENSION_KEYS = {"technical", "communication", "reasoning", "behavioral", "confidence", "completeness"}
+_DIMENSION_KEYS = {"technical", "domain", "communication", "reasoning", "behavioral", "confidence", "completeness"}
 
 
 def _memory_context(state: dict) -> str:
@@ -31,9 +38,6 @@ def _memory_context(state: dict) -> str:
 
 
 async def unified_evaluator_node(state: InterviewState) -> InterviewState:
-    from app.services.llm_service import get_llm_service
-    from app.services.prompt_loader import load_prompt
-
     question = state.get("current_question", "")
     answer = state.get("candidate_answer", "")
     job_role = state.get("job_role", "Unknown")
@@ -42,10 +46,9 @@ async def unified_evaluator_node(state: InterviewState) -> InterviewState:
     style = state.get("interview_style", {})
     weights = style.get("evaluator_weights", {})
     competency = state.get("question_objective", {}).get("target_competency", "")
-    domain_label = state.get("domain_label", "Technical Knowledge")
 
     return await _unified_evaluator(
-        state, question, answer, job_role, difficulty, persona, competency, weights, domain_label
+        state, question, answer, job_role, difficulty, persona, competency, weights
     )
 
 
@@ -58,13 +61,20 @@ async def _unified_evaluator(
     persona: str,
     competency: str,
     weights: dict,
-    domain_label: str,
 ) -> InterviewState:
     from app.services.llm_service import get_llm_service
     from app.services.prompt_loader import load_prompt
 
+    # T2: family rubric resolved from the target competency's category. The
+    # evaluator only scores the dimensions the family weights (non-tech roles
+    # score ``domain`` instead of ``technical``).
+    category = category_from_taxonomy(state.get("competency_taxonomy"), competency)
+    dimensions = active_dimensions(category)
+    family_label = domain_label_for(category)
+    family_weights = dimension_weights(category, weights)
+
     if not answer or not answer.strip():
-        return _empty_evaluation(state, "No answer provided")
+        return _empty_evaluation(state, "No answer provided", dimensions)
 
     try:
         llm_service = get_llm_service()
@@ -78,8 +88,10 @@ async def _unified_evaluator(
             difficulty=str(difficulty),
             persona=persona,
             competency=competency or "General",
-            domain_label=domain_label,
+            domain_label=family_label,
             candidate_memory=_memory_context(state),
+            rubric=render_rubric(category),
+            primary_dimension=dimensions[0] if dimensions else "technical",
         )
 
         response = await llm_service.invoke(
@@ -94,10 +106,10 @@ async def _unified_evaluator(
         data = parse_json(response)
     except Exception as e:
         logger.warning(f"Unified evaluator LLM failed: {e}")
-        return _empty_evaluation(state, f"Evaluation error: {str(e)}")
+        return _empty_evaluation(state, f"Evaluation error: {str(e)}", dimensions)
 
     evaluation = {}
-    for key in _DIMENSION_KEYS:
+    for key in dimensions:
         dim_data = data.get(key, {})
         if isinstance(dim_data, dict):
             evaluation[key] = {
@@ -124,7 +136,7 @@ async def _unified_evaluator(
     else:
         composite = round(float(composite), 2)
 
-    weighted = _compute_weighted(evaluation, weights)
+    weighted = _compute_weighted(evaluation, family_weights)
 
     obs_list = []
     for obs_key in ("verbosity", "hedging", "certainty_shift", "sentiment_shift", "response_latency_estimate", "notable_patterns"):
@@ -158,10 +170,10 @@ def _compute_weighted(evaluation: dict, weights: dict) -> float | None:
     return None
 
 
-def _empty_evaluation(state: InterviewState, reason: str) -> InterviewState:
+def _empty_evaluation(state: InterviewState, reason: str, dimensions: list[str]) -> InterviewState:
     empty = {
         dim: {"score": None, "evidence": reason, "confidence": 0.0, "strengths": [], "weaknesses": []}
-        for dim in _DIMENSION_KEYS
+        for dim in dimensions
     }
     return {
         **state,

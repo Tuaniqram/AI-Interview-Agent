@@ -23,6 +23,7 @@ from app.api.v1.audit_logs import router as audit_logs_router
 from app.api.v1.system import router as system_router
 from app.api.v1.intelligence import router as intelligence_router
 from app.api.v1.demo import router as demo_router
+from app.api.v1.calibration import router as calibration_router
 from app.config import settings
 
 API_VERSION = "v1"
@@ -111,6 +112,7 @@ app.include_router(candidate_ranking_router, prefix=f"/api/{API_VERSION}")
 app.include_router(audit_logs_router, prefix=f"/api/{API_VERSION}")
 app.include_router(intelligence_router, prefix=f"/api/{API_VERSION}")
 app.include_router(demo_router, prefix=f"/api/{API_VERSION}")
+app.include_router(calibration_router, prefix=f"/api/{API_VERSION}")
 app.include_router(system_router)
 
 

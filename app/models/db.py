@@ -1345,3 +1345,49 @@ class InterviewTimeline(Base):
         Index("idx_interview_timeline_session", "session_id"),
         Index("idx_interview_timeline_session_event", "session_id", "event_type"),
     )
+
+
+class CalibrationFeedback(Base):
+    """T4 calibration loop — recruiter-recorded actual outcome vs predicted.
+
+    The predicted side (calibrated verdict/score, difficulty reached, role
+    floor) is snapshotted from ``interview_brain.brain_metadata`` when the
+    recruiter records the post-hire ``actual_outcome``. Drift reporting
+    reconciles the two deterministically — no LLM, no auto-tuning.
+    """
+
+    __tablename__ = "calibration_feedback"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    department_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    job_role: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    predicted_verdict: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    predicted_score: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
+    difficulty_reached: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    role_floor: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    actual_outcome: Mapped[Optional[str]] = mapped_column(
+        Text, server_default="no_feedback", nullable=True
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    recorded_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        Index("idx_calibration_feedback_org", "org_id"),
+        Index("idx_calibration_feedback_recorded", "recorded_at"),
+    )

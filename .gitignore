@@ -36,8 +36,6 @@ e2e/
 playwright-report/
 test-results/
 .agents/
-tests/
-docs/
 # IDE
 .vscode/
 .idea/
