@@ -27,7 +27,7 @@ tag. Nothing in here is rewritten from scratch — it evolves incrementally.
 | `08-reasoning-core.md` | Hypotheses, evidence, uncertainty, contradictions, difficulty |
 | `09-decision-engine.md` | Canonical score, decision score, review, verdicts |
 | `10-knowledge-bases.md` | Taxonomy, role brain, company brain, resolution chain |
-| `WAVE-PLAN.md` | Wave plan (T1-taxonomy / T2-scoring / T3-calibration-ranking) with completion status |
+| `WAVE-PLAN.md` | Wave plan (T1-taxonomy / T2-scoring / T4-calibration-ranking) with completion status |
 | `CHANGELOG.md` | Tagged, append-only ledger of accepted changes |
 
 ## Change workflow (mandatory)

@@ -89,7 +89,7 @@
   selection, anchor rendering, family-aware composite recomputation,
   calibration keyword sets.
 
-## [AURA-1.3][T3-calibration-ranking] — 2026-08-09
+## [AURA-1.3][T4-calibration-ranking] — 2026-08-09
 - **Calibration loop — measure + report drift** (`app/api/v1/calibration.py`,
   `app/services/calibration_service.py`): deterministic, no LLM, no auto-tuning.
   - New table `calibration_feedback` (migration `b1a2c3d4e5f6`): one row per
@@ -133,9 +133,9 @@
   documentation, `WAVE-PLAN.md`, and the full test suite (565 passing) are
   committed with the code in `2bb9e07`.
 - **`WAVE-PLAN.md`** added to `docs/aura/` and linked from the README index —
-  tracks T1-taxonomy / T2-scoring / T3-calibration-ranking completion status.
+  tracks T1-taxonomy / T2-scoring / T4-calibration-ranking completion status.
 - **Verification**: `python -m pytest -q` → 565 passed (526 pre-existing + 39
-  new for T2/T3), zero external services; `alembic heads` resolves to the
+  new for T2/T4), zero external services; `alembic heads` resolves to the
   calibration-feedback migration.
 
 _Next entries appended below as changes are confirmed and tested.__

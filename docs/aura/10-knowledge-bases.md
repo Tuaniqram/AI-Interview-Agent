@@ -1,6 +1,6 @@
 # 10 — Knowledge bases
 
-> Last updated: 2026-08-09 · Tag: [AURA-1.3][T3-calibration-ranking]
+> Last updated: 2026-08-09 · Tag: [AURA-1.3][T4-calibration-ranking]
 
 ## Competency taxonomy (`app/data/competency_taxonomy.py`)
 
@@ -90,7 +90,7 @@ stack; never invented.
   the role title/description onto one of the 8 families or `technical`).
 - `use_llm=False` keeps resolution fully deterministic (tests, offline runs).
 
-## Family-cohort comparability (T3)
+## Family-cohort comparability (T4)
 
 Calibrated scores embed family-specific dimension weighting (T2 rubrics) and
 difficulty-credit, so they are only directly comparable **within a family

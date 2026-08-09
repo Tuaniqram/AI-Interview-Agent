@@ -1,6 +1,6 @@
 # 09 — Decision engine
 
-> Last updated: 2026-08-09 · Tag: [AURA-1.3][T3-calibration-ranking]
+> Last updated: 2026-08-09 · Tag: [AURA-1.3][T4-calibration-ranking]
 
 ## Canonical composite (`compute_canonical_score` — contradiction_engine.py:176)
 
@@ -105,7 +105,7 @@ Drift math (`app/services/calibration_service.py`, pure):
   (agreement < 60%, systematic over/under-prediction, band/family
   over-prediction). `GET .../calibration/drift/summary` returns headlines.
 
-### Comparable ranking (T3)
+### Comparable ranking (T4)
 
 Calibrated scores are only directly comparable within a family cohort. The
 `/ranking` endpoint surfaces `family` per candidate and a `comparable_note`

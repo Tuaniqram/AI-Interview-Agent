@@ -1,6 +1,6 @@
 # 05 — File map of the engine
 
-> Last updated: 2026-08-09 · Tag: [AURA-1.3][T3-calibration-ranking]
+> Last updated: 2026-08-09 · Tag: [AURA-1.3][T4-calibration-ranking]
 > Every file below is used by the interview flow (import-graph verified at audit time).
 
 ## Driver
@@ -21,7 +21,7 @@
 | `app/api/v1/candidates.py` | register / login / me |
 | `app/api/v1/marketplace.py` | listing CRUD + `start_interview` (:55) |
 | `app/api/v1/intelligence.py` | `get_brain` (:124) — `GET /intelligence/brain/{sid}` |
-| `app/api/v1/candidate_ranking.py` | `get_candidate_ranking`, `build_ranking_row`, `annotate_comparability`, `sort_rankings` — calibrated + comparable `/candidates/ranking` (T3) |
+| `app/api/v1/candidate_ranking.py` | `get_candidate_ranking`, `build_ranking_row`, `annotate_comparability`, `sort_rankings` — calibrated + comparable `/candidates/ranking` (T4) |
 | `app/api/v1/calibration.py` | `record_feedback`, `get_drift_report`, `get_drift_summary` — T4 calibration loop (`/orgs/{org_id}/calibration/*`) |
 
 ## Engine core

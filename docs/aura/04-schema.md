@@ -1,6 +1,6 @@
 # 04 — Database Schema (used by the flow)
 
-> Last updated: 2026-08-09 · Tag: [AURA-1.3][T3-calibration-ranking]
+> Last updated: 2026-08-09 · Tag: [AURA-1.3][T4-calibration-ranking]
 > Folds in `docs/engine-schema-audit.md` (kept as the source of truth at repo level).
 > All persistence is **best-effort** — a DB failure never breaks an interview.
 

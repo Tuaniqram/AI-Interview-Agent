@@ -40,7 +40,7 @@
       (`{{rubric}}`, `{{primary_dimension}}`, family-resolved `{{domain_label}}`).
 - [x] **Tests** — `tests/unit/data/test_rubrics.py` + scoring tests.
 
-## Wave 3 — T4 calibration loop + cross-candidate ranking ✅ (shipped `[AURA-1.3][T3-calibration-ranking]`)
+## Wave 3 — T4 calibration loop + cross-candidate ranking ✅ (shipped `[AURA-1.3][T4-calibration-ranking]`)
 
 - [x] **T4 calibration loop — measure + report drift** (deterministic, no
       auto-tuning): `calibration_feedback` table (migration

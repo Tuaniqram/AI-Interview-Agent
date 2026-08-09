@@ -1,6 +1,6 @@
 # 03 — APIs used by the interview flow
 
-> Last updated: 2026-08-09 · Tag: [AURA-1.3][T3-calibration-ranking]
+> Last updated: 2026-08-09 · Tag: [AURA-1.3][T4-calibration-ranking]
 > Scope: only the endpoints the interview flow (demo autopilot / demo page) actually exercises.
 
 Base URL: `http://localhost:8000`. WS base: `ws://<host>/ws/...`.
@@ -45,7 +45,7 @@ Response shape:
 The bundle **build** (`build_interview_intelligence`) fires from
 `app/engine/lifecycle.py`, not from this GET — this endpoint only assembles/reads.
 
-## T3 org-side endpoints (beyond the core interview flow)
+## T4 org-side endpoints (beyond the core interview flow)
 
 Calibration loop + ranking run on the org side (not part of the autopilot flow).
 All require an org owner/member token.
