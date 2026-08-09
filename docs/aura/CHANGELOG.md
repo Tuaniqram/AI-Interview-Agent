@@ -185,5 +185,15 @@
   /calibration/drift` + `/drift/summary` → `GET /candidates/ranking?sort_by=calibrated`.
 - **`BRAIN_VIEW.md`** ledger updated with AURA-1.5 (value changes for new
   sessions + additive keys).
+- **Demo brains regenerated** (`out/brain_senior_backend_engineer.json`,
+  `out/brain_senior_frontend_engineer.json`): the 2026-07-08 files referenced
+  legacy competency ids (`tech_aws_deployment`, `tech_fastapi_sqlalchemy`) that
+  no longer exist in `COMPETENCY_TAXONOMY` and showed
+  `difficulty_state.floor_satisfied=false` with `difficulty_reached=1` below the
+  senior floor. Seeded the Nova listings (`scripts/setup_role_demo.py`) and
+  rebuilt via `scripts/build_brain_demo.py --out-dir out` (deterministic path):
+  critical competencies now use current ids (`tech_db`, `tech_event_driven`,
+  `tech_data_modeling`, `tech_security`, …), `floor_satisfied=true`, and the
+  two role brains differ (Jaccard overlap 0.09).
 
 _Next entries appended below as changes are confirmed and tested.__
