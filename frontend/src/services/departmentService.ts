@@ -49,18 +49,6 @@ export const departmentService = {
     return apiClient.get<Department>(`/api/v1/departments/${departmentId}`);
   },
 
-  async createDepartment(data: { name: string; website?: string; description?: string }): Promise<Department> {
-    return apiClient.post<Department>('/api/v1/departments', data);
-  },
-
-  async updateDepartment(departmentId: number, data: { name?: string; website?: string; description?: string }): Promise<Department> {
-    return apiClient.patch<Department>(`/api/v1/departments/${departmentId}`, data);
-  },
-
-  async deleteDepartment(departmentId: number): Promise<void> {
-    await apiClient.delete(`/api/v1/departments/${departmentId}`);
-  },
-
   async listDocuments(departmentId: number): Promise<Document[]> {
     return apiClient.get<Document[]>(`/api/v1/departments/${departmentId}/documents`);
   },

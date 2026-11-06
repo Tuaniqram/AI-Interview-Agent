@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { Organization, OrgMember, OrganizationCreate, OrganizationUpdate, OrgInvitationVerifyResponse } from '../types/org';
+import type { Organization, OrgMember, OrganizationCreate, OrganizationUpdate } from '../types/org';
 
 export const orgService = {
   async create(data: OrganizationCreate): Promise<Organization> {
@@ -16,33 +16,5 @@ export const orgService = {
 
   async listMembers(orgId: string): Promise<OrgMember[]> {
     return apiClient.get<OrgMember[]>(`/api/v1/orgs/${orgId}/members`);
-  },
-
-  async addMember(orgId: string, userId: string, role: string = 'member'): Promise<OrgMember> {
-    return apiClient.post<OrgMember>(`/api/v1/orgs/${orgId}/members`, { user_id: userId, role });
-  },
-
-  async addMemberByEmail(orgId: string, email: string, role: string = 'member'): Promise<OrgMember> {
-    return apiClient.post<OrgMember>(`/api/v1/orgs/${orgId}/members/by-email`, { email, role });
-  },
-
-  async updateMemberRole(orgId: string, memberId: string, role: string): Promise<OrgMember> {
-    return apiClient.patch<OrgMember>(`/api/v1/orgs/${orgId}/members/${memberId}`, { role });
-  },
-
-  async removeMember(orgId: string, memberId: string): Promise<void> {
-    await apiClient.delete(`/api/v1/orgs/${orgId}/members/${memberId}`);
-  },
-
-  async inviteMember(orgId: string, email: string, role: string = 'member'): Promise<{ id: string; email: string; role: string; status: string; expires_at: string }> {
-    return apiClient.post(`/api/v1/orgs/${orgId}/invite`, { email, role });
-  },
-
-  async verifyOrgInvitation(token: string): Promise<OrgInvitationVerifyResponse> {
-    return apiClient.get<OrgInvitationVerifyResponse>(`/api/v1/orgs/invitations/${token}`);
-  },
-
-  async acceptOrgInvitation(token: string): Promise<OrgMember> {
-    return apiClient.post<OrgMember>(`/api/v1/orgs/invitations/${token}/accept`);
   },
 };

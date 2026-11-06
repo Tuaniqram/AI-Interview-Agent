@@ -5,13 +5,13 @@ import { useOrg } from '../contexts/OrgContext';
 import { DashboardShell } from './DashboardShell';
 import {
   LayoutDashboard, Building2, ListChecks, BarChart3, FlaskConical, Settings,
-  Users, ClipboardList, Trophy, FileText, ScrollText, Cpu, Mail, HeartPulse,
+  ClipboardList, Trophy, FileText, ScrollText, Cpu, Mail, HeartPulse,
 } from 'lucide-react';
 import type { OrgRole } from '../types/org';
 
 const navItems = [
   { to: '/org',       icon: LayoutDashboard, label: 'Dashboard', end: true },
-  { to: '/departments',icon: Building2,       label: 'Departments' },
+  { to: '/departments',icon: Building2,       label: 'IT Department' },
   { to: '/sessions',  icon: ListChecks,      label: 'Sessions' },
   { to: '/analytics', icon: BarChart3,       label: 'Analytics' },
   { to: '/avatar-lab',icon: FlaskConical,    label: 'Avatar Lab', roles: ['owner'] as OrgRole[] },
@@ -19,7 +19,6 @@ const navItems = [
 ];
 
 const orgNavItems = [
-  { to: '/org/members', icon: Users, label: 'Team', roles: ['owner', 'member', 'viewer'] as OrgRole[] },
   { to: '/org/candidates', icon: Trophy, label: 'Candidates', roles: ['owner', 'member'] as OrgRole[] },
   { to: '/org/templates', icon: FileText, label: 'Templates', roles: ['owner', 'member', 'viewer'] as OrgRole[] },
   { to: '/org/scorecards', icon: ClipboardList, label: 'Scorecards', roles: ['owner', 'member', 'viewer'] as OrgRole[] },

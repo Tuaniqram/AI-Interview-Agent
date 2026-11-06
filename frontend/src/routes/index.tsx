@@ -34,7 +34,6 @@ const BrainGraphPage = React.lazy(() => import('./BrainGraphPage').then(m => ({ 
 const NotFound = React.lazy(() => import('../pages/NotFound'));
 const ContactUs = React.lazy(() => import('../pages/ContactUs'));
 const OrgDashboard = React.lazy(() => import('../pages/org/OrgDashboard'));
-const OrgMembers = React.lazy(() => import('../pages/org/Members'));
 const OrgScorecards = React.lazy(() => import('../pages/org/Scorecards'));
 const OrgCandidateRanking = React.lazy(() => import('../pages/org/CandidateRanking'));
 const OrgTemplates = React.lazy(() => import('../pages/org/Templates'));
@@ -54,7 +53,6 @@ const CandidateInterviewDetail = React.lazy(() => import('../pages/candidate/Int
 const CandidatePractice = React.lazy(() => import('../pages/candidate/Practice'));
 const CandidateProfile = React.lazy(() => import('../pages/candidate/Profile'));
 const AcceptInvitation = React.lazy(() => import('../pages/invite/AcceptInvitation'));
-const AcceptOrgInvite = React.lazy(() => import('../pages/invite/AcceptOrgInvite'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen bg-app flex items-center justify-center">
@@ -74,7 +72,6 @@ export function AppRoutes() {
       <Route path="/org-select" element={<Suspense fallback={<LoadingFallback />}><OrgSelect /></Suspense>} />
       <Route path="/public-interview/:token" element={<Suspense fallback={<LoadingFallback />}><PublicInterviewPage /></Suspense>} />
       <Route path="/invite/:token" element={<Suspense fallback={<LoadingFallback />}><AcceptInvitation /></Suspense>} />
-      <Route path="/accept-org-invite/:token" element={<Suspense fallback={<LoadingFallback />}><AcceptOrgInvite /></Suspense>} />
       <Route path="/contact" element={<Suspense fallback={<LoadingFallback />}><ContactUs /></Suspense>} />
       <Route path="/aura-preview" element={<Suspense fallback={<LoadingFallback />}><AuraPreview /></Suspense>} />
       <Route path="/brain-graph" element={<Suspense fallback={<LoadingFallback />}><BrainGraphPage /></Suspense>} />
@@ -105,7 +102,6 @@ export function AppRoutes() {
         <Route path="avatar-lab" element={<Suspense fallback={<ContentSkeleton />}><AvatarLab /></Suspense>} />
         <Route path="settings" element={<Suspense fallback={<ContentSkeleton />}><Settings /></Suspense>} />
         <Route path="org" element={<Suspense fallback={<ContentSkeleton />}><OrgDashboard /></Suspense>} />
-        <Route path="org/members" element={<Suspense fallback={<ContentSkeleton />}><OrgMembers /></Suspense>} />
         <Route path="org/scorecards" element={<Suspense fallback={<ContentSkeleton />}><OrgScorecards /></Suspense>} />
         <Route path="org/candidates" element={<Suspense fallback={<ContentSkeleton />}><OrgCandidateRanking /></Suspense>} />
         <Route path="org/templates" element={<Suspense fallback={<ContentSkeleton />}><OrgTemplates /></Suspense>} />
