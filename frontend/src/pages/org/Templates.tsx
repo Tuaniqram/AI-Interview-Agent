@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useOrg } from '../../contexts/OrgContext';
 import { apiClient } from '../../services/apiClient';
 import { departmentService, type Template } from '../../services/departmentService';
+import { itService, type ItRole } from '../../services/itService';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { Card } from '../../components/shared/Card';
 import { Button } from '../../components/shared/Button';
@@ -17,6 +18,8 @@ import { ConfirmDialog } from '../../components/shared/ConfirmDialog';
 
 interface OrgTemplate extends Template {
   department_name: string;
+  it_role_id?: string | null;
+  level_code?: string | null;
   description: string | null;
   interview_style: string | null;
   competencies: any[] | null;
@@ -24,23 +27,23 @@ interface OrgTemplate extends Template {
 
 const COMPETENCY_CATEGORIES = ['technical', 'behavioral', 'cognitive', 'experience', 'general'];
 const FOCUS = 'focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)]';
+const DEFAULT_DEPARTMENT_ID = 0;
 
 export default function Templates() {
   const { activeOrg } = useOrg();
   const toast = useToast();
   const [templates, setTemplates] = useState<OrgTemplate[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
+  const [roles, setRoles] = useState<ItRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [selectedDept, setSelectedDept] = useState('');
+  const [selectedRole, setSelectedRole] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<OrgTemplate | null>(null);
 
   const [name, setName] = useState('');
   const [jobRole, setJobRole] = useState('');
   const [description, setDescription] = useState('');
   const [totalQuestions, setTotalQuestions] = useState(10);
-  const [deptId, setDeptId] = useState<number | ''>('');
   const [scorecardTemplateId, setScorecardTemplateId] = useState('');
   const [saving, setSaving] = useState(false);
   const [scorecards, setScorecards] = useState<ScorecardTemplate[]>([]);
@@ -52,11 +55,11 @@ export default function Templates() {
     setLoading(true);
     Promise.all([
       apiClient.get<OrgTemplate[]>(`/api/v1/orgs/${activeOrg.id}/templates`),
-      apiClient.get<any[]>('/api/v1/departments'),
+      itService.listRoles(),
       scorecardService.list(activeOrg.id).catch(() => []),
-    ]).then(([t, d, sc]) => {
+    ]).then(([t, r, sc]) => {
       setTemplates(t);
-      setDepartments(d);
+      setRoles(r);
       setScorecards(sc);
     }).catch(() => toast.error('Failed to load templates'))
     .finally(() => setLoading(false));
@@ -67,7 +70,6 @@ export default function Templates() {
     setJobRole('');
     setDescription('');
     setTotalQuestions(10);
-    setDeptId('');
     setScorecardTemplateId('');
     setCompetencies([]);
     setCompetencySource('defaults');
@@ -80,7 +82,6 @@ export default function Templates() {
     setJobRole(t.job_role);
     setDescription(t.description || '');
     setTotalQuestions(t.total_questions);
-    setDeptId(t.department_id);
     setScorecardTemplateId(t.scorecard_template_id || '');
     setCompetencies((t.competencies || []).map(c => ({ ...c })));
     setCompetencySource(
@@ -109,7 +110,7 @@ export default function Templates() {
   };
 
   const handleSave = async () => {
-    if (!activeOrg?.id || !name.trim() || !jobRole.trim() || deptId === '') return;
+    if (!activeOrg?.id || !name.trim() || !jobRole.trim()) return;
     setSaving(true);
     const cleaned = competencies.filter(c => c.name.trim());
     const payload = {
@@ -122,10 +123,10 @@ export default function Templates() {
     };
     try {
       if (editingId) {
-        await departmentService.updateTemplate(deptId as number, editingId, payload);
+        await departmentService.updateTemplate(DEFAULT_DEPARTMENT_ID, editingId, payload);
         toast.success('Template updated');
       } else {
-        await departmentService.createTemplate(deptId as number, payload);
+        await departmentService.createTemplate(DEFAULT_DEPARTMENT_ID, payload);
         toast.success('Template created');
       }
       const updated = await apiClient.get<OrgTemplate[]>(`/api/v1/orgs/${activeOrg.id}/templates`);
@@ -154,21 +155,21 @@ export default function Templates() {
 
   if (loading) return <ContentSkeleton />;
 
-  const filtered = selectedDept ? templates.filter(t => t.department_id === Number(selectedDept)) : templates;
+  const filtered = selectedRole ? templates.filter(t => t.job_role === selectedRole) : templates;
 
   return (
     <>
       <div className="space-y-6">
-        <PageHeader title="Templates Library" description="Interview templates across all departments"
+        <PageHeader title="Templates Library" description="Interview templates across all IT roles"
           actions={<Button onClick={() => { resetForm(); setShowForm(true); }}><Plus className="w-4 h-4 mr-1" /> New Template</Button>}
         />
 
         <div className="flex items-center gap-3">
           <Select
-            value={selectedDept}
-            onChange={setSelectedDept}
-            placeholder="All Departments"
-            options={departments.map(d => ({ value: String(d.id), label: d.name }))}
+            value={selectedRole}
+            onChange={setSelectedRole}
+            placeholder="All IT roles"
+            options={roles.map(r => ({ value: r.name, label: r.name }))}
           />
         </div>
 
@@ -180,7 +181,7 @@ export default function Templates() {
             </div>
             <div className="rounded-lg bg-page border border-border px-3 py-2.5 text-xs text-secondary space-y-1">
               <p className="text-primary font-medium">Not sure what to fill in?</p>
-              <p>An <span className="text-primary font-medium">interview template</span> defines how the interview runs: which role, department, and how many questions.</p>
+              <p>An <span className="text-primary font-medium">interview template</span> defines how the interview runs: which IT role, level, and how many questions.</p>
               <p><span className="text-primary font-medium">Competencies</span> are the skill list AURA evaluates against — you pick the source below. Not sure? AURA defaults works for most roles.</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -190,18 +191,12 @@ export default function Templates() {
                   className={`w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border transition-colors ${FOCUS}`} placeholder="e.g. Senior Frontend Interview" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-primary mb-1">Job Role</label>
-                <input type="text" value={jobRole} onChange={(e) => setJobRole(e.target.value)}
-                  className={`w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border transition-colors ${FOCUS}`} placeholder="e.g. Software Engineer" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">Department</label>
+                <label className="block text-sm font-medium text-primary mb-1">IT Role</label>
                 <Select
-                  label="Department"
-                  value={String(deptId)}
-                  onChange={v => setDeptId(v ? Number(v) : '')}
-                  placeholder="Select department"
-                  options={departments.map(d => ({ value: String(d.id), label: d.name }))}
+                  value={jobRole}
+                  onChange={setJobRole}
+                  placeholder="Select IT role"
+                  options={roles.map(r => ({ value: r.name, label: r.name }))}
                 />
               </div>
               <div>
@@ -307,7 +302,7 @@ export default function Templates() {
                       <p className="text-xs text-action-primary mt-0.5">{t.job_role}</p>
                     </div>
                   </div>
-                  <p className="text-xs text-muted mt-2">{t.department_name}</p>
+                  <p className="text-xs text-muted mt-2">{t.level_code ? `${t.level_code} level` : 'IT role'}</p>
                   {t.description && <p className="text-xs text-secondary mt-1 line-clamp-2">{t.description}</p>}
                   <div className="flex items-center gap-2 mt-3">
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-action-primary/10 text-action-primary">AURA</span>

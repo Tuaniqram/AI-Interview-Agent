@@ -14,6 +14,7 @@ from app.api.v1.admin import router as admin_router
 from app.api.v1.candidates import router as candidates_router
 from app.api.v1.invitations import router as invitations_router
 from app.api.v1.departments import router as departments_v1_router
+from app.api.v1.it import router as it_router
 from app.api.v1.analytics import router as analytics_v1_router
 from app.api.v1.public import router as public_router
 from app.api.v1.scorecards import router as scorecards_router
@@ -102,6 +103,7 @@ app.include_router(admin_router, prefix=f"/api/{API_VERSION}")
 app.include_router(candidates_router, prefix=f"/api/{API_VERSION}")
 app.include_router(invitations_router, prefix=f"/api/{API_VERSION}")
 app.include_router(departments_v1_router, prefix=f"/api/{API_VERSION}")
+app.include_router(it_router, prefix=f"/api/{API_VERSION}")
 app.include_router(analytics_v1_router, prefix=f"/api/{API_VERSION}")
 app.include_router(public_router, prefix=f"/api/{API_VERSION}")
 app.include_router(scorecards_router, prefix=f"/api/{API_VERSION}")
