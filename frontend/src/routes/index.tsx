@@ -35,6 +35,7 @@ const NotFound = React.lazy(() => import('../pages/NotFound'));
 const ContactUs = React.lazy(() => import('../pages/ContactUs'));
 const OrgDashboard = React.lazy(() => import('../pages/org/OrgDashboard'));
 const OrgScorecards = React.lazy(() => import('../pages/org/Scorecards'));
+const OrgApplications = React.lazy(() => import('../pages/org/Applications'));
 const OrgCandidateRanking = React.lazy(() => import('../pages/org/CandidateRanking'));
 const OrgTemplates = React.lazy(() => import('../pages/org/Templates'));
 const OrgAuditLogs = React.lazy(() => import('../pages/org/AuditLogs'));
@@ -49,6 +50,7 @@ const CandidateLogin = React.lazy(() => import('../pages/candidate/Login'));
 const CandidateRegister = React.lazy(() => import('../pages/candidate/Register'));
 const CandidateDashboard = React.lazy(() => import('../pages/candidate/Dashboard'));
 const CandidateInterviews = React.lazy(() => import('../pages/candidate/Interviews'));
+const CandidateApplications = React.lazy(() => import('../pages/candidate/Applications'));
 const CandidateInterviewDetail = React.lazy(() => import('../pages/candidate/InterviewDetail'));
 const CandidatePractice = React.lazy(() => import('../pages/candidate/Practice'));
 const CandidateProfile = React.lazy(() => import('../pages/candidate/Profile'));
@@ -87,6 +89,7 @@ export function AppRoutes() {
       <Route element={<ProtectedCandidateRoute><CandidateShell /></ProtectedCandidateRoute>}>
         <Route path="/candidate/dashboard" element={<Suspense fallback={<ContentSkeleton />}><CandidateDashboard /></Suspense>} />
         <Route path="/candidate/interviews" element={<Suspense fallback={<ContentSkeleton />}><CandidateInterviews /></Suspense>} />
+        <Route path="/candidate/applications" element={<Suspense fallback={<ContentSkeleton />}><CandidateApplications /></Suspense>} />
         <Route path="/candidate/interviews/:interviewId" element={<Suspense fallback={<ContentSkeleton />}><CandidateInterviewDetail /></Suspense>} />
         <Route path="/candidate/practice" element={<Suspense fallback={<ContentSkeleton />}><CandidatePractice /></Suspense>} />
         <Route path="/candidate/profile" element={<Suspense fallback={<ContentSkeleton />}><CandidateProfile /></Suspense>} />
@@ -102,6 +105,7 @@ export function AppRoutes() {
         <Route path="avatar-lab" element={<Suspense fallback={<ContentSkeleton />}><AvatarLab /></Suspense>} />
         <Route path="settings" element={<Suspense fallback={<ContentSkeleton />}><Settings /></Suspense>} />
         <Route path="org" element={<Suspense fallback={<ContentSkeleton />}><OrgDashboard /></Suspense>} />
+        <Route path="org/applications" element={<Suspense fallback={<ContentSkeleton />}><OrgApplications /></Suspense>} />
         <Route path="org/scorecards" element={<Suspense fallback={<ContentSkeleton />}><OrgScorecards /></Suspense>} />
         <Route path="org/candidates" element={<Suspense fallback={<ContentSkeleton />}><OrgCandidateRanking /></Suspense>} />
         <Route path="org/templates" element={<Suspense fallback={<ContentSkeleton />}><OrgTemplates /></Suspense>} />

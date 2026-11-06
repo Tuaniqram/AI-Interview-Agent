@@ -11,6 +11,7 @@ export interface OrgListing {
 export interface PublicInterview {
   id: string;
   org_id: string;
+  it_role_id: string | null;
   title: string;
   description: string | null;
   rich_description: string | null;
@@ -26,7 +27,8 @@ export interface PublicInterview {
 export interface OrgPublicListing {
   id: string;
   org_id: string;
-  department_id: number | null;
+  it_role_id: string;
+  level_code: string | null;
   department_name: string | null;
   title: string;
   description: string | null;
@@ -46,7 +48,8 @@ export interface OrgPublicListing {
 
 export interface CreateListingRequest {
   title: string;
-  department_id: number;
+  it_role_id: string;
+  level_code?: string;
   description?: string;
   interview_mode?: string;
   max_candidates?: number;
@@ -59,7 +62,8 @@ export interface CreateListingRequest {
 
 export interface UpdateListingRequest {
   title?: string;
-  department_id?: number;
+  it_role_id?: string;
+  level_code?: string;
   description?: string;
   interview_mode?: string;
   is_open?: boolean;
@@ -79,4 +83,44 @@ export interface StartInterviewRequest {
 export interface StartInterviewResponse {
   session_id: string;
   token: string;
+}
+
+export interface ApplyRequest {
+  candidate_email: string;
+  candidate_name: string;
+  resume_document_id?: string;
+}
+
+export interface Application {
+  id: string;
+  public_id: string;
+  public_title: string | null;
+  org_name: string | null;
+  session_id: string | null;
+  candidate_profile_id: string | null;
+  resume_document_id: string | null;
+  candidate_email: string;
+  candidate_name: string;
+  status: string;
+  fit_score: number | null;
+  fit_summary: string | null;
+  org_decision: string;
+  candidate_response: string;
+  outcome: string;
+  invited_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface FitScoreRequest {
+  fit_score: number;
+  fit_summary?: string;
+}
+
+export interface CandidateResponseRequest {
+  response: string;
+}
+
+export interface ApplicationOutcomeRequest {
+  outcome: string;
 }

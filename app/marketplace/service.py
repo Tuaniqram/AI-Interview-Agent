@@ -478,10 +478,16 @@ async def delete_public_interview(
     await db.commit()
 
 
-def _application_response(row: PublicInterviewSubmission) -> ApplicationResponse:
+def _application_response(
+    row: PublicInterviewSubmission,
+    public_title: Optional[str] = None,
+    org_name: Optional[str] = None,
+) -> ApplicationResponse:
     return ApplicationResponse(
         id=row.id,
         public_id=row.public_id,
+        public_title=public_title,
+        org_name=org_name,
         session_id=row.session_id,
         candidate_profile_id=row.candidate_profile_id,
         resume_document_id=row.resume_document_id,
@@ -558,17 +564,35 @@ async def apply_to_public_interview(
 
     await db.commit()
     await db.refresh(submission)
-    return _application_response(submission)
+    return _application_response(submission, pi.title)
 
 
 async def list_org_applications(org_id: str, db: AsyncSession) -> list[ApplicationResponse]:
     result = await db.execute(
-        select(PublicInterviewSubmission)
+        select(PublicInterviewSubmission, PublicInterview)
         .join(PublicInterview, PublicInterviewSubmission.public_id == PublicInterview.id)
         .where(PublicInterview.org_id == org_id)
         .order_by(PublicInterviewSubmission.created_at.desc())
     )
-    return [_application_response(row) for row in result.scalars().all()]
+    return [
+        _application_response(submission, pi.title)
+        for submission, pi in result.all()
+    ]
+
+
+async def list_candidate_applications(
+    candidate_id: UUID, db: AsyncSession
+) -> list[ApplicationResponse]:
+    result = await db.execute(
+        select(PublicInterviewSubmission, PublicInterview)
+        .join(PublicInterview, PublicInterviewSubmission.public_id == PublicInterview.id)
+        .where(PublicInterviewSubmission.candidate_profile_id == candidate_id)
+        .order_by(PublicInterviewSubmission.created_at.desc())
+    )
+    return [
+        _application_response(submission, pi.title)
+        for submission, pi in result.all()
+    ]
 
 
 async def _get_org_application(
@@ -594,14 +618,14 @@ async def set_application_fit(
     org_id: str,
     db: AsyncSession,
 ) -> ApplicationResponse:
-    submission, _ = await _get_org_application(application_id, org_id, db)
+    submission, pi = await _get_org_application(application_id, org_id, db)
     submission.fit_score = req.fit_score
     submission.fit_summary = req.fit_summary
     if submission.status == "applied":
         submission.status = "screening"
     await db.commit()
     await db.refresh(submission)
-    return _application_response(submission)
+    return _application_response(submission, pi.title)
 
 
 async def invite_application(
@@ -640,7 +664,7 @@ async def invite_application(
     submission.org_decided_at = now
     await db.commit()
     await db.refresh(submission)
-    return _application_response(submission)
+    return _application_response(submission, pi.title)
 
 
 async def respond_to_application(
@@ -654,14 +678,17 @@ async def respond_to_application(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="response must be accepted or declined")
 
     result = await db.execute(
-        select(PublicInterviewSubmission).where(
+        select(PublicInterviewSubmission, PublicInterview)
+        .join(PublicInterview, PublicInterviewSubmission.public_id == PublicInterview.id)
+        .where(
             PublicInterviewSubmission.id == application_id,
             PublicInterviewSubmission.candidate_profile_id == candidate_id,
         )
     )
-    submission = result.scalar_one_or_none()
-    if submission is None:
+    row = result.one_or_none()
+    if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+    submission, pi = row
     if submission.org_decision != "invited":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No active invitation")
 
@@ -679,7 +706,7 @@ async def respond_to_application(
 
     await db.commit()
     await db.refresh(submission)
-    return _application_response(submission)
+    return _application_response(submission, pi.title)
 
 
 async def set_application_outcome(
@@ -693,7 +720,7 @@ async def set_application_outcome(
     if outcome not in {"hired", "rejected"}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="outcome must be hired or rejected")
 
-    submission, _ = await _get_org_application(application_id, org_id, db)
+    submission, pi = await _get_org_application(application_id, org_id, db)
     now = datetime.now(timezone.utc)
     submission.outcome = outcome
     submission.status = outcome
@@ -701,4 +728,4 @@ async def set_application_outcome(
     submission.outcome_decided_at = now
     await db.commit()
     await db.refresh(submission)
-    return _application_response(submission)
+    return _application_response(submission, pi.title)

@@ -30,6 +30,7 @@ from app.marketplace.service import (
     get_org_profile,
     get_public_interview,
     invite_application,
+    list_candidate_applications,
     list_org_applications,
     list_org_public_interviews,
     list_organizations,
@@ -147,6 +148,14 @@ async def apply_to_interview(
     db: AsyncSession = Depends(get_db),
 ):
     return await apply_to_public_interview(str(interview_id), req, db, candidate=candidate)
+
+
+@router.get("/applications/me", response_model=list[ApplicationResponse])
+async def my_applications(
+    candidate=Depends(authenticate_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    return await list_candidate_applications(candidate.id, db)
 
 
 @router.get("/org/{org_id}/applications", response_model=list[ApplicationResponse])

@@ -109,6 +109,8 @@ class ApplyRequest(BaseModel):
 class ApplicationResponse(BaseModel):
     id: UUID
     public_id: UUID
+    public_title: Optional[str] = None
+    org_name: Optional[str] = None
     session_id: Optional[UUID] = None
     candidate_profile_id: Optional[UUID] = None
     resume_document_id: Optional[UUID] = None

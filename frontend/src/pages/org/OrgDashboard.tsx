@@ -7,7 +7,7 @@ import { Card } from '../../components/shared/Card';
 import { CardSkeleton } from '../../components/shared/Skeleton';
 import { analyticsService, type OverviewData } from '../../services/analyticsService';
 import { marketplaceService } from '../../services/marketplaceService';
-import { ListChecks, Store, TrendingUp, Target, Building2, ArrowRight } from 'lucide-react';
+import { ListChecks, Store, TrendingUp, Target, Building2, ArrowRight, Inbox } from 'lucide-react';
 import { useToast } from '../../components/shared/Toast';
 
 export default function OrgDashboard() {
@@ -67,6 +67,15 @@ export default function OrgDashboard() {
             <div>
               <h3 className="text-sm font-medium text-primary flex items-center gap-2"><Building2 className="w-4 h-4" /> IT Department</h3>
               <p className="text-xs text-muted mt-1">Role listings and interview settings</p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-muted" />
+          </div>
+        </Card>
+        <Card hover onClick={() => navigate('/org/applications')}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-primary flex items-center gap-2"><Inbox className="w-4 h-4" /> Applications</h3>
+              <p className="text-xs text-muted mt-1">Review applicants and invitations</p>
             </div>
             <ArrowRight className="w-4 h-4 text-muted" />
           </div>

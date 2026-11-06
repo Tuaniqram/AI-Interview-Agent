@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { marketplaceService } from '../../services/marketplaceService';
 import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { EmptyState } from '../../components/shared/EmptyState';
@@ -11,12 +11,12 @@ import type { PublicInterview } from '../../types/marketplace';
 
 export default function InterviewDetail() {
   const { interviewId } = useParams<{ interviewId: string }>();
-  const navigate = useNavigate();
   const [interview, setInterview] = useState<PublicInterview | null>(null);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [starting, setStarting] = useState(false);
+  const [applied, setApplied] = useState(false);
   const [error, setError] = useState('');
   const [cvFile, setCvFile] = useState<File | null>(null);
   const cvInputRef = useRef<HTMLInputElement>(null);
@@ -31,16 +31,12 @@ export default function InterviewDetail() {
       .finally(() => setLoading(false));
   }, [interviewId]);
 
-  const handleStart = async (e: React.FormEvent) => {
+  const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!interviewId) return;
     setError('');
     setStarting(true);
     try {
-      const res = await marketplaceService.startInterview(interviewId, {
-        candidate_name: name,
-        candidate_email: email,
-      });
       if (cvFile) {
         try {
           const formData = new FormData();
@@ -48,12 +44,17 @@ export default function InterviewDetail() {
           await fetch('/api/v1/candidates/me/resume', { method: 'POST', body: formData });
           toast.success('CV uploaded successfully');
         } catch {
-          toast.error('CV upload failed — you can upload it later from your profile');
+          toast.error('CV upload failed - you can upload it later from your profile');
         }
       }
-      navigate(`/interview/${res.session_id}`);
+      await marketplaceService.applyToInterview(interviewId, {
+        candidate_name: name,
+        candidate_email: email,
+      });
+      setApplied(true);
+      toast.success('Application submitted');
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Failed to start interview');
+      setError(err?.response?.data?.detail || 'Failed to submit application');
     } finally {
       setStarting(false);
     }
@@ -158,8 +159,13 @@ export default function InterviewDetail() {
       {!isExpired && (
         <div className="rounded-xl bg-gradient-to-br from-[#7C3AED]/5 to-[#A78BFA]/5 border border-[#7C3AED]/10 p-6 sm:p-8">
           <h2 className="text-lg font-semibold text-primary mb-1 font-heading">Apply for this interview</h2>
-          <p className="text-sm text-secondary mb-6">Enter your details to get started. The interview will begin immediately.</p>
-          <form onSubmit={handleStart} className="space-y-4 max-w-md">
+          <p className="text-sm text-secondary mb-6">Submit your application. The organization will review it and invite you to interview.</p>
+          {applied ? (
+            <div className="rounded-lg bg-green-500/10 p-4 text-sm text-green-700 border border-green-500/20">
+              Application submitted. Track your status in <Link to="/candidate/applications" className="font-medium underline">My Applications</Link>.
+            </div>
+          ) : (
+          <form onSubmit={handleApply} className="space-y-4 max-w-md">
             {error && (
               <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-600 border border-red-500/20">{error}</div>
             )}
@@ -179,9 +185,10 @@ export default function InterviewDetail() {
               )}
             </div>
             <Button type="submit" loading={starting} className="w-full sm:w-auto">
-              Start Interview
+              Submit application
             </Button>
           </form>
+          )}
         </div>
       )}
     </div>

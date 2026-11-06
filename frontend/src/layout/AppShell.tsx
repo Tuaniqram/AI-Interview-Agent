@@ -5,7 +5,7 @@ import { useOrg } from '../contexts/OrgContext';
 import { DashboardShell } from './DashboardShell';
 import {
   LayoutDashboard, Building2, ListChecks, BarChart3, FlaskConical, Settings,
-  ClipboardList, Trophy, FileText, ScrollText, Cpu, Mail, HeartPulse,
+  ClipboardList, Trophy, FileText, ScrollText, Cpu, Mail, HeartPulse, Inbox,
 } from 'lucide-react';
 import type { OrgRole } from '../types/org';
 
@@ -19,6 +19,7 @@ const navItems = [
 ];
 
 const orgNavItems = [
+  { to: '/org/applications', icon: Inbox, label: 'Applications', roles: ['owner', 'member', 'viewer'] as OrgRole[] },
   { to: '/org/candidates', icon: Trophy, label: 'Candidates', roles: ['owner', 'member'] as OrgRole[] },
   { to: '/org/templates', icon: FileText, label: 'Templates', roles: ['owner', 'member', 'viewer'] as OrgRole[] },
   { to: '/org/scorecards', icon: ClipboardList, label: 'Scorecards', roles: ['owner', 'member', 'viewer'] as OrgRole[] },

@@ -14,6 +14,7 @@ import type {
   PracticeStartResponse,
   SavedListing,
 } from '../types/candidate';
+import type { Application } from '../types/marketplace';
 
 export const candidateService = {
   async register(data: CandidateRegisterRequest): Promise<CandidateAuthResponse> {
@@ -82,6 +83,14 @@ export const candidateService = {
 
   async getSavedListings(): Promise<SavedListing[]> {
     return apiClient.get<SavedListing[]>('/api/v1/candidates/saved-listings');
+  },
+
+  async getApplications(): Promise<Application[]> {
+    return apiClient.get<Application[]>('/api/v1/marketplace/applications/me');
+  },
+
+  async respondToApplication(applicationId: string, response: 'accepted' | 'declined'): Promise<Application> {
+    return apiClient.post<Application>(`/api/v1/marketplace/applications/${applicationId}/respond`, { response });
   },
 
   async uploadResume(file: File): Promise<CandidateProfile> {

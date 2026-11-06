@@ -4,6 +4,7 @@ import { ArrowLeft, Building2, FileText, ListChecks, ExternalLink, AlertCircle, 
 import { Breadcrumb } from '../components/shared/Breadcrumb';
 import { departmentService, type Department, type Document, type SessionRecord, type Template } from '../services/departmentService';
 import { marketplaceService } from '../services/marketplaceService';
+import { itService, type ItRole } from '../services/itService';
 import { useOrg } from '../contexts/OrgContext';
 import { Button } from '../components/shared/Button';
 import { Card } from '../components/shared/Card';
@@ -52,6 +53,7 @@ export function DepartmentDetail() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<OrgPublicListing | null>(null);
   const [fTitle, setFTitle] = useState('');
+  const [fRoleId, setFRoleId] = useState('');
   const [fDescription, setFDescription] = useState('');
   const [fInterviewMode, setFInterviewMode] = useState('typing');
   const [fMaxCandidates, setFMaxCandidates] = useState('');
@@ -60,10 +62,11 @@ export function DepartmentDetail() {
   const [fStartsAt, setFStartsAt] = useState('');
   const [fExpiresAt, setFExpiresAt] = useState('');
   const [saving, setSaving] = useState(false);
-  const [formErrors, setFormErrors] = useState<{ title?: string; dates?: string }>({});
+  const [formErrors, setFormErrors] = useState<{ title?: string; role?: string; dates?: string }>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<OrgPublicListing | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [roles, setRoles] = useState<ItRole[]>([]);
   const [fTemplateId, setFTemplateId] = useState('');
   const toast = useToast();
 
@@ -71,7 +74,7 @@ export function DepartmentDetail() {
     if (!activeOrg?.id || !id) return;
     try {
       const data = await marketplaceService.listOrgListings(activeOrg.id);
-      setListings(data.filter(l => l.department_id === Number(id)));
+      setListings(data);
     } catch {}
   }, [activeOrg?.id, id]);
 
@@ -108,7 +111,7 @@ export function DepartmentDetail() {
 
       const listingPromise = activeOrg?.id
         ? marketplaceService.listOrgListings(activeOrg.id)
-          .then(data => { if (!cancelled) setListings(data.filter(l => l.department_id === Number(id))); })
+          .then(data => { if (!cancelled) setListings(data); })
           .catch(() => toast.error('Failed to load marketplace listings'))
         : Promise.resolve();
 
@@ -118,7 +121,11 @@ export function DepartmentDetail() {
           .catch(() => {})
         : Promise.resolve();
 
-      await Promise.allSettled([docPromise, sessionPromise, listingPromise, templatePromise]);
+      const rolePromise = itService.listRoles({ active_only: true })
+        .then(data => { if (!cancelled) setRoles(data); })
+        .catch(() => toast.error('Failed to load IT roles'));
+
+      await Promise.allSettled([docPromise, sessionPromise, listingPromise, templatePromise, rolePromise]);
       if (!cancelled) setLoading(false);
     }
 
@@ -128,6 +135,7 @@ export function DepartmentDetail() {
 
   const resetForm = () => {
     setFTitle('');
+    setFRoleId('');
     setFDescription('');
     setFInterviewMode('typing');
     setFMaxCandidates('');
@@ -143,6 +151,7 @@ export function DepartmentDetail() {
   const handleEdit = (listing: OrgPublicListing) => {
     setEditing(listing);
     setFTitle(listing.title);
+    setFRoleId(listing.it_role_id);
     setFDescription(listing.description || '');
     setFInterviewMode(listing.interview_mode);
     setFMaxCandidates(listing.max_candidates?.toString() || '');
@@ -156,8 +165,9 @@ export function DepartmentDetail() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const errors: { title?: string; dates?: string } = {};
+    const errors: { title?: string; role?: string; dates?: string } = {};
     if (!fTitle.trim()) errors.title = 'Title is required';
+    if (!fRoleId) errors.role = 'IT role is required';
     if (fStartsAt && fExpiresAt && new Date(fStartsAt) >= new Date(fExpiresAt)) {
       errors.dates = 'Expiry must be after start date';
     }
@@ -168,7 +178,7 @@ export function DepartmentDetail() {
       if (editing) {
         await marketplaceService.updateListing(editing.id, {
           title: fTitle.trim(),
-          department_id: Number(id),
+          it_role_id: fRoleId,
           description: fDescription.trim() || undefined,
           interview_mode: fInterviewMode,
           max_candidates: fMaxCandidates ? parseInt(fMaxCandidates) : undefined,
@@ -182,7 +192,7 @@ export function DepartmentDetail() {
       } else {
         await marketplaceService.createListing({
           title: fTitle.trim(),
-          department_id: Number(id),
+          it_role_id: fRoleId,
           description: fDescription.trim() || undefined,
           interview_mode: fInterviewMode,
           max_candidates: fMaxCandidates ? parseInt(fMaxCandidates) : undefined,
@@ -365,7 +375,7 @@ export function DepartmentDetail() {
       {tab === 'listings' && (
         <div className="space-y-4">
           <div className="flex justify-end">
-            <Button onClick={() => { resetForm(); setShowForm(true); }}>
+            <Button onClick={() => { resetForm(); setFRoleId(roles[0]?.id ?? ''); setShowForm(true); }}>
               <Plus className="w-4 h-4 mr-1.5" /> Create Interview Listing
             </Button>
           </div>
@@ -381,6 +391,18 @@ export function DepartmentDetail() {
                 <input type="text" value={fTitle} onChange={e => { setFTitle(e.target.value); setFormErrors(prev => ({ ...prev, title: undefined })); }}
                   className={`w-full px-3 py-2 rounded-lg border bg-[var(--bg-page)] text-[var(--text-primary)] transition-colors focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)] ${formErrors.title ? 'border-red-500' : 'border-[var(--border-color)]'}`} />
                 {formErrors.title && <p className="text-xs text-error mt-1">{formErrors.title}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">IT Role *</label>
+                <Select label="" value={fRoleId} onChange={v => { setFRoleId(v); setFormErrors(prev => ({ ...prev, role: undefined })); }}
+                  placeholder="Select an IT role"
+                  options={[
+                    { value: '', label: 'Select an IT role' },
+                    ...roles.map(r => ({ value: r.id, label: `${r.name} (${r.family})` })),
+                  ]}
+                />
+                {formErrors.role && <p className="text-xs text-error mt-1">{formErrors.role}</p>}
               </div>
 
               <div>
@@ -459,6 +481,7 @@ export function DepartmentDetail() {
             <div className="space-y-3">
               {listings.map(listing => {
                 const skills = listing.skills_required?.split(',').map(s => s.trim()).filter(Boolean) || [];
+                const role = roles.find(r => r.id === listing.it_role_id);
                 const expired = listing.expires_at ? new Date(listing.expires_at) < new Date() : false;
                 const expiryDays = listing.expires_at ? Math.ceil((new Date(listing.expires_at).getTime() - Date.now()) / 86400000) : null;
                 return (
@@ -483,6 +506,11 @@ export function DepartmentDetail() {
                           <p className="text-sm text-secondary line-clamp-2 mb-2">{listing.description}</p>
                         )}
                         <div className="flex items-center gap-2 flex-wrap">
+                          {role && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-action-primary/10 text-action-primary">
+                              {role.name}
+                            </span>
+                          )}
                           <span className="text-xs px-2 py-0.5 rounded bg-action-primary/10 text-action-primary">
                             {listing.interview_mode}
                           </span>
