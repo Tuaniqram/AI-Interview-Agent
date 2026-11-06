@@ -48,6 +48,7 @@ test-results/
 documents/*.pdf
 documents/*.txt
 documents/*.docx
+resumes/
 
 # Logs
 *.log
@@ -66,3 +67,7 @@ frontend/.vite/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Local documentation (keep files locally, do not commit)
+*.md
+docs/
