@@ -37,7 +37,7 @@ Can:
 - Browse organizations in the Opportunity Hub
 - View organization profiles
 - View open interview listings
-- Apply to a listing with email, name, and optional resume
+- Apply to a listing with email, name, and a required CV
 - Start a public interview by listing token
 
 Cannot:
@@ -61,8 +61,12 @@ Can:
 - View stats and competency scores
 
 Candidate-side gaps:
-- There is no mounted endpoint yet for a candidate to list all their applications.
-- There is no dedicated candidate application-status page in the frontend yet.
+- Guest application CV upload and invite acceptance are not implemented yet.
+- Account claiming for guest applications is not implemented yet.
+- Automatic application fit evaluation is not implemented yet.
+- Candidate application history must be gated by email verification.
+
+The target flow is defined in [`CLAUDE_APPLICATION_FLOW_HANDOFF.md`](CLAUDE_APPLICATION_FLOW_HANDOFF.md).
 
 ### 2.3 Organization owner
 
@@ -289,11 +293,14 @@ Function:
 What happens:
 - Candidate profile is found or created.
 - Resume document can be linked.
+- Target contract: CV is required. Guests upload a CV during apply. Logged-in candidates use their profile CV or upload one.
 - Application is created with:
   - `status = applied`
   - `org_decision = pending`
   - `candidate_response = pending`
   - `outcome = pending`
+  - `fit_status = pending` (target)
+- Automatic fit evaluation is queued (target).
 
 Tables:
 - `candidate_profiles`
@@ -312,9 +319,10 @@ Functions:
 - `app/marketplace/service.py::set_application_fit`
 
 What happens:
-- Owner sees application and resume.
-- Owner stores `fit_score` and `fit_summary`.
-- Status moves to `screening`.
+- Owner sees application, CV, fit status, fit score, and fit summary.
+- Target: the engine evaluates the application automatically using organization documents, IT role, role competencies, and CV.
+- Owner can override the fit or re-run evaluation.
+- Status moves to `screening` / `evaluated`.
 
 Tables:
 - `public_interview_submissions`
@@ -343,6 +351,8 @@ What happens:
   - `org_decision = invited`
   - `status = interview_offered`
   - `invited_at` set
+- Target: an email is sent to the candidate with an application-invite link.
+- Logged-in candidates also see the invite in My Applications.
 
 Tables:
 - `interview_sessions`
@@ -352,12 +362,14 @@ Tables:
 
 API:
 - `POST /api/v1/marketplace/applications/{application_id}/respond`
+- Target guest path: `POST /api/v1/marketplace/application-invitations/{token}/respond`
 
 Function:
 - `app/marketplace/service.py::respond_to_application`
 
 What happens:
-- Candidate must own the application.
+- Logged-in candidate must own the application.
+- Guest can respond through the emailed invite token.
 - Response must be `accepted` or `declined`.
 - Accepted:
   - `candidate_response = accepted`
@@ -676,6 +688,8 @@ Prompt loader:
 - Organization templates
 - Marketplace listings
 - Opportunity Hub apply / fit / invite / respond / outcome
+- Candidate application list/status page
+- Organization application review page
 - Candidate practice session creation
 - Interview start and answer pipeline (runtime)
 - Consolidated intelligence persistence
@@ -685,10 +699,14 @@ Prompt loader:
 
 ## 13. What Is Not Finished
 
-- Frontend still uses old department/member screens.
+- Guest/registered CV-required application flow.
+- Automatic application fit evaluation through organization documents.
+- Application invite email and guest invite-accept page.
+- Claim-on-register for guest candidate profiles.
+- Organization-document RAG is not yet wired into evaluation/interview runtime.
+- Frontend still has some department compatibility naming.
 - IT-only prompt wording is not fully audited.
-- Organization direct interview start endpoint is not mounted; current creation paths are marketplace, invitation, and practice.
-- Candidate application list/status UI is missing.
+- Interview continuation still has a REST endpoint mismatch; interview-engine hardening is deferred.
 - Scheduling and calibration code exists but is not mounted.
 - Legacy models and endpoints still need cleanup.
 - Full legacy test suite is not updated.

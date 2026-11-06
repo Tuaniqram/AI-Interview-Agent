@@ -13,6 +13,8 @@
 | `LEGACY (410)` | Endpoint exists but returns `410 Gone` |
 | `RUNTIME` | Interview runtime / WebSocket |
 | `PENDING AUTH` | Works, but authentication should be hardened |
+| `PARTIAL` | Works for an older/limited contract; application-flow changes pending |
+| `PENDING` | Design agreed in `CLAUDE_APPLICATION_FLOW_HANDOFF.md`; not implemented |
 | `UNMOUNTED` | Code exists but router is not included in `app/main.py` |
 
 ## Authentication Model
@@ -171,12 +173,16 @@ The evidence graph now comes from `interview_intelligence.evidence_graph`.
 | GET | `/org/{org_id}/interviews` | Org role | ALIGNED | List org listings |
 | PUT | `/interviews/{interview_id}` | Org owner | ALIGNED | Update listing |
 | DELETE | `/interviews/{interview_id}` | Org owner | ALIGNED | Delete listing |
-| POST | `/interviews/{interview_id}/apply` | Optional candidate | ALIGNED | Apply with profile/resume |
+| POST | `/interviews/{interview_id}/apply` | Optional candidate | PARTIAL | Apply; CV is not yet enforced and auto-evaluation is pending |
+| GET | `/applications/me` | Candidate | ALIGNED | List the candidate's own applications |
 | GET | `/org/{org_id}/applications` | Org role | ALIGNED | List applications |
-| POST | `/applications/{application_id}/fit` | Org owner | ALIGNED | Set fit score/summary |
-| POST | `/applications/{application_id}/invite` | Org owner | ALIGNED | Invite candidate; create session |
+| POST | `/applications/{application_id}/fit` | Org owner | ALIGNED | Set fit score/summary manually |
+| POST | `/applications/{application_id}/evaluate` | Org owner | PENDING | Re-run automatic fit evaluation |
+| POST | `/applications/{application_id}/invite` | Org owner | PARTIAL | Invite candidate; creates session, email send pending |
 | POST | `/applications/{application_id}/outcome` | Org owner | ALIGNED | Record hired/rejected |
-| POST | `/applications/{application_id}/respond` | Candidate | ALIGNED | Accept/decline invitation |
+| POST | `/applications/{application_id}/respond` | Candidate | ALIGNED | Logged-in accept/decline |
+| GET | `/application-invitations/{token}` | Public | PENDING | Load application invite for guest acceptance |
+| POST | `/application-invitations/{token}/respond` | Public | PENDING | Guest accept/decline by invite token |
 
 ## 13. Public — `/public`
 
@@ -258,3 +264,9 @@ These are not included in `app/main.py` and reference removed tables. Delete or 
 - Organization access is owner-only via `organizations.owner_user_id`.
 - Candidate practice sessions may have `org_id = NULL`.
 - Add authentication to `/intelligence/*` before production.
+- Application-flow target contracts, schema, and frontend work are in `CLAUDE_APPLICATION_FLOW_HANDOFF.md`.
+- Application CV upload must be server-enforced. Guest and logged-in applicants without a CV must receive `400 CV is required`.
+- Application invite email must use `interview_sessions.invite_token`, not the public listing token.
+- `RESEND_API_KEY` must be configured before invite/receipt emails can send.
+- Automatic application evaluation must read organization documents through org-scoped RAG before it can claim to use company context.
+- Candidate application history must be gated with `require_verified_candidate`.

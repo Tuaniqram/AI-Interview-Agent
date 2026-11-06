@@ -2,7 +2,23 @@
 
 > Last updated: 2026-11-06
 > Repository: `D:\projectiqram\AI\AI-Interview-Agent`
-> Status: backend largely aligned to the IT-only schema; frontend and IT-only prompt/taxonomy work remain.
+> Status: backend largely aligned; Opportunity Hub application UI/API exists; candidate CV-required application flow, automatic fit evaluation, email invites, and account claiming remain.
+
+## 0. Current Priority — Candidate Application Flow
+
+The next product work is defined in [`CLAUDE_APPLICATION_FLOW_HANDOFF.md`](CLAUDE_APPLICATION_FLOW_HANDOFF.md).
+
+Locked decisions:
+1. Guests apply with email, name, and a required CV.
+2. Logged-in candidates use their profile CV or upload one during apply.
+3. Applications are evaluated automatically against organization documents, IT role, role competencies, and CV.
+4. Organizations review fit scores and invite candidates by email.
+5. Guests can accept an invite and interview without an account.
+6. Registering with the same email claims the guest profile and history after verification.
+
+Read the application handoff before changing application, resume, invite, email, or RAG code.
+
+For the exact copy-paste instruction to send to the next Claude terminal, use [`CLAUDE_TERMINAL_PROMPT.md`](CLAUDE_TERMINAL_PROMPT.md).
 
 ## 1. What This System Is
 
@@ -50,6 +66,8 @@ Read these first:
 - [`SYSTEM_GUIDE.md`](SYSTEM_GUIDE.md)
 - [`CLAUDE_API_CATALOG.md`](CLAUDE_API_CATALOG.md)
 - [`CLAUDE_PROMPT_CATALOG.md`](CLAUDE_PROMPT_CATALOG.md)
+- [`CLAUDE_APPLICATION_FLOW_HANDOFF.md`](CLAUDE_APPLICATION_FLOW_HANDOFF.md)
+- [`CLAUDE_TERMINAL_PROMPT.md`](CLAUDE_TERMINAL_PROMPT.md) — ready-to-paste implementation prompt
 
 Reference only:
 - `docs/archive/legacy-aura/`
@@ -292,8 +310,21 @@ Not verified:
 
 ## 9. Known Gaps
 
+### Priority 0 - Candidate application flow
+
+See [`CLAUDE_APPLICATION_FLOW_HANDOFF.md`](CLAUDE_APPLICATION_FLOW_HANDOFF.md).
+
+Not done:
+- CV-required application intake for guests and logged-in candidates.
+- Guest CV storage and `resume_document_id` linking.
+- Claim-on-register for guest candidate profiles.
+- Automatic application fit evaluation through organization documents.
+- Invite email delivery and public guest invite acceptance.
+- Candidate application history verification gating.
+
 ### Priority 1 — Frontend
 
+Completed:
 - Remove department creation UI.
 - Remove organization member/invite UI.
 - Add IT role picker backed by `it_roles`.
@@ -304,7 +335,13 @@ Not verified:
   - invite
   - candidate accept/decline
   - outcome
-- Update organization documents UI.
+
+Remaining:
+- Rename remaining department compatibility UI/routes where practical.
+- Improve organization document UI naming.
+- Extend candidate application UI with CV, fit details, and guest invite flow.
+- Fix interview continuation to use WebSocket instead of removed REST question routes.
+- Replace `department_id` practice detection with `session_type`/`org_id`.
 
 ### Priority 2 — IT-only prompts and taxonomy
 
