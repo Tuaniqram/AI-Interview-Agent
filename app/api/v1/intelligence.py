@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.deps import get_db
 from app.intelligence import build_interview_intelligence
 from app.intelligence.persist import persist_intelligence_bundle
-from app.models.db import CandidateProfile, EvidenceGraph, InterviewBrain, InterviewTimeline
+from app.models.db import CandidateProfile, InterviewBrain, InterviewIntelligence, InterviewTimeline
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,7 @@ router = APIRouter(prefix="/intelligence", tags=["intelligence"])
 class IntelligenceBuildRequest(BaseModel):
     job_role: str = Field(..., min_length=1)
     department_id: int | None = None
+    org_id: str | None = None
     candidate_id: str = ""
     candidate_profile: dict | None = None
     resume_text: str | None = None
@@ -61,7 +62,7 @@ async def build_intelligence(
 
     bundle = await build_interview_intelligence(
         job_role=req.job_role,
-        department_id=req.department_id,
+        department_id=None,
         candidate_id=req.candidate_id,
         candidate_profile=candidate_profile,
         resume_text=resume_text,
@@ -75,7 +76,7 @@ async def build_intelligence(
     persisted = None
     if session_id:
         persisted = await persist_intelligence_bundle(
-            session_id, req.department_id, req.job_role, bundle, db=db
+            session_id, req.org_id, req.job_role, bundle, db=db
         )
 
     return {
@@ -132,11 +133,14 @@ async def get_brain(
             select(InterviewBrain).where(InterviewBrain.session_id == session_id)
         )
     ).scalar_one_or_none()
-    graph_row = (
+    intelligence_row = (
         await db.execute(
-            select(EvidenceGraph).where(EvidenceGraph.session_id == session_id)
+            select(InterviewIntelligence).where(
+                InterviewIntelligence.session_id == session_id
+            )
         )
     ).scalar_one_or_none()
+    graph = (intelligence_row.evidence_graph or {}) if intelligence_row else {}
     timeline = (
         await db.execute(
             select(InterviewTimeline)
@@ -173,8 +177,8 @@ async def get_brain(
         "session_id": str(session_id),
         "interview_brain": interview_brain,
         "evidence_graph": {
-            "nodes": graph_row.nodes if graph_row else {},
-            "edges": graph_row.edges if graph_row else {},
+            "nodes": graph.get("nodes", {}),
+            "edges": graph.get("edges", {}),
         },
         "timeline": [
             {

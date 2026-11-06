@@ -8,7 +8,7 @@ Resolution order (first decisive wins):
     1. Scorecard template  (org-curated competencies, highest priority)
     2. Interview template  (department-level competencies)
     3. AI role profiler     (role-first: role context drives the LLM pass; the
-                            cached result lands on the newest department
+                            cached result lands on the newest organization
                             interview template for reuse)
     4. Default taxonomy    (app/data/competency_taxonomy.py)
 
@@ -230,16 +230,16 @@ async def _resolve_scorecard_defs(
 
 
 async def _resolve_template_defs(
-    db: AsyncSession, department_id: int | None
+    db: AsyncSession, org_id: int | None
 ) -> tuple[list[dict], InterviewTemplate | None]:
-    """Department interview-template competencies + the newest template row
+    """Organization interview-template competencies + the newest template row
     (the row the AI cache writes through to)."""
-    if not department_id:
+    if not org_id:
         return [], None
     try:
         result = await db.execute(
             select(InterviewTemplate)
-            .where(InterviewTemplate.department_id == department_id)
+            .where(InterviewTemplate.org_id == org_id)
             .order_by(InterviewTemplate.created_at.desc())
             .limit(10)
         )
@@ -260,15 +260,15 @@ async def _resolve_template_defs(
         return [], None
 
 
-async def _db_suggestion_cache(db: AsyncSession, department_id: int | None) -> list[dict]:
+async def _db_suggestion_cache(db: AsyncSession, org_id: int | None) -> list[dict]:
     """Best-effort read of a previously persisted AI profile for the department."""
-    if not department_id:
+    if not org_id:
         return []
     try:
         result = await db.execute(
             select(InterviewTemplate)
             .where(
-                InterviewTemplate.department_id == department_id,
+                InterviewTemplate.org_id == org_id,
                 InterviewTemplate.suggested_competencies.is_not(None),
             )
             .order_by(InterviewTemplate.created_at.desc())
@@ -283,18 +283,18 @@ async def _db_suggestion_cache(db: AsyncSession, department_id: int | None) -> l
 
 async def _persist_suggestion(
     db: AsyncSession,
-    department_id: int | None,
+    org_id: int | None,
     template_row: InterviewTemplate | None,
     entries: list[dict],
 ) -> None:
-    """Best-effort write-through of an AI profile onto the newest department
+    """Best-effort write-through of an AI profile onto the newest organization
     interview template so future sessions resolve deterministically."""
     target = template_row
-    if target is None and department_id:
+    if target is None and org_id:
         try:
             result = await db.execute(
                 select(InterviewTemplate)
-                .where(InterviewTemplate.department_id == department_id)
+                .where(InterviewTemplate.org_id == org_id)
                 .order_by(InterviewTemplate.created_at.desc())
                 .limit(1)
             )
@@ -316,7 +316,7 @@ async def _ai_pass(
     db: AsyncSession,
     role_context: dict | None,
     existing: list[dict] | None,
-    department_id: int | None,
+    org_id: int | None,
     template_row: InterviewTemplate | None,
     use_llm: bool,
 ) -> list[dict] | None:
@@ -332,7 +332,7 @@ async def _ai_pass(
         logger.info("Resolved %d competencies from AI role cache (memory)", len(cached))
         return list(cached)
 
-    db_cached = await _db_suggestion_cache(db, department_id)
+    db_cached = await _db_suggestion_cache(db, org_id)
     if db_cached:
         _RESOLUTION_CACHE[key] = list(db_cached)
         logger.info("Resolved %d competencies from AI role cache (db)", len(db_cached))
@@ -356,7 +356,7 @@ async def _ai_pass(
     if not entries:
         return None
     _RESOLUTION_CACHE[key] = list(entries)
-    await _persist_suggestion(db, department_id, template_row, entries)
+    await _persist_suggestion(db, org_id, template_row, entries)
     logger.info("Resolved %d competencies from AI role profiler", len(entries))
     return entries
 
@@ -365,7 +365,7 @@ async def resolve_competencies(
     db: AsyncSession,
     *,
     scorecard_template_id: str | None = None,
-    department_id: int | None = None,
+    org_id: int | None = None,
     role_context: dict | None = None,
     use_llm: bool = True,
 ) -> list[dict]:
@@ -380,7 +380,7 @@ async def resolve_competencies(
     if scorecard_defs and not is_thin_scorecard(scorecard_defs):
         return scorecard_defs
 
-    template_defs, template_row = await _resolve_template_defs(db, department_id)
+    template_defs, template_row = await _resolve_template_defs(db, org_id)
     if template_defs and not is_thin_scorecard(template_defs):
         return template_defs
 
@@ -390,7 +390,7 @@ async def resolve_competencies(
         db,
         role_context,
         existing,
-        department_id,
+        org_id,
         template_row,
         use_llm,
     )

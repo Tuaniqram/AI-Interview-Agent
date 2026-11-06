@@ -70,28 +70,56 @@ def _enrich_recommendation(state: dict, recommendation: dict, sufficiency: dict)
     return rec
 
 
+# Legacy 5-way calibration labels → 7-point decision scale. The calibration
+# brain emits ``strong_hire/hire/borderline/weak/reject``; the decision chain
+# speaks ``strong_hire/hire/lean_hire/insufficient_evidence/...``. Mapping here
+# keeps the two layers on one scale so a calibrated override can never inject
+# a label the report's scale doesn't know.
+_LEGACY_TO_7POINT = {
+    "strong_hire": "strong_hire",
+    "hire": "hire",
+    "borderline": "lean_hire",
+    "weak": "insufficient_evidence",
+    "reject": "lean_no_hire",
+    "insufficient_evidence": "insufficient_evidence",
+}
+
+
 def apply_calibration_verdict(state: dict) -> dict:
     """Drive the report verdict from the V5 calibration brain.
 
     The calibration layer never lets a shallow interview (thin evidence, low
-    difficulty reached) be a hire even when the raw composite is high. It
-    overrides the decision chain's draft with the calibrated verdict/score,
-    keeping the draft under ``hiring_decision.draft`` for the report. The
-    calibrated result is also mirrored into ``hiring_recommendation`` so the
-    brain view exposes it next to the uncalibrated recommendation.
+    difficulty reached) be a hire even when the raw composite is high. It may
+    only ever DEMOTE the decision chain's draft — never promote it — and it
+    writes the calibrated verdict in the draft's own 7-point scale (legacy
+    labels mapped via ``_LEGACY_TO_7POINT``) so ``decision``, ``draft`` and
+    ``decision_score`` always agree. The calibrated result is also mirrored
+    into ``hiring_recommendation`` so the brain view exposes it next to the
+    uncalibrated recommendation.
     """
+    from app.agents.decision.decision_engine import DECISION_SCALE
+
     aura = state.get("aura_brain") or {}
     calibration_state = aura.get("calibration_state") or {}
     calibrated_verdict = calibration_state.get("calibrated_verdict")
     if not calibrated_verdict:
         return state
     decision = dict(state.get("hiring_decision") or {})
-    decision["draft"] = decision.get("decision")
-    decision["decision"] = calibrated_verdict
+    draft = decision.get("decision") or "insufficient_evidence"
+    decision["draft"] = draft
+
     calibrated_score = calibration_state.get("calibrated_score")
-    if calibrated_score is not None:
-        decision["decision_score"] = calibrated_score
-    decision["calibration_source"] = "aura_v5_calibration"
+
+    cal_label = _LEGACY_TO_7POINT.get(calibrated_verdict, calibrated_verdict)
+    draft_idx = DECISION_SCALE.index(draft) if draft in DECISION_SCALE else 3
+    cal_idx = DECISION_SCALE.index(cal_label) if cal_label in DECISION_SCALE else 3
+    # Demote only: a calibrated verdict may never be BETTER than the draft.
+    if cal_idx > draft_idx:
+        decision["decision"] = cal_label
+        if calibrated_score is not None:
+            decision["decision_score"] = calibrated_score
+        decision["calibration_source"] = "aura_v5_calibration"
+
     recommendation = dict(state.get("hiring_recommendation") or {})
     recommendation["calibrated_verdict"] = calibrated_verdict
     if calibrated_score is not None:

@@ -25,8 +25,8 @@ export function Checkbox({ checked, onChange, label, id }: CheckboxProps) {
         />
         <div className={`w-4 h-4 rounded border-2 transition-colors ${
           checked
-            ? 'bg-[#7C3AED] border-[#7C3AED]'
-            : 'border-[var(--border-color)] group-hover:border-[#7C3AED]/50'
+            ? 'bg-[77C3AED] border-[77C3AED]'
+            : 'border-[var(--border-color)] group-hover:border-[77C3AED]/50'
         }`}>
           {checked && <Check className="w-3 h-3 text-white absolute inset-0 m-auto" strokeWidth={3} />}
         </div>

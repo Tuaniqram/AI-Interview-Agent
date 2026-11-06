@@ -26,7 +26,7 @@ from app.auth.password import hash_password
 from app.auth.service import login, logout, refresh, register
 from app.config import settings
 from app.database.deps import get_db
-from app.models.db import Organization, OrgUser, User, UserPasswordResetToken
+from app.models.db import Organization, User, UserPasswordResetToken
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -62,16 +62,14 @@ async def logout_endpoint(req: RefreshRequest, db: AsyncSession = Depends(get_db
 async def me_endpoint(user: User = Depends(authenticate), db: AsyncSession = Depends(get_db)):
     memberships = []
     result = await db.execute(
-        select(OrgUser, Organization)
-        .join(Organization, OrgUser.org_id == Organization.id)
-        .where(OrgUser.user_id == user.id)
+        select(Organization).where(Organization.owner_user_id == user.id)
     )
-    for mu, org in result.all():
+    for org in result.scalars().all():
         memberships.append(OrgMembershipResponse(
             org_id=org.id,
             org_name=org.name,
             org_slug=org.slug,
-            role=mu.role,
+            role="owner",
         ))
     return MeResponse(
         user=UserResponse.model_validate(user),

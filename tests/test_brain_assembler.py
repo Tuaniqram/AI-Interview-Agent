@@ -406,7 +406,7 @@ def test_apply_calibration_verdict_overrides_report_verdict():
         "hiring_decision": {"decision": "hire", "decision_score": 8.2, "confidence": 0.7},
     }
     out = apply_calibration_verdict(state)
-    assert out["hiring_decision"]["decision"] == "borderline"
+    assert out["hiring_decision"]["decision"] == "lean_hire"  # legacy borderline -> 7-point
     assert out["hiring_decision"]["decision_score"] == 6.9
     assert out["hiring_decision"]["draft"] == "hire"
     assert out["hiring_decision"]["calibration_source"] == "aura_v5_calibration"

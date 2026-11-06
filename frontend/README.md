@@ -363,6 +363,7 @@ Build system ready for:
 
 ## 📚 Further Reading
 
+- [Anti-Cheat Guard Contract](../../docs/anti-cheat-guard.md) — immutable `submit_answer` payload fields (`paste_chars`, `focus_lost_count`) and the report `integrity` section any frontend must send/render. Read this before touching answer submission or report UI.
 - [Backend API Design](../../../docs/api-design.md)
 - [DB Schema](../../../database_schema.sql)
 - [Architecture Overview](../../../docs/architecture.md)

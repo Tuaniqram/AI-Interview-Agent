@@ -21,7 +21,7 @@ from app.auth.schemas import (
     UserResponse,
 )
 from app.database.deps import get_db
-from app.models.db import Organization, OrgUser, RefreshToken, User
+from app.models.db import Organization, RefreshToken, User
 
 
 async def register(req: RegisterRequest, db: AsyncSession) -> AuthResponse:
@@ -39,21 +39,14 @@ async def register(req: RegisterRequest, db: AsyncSession) -> AuthResponse:
     await db.flush()
 
     slug = req.org_name.lower().replace(" ", "-") + "-" + uuid.uuid4().hex[:6]
-    org = Organization(id=uuid.uuid4(), name=req.org_name, slug=slug)
+    org = Organization(
+        id=uuid.uuid4(),
+        owner_user_id=user.id,
+        name=req.org_name,
+        slug=slug,
+    )
     db.add(org)
     await db.flush()
-
-    company = _create_default_company(org)
-    db.add(company)
-    await db.flush()
-
-    membership = OrgUser(
-        id=uuid.uuid4(),
-        org_id=org.id,
-        user_id=user.id,
-        role="owner",
-    )
-    db.add(membership)
 
     return await _build_auth_response(user, org, db)
 
@@ -67,13 +60,9 @@ async def login(req: LoginRequest, db: AsyncSession) -> AuthResponse:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated")
 
     org_result = await db.execute(
-        select(OrgUser).where(OrgUser.user_id == user.id)
+        select(Organization).where(Organization.owner_user_id == user.id)
     )
-    membership = org_result.scalar_one_or_none()
-    org = None
-    if membership:
-        org_result = await db.execute(select(Organization).where(Organization.id == membership.org_id))
-        org = org_result.scalar_one_or_none()
+    org = org_result.scalar_one_or_none()
 
     return await _build_auth_response(user, org, db)
 
@@ -100,31 +89,19 @@ async def google_login(google_data: dict, db: AsyncSession) -> AuthResponse:
         await db.flush()
 
         slug = name.lower().replace(" ", "-") + "-" + uuid.uuid4().hex[:6]
-        org = Organization(id=uuid.uuid4(), name=f"{name}'s Org", slug=slug)
+        org = Organization(
+            id=uuid.uuid4(),
+            owner_user_id=user.id,
+            name=f"{name}'s Org",
+            slug=slug,
+        )
         db.add(org)
         await db.flush()
-
-        company = _create_default_company(org)
-        db.add(company)
-        await db.flush()
-
-        membership = OrgUser(
-            id=uuid.uuid4(),
-            org_id=org.id,
-            user_id=user.id,
-            role="owner",
-        )
-        db.add(membership)
     else:
         result = await db.execute(
-            select(OrgUser).where(OrgUser.user_id == user.id)
+            select(Organization).where(Organization.owner_user_id == user.id)
         )
-        membership = result.scalar_one_or_none()
-
-    org = None
-    if membership:
-        org_result = await db.execute(select(Organization).where(Organization.id == membership.org_id))
-        org = org_result.scalar_one_or_none()
+        org = result.scalar_one_or_none()
 
     return await _build_auth_response(user, org, db)
 
@@ -184,15 +161,6 @@ async def logout(refresh_token: str, db: AsyncSession) -> None:
         if stored_token:
             stored_token.revoked = True
             await db.flush()
-
-
-def _create_default_company(org: Organization):
-    from app.models.db import Department
-    return Department(
-        org_id=org.id,
-        name=f"{org.name} - Main",
-        description="Default department",
-    )
 
 
 async def _build_auth_response(user: User, org: Optional[Organization], db: AsyncSession) -> AuthResponse:

@@ -8,6 +8,7 @@ bottom keep the legacy import names working for tests (the original
 from typing import Any, Union
 from collections import Counter
 
+from app.config import settings
 from app.core.interview_brain import InterviewBrain
 from app.core.interview_state import brain_to_dict
 
@@ -30,6 +31,47 @@ def compose_conversation_turn(state: StateLike) -> str:
         ]
         return "\n\n".join(parts)
     return s.get("current_question", "")
+
+
+def _integrity_policy(s: dict) -> dict:
+    """Anti-cheat policy surfaced on the session-start payload (contract §4.3).
+
+    Always present so a (possibly rebuilt) frontend can render the rules gate
+    consistently: when the guard is off, ``enabled: false`` and no max flags —
+    the rules screen shows generic conduct rules only.
+    """
+    from app.services.anti_cheat import flagged_count, max_flags
+
+    return {
+        "enabled": bool(settings.ANTI_CHEAT_GUARD_ENABLED),
+        "max_flags": max_flags() if settings.ANTI_CHEAT_GUARD_ENABLED else 0,
+        "flagged_count": flagged_count(s.get("integrity_signals")),
+        "answer_time_limit_s": (
+            int(settings.ANTI_CHEAT_ANSWER_TIME_LIMIT_S or 0)
+            if settings.ANTI_CHEAT_GUARD_ENABLED
+            else 0
+        ),
+    }
+
+
+def _live_integrity(s: dict) -> dict | None:
+    """Live flag gauge data for the answer response (contract §4.4).
+
+    Present only when the guard is enabled and at least one signal exists —
+    otherwise the frontend renders no gauge.
+    """
+    if not settings.ANTI_CHEAT_GUARD_ENABLED:
+        return None
+    from app.services.anti_cheat import flagged_count, max_flags
+
+    signals = s.get("integrity_signals") or []
+    if not signals:
+        return None
+    return {
+        "flagged_count": flagged_count(signals),
+        "max_flags": max_flags(),
+        "score": s.get("integrity_score"),
+    }
 
 
 def build_start_response(session_id: str, state: StateLike) -> dict:
@@ -65,6 +107,7 @@ def build_start_response(session_id: str, state: StateLike) -> dict:
             "planned": len(s.get("required_competencies", [])),
             "next": comp_id,
         },
+        "integrity_policy": _integrity_policy(s),
     }
 
 
@@ -176,6 +219,7 @@ def build_answer_response(session_id: str, state: StateLike) -> dict:
         },
         "contradictions": len(s.get("contradictions", [])),
         "hiring_recommendation": refresh_hiring_recommendation(s),
+        "integrity": _live_integrity(s),
         "brain": {
             "question_strategy": s.get("question_strategy") or {},
             "uncertainty": s.get("uncertainty_map") or {},
@@ -238,6 +282,43 @@ def _evidence_reading_summary(reading: dict | None) -> dict | None:
         "off_rubric_red_flags": reading.get("off_rubric", {}).get("red_flags") or [],
         "hidden_strengths": reading.get("off_rubric", {}).get("hidden_strengths") or [],
         "semantic_risks": reading.get("semantic_risks") or [],
+    }
+
+
+def _integrity_summary(s: dict) -> dict | None:
+    """Anti-cheat aggregate for the report payload (contract §4.2).
+
+    ``None`` when the guard recorded no signals (disabled or nothing flagged —
+    absent in the report is semantically "no signals recorded"). Only includes
+    stored per-answer signals; keys are frozen by the contract.
+    """
+    signals = s.get("integrity_signals") or []
+    if not signals:
+        return None
+    compact = []
+    for sig in signals:
+        compact.append(
+            {
+                "question_number": sig.get("question_number"),
+                "score": sig.get("score"),
+                "latency_secs": sig.get("latency_secs"),
+                "paste_hint": bool(sig.get("paste_hint")),
+                "focus_losses": int(sig.get("focus_losses") or 0),
+                "duplicate_ratio": sig.get("duplicate_ratio"),
+                "pointer_leaves": int(sig.get("pointer_leaves") or 0),
+                "heartbeat_gaps": int(sig.get("heartbeat_gaps") or 0),
+                "cadence_score": sig.get("cadence_score"),
+                "llm_ai_score": sig.get("llm_ai_score"),
+                "reasons": sig.get("reasons") or [],
+            }
+        )
+    return {
+        "score": s.get("integrity_score", max((x.get("score", 0) for x in compact), default=0)),
+        "flagged": bool(
+            (s.get("integrity_score", 0) or 0)
+            >= int(settings.ANTI_CHEAT_FLAG_THRESHOLD or 70)
+        ),
+        "signals": compact,
     }
 
 
@@ -329,6 +410,15 @@ def build_report_response(state: StateLike) -> dict:
         "aura_brain": s.get("aura_brain") or {},
         "evidence_reading": _evidence_reading_summary(s.get("evidence_reading")),
     }
+    integrity = _integrity_summary(s)
+    if integrity is not None:
+        report["integrity"] = integrity
+    if s.get("integrity_terminated"):
+        report["integrity_terminated"] = True
+        report["integrity_termination_reason"] = (
+            "The candidate accumulated the maximum allowed integrity flags. "
+            "The interview was terminated before completion."
+        )
     return report
 
 

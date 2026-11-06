@@ -9,7 +9,7 @@ from sqlalchemy import (
     Index, Integer, Numeric, Text, Time, UniqueConstraint, func,
 )
 from sqlalchemy.dialects.postgresql import UUID, INET, ARRAY, JSONB
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
 from app.database.base import Base
 
@@ -33,10 +33,6 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    org_memberships: Mapped[list[OrgUser]] = relationship(
-        "OrgUser", back_populates="user", cascade="all, delete-orphan",
-        foreign_keys="OrgUser.user_id",
-    )
 
 
 class RefreshToken(Base):
@@ -85,12 +81,18 @@ class Organization(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
     name: Mapped[str] = mapped_column(Text, nullable=False)
     slug: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     logo_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     website: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    settings: Mapped[Optional[str]] = mapped_column(Text, nullable=True, server_default="{}")
+    settings: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True, server_default="{}")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -99,12 +101,6 @@ class Organization(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    members: Mapped[list[OrgUser]] = relationship(
-        "OrgUser", back_populates="organization", cascade="all, delete-orphan"
-    )
-    departments: Mapped[list[Department]] = relationship(
-        "Department", back_populates="organization"
-    )
     interview_slots: Mapped[list[InterviewSlot]] = relationship(
         "InterviewSlot", back_populates="organization", cascade="all, delete-orphan"
     )
@@ -117,136 +113,6 @@ class Organization(Base):
     )
 
 
-class OrgUser(Base):
-    __tablename__ = "org_users"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    org_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    role: Mapped[str] = mapped_column(Text, nullable=False)
-    invited_by: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
-    )
-    joined_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-
-    organization: Mapped[Organization] = relationship("Organization", back_populates="members")
-    user: Mapped[User] = relationship("User", back_populates="org_memberships", foreign_keys=[user_id])
-    inviter: Mapped[Optional[User]] = relationship("User", foreign_keys=[invited_by])
-
-    __table_args__ = (
-        CheckConstraint("role IN ('owner','member','viewer')", name="org_users_role_check"),
-        Index("idx_org_users_org", "org_id"),
-        Index("idx_org_users_user", "user_id"),
-        Index("idx_org_users_invited_by", "invited_by"),
-    )
-
-
-class OrgInvitation(Base):
-    __tablename__ = "org_invitations"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    org_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    inviter_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    email: Mapped[str] = mapped_column(Text, nullable=False)
-    role: Mapped[str] = mapped_column(Text, nullable=False, server_default="member")
-    token: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
-    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    created_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-
-    organization: Mapped[Organization] = relationship("Organization")
-    inviter: Mapped[User] = relationship("User", foreign_keys=[inviter_id])
-
-    __table_args__ = (
-        CheckConstraint("status IN ('pending','accepted','expired')",
-                        name="org_invitations_status_check"),
-        Index("idx_org_invitations_email", "email"),
-        Index("idx_org_invitations_org", "org_id"),
-        Index("idx_org_invitations_inviter", "inviter_id"),
-    )
-
-
-class Department(Base):
-    __tablename__ = "departments"
-
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    org_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("organizations.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    name: Mapped[str] = mapped_column(Text, nullable=False)
-    website: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-
-    organization: Mapped[Optional[Organization]] = relationship("Organization", back_populates="departments")
-    documents: Mapped[list[DepartmentDocument]] = relationship(
-        "DepartmentDocument", back_populates="department", cascade="all, delete-orphan"
-    )
-    sessions: Mapped[list[InterviewSession]] = relationship(
-        "InterviewSession", back_populates="department"
-    )
-    templates: Mapped[list[InterviewTemplate]] = relationship(
-        "InterviewTemplate", back_populates="department", cascade="all, delete-orphan"
-    )
-
-    __table_args__ = (
-        Index("idx_departments_org", "org_id"),
-    )
-
-
-class DepartmentDocument(Base):
-    __tablename__ = "department_documents"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    department_id: Mapped[int] = mapped_column(
-        BigInteger,
-        ForeignKey("departments.id", ondelete="CASCADE", name="department_documents_department_id_fkey"),
-        nullable=False,
-    )
-    filename: Mapped[str] = mapped_column(Text, nullable=False)
-    document_type: Mapped[str] = mapped_column(Text, nullable=False, server_default="pdf")
-    pinecone_namespace: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-
-    department: Mapped[Department] = relationship("Department", back_populates="documents")
-
-    __table_args__ = (
-        Index("idx_documents_department", "department_id"),
-    )
-
-
 class InterviewSession(Base):
     __tablename__ = "interview_sessions"
 
@@ -255,12 +121,7 @@ class InterviewSession(Base):
     )
     org_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("organizations.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    department_id: Mapped[Optional[int]] = mapped_column(
-        BigInteger,
-        ForeignKey("departments.id", ondelete="SET NULL", name="interview_sessions_department_id_fkey"),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=True,
     )
     candidate_profile_id: Mapped[Optional[uuid.UUID]] = mapped_column(
@@ -269,13 +130,31 @@ class InterviewSession(Base):
         nullable=True,
         index=True,
     )
-    job_role: Mapped[str] = mapped_column(Text, nullable=False)
-    session_type: Mapped[Optional[str]] = mapped_column(Text, server_default="company")
+    it_role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("it_roles.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    level_code: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    job_role_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
+    job_role = synonym("job_role_snapshot")
+    session_type: Mapped[Optional[str]] = mapped_column(Text, server_default="organization")
     interaction_mode: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[Optional[str]] = mapped_column(Text, server_default="active")
     current_phase: Mapped[Optional[str]] = mapped_column(Text, server_default="intro")
     current_question_number: Mapped[Optional[int]] = mapped_column(Integer, server_default="0")
     total_questions: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    scorecard_template_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("scorecard_templates.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    invite_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True, unique=True)
+    invite_expires_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     started_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -288,16 +167,9 @@ class InterviewSession(Base):
     )
     final_score: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
     final_feedback: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    scorecard_template_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("scorecard_templates.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-    engine_version: Mapped[Optional[str]] = mapped_column(Text, server_default="v3")
+    engine_version: Mapped[Optional[str]] = mapped_column(Text, server_default="v5")
 
-    organization: Mapped[Optional[Organization]] = relationship("Organization")
-    department: Mapped[Department] = relationship("Department", back_populates="sessions")
+    organization: Mapped[Organization] = relationship("Organization")
     messages: Mapped[list[InterviewMessage]] = relationship(
         "InterviewMessage", back_populates="session", cascade="all, delete-orphan"
     )
@@ -307,10 +179,12 @@ class InterviewSession(Base):
 
     __table_args__ = (
         Index("idx_sessions_org", "org_id"),
-        Index("idx_sessions_department", "department_id"),
+        Index("idx_sessions_role", "it_role_id"),
         Index("idx_sessions_status", "status"),
         Index("idx_sessions_started_at", "started_at"),
         Index("idx_sessions_final_score", "final_score", postgresql_where="final_score IS NOT NULL"),
+        Index("idx_sessions_scorecard_template", "scorecard_template_id"),
+        Index("idx_sessions_invite_token", "invite_token", postgresql_where="invite_token IS NOT NULL"),
     )
 
 
@@ -392,13 +266,20 @@ class InterviewTemplate(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    department_id: Mapped[int] = mapped_column(
-        BigInteger,
-        ForeignKey("departments.id", ondelete="CASCADE", name="interview_templates_department_id_fkey"),
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=False,
     )
+    it_role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("it_roles.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    level_code: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
-    job_role: Mapped[str] = mapped_column(Text, nullable=False)
+    job_role_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
+    job_role = synonym("job_role_snapshot")
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     interview_style: Mapped[Optional[str]] = mapped_column(Text, server_default="STANDARD")
     competencies: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True, default=list)
@@ -416,11 +297,12 @@ class InterviewTemplate(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    department: Mapped[Department] = relationship("Department", back_populates="templates")
     scorecard_template: Mapped[Optional[ScorecardTemplate]] = relationship("ScorecardTemplate")
 
     __table_args__ = (
-        Index("idx_templates_department", "department_id"),
+        Index("idx_interview_templates_org", "org_id"),
+        Index("idx_interview_templates_role", "it_role_id"),
+        Index("idx_interview_templates_scorecard", "scorecard_template_id"),
     )
 
 
@@ -461,16 +343,23 @@ class CandidateInvitation(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    department_id: Mapped[int] = mapped_column(
-        BigInteger,
-        ForeignKey("departments.id", ondelete="CASCADE", name="candidate_invitations_department_id_fkey"),
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=False,
     )
+    it_role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("it_roles.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    level_code: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     candidate_email: Mapped[str] = mapped_column(Text, nullable=False)
     candidate_name: Mapped[str] = mapped_column(Text, nullable=False)
-    job_role: Mapped[str] = mapped_column(Text, nullable=False)
+    job_role_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
+    job_role = synonym("job_role_snapshot")
     token: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
-    interview_config: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    interview_config: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True, default=dict)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_by: Mapped[uuid.UUID] = mapped_column(
@@ -482,13 +371,12 @@ class CandidateInvitation(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    department: Mapped[Department] = relationship("Department")
-
     __table_args__ = (
-        CheckConstraint("status IN ('pending','accepted','completed','expired')",
+        CheckConstraint("status IN ('pending','accepted','completed','expired','revoked')",
                         name="invitations_status_check"),
-        Index("idx_invitations_department", "department_id"),
-        Index("idx_invitations_created_by", "created_by"),
+        Index("idx_candidate_invitations_org", "org_id"),
+        Index("idx_candidate_invitations_role", "it_role_id"),
+        Index("idx_candidate_invitations_created_by", "created_by"),
     )
 
 
@@ -544,32 +432,6 @@ class UserPasswordResetToken(Base):
     )
 
 
-class CandidateSession(Base):
-    __tablename__ = "candidate_sessions"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    candidate_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("candidate_profiles.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    session_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    created_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-
-    __table_args__ = (
-        Index("idx_candidate_sessions_candidate", "candidate_id"),
-        Index("idx_candidate_sessions_session", "session_id"),
-    )
-
-
 class PublicInterview(Base):
     __tablename__ = "public_interviews"
 
@@ -581,11 +443,12 @@ class PublicInterview(Base):
         ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=False,
     )
-    department_id: Mapped[Optional[int]] = mapped_column(
-        BigInteger,
-        ForeignKey("departments.id", ondelete="SET NULL", name="public_interviews_department_id_fkey"),
-        nullable=True,
+    it_role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("it_roles.id", ondelete="RESTRICT"),
+        nullable=False,
     )
+    level_code: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     template_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("interview_templates.id", ondelete="SET NULL"),
@@ -611,13 +474,13 @@ class PublicInterview(Base):
     )
 
     organization: Mapped[Organization] = relationship("Organization", back_populates="public_interviews")
-    department: Mapped[Optional[Department]] = relationship("Department")
     submissions: Mapped[list[PublicInterviewSubmission]] = relationship(
         "PublicInterviewSubmission", back_populates="public_interview", cascade="all, delete-orphan"
     )
 
     __table_args__ = (
         Index("idx_public_interviews_org", "org_id"),
+        Index("idx_public_interviews_role", "it_role_id"),
         Index("idx_public_interviews_template", "template_id"),
     )
 
@@ -633,14 +496,44 @@ class PublicInterviewSubmission(Base):
         ForeignKey("public_interviews.id", ondelete="CASCADE"),
         nullable=False,
     )
-    session_id: Mapped[uuid.UUID] = mapped_column(
+    session_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("interview_sessions.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
+    )
+    candidate_profile_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("candidate_profiles.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    resume_document_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("candidate_documents.id", ondelete="SET NULL"),
+        nullable=True,
     )
     candidate_email: Mapped[str] = mapped_column(Text, nullable=False)
     candidate_name: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="applied")
+    fit_score: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
+    fit_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    org_decision: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
+    org_decided_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    org_decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    candidate_response: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
+    candidate_responded_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    invited_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    outcome: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
+    outcome_decided_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    outcome_decided_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     started_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -650,12 +543,22 @@ class PublicInterviewSubmission(Base):
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     public_interview: Mapped[PublicInterview] = relationship("PublicInterview", back_populates="submissions")
-    session: Mapped[InterviewSession] = relationship("InterviewSession")
+    session: Mapped[Optional[InterviewSession]] = relationship("InterviewSession")
 
     __table_args__ = (
-        Index("idx_submissions_public", "public_id"),
+        UniqueConstraint("public_id", "candidate_profile_id", name="uq_public_submission_candidate"),
+        Index("idx_public_submissions_public", "public_id"),
+        Index("idx_public_submissions_session", "session_id"),
+        Index("idx_public_submissions_candidate", "candidate_profile_id"),
+        Index("idx_public_submissions_status", "status"),
+        Index("idx_public_submissions_org_decision", "org_decision"),
+        Index("idx_public_submissions_candidate_response", "candidate_response"),
+        Index("idx_public_submissions_outcome", "outcome"),
     )
 
 
@@ -849,7 +752,12 @@ class Hypothesis(Base):
         nullable=False,
     )
     statement: Mapped[str] = mapped_column(Text, nullable=False)
-    competency: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    competency_id: Mapped[Optional[str]] = mapped_column(
+        Text,
+        ForeignKey("competencies.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    competency = synonym("competency_id")
     direction: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[float] = mapped_column(nullable=False, default=0.0)
     supporting_evidence: Mapped[Optional[list]] = mapped_column(
@@ -1390,4 +1298,114 @@ class CalibrationFeedback(Base):
     __table_args__ = (
         Index("idx_calibration_feedback_org", "org_id"),
         Index("idx_calibration_feedback_recorded", "recorded_at"),
+    )
+
+
+class OrganizationDocument(Base):
+    __tablename__ = "organization_documents"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    filename: Mapped[str] = mapped_column(Text, nullable=False)
+    document_type: Mapped[str] = mapped_column(Text, nullable=False, server_default="pdf")
+    storage_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    content_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    pinecone_namespace: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class ItRole(Base):
+    __tablename__ = "it_roles"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    slug: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    family: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    level_min: Mapped[str] = mapped_column(Text, nullable=False, server_default="junior")
+    level_max: Mapped[str] = mapped_column(Text, nullable=False, server_default="principal")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Competency(Base):
+    __tablename__ = "competencies"
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(Text, nullable=False)
+    primary_dimension: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_dimensions: Mapped[Optional[list[str]]] = mapped_column(
+        ARRAY(Text), default=list, nullable=True
+    )
+    default_min_evidence: Mapped[int] = mapped_column(Integer, default=1)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    scope: Mapped[str] = mapped_column(Text, nullable=False, server_default="IT")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class RoleCompetency(Base):
+    __tablename__ = "role_competencies"
+
+    role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("it_roles.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    competency_id: Mapped[str] = mapped_column(
+        Text,
+        ForeignKey("competencies.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    weight: Mapped[Optional[float]] = mapped_column(Numeric, default=1.0)
+    required_level: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_core: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class InterviewIntelligence(Base):
+    __tablename__ = "interview_intelligence"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    company_context: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
+    candidate_context: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
+    blueprint: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
+    scorecard: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
+    evidence_requirements: Mapped[Optional[list]] = mapped_column(JSONB, default=list)
+    objectives: Mapped[Optional[list]] = mapped_column(JSONB, default=list)
+    consistency_checks: Mapped[Optional[list]] = mapped_column(JSONB, default=list)
+    observations: Mapped[Optional[list]] = mapped_column(JSONB, default=list)
+    evidence_graph: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

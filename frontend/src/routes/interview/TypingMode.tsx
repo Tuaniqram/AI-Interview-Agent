@@ -1,9 +1,11 @@
 import React from 'react';
 import { useInterviewStore } from '../../state/interviewStore';
+import { useAntiCheatTelemetry } from '../../utils/antiCheatTelemetry';
 import { LoadingScreen, ConversationThread, InputBar } from './shared';
 
 export function TypingMode() {
   const { state, actions } = useInterviewStore();
+  const telemetry = useAntiCheatTelemetry(state.currentQuestion?.question_number);
   const [input, setInput] = React.useState('');
   const [isSending, setIsSending] = React.useState(false);
 
@@ -12,7 +14,7 @@ export function TypingMode() {
     if (!text || !state.currentQuestion || isSending) return;
     setIsSending(true);
     try {
-      await actions.submitAnswer(text);
+      await actions.submitAnswer(text, telemetry.current);
       setInput('');
     } catch {
     } finally {

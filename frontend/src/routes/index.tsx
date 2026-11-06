@@ -10,6 +10,7 @@ import { ProtectedCandidateRoute } from '../components/candidate/ProtectedCandid
 import { ContentSkeleton } from '../components/shared/ContentSkeleton';
 
 const Landing = React.lazy(() => import('../pages/Landing').then(m => ({ default: m.Landing })));
+const AccountChoice = React.lazy(() => import('../pages/AccountChoice').then(m => ({ default: m.AccountChoice })));
 const DepartmentList = React.lazy(() => import('./DepartmentList').then(m => ({ default: m.DepartmentList })));
 const DepartmentDetail = React.lazy(() => import('./DepartmentDetail').then(m => ({ default: m.DepartmentDetail })));
 const Sessions = React.lazy(() => import('./Sessions').then(m => ({ default: m.Sessions })));
@@ -65,6 +66,7 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Suspense fallback={<LoadingFallback />}><Landing /></Suspense>} />
+      <Route path="/account" element={<Suspense fallback={<LoadingFallback />}><AccountChoice /></Suspense>} />
       <Route path="/login" element={<Suspense fallback={<LoadingFallback />}><Login /></Suspense>} />
       <Route path="/register" element={<Suspense fallback={<LoadingFallback />}><Register /></Suspense>} />
       <Route path="/forgot-password" element={<Suspense fallback={<LoadingFallback />}><ForgotPassword /></Suspense>} />

@@ -5,11 +5,22 @@ the LLM pass (guarded) enriches when available. Existing candidate-profile
 data is always merged in so profile-first sessions work offline.
 """
 import logging
+import os
 import re
 
-from app.intelligence._helpers import dedupe, parse_llm_json_with_retry
+from app.intelligence._helpers import dedupe
 
 logger = logging.getLogger(__name__)
+
+# Safety toggle: which LLM backend enriches resume analysis.
+#   RESUME_LLM_BACKEND=dspy   (default) -> app/intelligence/dspy_modules.py
+#   RESUME_LLM_BACKEND=legacy           -> prompt_loader + parse_llm_json_with_retry
+# Read per-call so a process can flip back without a redeploy.
+BACKEND_ENV = "RESUME_LLM_BACKEND"
+
+
+def _use_dspy_backend() -> bool:
+    return os.getenv(BACKEND_ENV, "dspy").strip().lower() != "legacy"
 
 
 async def analyze_resume(
@@ -51,18 +62,12 @@ async def analyze_resume(
         return result
 
     try:
-        from app.services.llm_service import get_llm_service
-        from app.services.prompt_loader import load_prompt
+        if _use_dspy_backend():
+            from app.intelligence.dspy_modules import run_resume_analysis
 
-        prompt = load_prompt(
-            "intelligence",
-            "resume_analysis.md",
-            job_role=job_role or "Unknown",
-            resume_text=text[:8000],
-        )
-        data = await parse_llm_json_with_retry(
-            get_llm_service(), prompt, temperature=0.2, max_tokens=1000, tier="cheap"
-        )
+            data = await run_resume_analysis(text, job_role)
+        else:
+            data = await _legacy_llm_parse(text, job_role)
         for key in ("skills", "experience", "education", "strengths", "weaknesses"):
             if isinstance(data.get(key), list):
                 result[key] = dedupe(data[key])
@@ -88,6 +93,27 @@ def _coerce_years(value) -> int | None:
         return int(value)
     match = re.search(r"\d+", str(value or ""))
     return int(match.group(0)) if match else None
+
+
+async def _legacy_llm_parse(text: str, job_role: str) -> dict:
+    """Legacy LLM enrichment: prompt_loader + parse_llm_json_with_retry.
+
+    Kept intact as the ``RESUME_LLM_BACKEND=legacy`` escape hatch. Raises on
+    failure — callers fall back to heuristics exactly as before.
+    """
+    from app.intelligence._helpers import parse_llm_json_with_retry
+    from app.services.llm_service import get_llm_service
+    from app.services.prompt_loader import load_prompt
+
+    prompt = load_prompt(
+        "intelligence",
+        "resume_analysis.md",
+        job_role=job_role or "Unknown",
+        resume_text=text[:8000],
+    )
+    return await parse_llm_json_with_retry(
+        get_llm_service(), prompt, temperature=0.2, max_tokens=1000, tier="cheap"
+    )
 
 
 def _heuristic_parse(text: str, job_role: str) -> dict:

@@ -27,16 +27,16 @@ export default function ForgotPassword() {
 
   return (
     <AuthLayout role="org">
-      <div className="space-y-8">
+      <div className="space-y-4">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-[var(--text-primary)]">Forgot Password</h1>
-          <p className="mt-2 text-[var(--text-secondary)]">Enter your email and we'll send you a reset link</p>
+          <h1 className="text-xl font-bold text-[var(--text-primary)]">Forgot Password</h1>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">Enter your email and we'll send you a reset link</p>
         </div>
-        <div className="bg-[var(--bg-section)] rounded-xl p-6 border border-[var(--border-color)]">
+        <div className="glass-card">
           {sent ? (
             <p className="text-sm text-[var(--text-secondary)] text-center">If that email exists, a reset link has been sent.</p>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3">
               {error && (
                 <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>
               )}

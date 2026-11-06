@@ -3,7 +3,7 @@ import logging
 from sqlalchemy import select
 
 from app.database.session import get_session_factory
-from app.models.db import Department, Organization, PublicInterview
+from app.models.db import Organization, PublicInterview
 from app.services.llm_service import get_llm_service
 from app.services.prompt_loader import get_prompt_loader
 
@@ -31,14 +31,7 @@ async def generate_rich_description(interview_id: str) -> None:
             )
             org = org_result.scalar_one_or_none()
             org_name = org.name if org else "Our Company"
-
-            dept_name = ""
-            if pi.department_id:
-                dept_result = await db.execute(
-                    select(Department).where(Department.id == pi.department_id)
-                )
-                dept = dept_result.scalar_one_or_none()
-                dept_name = dept.name if dept else ""
+            dept_name = org_name
 
             loader = get_prompt_loader()
             prompt = loader.load_by_path(

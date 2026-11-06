@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.rbac import require_org_role, resolve_org_id
 from app.database.deps import get_db
-from app.models.db import Department, InterviewSession
+from app.models.db import InterviewSession, ItRole
 from app.schemas.analytics import (
     DepartmentSessionSummary,
     DistributionBucket,
@@ -34,7 +34,7 @@ async def overview(
         return OverviewResponse()
 
     department_count = await db.scalar(
-        select(func.count(Department.id)).where(Department.org_id == org_id)
+        select(func.count(func.distinct(InterviewSession.it_role_id))).where(InterviewSession.org_id == org_id)
     ) or 0
 
     row = await db.execute(
@@ -131,19 +131,19 @@ async def sessions_by_department(
 
     result = await db.execute(
         select(
-            Department.id.label("department_id"),
-            Department.name,
+            ItRole.id.label("department_id"),
+            ItRole.name,
             func.count(InterviewSession.id).label("session_count"),
             cast(func.avg(InterviewSession.final_score), Float).label("avg_score"),
         )
-        .outerjoin(InterviewSession, InterviewSession.department_id == Department.id)
-        .where(Department.org_id == org_id)
-        .group_by(Department.id, Department.name)
+        .join(InterviewSession, InterviewSession.it_role_id == ItRole.id)
+        .where(InterviewSession.org_id == org_id)
+        .group_by(ItRole.id, ItRole.name)
         .order_by(func.count(InterviewSession.id).desc())
     )
     return [
         DepartmentSessionSummary(
-            department_id=r.department_id,
+            department_id=0,
             name=r.name,
             session_count=r.session_count,
             avg_score=round(r.avg_score, 2) if r.avg_score is not None else None,

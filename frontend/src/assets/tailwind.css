@@ -20,7 +20,7 @@
   }
   .card-hover:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(124, 58, 237, 0.1), 0 2px 8px rgba(124, 58, 237, 0.06);
+    box-shadow: 0 8px 25px rgba(12, 107, 88, 0.10), 0 2px 8px rgba(12, 107, 88, 0.06);
   }
 }
 
@@ -41,7 +41,7 @@
 
   :root {
     /* ── Background hierarchy ── */
-    --bg-page:            #f5f5f7;
+    --bg-page:            #f6f7f4;
     --bg-section:         #ffffff;
     --bg-elevated:        #ffffff;
     --bg-input:           #f0f0f2;
@@ -61,8 +61,8 @@
     --border-strong:      #d4d4db;
 
     /* ── Action system ── */
-    --action-primary:           #6d4fe8;
-    --action-primary-hover:     #5438d4;
+    --action-primary:           #0c6b58;
+    --action-primary-hover:     #085244;
     --action-primary-text:      #ffffff;
     --action-secondary:         #e8e8ec;
     --action-secondary-hover:   #dcdce2;
@@ -90,7 +90,7 @@
     --status-info-text:         #1e40af;
 
     /* ── Focus ── */
-    --focus-ring:               rgba(109, 79, 232, 0.25);
+    --focus-ring:               rgba(12, 107, 88, 0.28);
 
     /* ── Shadows ── */
     --shadow-sm:                0 1px 2px rgba(0, 0, 0, 0.04);
@@ -118,26 +118,26 @@
   }
 
   [data-theme="dark"] {
-    --bg-page:            #0a0a0b;
-    --bg-section:         #141416;
-    --bg-elevated:        #1c1c1f;
-    --bg-input:           #252528;
-    --bg-hover:           #2f2f33;
+    --bg-page:            #0c1210;
+    --bg-section:         #131a17;
+    --bg-elevated:        #1a231f;
+    --bg-input:           #232d29;
+    --bg-hover:           #2d3833;
     --bg-overlay:         rgba(0, 0, 0, 0.6);
 
-    --text-primary:       #f2f2f5;
-    --text-secondary:     #a8a8b3;
-    --text-tertiary:      #6f6f7a;
-    --text-muted:         #8a8a94;
-    --text-inverse:       #1a1a1e;
+    --text-primary:       #eef2ef;
+    --text-secondary:     #a3b0aa;
+    --text-tertiary:      #6f7d76;
+    --text-muted:         #8a978f;
+    --text-inverse:       #101713;
 
-    --divider:            #222226;
-    --border-color:       #2d2d32;
-    --border-strong:      #3f3f46;
+    --divider:            #1f2925;
+    --border-color:       #2a352f;
+    --border-strong:      #3c4842;
 
-    --action-primary:           #8b6ff5;
-    --action-primary-hover:     #a08aff;
-    --action-primary-text:      #ffffff;
+    --action-primary:           #2fbf9a;
+    --action-primary-hover:     #27a888;
+    --action-primary-text:      #06251e;
     --action-secondary:         #2f2f33;
     --action-secondary-hover:   #3a3a40;
     --action-secondary-text:    #f2f2f5;
@@ -146,8 +146,8 @@
     --action-danger:            #f87171;
     --action-danger-hover:      #fca5a5;
     --action-danger-text:       #ffffff;
-    --action-disabled:          #2c2c30;
-    --action-disabled-text:     #6f6f7a;
+    --action-disabled:          #26302b;
+    --action-disabled-text:     #6f7d76;
 
     --status-success:           #34d399;
     --status-success-bg:        rgba(52, 211, 153, 0.15);
@@ -162,7 +162,7 @@
     --status-info-bg:           rgba(96, 165, 250, 0.15);
     --status-info-text:         #bfdbfe;
 
-    --focus-ring:               rgba(139, 111, 245, 0.3);
+    --focus-ring:               rgba(47, 191, 154, 0.35);
 
     --shadow-sm:                0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md:                0 4px 12px rgba(0, 0, 0, 0.4);
@@ -176,7 +176,7 @@
   }
 
   .input-glow:focus {
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 0 0 3px rgba(12, 107, 88, 0.35);
   }
 
   .fade-in {
@@ -235,25 +235,9 @@
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* ──── NEW: Text Gradient Utility ──── */
+/* ──── Text accent utility ──── */
 .text-gradient {
-  background: linear-gradient(
-    135deg,
-    var(--action-primary) 0%,
-    #a78bfa 50%,
-    #c4b5fd 100%
-  );
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-  animation: gradient-shift 3s linear infinite;
-}
-
-@keyframes gradient-shift {
-  0% { background-position: 0% center; }
-  100% { background-position: 200% center; }
+  color: var(--action-primary);
 }
 
 /* ──── NEW: Shimmer Loading Effect ──── */
@@ -306,7 +290,7 @@
   left: 0;
   height: 2px;
   width: 0%;
-  background: linear-gradient(90deg, var(--action-primary), #a78bfa);
+  background: var(--action-primary);
   z-index: 9999;
   transition: width 0.1s ease-out;
 }
@@ -396,7 +380,7 @@
 
 .waveform-bar {
   width: 4px;
-  background: linear-gradient(to top, var(--action-primary), #a78bfa);
+  background: var(--action-primary);
   border-radius: 2px;
   animation: wave-animation 1s ease-in-out infinite;
 }

@@ -5,6 +5,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import func, select
@@ -12,7 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.deps import get_db
 from app.marketplace.schemas import (
+    ApplicationOutcomeRequest,
+    ApplicationResponse,
+    ApplyRequest,
+    CandidateResponseRequest,
     CreatePublicInterviewRequest,
+    FitScoreRequest,
     OrgListingResponse,
     OrgPublicInterviewResponse,
     PublicInterviewResponse,
@@ -22,7 +28,6 @@ from app.marketplace.schemas import (
 )
 from app.models.db import (
     CandidateProfile,
-    Department,
     InterviewSession,
     InterviewTemplate,
     Organization,
@@ -120,9 +125,9 @@ async def get_org_profile(org_slug: str, db: AsyncSession) -> dict:
     interviews_result = await db.execute(
         select(
             PublicInterview,
-            Department.name.label("dept_name"),
+            Organization.name.label("dept_name"),
         ).outerjoin(
-            Department, PublicInterview.department_id == Department.id
+            Organization, PublicInterview.org_id == Organization.id
         ).where(
             PublicInterview.org_id == org.id,
             PublicInterview.is_open == True,
@@ -181,9 +186,9 @@ async def get_public_interview(interview_id: str, db: AsyncSession) -> PublicInt
     org = org_result.scalar_one_or_none()
 
     dept_name = ""
-    if pi.department_id:
+    if pi.org_id:
         dept_result = await db.execute(
-            select(Department).where(Department.id == pi.department_id)
+            select(Organization).where(Organization.id == pi.org_id)
         )
         dept = dept_result.scalar_one_or_none()
         dept_name = dept.name if dept else ""
@@ -229,9 +234,9 @@ async def start_public_interview(
     session = InterviewSession(
         id=uuid.uuid4(),
         org_id=pi.org_id,
-        department_id=pi.department_id,
+        it_role_id=pi.it_role_id,
         candidate_profile_id=None,
-        job_role=pi.title,
+        job_role_snapshot=pi.title,
         session_type="public",
         interaction_mode=pi.interview_mode,
         engine_version="v4",
@@ -259,25 +264,18 @@ async def start_public_interview(
     role_context = None
     try:
         org_name = ""
-        dept_name = ""
         org_result = await db.execute(
             select(Organization).where(Organization.id == pi.org_id)
         )
         org_row = org_result.scalar_one_or_none()
         if org_row:
             org_name = org_row.name or ""
-        dept_result = await db.execute(
-            select(Department).where(Department.id == pi.department_id)
-        )
-        dept_row = dept_result.scalar_one_or_none()
-        if dept_row:
-            dept_name = dept_row.name or ""
         role_context = build_role_context(
             job_role=pi.title or "",
             skills_required=list(pi.skills_required) if getattr(pi, "skills_required", None) else None,
             description=pi.description or "",
-            department_id=pi.department_id,
-            department_name=dept_name,
+            department_id=None,
+            department_name="",
             org_name=org_name,
         )
     except Exception as exc:  # noqa: BLE001 - role context is best-effort
@@ -286,7 +284,7 @@ async def start_public_interview(
     taxonomy = await resolve_competencies(
         db,
         scorecard_template_id=str(sc_template_id) if sc_template_id else None,
-        department_id=pi.department_id,
+        org_id=pi.org_id,
         role_context=role_context,
     )
     competency_taxonomy, required_competencies, domain_label = taxonomy_for_state(
@@ -296,7 +294,8 @@ async def start_public_interview(
     state = {
         "session_id": str(session.id),
         "job_role": pi.title or "Software Engineer",
-        "department_id": pi.department_id,
+        "org_id": str(pi.org_id),
+        "it_role_id": str(pi.it_role_id),
         "interview_style": style,
         "persona": style.get("persona", "friendly"),
         "difficulty_level": style.get("difficulty_range", (1, 3))[0],
@@ -367,7 +366,8 @@ async def create_public_interview(
     pi = PublicInterview(
         id=uuid.uuid4(),
         org_id=org_id,
-        department_id=req.department_id,
+        it_role_id=req.it_role_id,
+        level_code=req.level_code,
         title=req.title,
         description=req.description,
         interview_mode=req.interview_mode,
@@ -394,21 +394,14 @@ async def create_public_interview(
         resource_id=str(pi.id),
         user_id=actor_id,
         org_id=org_id,
-        details={"title": req.title, "department_id": req.department_id, "interview_mode": req.interview_mode},
+        details={"title": req.title, "it_role_id": str(req.it_role_id), "interview_mode": req.interview_mode},
         ip_address=ip_address,
     )
 
-    # Build response with department name
-    dept_name = ""
-    if pi.department_id:
-        dept_result = await db.execute(
-            select(Department).where(Department.id == pi.department_id)
-        )
-        dept = dept_result.scalar_one_or_none()
-        dept_name = dept.name if dept else ""
-
+    org_result = await db.execute(select(Organization).where(Organization.id == org_id))
+    org = org_result.scalar_one_or_none()
     resp = OrgPublicInterviewResponse.model_validate(pi)
-    resp.department_name = dept_name
+    resp.department_name = org.name if org else ""
     return resp
 
 
@@ -419,9 +412,9 @@ async def list_org_public_interviews(
     result = await db.execute(
         select(
             PublicInterview,
-            Department.name.label("dept_name"),
+            Organization.name.label("dept_name"),
         ).outerjoin(
-            Department, PublicInterview.department_id == Department.id
+            Organization, PublicInterview.org_id == Organization.id
         ).where(
             PublicInterview.org_id == org_id
         ).order_by(PublicInterview.created_at.desc())
@@ -459,9 +452,9 @@ async def update_public_interview(
         asyncio.create_task(generate_rich_description(str(pi.id)))
 
     dept_name = ""
-    if pi.department_id:
+    if pi.org_id:
         dept_result = await db.execute(
-            select(Department).where(Department.id == pi.department_id)
+            select(Organization).where(Organization.id == pi.org_id)
         )
         dept = dept_result.scalar_one_or_none()
         dept_name = dept.name if dept else ""
@@ -483,3 +476,229 @@ async def delete_public_interview(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found")
     await db.delete(pi)
     await db.commit()
+
+
+def _application_response(row: PublicInterviewSubmission) -> ApplicationResponse:
+    return ApplicationResponse(
+        id=row.id,
+        public_id=row.public_id,
+        session_id=row.session_id,
+        candidate_profile_id=row.candidate_profile_id,
+        resume_document_id=row.resume_document_id,
+        candidate_email=row.candidate_email,
+        candidate_name=row.candidate_name,
+        status=row.status,
+        fit_score=float(row.fit_score) if row.fit_score is not None else None,
+        fit_summary=row.fit_summary,
+        org_decision=row.org_decision,
+        candidate_response=row.candidate_response,
+        outcome=row.outcome,
+        invited_at=row.invited_at,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+async def apply_to_public_interview(
+    interview_id: str,
+    req: ApplyRequest,
+    db: AsyncSession,
+    candidate=None,
+) -> ApplicationResponse:
+    result = await db.execute(
+        select(PublicInterview).where(
+            PublicInterview.id == interview_id,
+            PublicInterview.is_open.is_(True),
+        )
+    )
+    pi = result.scalar_one_or_none()
+    if not pi:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found or closed")
+
+    if candidate is not None:
+        profile = candidate
+    else:
+        profile_result = await db.execute(
+            select(CandidateProfile).where(CandidateProfile.email == req.candidate_email)
+        )
+        profile = profile_result.scalar_one_or_none()
+        if profile is None:
+            profile = CandidateProfile(
+                id=uuid.uuid4(),
+                email=req.candidate_email,
+                name=req.candidate_name,
+                is_registered=False,
+            )
+            db.add(profile)
+            await db.flush()
+
+    existing_result = await db.execute(
+        select(PublicInterviewSubmission).where(
+            PublicInterviewSubmission.public_id == pi.id,
+            PublicInterviewSubmission.candidate_profile_id == profile.id,
+        )
+    )
+    submission = existing_result.scalar_one_or_none()
+    if submission is None:
+        submission = PublicInterviewSubmission(
+            id=uuid.uuid4(),
+            public_id=pi.id,
+            candidate_profile_id=profile.id,
+            resume_document_id=req.resume_document_id,
+            candidate_email=profile.email,
+            candidate_name=profile.name,
+            status="applied",
+            org_decision="pending",
+            candidate_response="pending",
+            outcome="pending",
+        )
+        db.add(submission)
+    else:
+        submission.resume_document_id = req.resume_document_id or submission.resume_document_id
+
+    await db.commit()
+    await db.refresh(submission)
+    return _application_response(submission)
+
+
+async def list_org_applications(org_id: str, db: AsyncSession) -> list[ApplicationResponse]:
+    result = await db.execute(
+        select(PublicInterviewSubmission)
+        .join(PublicInterview, PublicInterviewSubmission.public_id == PublicInterview.id)
+        .where(PublicInterview.org_id == org_id)
+        .order_by(PublicInterviewSubmission.created_at.desc())
+    )
+    return [_application_response(row) for row in result.scalars().all()]
+
+
+async def _get_org_application(
+    application_id: str, org_id: str, db: AsyncSession
+) -> tuple[PublicInterviewSubmission, PublicInterview]:
+    result = await db.execute(
+        select(PublicInterviewSubmission, PublicInterview)
+        .join(PublicInterview, PublicInterviewSubmission.public_id == PublicInterview.id)
+        .where(
+            PublicInterviewSubmission.id == application_id,
+            PublicInterview.org_id == org_id,
+        )
+    )
+    row = result.one_or_none()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+    return row[0], row[1]
+
+
+async def set_application_fit(
+    application_id: str,
+    req: FitScoreRequest,
+    org_id: str,
+    db: AsyncSession,
+) -> ApplicationResponse:
+    submission, _ = await _get_org_application(application_id, org_id, db)
+    submission.fit_score = req.fit_score
+    submission.fit_summary = req.fit_summary
+    if submission.status == "applied":
+        submission.status = "screening"
+    await db.commit()
+    await db.refresh(submission)
+    return _application_response(submission)
+
+
+async def invite_application(
+    application_id: str,
+    org_id: str,
+    actor_id: Optional[str],
+    db: AsyncSession,
+) -> ApplicationResponse:
+    submission, pi = await _get_org_application(application_id, org_id, db)
+    if submission.org_decision == "rejected":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Application was rejected")
+
+    if submission.session_id is None:
+        session = InterviewSession(
+            id=uuid.uuid4(),
+            org_id=pi.org_id,
+            it_role_id=pi.it_role_id,
+            candidate_profile_id=submission.candidate_profile_id,
+            level_code=pi.level_code,
+            job_role_snapshot=pi.title,
+            session_type="public",
+            interaction_mode=pi.interview_mode,
+            status="initiating",
+            invite_token=uuid.uuid4().hex,
+            invite_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        )
+        db.add(session)
+        await db.flush()
+        submission.session_id = session.id
+
+    now = datetime.now(timezone.utc)
+    submission.org_decision = "invited"
+    submission.status = "interview_offered"
+    submission.invited_at = now
+    submission.org_decided_by = UUID(str(actor_id)) if actor_id else None
+    submission.org_decided_at = now
+    await db.commit()
+    await db.refresh(submission)
+    return _application_response(submission)
+
+
+async def respond_to_application(
+    application_id: str,
+    req: CandidateResponseRequest,
+    candidate_id: UUID,
+    db: AsyncSession,
+) -> ApplicationResponse:
+    response = (req.response or "").lower()
+    if response not in {"accepted", "declined"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="response must be accepted or declined")
+
+    result = await db.execute(
+        select(PublicInterviewSubmission).where(
+            PublicInterviewSubmission.id == application_id,
+            PublicInterviewSubmission.candidate_profile_id == candidate_id,
+        )
+    )
+    submission = result.scalar_one_or_none()
+    if submission is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
+    if submission.org_decision != "invited":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No active invitation")
+
+    submission.candidate_response = response
+    submission.candidate_responded_at = datetime.now(timezone.utc)
+    submission.status = "interview_accepted" if response == "accepted" else "interview_declined"
+
+    if submission.session_id is not None:
+        session_result = await db.execute(
+            select(InterviewSession).where(InterviewSession.id == submission.session_id)
+        )
+        session = session_result.scalar_one_or_none()
+        if session is not None and response == "declined":
+            session.status = "cancelled"
+
+    await db.commit()
+    await db.refresh(submission)
+    return _application_response(submission)
+
+
+async def set_application_outcome(
+    application_id: str,
+    req: ApplicationOutcomeRequest,
+    org_id: str,
+    actor_id: Optional[str],
+    db: AsyncSession,
+) -> ApplicationResponse:
+    outcome = (req.outcome or "").lower()
+    if outcome not in {"hired", "rejected"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="outcome must be hired or rejected")
+
+    submission, _ = await _get_org_application(application_id, org_id, db)
+    now = datetime.now(timezone.utc)
+    submission.outcome = outcome
+    submission.status = outcome
+    submission.outcome_decided_by = UUID(str(actor_id)) if actor_id else None
+    submission.outcome_decided_at = now
+    await db.commit()
+    await db.refresh(submission)
+    return _application_response(submission)

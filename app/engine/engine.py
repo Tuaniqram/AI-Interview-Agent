@@ -66,11 +66,18 @@ class InterviewEngine:
 
         return await _start(self, state, build_intelligence, intelligence)
 
-    async def process_answer(self, session_id: str, answer: str) -> dict:
-        """Sanitize/evaluate/extract evidence, then route the next step."""
+    async def process_answer(
+        self, session_id: str, answer: str, integrity_meta: dict | None = None
+    ) -> dict:
+        """Sanitize/evaluate/extract evidence, then route the next step.
+
+        ``integrity_meta`` carries optional client telemetry (``paste_chars``,
+        ``focus_lost_count``) for the anti-cheat guard — see
+        ``docs/anti-cheat-guard.md``. Absent/None is always valid.
+        """
         from app.engine.answer_processor import process_answer as _process
 
-        return await _process(self, session_id, answer)
+        return await _process(self, session_id, answer, integrity_meta)
 
     def get_state(self, session_id: str) -> dict:
         """Return the status snapshot (get_status message)."""

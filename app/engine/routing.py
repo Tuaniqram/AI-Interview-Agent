@@ -275,6 +275,9 @@ async def emit_question_and_persist(
     s = brain_to_dict(brain)
     s = await question_generator_node(s)
     brain = sync_brain(brain, s)
+    from app.services.anti_cheat import now_iso
+
+    brain.question_asked_at = now_iso()
 
     # Diagnostic log for emitted question (post-generation)
     try:

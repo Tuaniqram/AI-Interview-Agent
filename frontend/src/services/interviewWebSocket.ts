@@ -167,6 +167,8 @@ export class InterviewWebSocket {
     question_number?: number;
     question?: string;
     candidate_answer: string;
+    paste_chars?: number;
+    focus_lost_count?: number;
   }): Promise<any> {
     return this.sendAndWait('submit_answer', params as Record<string, unknown>, ['evaluation', 'report']);
   }

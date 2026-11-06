@@ -231,6 +231,7 @@ export class InterviewController {
       phase: q.target_competency || 'intro',
       difficulty_level: data.difficulty ?? 1,
       next_action: 'continue',
+      integrity_policy: data.integrity_policy,
     };
     this.session = session;
     this.currentQuestion = question;
@@ -279,7 +280,11 @@ export class InterviewController {
     return this.currentQuestion;
   }
 
-  async submitAnswerViaWS(params: { answer: string }): Promise<AnswerEvaluation> {
+  async submitAnswerViaWS(params: {
+    answer: string;
+    paste_chars?: number;
+    focus_lost_count?: number;
+  }): Promise<AnswerEvaluation> {
     if (!this.session || !this.currentQuestion) throw new Error('No active session');
 
     this.isEvaluating = true;
@@ -289,6 +294,8 @@ export class InterviewController {
         question_number: this.currentQuestion.question_number,
         question: this.currentQuestion.question,
         candidate_answer: params.answer,
+        paste_chars: params.paste_chars,
+        focus_lost_count: params.focus_lost_count,
       });
 
       this.messageHistory.push({ role: 'assistant', content: this.currentQuestion.question });
@@ -308,6 +315,14 @@ export class InterviewController {
           strengths: [],
           weaknesses: [],
           conversationTurn: response.conversation_turn || '',
+          integrity: response.integrity
+            ? {
+                flagged_count: response.integrity.flagged_count ?? 0,
+                max_flags: response.integrity.max_flags ?? 0,
+                score: response.integrity.score ?? null,
+              }
+            : undefined,
+          integrity_terminated: response.integrity_terminated,
         };
         return evaluation;
       }
@@ -355,6 +370,13 @@ export class InterviewController {
         strengths,
         weaknesses,
         conversationTurn: response.conversation_turn || '',
+        integrity: response.integrity
+          ? {
+              flagged_count: response.integrity.flagged_count ?? 0,
+              max_flags: response.integrity.max_flags ?? 0,
+              score: response.integrity.score ?? null,
+            }
+          : undefined,
       };
     } finally {
       this.isEvaluating = false;

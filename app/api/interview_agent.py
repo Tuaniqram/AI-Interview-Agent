@@ -101,8 +101,9 @@ async def _get_legacy_summary(session_id: str) -> dict:
 
     return {
         "session_id": session_id,
-        "department_id": session.get("department_id"),
-        "job_role": session.get("job_role"),
+        "org_id": session.get("org_id"),
+        "it_role_id": session.get("it_role_id"),
+        "job_role": session.get("job_role_snapshot"),
         "status": session.get("status"),
         "current_phase": session.get("current_phase"),
         "question_number": session.get("current_question_number"),

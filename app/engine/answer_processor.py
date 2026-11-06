@@ -14,7 +14,9 @@ from app.engine.persistence import persist_evidence
 logger = logging.getLogger(__name__)
 
 
-async def process_answer(engine, session_id: str, answer: str) -> dict:
+async def process_answer(
+    engine, session_id: str, answer: str, integrity_meta: dict | None = None
+) -> dict:
     """Sanitize/evaluate/extract evidence, then route the next step."""
     store = engine._get_store()
     events = engine._get_events()
@@ -34,6 +36,42 @@ async def process_answer(engine, session_id: str, answer: str) -> dict:
             f"Potential prompt injection detected in session {session_id[:12]}: {injections[:3]}"
         )
     answer = sanitized
+
+    # Anti-cheat integrity guard (contract: docs/anti-cheat-guard.md). No-op
+    # unless ANTI_CHEAT_GUARD_ENABLED=true. Never raises; stores per-answer
+    # signals on the brain for the final report.
+    from app.services.anti_cheat import assess, should_terminate
+
+    prior_answers = [
+        str(e.get("content", "")).strip()
+        for e in (brain.conversation_history or [])
+        if e.get("role") == "user" and str(e.get("content", "")).strip()
+    ]
+    integrity = await assess(
+        text=answer,
+        question=getattr(brain, "current_question", "") or "",
+        question_asked_at=getattr(brain, "question_asked_at", None),
+        paste_chars=(integrity_meta or {}).get("paste_chars"),
+        focus_lost_count=(integrity_meta or {}).get("focus_lost_count"),
+        prior_answers=prior_answers,
+        answer_source=(integrity_meta or {}).get("answer_source", ""),
+        keystroke_intervals=(integrity_meta or {}).get("keystroke_intervals"),
+        first_key_ms=(integrity_meta or {}).get("first_key_ms"),
+        pointer_leaves=(integrity_meta or {}).get("pointer_leaves"),
+        heartbeat_gaps=(integrity_meta or {}).get("heartbeat_gaps"),
+    )
+    if integrity is not None:
+        integrity = {"question_number": brain.question_number, **integrity}
+        brain.integrity_signals = list(getattr(brain, "integrity_signals", None) or []) + [integrity]
+        brain.integrity_score = max(
+            getattr(brain, "integrity_score", 0) or 0, integrity["score"]
+        )
+        # Termination policy: reaching ANTI_CHEAT_MAX_FLAGS flagged answers ends
+        # the session. The current answer is still evaluated first; the flag is
+        # honored after evaluation by short-circuiting the routing below.
+        if should_terminate(brain.integrity_signals):
+            brain.integrity_terminated = True
+
     await events.append(session_id, "answer_received", {
         "length": len(answer),
         "injection_signals": list(injections),
@@ -92,6 +130,20 @@ async def process_answer(engine, session_id: str, answer: str) -> dict:
         "competency_summary": s.get("competency_summary", {}),
     })
     brain = sync_brain(brain, s)
+
+    # Integrity termination (guard enabled + flagged count >= max): the answer
+    # was evaluated fairly — no further question is emitted; the session
+    # finalizes with the integrity flag surfaced in the report.
+    if getattr(brain, "integrity_terminated", False):
+        from app.engine.decision import finalize_session
+
+        await events.append(session_id, "integrity_terminated", {
+            "question_number": question_number,
+            "flagged_count": len(
+                [x for x in (getattr(brain, "integrity_signals", None) or []) if x.get("flagged")]
+            ),
+        })
+        return await finalize_session(engine, brain)
 
     from app.engine.routing import route_answer
 

@@ -13,7 +13,8 @@ from app.auth.rbac import require_org_role, resolve_org_id
 from app.candidates.auth import authenticate_candidate
 from app.config import settings
 from app.database.deps import get_db
-from app.models.db import CandidateInvitation, CandidateProfile, Department, InterviewSession, Organization, User
+from app.models.db import CandidateInvitation, CandidateProfile, InterviewSession, Organization, User
+from app.services.it_role_resolver import resolve_it_role
 
 router = APIRouter(prefix="/invitations", tags=["invitations"])
 
@@ -48,20 +49,15 @@ async def create_invitation(
     if not org_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="X-Org-Id header is required")
 
-    department_result = await db.execute(
-        select(Department).where(Department.org_id == org_id)
-    )
-    department = department_result.scalar_one_or_none()
-    if not department:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No department found for org")
-
+    it_role = await resolve_it_role(db, req.job_role)
     token = uuid.uuid4().hex + uuid.uuid4().hex
     invitation = CandidateInvitation(
         id=uuid.uuid4(),
-        department_id=department.id,
+        org_id=org_id,
+        it_role_id=it_role.id,
         candidate_email=req.candidate_email,
         candidate_name=req.candidate_name,
-        job_role=req.job_role,
+        job_role_snapshot=req.job_role,
         token=token,
         expires_at=datetime.now(timezone.utc) + timedelta(days=req.expires_in_days),
         created_by=user.id,
@@ -91,7 +87,7 @@ async def create_invitation(
         id=str(invitation.id),
         candidate_email=invitation.candidate_email,
         candidate_name=invitation.candidate_name,
-        job_role=invitation.job_role,
+        job_role=invitation.job_role_snapshot,
         token=invitation.token,
         status=invitation.status,
         expires_at=invitation.expires_at,
@@ -116,15 +112,17 @@ async def verify_invitation(token: str, db: AsyncSession = Depends(get_db)):
         await db.commit()
         raise HTTPException(status_code=status.HTTP_410_GONE, detail="Invitation has expired")
 
-    department_result = await db.execute(select(Department).where(Department.id == invitation.department_id))
-    department = department_result.scalar_one_or_none()
+    org_result = await db.execute(
+        select(Organization).where(Organization.id == invitation.org_id)
+    )
+    organization = org_result.scalar_one_or_none()
 
     return {
         "valid": True,
         "candidate_name": invitation.candidate_name,
         "candidate_email": invitation.candidate_email,
-        "job_role": invitation.job_role,
-        "department_name": department.name if department else None,
+        "job_role": invitation.job_role_snapshot,
+        "department_name": organization.name if organization else None,
     }
 
 
@@ -156,9 +154,10 @@ async def accept_invitation(
 
     session = InterviewSession(
         id=uuid.uuid4(),
+        org_id=invitation.org_id,
+        it_role_id=invitation.it_role_id,
         candidate_profile_id=candidate.id,
-        department_id=invitation.department_id,
-        job_role=invitation.job_role,
+        job_role_snapshot=invitation.job_role_snapshot,
         session_type="invitation",
     )
     db.add(session)

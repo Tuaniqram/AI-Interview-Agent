@@ -1,0 +1,1626 @@
+{
+  "families": [
+    {
+      "id": "software_engineering",
+      "name": "Software Engineering",
+      "description": "General software delivery, architecture, and engineering management",
+      "sort_order": 10
+    },
+    {
+      "id": "frontend",
+      "name": "Frontend Engineering",
+      "description": "Browser and web UI implementation",
+      "sort_order": 20
+    },
+    {
+      "id": "backend",
+      "name": "Backend Engineering",
+      "description": "Server-side services, APIs, and business logic",
+      "sort_order": 30
+    },
+    {
+      "id": "fullstack",
+      "name": "Full Stack Engineering",
+      "description": "End-to-end web application delivery",
+      "sort_order": 40
+    },
+    {
+      "id": "mobile",
+      "name": "Mobile Engineering",
+      "description": "iOS, Android, and cross-platform mobile apps",
+      "sort_order": 50
+    },
+    {
+      "id": "game",
+      "name": "Game Development",
+      "description": "Game engines, gameplay, and graphics",
+      "sort_order": 60
+    },
+    {
+      "id": "embedded",
+      "name": "Embedded & IoT",
+      "description": "Firmware, embedded systems, IoT, and robotics software",
+      "sort_order": 70
+    },
+    {
+      "id": "qa",
+      "name": "QA & Testing",
+      "description": "Quality assurance, automation, and test engineering",
+      "sort_order": 80
+    },
+    {
+      "id": "devops",
+      "name": "DevOps & Release",
+      "description": "Delivery automation, reliability, and release engineering",
+      "sort_order": 90
+    },
+    {
+      "id": "cloud",
+      "name": "Cloud Engineering",
+      "description": "Cloud platforms, cloud architecture, and cloud operations",
+      "sort_order": 100
+    },
+    {
+      "id": "infrastructure",
+      "name": "Infrastructure & Systems",
+      "description": "Servers, virtualization, storage, and end-user computing",
+      "sort_order": 110
+    },
+    {
+      "id": "network",
+      "name": "Network Engineering",
+      "description": "Networking, telecom, and network operations",
+      "sort_order": 120
+    },
+    {
+      "id": "security",
+      "name": "Cybersecurity",
+      "description": "Security engineering, operations, governance, and assurance",
+      "sort_order": 130
+    },
+    {
+      "id": "data",
+      "name": "Data & Analytics",
+      "description": "Data analysis, engineering, science, and governance",
+      "sort_order": 140
+    },
+    {
+      "id": "ai_ml",
+      "name": "AI & Machine Learning",
+      "description": "Machine learning, AI engineering, and MLOps",
+      "sort_order": 150
+    },
+    {
+      "id": "database",
+      "name": "Database Engineering",
+      "description": "Database administration, engineering, and optimization",
+      "sort_order": 160
+    },
+    {
+      "id": "it_support",
+      "name": "IT Support & Service Management",
+      "description": "Service desk, desktop support, and IT service management",
+      "sort_order": 170
+    },
+    {
+      "id": "architecture",
+      "name": "Architecture",
+      "description": "Enterprise, solution, technical, and integration architecture",
+      "sort_order": 180
+    },
+    {
+      "id": "it_management",
+      "name": "IT Management & Governance",
+      "description": "IT leadership, delivery management, risk, and audit",
+      "sort_order": 190
+    },
+    {
+      "id": "business_analysis",
+      "name": "IT Business Analysis",
+      "description": "Requirements, systems analysis, and IT product ownership",
+      "sort_order": 200
+    },
+    {
+      "id": "design",
+      "name": "UI/UX Design",
+      "description": "User research, interaction design, and design systems",
+      "sort_order": 210
+    },
+    {
+      "id": "erp_crm",
+      "name": "ERP/CRM & Enterprise Apps",
+      "description": "Enterprise application administration and development",
+      "sort_order": 220
+    },
+    {
+      "id": "technical_writing",
+      "name": "Technical Writing",
+      "description": "Technical documentation and developer education",
+      "sort_order": 230
+    }
+  ],
+  "levels": [
+    {
+      "code": "intern",
+      "name": "Intern",
+      "rank": 1,
+      "description": "Student or trainee under supervision"
+    },
+    {
+      "code": "junior",
+      "name": "Junior",
+      "rank": 2,
+      "description": "Early-career practitioner with guided ownership"
+    },
+    {
+      "code": "mid",
+      "name": "Mid-level",
+      "rank": 3,
+      "description": "Independent practitioner delivering standard work"
+    },
+    {
+      "code": "senior",
+      "name": "Senior",
+      "rank": 4,
+      "description": "Owns complex work and mentors others"
+    },
+    {
+      "code": "lead",
+      "name": "Lead",
+      "rank": 5,
+      "description": "Leads a team or technical area"
+    },
+    {
+      "code": "principal",
+      "name": "Principal",
+      "rank": 6,
+      "description": "Sets technical direction across teams"
+    },
+    {
+      "code": "manager",
+      "name": "Manager",
+      "rank": 7,
+      "description": "Manages people, delivery, and stakeholders"
+    },
+    {
+      "code": "director",
+      "name": "Director",
+      "rank": 8,
+      "description": "Owns an IT function or portfolio"
+    }
+  ],
+  "roles": [
+    {
+      "slug": "software-engineer",
+      "family": "software_engineering",
+      "name": "Software Engineer",
+      "description": "Builds and maintains software systems",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "senior-software-engineer",
+      "family": "software_engineering",
+      "name": "Senior Software Engineer",
+      "description": "Owns complex software delivery and mentors engineers",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "software-architect",
+      "family": "software_engineering",
+      "name": "Software Architect",
+      "description": "Defines software structure, standards, and trade-offs",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "technical-lead",
+      "family": "software_engineering",
+      "name": "Technical Lead",
+      "description": "Leads technical direction and delivery for a team",
+      "level_min": "senior",
+      "level_max": "lead"
+    },
+    {
+      "slug": "principal-engineer",
+      "family": "software_engineering",
+      "name": "Principal Engineer",
+      "description": "Sets engineering direction across multiple teams",
+      "level_min": "principal",
+      "level_max": "principal"
+    },
+    {
+      "slug": "engineering-manager",
+      "family": "software_engineering",
+      "name": "Engineering Manager",
+      "description": "Manages engineers, delivery, and team health",
+      "level_min": "manager",
+      "level_max": "director"
+    },
+    {
+      "slug": "api-developer",
+      "family": "software_engineering",
+      "name": "API Developer",
+      "description": "Designs and builds APIs and integration contracts",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "integration-engineer",
+      "family": "software_engineering",
+      "name": "Integration Engineer",
+      "description": "Connects systems, data, and third-party services",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "sdk-developer",
+      "family": "software_engineering",
+      "name": "SDK Developer",
+      "description": "Builds client libraries and developer-facing SDKs",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "systems-software-engineer",
+      "family": "software_engineering",
+      "name": "Systems Software Engineer",
+      "description": "Builds low-level system software and tooling",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "frontend-developer",
+      "family": "frontend",
+      "name": "Frontend Developer",
+      "description": "Builds browser-based user interfaces",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "senior-frontend-developer",
+      "family": "frontend",
+      "name": "Senior Frontend Developer",
+      "description": "Owns complex frontend architecture and delivery",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "ui-engineer",
+      "family": "frontend",
+      "name": "UI Engineer",
+      "description": "Implements accessible, high-quality UI components",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "react-developer",
+      "family": "frontend",
+      "name": "React Developer",
+      "description": "Builds React applications and component systems",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "angular-developer",
+      "family": "frontend",
+      "name": "Angular Developer",
+      "description": "Builds Angular applications and enterprise UI",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "vue-developer",
+      "family": "frontend",
+      "name": "Vue Developer",
+      "description": "Builds Vue applications and components",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "web-developer",
+      "family": "frontend",
+      "name": "Web Developer",
+      "description": "Builds and maintains websites and web apps",
+      "level_min": "intern",
+      "level_max": "senior"
+    },
+    {
+      "slug": "accessibility-engineer",
+      "family": "frontend",
+      "name": "Accessibility Engineer",
+      "description": "Ensures WCAG-compliant and inclusive interfaces",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "backend-developer",
+      "family": "backend",
+      "name": "Backend Developer",
+      "description": "Builds server-side services and business logic",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "senior-backend-developer",
+      "family": "backend",
+      "name": "Senior Backend Developer",
+      "description": "Owns complex backend systems and reliability",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "java-developer",
+      "family": "backend",
+      "name": "Java Developer",
+      "description": "Builds Java services and applications",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "python-developer",
+      "family": "backend",
+      "name": "Python Developer",
+      "description": "Builds Python services, tools, and APIs",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "nodejs-developer",
+      "family": "backend",
+      "name": "Node.js Developer",
+      "description": "Builds Node.js services and APIs",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "dotnet-developer",
+      "family": "backend",
+      "name": ".NET Developer",
+      "description": "Builds .NET services and applications",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "go-developer",
+      "family": "backend",
+      "name": "Go Developer",
+      "description": "Builds Go services and infrastructure tooling",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "php-developer",
+      "family": "backend",
+      "name": "PHP Developer",
+      "description": "Builds PHP applications and APIs",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "api-backend-engineer",
+      "family": "backend",
+      "name": "API Backend Engineer",
+      "description": "Owns backend API design and performance",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "microservices-engineer",
+      "family": "backend",
+      "name": "Microservices Engineer",
+      "description": "Designs and operates microservice systems",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "blockchain-developer",
+      "family": "backend",
+      "name": "Blockchain Developer",
+      "description": "Builds distributed-ledger applications and contracts",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "fullstack-developer",
+      "family": "fullstack",
+      "name": "Full Stack Developer",
+      "description": "Builds both frontend and backend features",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "senior-fullstack-developer",
+      "family": "fullstack",
+      "name": "Senior Full Stack Developer",
+      "description": "Owns end-to-end application delivery",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "web-application-developer",
+      "family": "fullstack",
+      "name": "Web Application Developer",
+      "description": "Builds complete web applications",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "mobile-developer",
+      "family": "mobile",
+      "name": "Mobile Developer",
+      "description": "Builds mobile applications",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "ios-developer",
+      "family": "mobile",
+      "name": "iOS Developer",
+      "description": "Builds iOS applications",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "android-developer",
+      "family": "mobile",
+      "name": "Android Developer",
+      "description": "Builds Android applications",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "react-native-developer",
+      "family": "mobile",
+      "name": "React Native Developer",
+      "description": "Builds cross-platform apps with React Native",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "flutter-developer",
+      "family": "mobile",
+      "name": "Flutter Developer",
+      "description": "Builds cross-platform apps with Flutter",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "mobile-lead",
+      "family": "mobile",
+      "name": "Mobile Lead",
+      "description": "Leads mobile engineering and release strategy",
+      "level_min": "lead",
+      "level_max": "manager"
+    },
+    {
+      "slug": "game-developer",
+      "family": "game",
+      "name": "Game Developer",
+      "description": "Builds gameplay systems and game features",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "unity-developer",
+      "family": "game",
+      "name": "Unity Developer",
+      "description": "Builds games and simulations in Unity",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "unreal-engine-developer",
+      "family": "game",
+      "name": "Unreal Engine Developer",
+      "description": "Builds games and simulations in Unreal",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "graphics-programmer",
+      "family": "game",
+      "name": "Graphics Programmer",
+      "description": "Builds rendering and visual systems",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "gameplay-programmer",
+      "family": "game",
+      "name": "Gameplay Programmer",
+      "description": "Builds gameplay mechanics and controls",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "xr-developer",
+      "family": "game",
+      "name": "XR Developer",
+      "description": "Builds AR/VR/XR applications and experiences",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "embedded-software-engineer",
+      "family": "embedded",
+      "name": "Embedded Software Engineer",
+      "description": "Builds embedded software for devices",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "firmware-engineer",
+      "family": "embedded",
+      "name": "Firmware Engineer",
+      "description": "Develops firmware and hardware interfaces",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "iot-engineer",
+      "family": "embedded",
+      "name": "IoT Engineer",
+      "description": "Connects devices, sensors, and cloud services",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "robotics-software-engineer",
+      "family": "embedded",
+      "name": "Robotics Software Engineer",
+      "description": "Builds software for robotic systems",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "qa-engineer",
+      "family": "qa",
+      "name": "QA Engineer",
+      "description": "Plans and executes quality assurance activities",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "qa-automation-engineer",
+      "family": "qa",
+      "name": "QA Automation Engineer",
+      "description": "Builds automated test suites",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "sdet",
+      "family": "qa",
+      "name": "SDET",
+      "description": "Builds test automation and quality tooling as an engineer",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "test-analyst",
+      "family": "qa",
+      "name": "Test Analyst",
+      "description": "Analyzes requirements and designs test coverage",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "performance-test-engineer",
+      "family": "qa",
+      "name": "Performance Test Engineer",
+      "description": "Tests throughput, latency, and scalability",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "security-test-engineer",
+      "family": "qa",
+      "name": "Security Test Engineer",
+      "description": "Tests applications for security weaknesses",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "qa-lead",
+      "family": "qa",
+      "name": "QA Lead",
+      "description": "Leads quality strategy and QA teams",
+      "level_min": "lead",
+      "level_max": "manager"
+    },
+    {
+      "slug": "test-manager",
+      "family": "qa",
+      "name": "Test Manager",
+      "description": "Manages test programs and quality governance",
+      "level_min": "manager",
+      "level_max": "director"
+    },
+    {
+      "slug": "qa-manager",
+      "family": "qa",
+      "name": "QA Manager",
+      "description": "Manages QA teams and quality governance",
+      "level_min": "manager",
+      "level_max": "director"
+    },
+    {
+      "slug": "manual-tester",
+      "family": "qa",
+      "name": "Manual Tester",
+      "description": "Executes manual test cases and reports defects",
+      "level_min": "intern",
+      "level_max": "mid"
+    },
+    {
+      "slug": "devops-engineer",
+      "family": "devops",
+      "name": "DevOps Engineer",
+      "description": "Automates build, deploy, and operations",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "site-reliability-engineer",
+      "family": "devops",
+      "name": "Site Reliability Engineer",
+      "description": "Owns reliability, observability, and incident response",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "platform-engineer",
+      "family": "devops",
+      "name": "Platform Engineer",
+      "description": "Builds internal developer and delivery platforms",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "release-manager",
+      "family": "devops",
+      "name": "Release Manager",
+      "description": "Coordinates release planning and change control",
+      "level_min": "mid",
+      "level_max": "manager"
+    },
+    {
+      "slug": "build-engineer",
+      "family": "devops",
+      "name": "Build Engineer",
+      "description": "Owns build systems and artifact pipelines",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "automation-engineer",
+      "family": "devops",
+      "name": "Automation Engineer",
+      "description": "Automates infrastructure and repetitive operations",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "devsecops-engineer",
+      "family": "devops",
+      "name": "DevSecOps Engineer",
+      "description": "Embeds security into delivery pipelines",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "cloud-engineer",
+      "family": "cloud",
+      "name": "Cloud Engineer",
+      "description": "Builds and operates cloud infrastructure",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "aws-engineer",
+      "family": "cloud",
+      "name": "AWS Engineer",
+      "description": "Designs and operates AWS workloads",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "azure-engineer",
+      "family": "cloud",
+      "name": "Azure Engineer",
+      "description": "Designs and operates Azure workloads",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "gcp-engineer",
+      "family": "cloud",
+      "name": "GCP Engineer",
+      "description": "Designs and operates Google Cloud workloads",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "cloud-architect",
+      "family": "cloud",
+      "name": "Cloud Architect",
+      "description": "Defines cloud architecture and standards",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "cloud-security-engineer",
+      "family": "cloud",
+      "name": "Cloud Security Engineer",
+      "description": "Secures cloud identity, network, and data",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "cloud-operations-engineer",
+      "family": "cloud",
+      "name": "Cloud Operations Engineer",
+      "description": "Runs cloud operations, cost, and reliability",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "cloud-solutions-architect",
+      "family": "cloud",
+      "name": "Cloud Solutions Architect",
+      "description": "Designs cloud solutions for business needs",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "infrastructure-engineer",
+      "family": "infrastructure",
+      "name": "Infrastructure Engineer",
+      "description": "Builds and maintains IT infrastructure",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "systems-engineer",
+      "family": "infrastructure",
+      "name": "Systems Engineer",
+      "description": "Designs and operates system platforms",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "systems-administrator",
+      "family": "infrastructure",
+      "name": "Systems Administrator",
+      "description": "Administers servers and system services",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "linux-administrator",
+      "family": "infrastructure",
+      "name": "Linux Administrator",
+      "description": "Administers Linux systems",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "windows-administrator",
+      "family": "infrastructure",
+      "name": "Windows Administrator",
+      "description": "Administers Windows systems",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "virtualization-engineer",
+      "family": "infrastructure",
+      "name": "Virtualization Engineer",
+      "description": "Runs hypervisors, containers, and virtual platforms",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "storage-engineer",
+      "family": "infrastructure",
+      "name": "Storage Engineer",
+      "description": "Designs and operates storage systems",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "data-center-engineer",
+      "family": "infrastructure",
+      "name": "Data Center Engineer",
+      "description": "Operates data center facilities and hardware",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "end-user-computing-engineer",
+      "family": "infrastructure",
+      "name": "End-User Computing Engineer",
+      "description": "Manages desktops, devices, and endpoint platforms",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "network-engineer",
+      "family": "network",
+      "name": "Network Engineer",
+      "description": "Designs and operates networks",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "network-administrator",
+      "family": "network",
+      "name": "Network Administrator",
+      "description": "Administers routers, switches, and firewalls",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "network-architect",
+      "family": "network",
+      "name": "Network Architect",
+      "description": "Defines network architecture and standards",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "network-security-engineer",
+      "family": "network",
+      "name": "Network Security Engineer",
+      "description": "Secures network paths and perimeter controls",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "noc-engineer",
+      "family": "network",
+      "name": "NOC Engineer",
+      "description": "Monitors and responds to network operations events",
+      "level_min": "junior",
+      "level_max": "mid"
+    },
+    {
+      "slug": "telecom-engineer",
+      "family": "network",
+      "name": "Telecom Engineer",
+      "description": "Manages telephony and communication systems",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "cybersecurity-analyst",
+      "family": "security",
+      "name": "Cybersecurity Analyst",
+      "description": "Monitors, analyzes, and reports security risk",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "security-engineer",
+      "family": "security",
+      "name": "Security Engineer",
+      "description": "Builds and operates security controls",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "application-security-engineer",
+      "family": "security",
+      "name": "Application Security Engineer",
+      "description": "Secures software design and delivery",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "penetration-tester",
+      "family": "security",
+      "name": "Penetration Tester",
+      "description": "Tests systems by simulating attacks",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "soc-analyst",
+      "family": "security",
+      "name": "SOC Analyst",
+      "description": "Monitors and triages security events",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "incident-responder",
+      "family": "security",
+      "name": "Incident Responder",
+      "description": "Leads containment and recovery for incidents",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "grc-analyst",
+      "family": "security",
+      "name": "GRC Analyst",
+      "description": "Manages governance, risk, and compliance evidence",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "iam-engineer",
+      "family": "security",
+      "name": "IAM Engineer",
+      "description": "Builds identity and access management controls",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "security-architect",
+      "family": "security",
+      "name": "Security Architect",
+      "description": "Defines security architecture and control models",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "security-manager",
+      "family": "security",
+      "name": "Security Manager",
+      "description": "Leads security operations and strategy",
+      "level_min": "manager",
+      "level_max": "director"
+    },
+    {
+      "slug": "forensics-analyst",
+      "family": "security",
+      "name": "Forensics Analyst",
+      "description": "Investigates digital evidence and incidents",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "threat-intelligence-analyst",
+      "family": "security",
+      "name": "Threat Intelligence Analyst",
+      "description": "Tracks threats and adversary behavior",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "data-analyst",
+      "family": "data",
+      "name": "Data Analyst",
+      "description": "Analyzes data and produces decision support",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "data-engineer",
+      "family": "data",
+      "name": "Data Engineer",
+      "description": "Builds data pipelines and storage layers",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "data-scientist",
+      "family": "data",
+      "name": "Data Scientist",
+      "description": "Builds models and experiments from data",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "business-intelligence-analyst",
+      "family": "data",
+      "name": "Business Intelligence Analyst",
+      "description": "Builds dashboards and reporting models",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "analytics-engineer",
+      "family": "data",
+      "name": "Analytics Engineer",
+      "description": "Models data for analytics and reporting",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "data-architect",
+      "family": "data",
+      "name": "Data Architect",
+      "description": "Defines data architecture and governance",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "database-developer",
+      "family": "data",
+      "name": "Database Developer",
+      "description": "Builds database logic and queries",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "etl-developer",
+      "family": "data",
+      "name": "ETL Developer",
+      "description": "Builds extract, transform, and load pipelines",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "big-data-engineer",
+      "family": "data",
+      "name": "Big Data Engineer",
+      "description": "Builds large-scale data processing systems",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "data-governance-analyst",
+      "family": "data",
+      "name": "Data Governance Analyst",
+      "description": "Defines data quality, lineage, and policy",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "data-platform-engineer",
+      "family": "data",
+      "name": "Data Platform Engineer",
+      "description": "Builds shared data platforms and services",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "machine-learning-engineer",
+      "family": "ai_ml",
+      "name": "Machine Learning Engineer",
+      "description": "Builds and deploys ML models",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "ai-engineer",
+      "family": "ai_ml",
+      "name": "AI Engineer",
+      "description": "Builds AI-powered applications and services",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "mlops-engineer",
+      "family": "ai_ml",
+      "name": "MLOps Engineer",
+      "description": "Operates ML pipelines and model lifecycle",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "nlp-engineer",
+      "family": "ai_ml",
+      "name": "NLP Engineer",
+      "description": "Builds natural language processing systems",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "computer-vision-engineer",
+      "family": "ai_ml",
+      "name": "Computer Vision Engineer",
+      "description": "Builds image and video understanding systems",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "deep-learning-engineer",
+      "family": "ai_ml",
+      "name": "Deep Learning Engineer",
+      "description": "Builds neural network models",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "ai-research-engineer",
+      "family": "ai_ml",
+      "name": "AI Research Engineer",
+      "description": "Researches and prototypes AI techniques",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "ai-solutions-architect",
+      "family": "ai_ml",
+      "name": "AI Solutions Architect",
+      "description": "Designs AI solutions for business problems",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "llm-engineer",
+      "family": "ai_ml",
+      "name": "LLM Engineer",
+      "description": "Builds production systems around large language models",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "prompt-engineer",
+      "family": "ai_ml",
+      "name": "Prompt Engineer",
+      "description": "Designs, evaluates, and maintains prompts",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "database-administrator",
+      "family": "database",
+      "name": "Database Administrator",
+      "description": "Runs database availability, backup, and access",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "database-engineer",
+      "family": "database",
+      "name": "Database Engineer",
+      "description": "Builds and tunes database platforms",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "database-architect",
+      "family": "database",
+      "name": "Database Architect",
+      "description": "Defines database architecture and standards",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "database-optimization-specialist",
+      "family": "database",
+      "name": "Database Optimization Specialist",
+      "description": "Tunes queries, indexes, and performance",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "data-warehouse-engineer",
+      "family": "database",
+      "name": "Data Warehouse Engineer",
+      "description": "Builds and operates data warehouse platforms",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "database-reliability-engineer",
+      "family": "database",
+      "name": "Database Reliability Engineer",
+      "description": "Runs database reliability and automation",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "it-support-specialist",
+      "family": "it_support",
+      "name": "IT Support Specialist",
+      "description": "Resolves end-user IT issues",
+      "level_min": "intern",
+      "level_max": "senior"
+    },
+    {
+      "slug": "helpdesk-technician",
+      "family": "it_support",
+      "name": "Helpdesk Technician",
+      "description": "Handles first-line support requests",
+      "level_min": "intern",
+      "level_max": "mid"
+    },
+    {
+      "slug": "service-desk-analyst",
+      "family": "it_support",
+      "name": "Service Desk Analyst",
+      "description": "Triages and resolves service desk tickets",
+      "level_min": "junior",
+      "level_max": "mid"
+    },
+    {
+      "slug": "desktop-support-engineer",
+      "family": "it_support",
+      "name": "Desktop Support Engineer",
+      "description": "Supports desktops, devices, and end-user software",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "application-support-analyst",
+      "family": "it_support",
+      "name": "Application Support Analyst",
+      "description": "Supports production applications and users",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "it-operations-analyst",
+      "family": "it_support",
+      "name": "IT Operations Analyst",
+      "description": "Runs day-to-day IT operations and monitoring",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "it-asset-manager",
+      "family": "it_support",
+      "name": "IT Asset Manager",
+      "description": "Manages hardware, software, and license inventory",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "it-service-manager",
+      "family": "it_support",
+      "name": "IT Service Manager",
+      "description": "Owns IT service levels and service catalog",
+      "level_min": "manager",
+      "level_max": "director"
+    },
+    {
+      "slug": "incident-manager",
+      "family": "it_support",
+      "name": "Incident Manager",
+      "description": "Coordinates major incident response",
+      "level_min": "mid",
+      "level_max": "manager"
+    },
+    {
+      "slug": "problem-manager",
+      "family": "it_support",
+      "name": "Problem Manager",
+      "description": "Finds and removes root causes of incidents",
+      "level_min": "mid",
+      "level_max": "manager"
+    },
+    {
+      "slug": "change-manager",
+      "family": "it_support",
+      "name": "Change Manager",
+      "description": "Runs change control and release approval",
+      "level_min": "mid",
+      "level_max": "manager"
+    },
+    {
+      "slug": "configuration-manager",
+      "family": "it_support",
+      "name": "Configuration Manager",
+      "description": "Maintains the configuration management database",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "service-delivery-manager",
+      "family": "it_support",
+      "name": "Service Delivery Manager",
+      "description": "Owns service delivery and customer outcomes",
+      "level_min": "manager",
+      "level_max": "director"
+    },
+    {
+      "slug": "enterprise-architect",
+      "family": "architecture",
+      "name": "Enterprise Architect",
+      "description": "Aligns IT architecture with business strategy",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "solutions-architect",
+      "family": "architecture",
+      "name": "Solutions Architect",
+      "description": "Designs end-to-end solutions for requirements",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "technical-architect",
+      "family": "architecture",
+      "name": "Technical Architect",
+      "description": "Defines technical architecture for a domain",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "integration-architect",
+      "family": "architecture",
+      "name": "Integration Architect",
+      "description": "Designs integration and API landscapes",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "it-architect",
+      "family": "architecture",
+      "name": "IT Architect",
+      "description": "Designs IT systems and platforms",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "systems-architect",
+      "family": "architecture",
+      "name": "Systems Architect",
+      "description": "Designs system platforms and integration architecture",
+      "level_min": "senior",
+      "level_max": "principal"
+    },
+    {
+      "slug": "it-manager",
+      "family": "it_management",
+      "name": "IT Manager",
+      "description": "Manages IT teams and service delivery",
+      "level_min": "manager",
+      "level_max": "director"
+    },
+    {
+      "slug": "it-director",
+      "family": "it_management",
+      "name": "IT Director",
+      "description": "Owns IT strategy, budget, and portfolio",
+      "level_min": "director",
+      "level_max": "director"
+    },
+    {
+      "slug": "it-project-manager",
+      "family": "it_management",
+      "name": "IT Project Manager",
+      "description": "Delivers IT projects on scope, time, and budget",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "it-program-manager",
+      "family": "it_management",
+      "name": "IT Program Manager",
+      "description": "Manages related IT projects and outcomes",
+      "level_min": "senior",
+      "level_max": "director"
+    },
+    {
+      "slug": "it-governance-manager",
+      "family": "it_management",
+      "name": "IT Governance Manager",
+      "description": "Owns IT policy, controls, and decision rights",
+      "level_min": "manager",
+      "level_max": "director"
+    },
+    {
+      "slug": "it-risk-manager",
+      "family": "it_management",
+      "name": "IT Risk Manager",
+      "description": "Identifies and manages IT risk",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "it-compliance-manager",
+      "family": "it_management",
+      "name": "IT Compliance Manager",
+      "description": "Ensures IT meets regulatory obligations",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "it-auditor",
+      "family": "it_management",
+      "name": "IT Auditor",
+      "description": "Audits IT controls and evidence",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "it-consultant",
+      "family": "it_management",
+      "name": "IT Consultant",
+      "description": "Advises on IT problems and improvements",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "it-trainer",
+      "family": "it_management",
+      "name": "IT Trainer",
+      "description": "Trains users and staff on IT systems",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "it-procurement-specialist",
+      "family": "it_management",
+      "name": "IT Procurement Specialist",
+      "description": "Buys IT hardware, software, and services",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "technical-program-manager",
+      "family": "it_management",
+      "name": "Technical Program Manager",
+      "description": "Leads cross-team technical programs",
+      "level_min": "senior",
+      "level_max": "director"
+    },
+    {
+      "slug": "it-business-analyst",
+      "family": "business_analysis",
+      "name": "IT Business Analyst",
+      "description": "Translates IT needs into requirements",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "systems-analyst",
+      "family": "business_analysis",
+      "name": "Systems Analyst",
+      "description": "Analyzes systems and designs changes",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "functional-analyst",
+      "family": "business_analysis",
+      "name": "Functional Analyst",
+      "description": "Specifies functional behavior of IT systems",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "it-product-owner",
+      "family": "business_analysis",
+      "name": "IT Product Owner",
+      "description": "Owns the IT product backlog and value",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "it-scrum-master",
+      "family": "business_analysis",
+      "name": "IT Scrum Master",
+      "description": "Facilitates agile delivery for IT teams",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "requirements-engineer",
+      "family": "business_analysis",
+      "name": "Requirements Engineer",
+      "description": "Elicits, specifies, and validates requirements",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "ui-designer",
+      "family": "design",
+      "name": "UI Designer",
+      "description": "Designs visual interfaces",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "ux-designer",
+      "family": "design",
+      "name": "UX Designer",
+      "description": "Designs user flows and experiences",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "product-designer",
+      "family": "design",
+      "name": "Product Designer",
+      "description": "Designs end-to-end product experiences",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "interaction-designer",
+      "family": "design",
+      "name": "Interaction Designer",
+      "description": "Designs interaction behavior and prototypes",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "ux-researcher",
+      "family": "design",
+      "name": "UX Researcher",
+      "description": "Researches user needs and validates designs",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "erp-administrator",
+      "family": "erp_crm",
+      "name": "ERP Administrator",
+      "description": "Administers ERP platforms and users",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "crm-administrator",
+      "family": "erp_crm",
+      "name": "CRM Administrator",
+      "description": "Administers CRM platforms and data",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "salesforce-developer",
+      "family": "erp_crm",
+      "name": "Salesforce Developer",
+      "description": "Builds Salesforce customizations and integrations",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "sap-consultant",
+      "family": "erp_crm",
+      "name": "SAP Consultant",
+      "description": "Configures and supports SAP processes",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "workday-consultant",
+      "family": "erp_crm",
+      "name": "Workday Consultant",
+      "description": "Configures and supports Workday",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "servicenow-developer",
+      "family": "erp_crm",
+      "name": "ServiceNow Developer",
+      "description": "Builds ServiceNow workflows and integrations",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "dynamics-365-developer",
+      "family": "erp_crm",
+      "name": "Dynamics 365 Developer",
+      "description": "Builds Dynamics 365 customizations",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "oracle-erp-consultant",
+      "family": "erp_crm",
+      "name": "Oracle ERP Consultant",
+      "description": "Configures and supports Oracle ERP",
+      "level_min": "mid",
+      "level_max": "senior"
+    },
+    {
+      "slug": "technical-writer",
+      "family": "technical_writing",
+      "name": "Technical Writer",
+      "description": "Writes accurate technical documentation",
+      "level_min": "junior",
+      "level_max": "senior"
+    },
+    {
+      "slug": "documentation-engineer",
+      "family": "technical_writing",
+      "name": "Documentation Engineer",
+      "description": "Builds documentation systems and tooling",
+      "level_min": "mid",
+      "level_max": "senior"
+    }
+  ]
+}

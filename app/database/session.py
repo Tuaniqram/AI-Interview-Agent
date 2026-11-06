@@ -40,7 +40,22 @@ def get_engine():
             echo=False,
             pool_size=10,
             max_overflow=20,
-            connect_args={"statement_cache_size": 0},
+            # Supabase routes port 6543 through PgBouncer (transaction mode),
+            # which silently closes idle/stale pooled connections. Without
+            # validation those dead sockets surface as
+            # asyncpg ConnectionDoesNotExistError mid-request.
+            pool_pre_ping=True,
+            # Recycle before the pooler's idle cutoff so connections are
+            # retired cleanly instead of dying mid-operation.
+            pool_recycle=240,
+            connect_args={
+                "statement_cache_size": 0,
+                # Bound the connect: a wedged/slow remote pooler must fail in
+                # bounded time instead of hanging every awaited DB call
+                # (asyncpg defaults to 60s). 15s because the Supabase
+                # ap-southeast-2 link routinely takes 3-5s under load.
+                "timeout": 15,
+            },
         )
         logger.info("Async SQLAlchemy engine created")
     return _engine

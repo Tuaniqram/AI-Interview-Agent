@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.middleware import authenticate
 from app.database.deps import get_db
-from app.models.db import OrgUser, User
+from app.models.db import Organization, User
 
 
 async def resolve_org_id(
@@ -41,13 +41,13 @@ def require_org_role(allowed_roles: list[str]):
                 detail="X-Org-Id header is required",
             )
         result = await db.execute(
-            select(OrgUser).where(
-                OrgUser.org_id == org_id,
-                OrgUser.user_id == user.id,
+            select(Organization).where(
+                Organization.id == org_id,
+                Organization.owner_user_id == user.id,
             )
         )
-        ou = result.scalar_one_or_none()
-        if not ou or ou.role not in allowed_roles:
+        org = result.scalar_one_or_none()
+        if not org:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions for this organization",
@@ -80,13 +80,13 @@ def require_org_role_path(allowed_roles: list[str]):
         if not target_org:
             target_org = request.path_params.get("org_id")
         result = await db.execute(
-            select(OrgUser).where(
-                OrgUser.org_id == target_org,
-                OrgUser.user_id == user.id,
+            select(Organization).where(
+                Organization.id == target_org,
+                Organization.owner_user_id == user.id,
             )
         )
-        ou = result.scalar_one_or_none()
-        if not ou or ou.role not in allowed_roles:
+        org = result.scalar_one_or_none()
+        if not org:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions for this organization",

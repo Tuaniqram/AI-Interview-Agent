@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin.schemas import AdminOrgResponse, AdminUserResponse, PlatformStatsResponse
 from app.database.deps import get_db
-from app.models.db import InterviewSession, Organization, OrgUser, User
+from app.models.db import InterviewSession, Organization, User
 
 
 async def get_platform_stats(db: AsyncSession) -> PlatformStatsResponse:
@@ -35,10 +35,8 @@ async def list_orgs(
         Organization.slug,
         Organization.is_active,
         Organization.created_at,
-        func.count(func.distinct(OrgUser.id)).label("member_count"),
+        func.count(func.distinct(Organization.owner_user_id)).label("member_count"),
         func.count(func.distinct(InterviewSession.id)).label("interview_count"),
-    ).outerjoin(
-        OrgUser, OrgUser.org_id == Organization.id
     ).outerjoin(
         InterviewSession, InterviewSession.org_id == Organization.id
     ).group_by(Organization.id).order_by(Organization.created_at.desc())

@@ -10,7 +10,7 @@ from app.database.deps import get_db
 from app.intelligence.role_competency_profiler import detect_family
 from app.models.db import (
     CandidateProfile,
-    Department,
+    ItRole,
     InterviewBrain,
     InterviewSession,
     Organization,
@@ -58,7 +58,7 @@ def build_ranking_row(
     ``job_role``, ``final_score``, ``started_at``, ``ended_at``; candidate /
     department expose their display fields.
     """
-    family = detect_family(str(session.job_role or ""))
+    family = detect_family(str(session.job_role_snapshot or ""))
     calibrated_score = calibration_fields.get("calibrated_score")
     return {
         "session_id": str(session.id),
@@ -67,7 +67,7 @@ def build_ranking_row(
         "candidate_email": candidate.email if candidate else None,
         "resume_url": candidate.resume_url if candidate else None,
         "skills": candidate.skills if candidate else None,
-        "job_role": session.job_role,
+        "job_role": session.job_role_snapshot,
         "department_name": department.name if department else None,
         "department_id": department.id if department else None,
         "final_score": float(session.final_score) if session.final_score else None,
@@ -134,10 +134,10 @@ async def get_candidate_ranking(
         select(
             InterviewSession,
             CandidateProfile,
-            Department,
+            ItRole,
         )
         .join(CandidateProfile, InterviewSession.candidate_profile_id == CandidateProfile.id, isouter=True)
-        .join(Department, InterviewSession.department_id == Department.id, isouter=True)
+        .join(ItRole, InterviewSession.it_role_id == ItRole.id, isouter=True)
         .where(
             InterviewSession.org_id == org_id,
             InterviewSession.final_score.isnot(None),
@@ -146,10 +146,8 @@ async def get_candidate_ranking(
         .order_by(desc(InterviewSession.final_score))
     )
 
-    if department_id is not None:
-        query = query.where(InterviewSession.department_id == department_id)
     if job_role is not None:
-        query = query.where(InterviewSession.job_role.ilike(f"%{job_role}%"))
+        query = query.where(InterviewSession.job_role_snapshot.ilike(f"%{job_role}%"))
 
     result = await db.execute(query)
     rows = result.all()
@@ -212,10 +210,10 @@ async def export_candidates_csv(
         select(
             InterviewSession,
             CandidateProfile,
-            Department,
+            ItRole,
         )
         .join(CandidateProfile, InterviewSession.candidate_profile_id == CandidateProfile.id, isouter=True)
-        .join(Department, InterviewSession.department_id == Department.id, isouter=True)
+        .join(ItRole, InterviewSession.it_role_id == ItRole.id, isouter=True)
         .where(
             InterviewSession.org_id == org_id,
             InterviewSession.final_score.isnot(None),
@@ -224,10 +222,8 @@ async def export_candidates_csv(
         .order_by(desc(InterviewSession.final_score))
     )
 
-    if department_id is not None:
-        query = query.where(InterviewSession.department_id == department_id)
     if job_role is not None:
-        query = query.where(InterviewSession.job_role.ilike(f"%{job_role}%"))
+        query = query.where(InterviewSession.job_role_snapshot.ilike(f"%{job_role}%"))
 
     result = await db.execute(query)
     rows = result.all()
@@ -235,12 +231,12 @@ async def export_candidates_csv(
     import csv, io
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["Candidate Name", "Email", "Job Role", "Department", "Score", "Skills", "Date"])
+    writer.writerow(["Candidate Name", "Email", "Job Role", "ItRole", "Score", "Skills", "Date"])
     for session, candidate, department in rows:
         writer.writerow([
             candidate.name if candidate else "Unknown",
             candidate.email if candidate else "",
-            session.job_role,
+            session.job_role_snapshot,
             department.name if department else "",
             float(session.final_score) if session.final_score else "",
             candidate.skills if candidate and candidate.skills else "",
@@ -260,28 +256,28 @@ async def get_ranking_summary(
 ):
     result = await db.execute(
         select(
-            InterviewSession.job_role,
-            InterviewSession.department_id,
-            Department.name.label("dept_name"),
+            InterviewSession.job_role_snapshot,
+            InterviewSession.it_role_id,
+            ItRole.name.label("dept_name"),
             func.count(InterviewSession.id).label("total"),
             func.avg(InterviewSession.final_score).label("avg_score"),
             func.max(InterviewSession.final_score).label("max_score"),
             func.min(InterviewSession.final_score).label("min_score"),
         )
-        .join(Department, InterviewSession.department_id == Department.id, isouter=True)
+        .join(ItRole, InterviewSession.it_role_id == ItRole.id, isouter=True)
         .where(
             InterviewSession.org_id == org_id,
             InterviewSession.final_score.isnot(None),
             InterviewSession.status == "completed",
         )
-        .group_by(InterviewSession.job_role, InterviewSession.department_id, Department.name)
+        .group_by(InterviewSession.job_role_snapshot, InterviewSession.it_role_id, ItRole.name)
         .order_by(desc("avg_score"))
     )
     rows = result.all()
     return [
         {
-            "job_role": row.job_role,
-            "department_id": row.department_id,
+            "job_role": row.job_role_snapshot,
+            "department_id": row.it_role_id,
             "department_name": row.dept_name,
             "total_candidates": row.total,
             "average_score": round(float(row.avg_score), 2) if row.avg_score else None,

@@ -77,8 +77,8 @@ def test_compute_canonical_score_is_the_single_composite_formula():
     competency_average = (
         sum(d["average_score"] * d["weight"] for d in details.values()) / total_weight
     )
-    assert rec["composite_score"] == compute_canonical_score(competency_average, 1.0, 1.0)
-    assert rec["composite_score"] == 9.09
+    assert rec["composite_score"] == compute_canonical_score(competency_average, 2 / 11, 1.0)
+    assert rec["composite_score"] == 6.64
 
 
 def test_canonical_score_from_state_reads_recommendation():
@@ -336,7 +336,7 @@ def test_recommendation_capped_at_difficulty_one():
         difficulty_reached=1,
     )
     assert rec["verdict"] == "borderline"
-    assert rec["composite_score"] == 9.09  # composite stays canonical
+    assert rec["composite_score"] == 6.64  # composite stays canonical
 
 
 def test_recommendation_uncapped_at_top_difficulty():
@@ -344,7 +344,8 @@ def test_recommendation_uncapped_at_top_difficulty():
         competency_summary=_summary(system_count=2),
         required_competencies=REQUIRED,
         contradictions=[],
-        hypotheses=_hypotheses(),
+        # fully-tested profile: every hypothesis confirmed, none untested
+        hypotheses=_hypotheses(confirmed=11, refuted=0, extra_open=0),
         question_number=6,
         comp_weights=WEIGHTS,
         difficulty_reached=5,

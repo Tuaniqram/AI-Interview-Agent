@@ -52,18 +52,18 @@ export default function ResetPassword() {
 
   return (
     <AuthLayout role="org">
-      <div className="space-y-8">
+      <div className="space-y-4">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-[var(--text-primary)]">Reset Password</h1>
-          <p className="mt-2 text-[var(--text-secondary)]">Choose a new password for your account</p>
+          <h1 className="text-xl font-bold text-[var(--text-primary)]">Reset Password</h1>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">Choose a new password for your account</p>
         </div>
-        <div className="bg-[var(--bg-section)] rounded-xl p-6 border border-[var(--border-color)]">
+        <div className="glass-card">
           {success ? (
             <div className="text-center space-y-4">
               <p className="text-sm text-green-600 dark:text-green-400">Password reset successfully! Redirecting to sign in...</p>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3">
               {error && (
                 <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>
               )}

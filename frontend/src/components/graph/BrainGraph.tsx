@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { EMBEDDED } from "./embedded";
+import { EMBEDDED, type EmbeddedBrain } from "./embedded";
 import { apiClient } from "../../services/apiClient";
 
 const DEFAULT_SID = "9f025266-26b8-4cbe-8b8c-b883c5436eea";
@@ -1196,7 +1196,7 @@ function renderLayerPanel(key: string, d: BrainData | null) {
 /* =========================================================================
    COMPONENT
    ========================================================================= */
-export default function BrainGraph({ sid, title }: { sid?: string; title?: string } = {}) {
+export default function BrainGraph({ sid, title, snapshot }: { sid?: string; title?: string; snapshot?: EmbeddedBrain } = {}) {
   const liveSid = sid || DEFAULT_SID;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -1239,13 +1239,22 @@ export default function BrainGraph({ sid, title }: { sid?: string; title?: strin
 
     let cancelled = false;
     const load = async () => {
-      let data: BrainData | null = normalize(EMBEDDED);
-      try {
-        const raw = await apiClient.get(`/api/v1/intelligence/brain/${encodeURIComponent(liveSid)}`);
-        const live = normalize(raw);
-        if (live) data = live;
-      } catch {
-        /* fall back to the embedded snapshot of the same session */
+      let data: BrainData | null;
+      if (snapshot) {
+        data = normalize(snapshot);
+      } else {
+        data = normalize(EMBEDDED);
+        try {
+          const raw = await apiClient.get(`/api/v1/intelligence/brain/${encodeURIComponent(liveSid)}`);
+          const live = normalize(raw);
+          /* only trust live data when it actually carries a brain — an empty
+             session (no hypotheses / timeline / edges) must not blank out the
+             embedded snapshot */
+          if (live && (live.hypotheses?.length > 0 || live.competencies?.length > 0) &&
+              (live.phases?.length > 0 || live.graph_edges?.length > 0)) data = live;
+        } catch {
+          /* fall back to the embedded snapshot of the same session */
+        }
       }
       if (cancelled || !data) return;
       resetSim(store, data);

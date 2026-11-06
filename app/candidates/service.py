@@ -27,10 +27,10 @@ from app.models.db import (
     CandidateInvitation,
     CandidateProfile,
     CandidateRefreshToken,
-    CandidateSession,
-    Department,
     InterviewSession,
+    Organization,
 )
+from app.services.it_role_resolver import resolve_it_role
 from app.services.v4_session_store import get_v4_session_store
 from app.config.interview_styles import get_style
 from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
@@ -168,23 +168,23 @@ async def update_profile(candidate_id: UUID, req: CandidateUpdateRequest, db: As
 
 async def get_interviews(candidate_id: UUID, db: AsyncSession) -> list[CandidateInterviewResponse]:
     result = await db.execute(
-        select(InterviewSession, Department)
-        .outerjoin(Department, InterviewSession.department_id == Department.id)
+        select(InterviewSession, Organization)
+        .outerjoin(Organization, InterviewSession.org_id == Organization.id)
         .where(InterviewSession.candidate_profile_id == candidate_id)
         .order_by(InterviewSession.started_at.desc())
     )
     interviews = []
-    for session, department in result.all():
+    for session, organization in result.all():
         interviews.append(CandidateInterviewResponse(
             id=session.id,
-            job_role=session.job_role,
+            job_role=session.job_role_snapshot,
             session_type=session.session_type or "",
             interaction_mode=session.interaction_mode,
             status=session.status,
             final_score=session.final_score,
             started_at=session.started_at,
             ended_at=session.ended_at,
-            department_name=department.name if department else None,
+            department_name=organization.name if organization else None,
         ))
     return interviews
 
@@ -200,12 +200,14 @@ async def get_interview_detail(candidate_id: UUID, interview_id: UUID, db: Async
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found")
 
-    department_result = await db.execute(select(Department).where(Department.id == session.department_id))
-    department = department_result.scalar_one_or_none()
+    organization_result = await db.execute(
+        select(Organization).where(Organization.id == session.org_id)
+    )
+    organization = organization_result.scalar_one_or_none()
 
     return {
         "id": session.id,
-        "job_role": session.job_role,
+        "job_role": session.job_role_snapshot,
         "session_type": session.session_type,
         "interaction_mode": session.interaction_mode,
         "status": session.status,
@@ -213,8 +215,8 @@ async def get_interview_detail(candidate_id: UUID, interview_id: UUID, db: Async
         "final_feedback": session.final_feedback,
         "started_at": session.started_at,
         "ended_at": session.ended_at,
-        "department_name": department.name if department else None,
-        "department_id": department.id if department else None,
+        "department_name": organization.name if organization else None,
+        "department_id": None,
     }
 
 
@@ -280,24 +282,20 @@ async def start_practice(
     interview_style: str,
     db: AsyncSession,
 ) -> PracticeStartResponse:
+    it_role = await resolve_it_role(db, job_role)
     session = InterviewSession(
         id=uuid.uuid4(),
+        org_id=None,
+        it_role_id=it_role.id,
         candidate_profile_id=candidate_id,
-        job_role=job_role,
-        session_type="mock",
+        job_role_snapshot=job_role,
+        session_type="practice",
         interaction_mode="typing",
         total_questions=num_questions,
         engine_version="v4",
     )
     db.add(session)
     await db.flush()
-
-    cs = CandidateSession(
-        id=uuid.uuid4(),
-        candidate_id=candidate_id,
-        session_id=session.id,
-    )
-    db.add(cs)
 
     # Read profile_data for v4 state seed
     candidate_result = await db.execute(
@@ -317,7 +315,8 @@ async def start_practice(
     state = {
         "session_id": str(session.id),
         "job_role": job_role,
-        "department_id": None,
+        "org_id": None,
+        "it_role_id": str(it_role.id),
         "interview_style": style,
         "persona": style.get("persona", "friendly"),
         "difficulty_level": style.get("difficulty_range", (1, 3))[0],

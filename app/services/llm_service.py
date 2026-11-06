@@ -97,7 +97,7 @@ class LLMService:
 
                     response = await asyncio.wait_for(
                         target_llm.ainvoke(messages, config),
-                        timeout=60
+                        timeout=180
                     )
 
                     result_content = response.content

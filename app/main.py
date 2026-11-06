@@ -10,7 +10,6 @@ from app.api.interview_ws import router as interview_ws_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.orgs import router as orgs_router
 from app.api.v1.marketplace import router as marketplace_router
-from app.api.v1.scheduling import router as scheduling_router
 from app.api.v1.admin import router as admin_router
 from app.api.v1.candidates import router as candidates_router
 from app.api.v1.invitations import router as invitations_router
@@ -23,7 +22,6 @@ from app.api.v1.audit_logs import router as audit_logs_router
 from app.api.v1.system import router as system_router
 from app.api.v1.intelligence import router as intelligence_router
 from app.api.v1.demo import router as demo_router
-from app.api.v1.calibration import router as calibration_router
 from app.config import settings
 
 API_VERSION = "v1"
@@ -100,7 +98,6 @@ app.include_router(interview_ws_router)
 app.include_router(auth_router, prefix=f"/api/{API_VERSION}")
 app.include_router(orgs_router, prefix=f"/api/{API_VERSION}")
 app.include_router(marketplace_router, prefix=f"/api/{API_VERSION}")
-app.include_router(scheduling_router, prefix=f"/api/{API_VERSION}")
 app.include_router(admin_router, prefix=f"/api/{API_VERSION}")
 app.include_router(candidates_router, prefix=f"/api/{API_VERSION}")
 app.include_router(invitations_router, prefix=f"/api/{API_VERSION}")
@@ -112,7 +109,6 @@ app.include_router(candidate_ranking_router, prefix=f"/api/{API_VERSION}")
 app.include_router(audit_logs_router, prefix=f"/api/{API_VERSION}")
 app.include_router(intelligence_router, prefix=f"/api/{API_VERSION}")
 app.include_router(demo_router, prefix=f"/api/{API_VERSION}")
-app.include_router(calibration_router, prefix=f"/api/{API_VERSION}")
 app.include_router(system_router)
 
 
@@ -184,7 +180,3 @@ def health_check():
         "timestamp": str(__import__('datetime').datetime.now()),
         "cors": "✅ CORS enabled"
     }
-
-
-
-

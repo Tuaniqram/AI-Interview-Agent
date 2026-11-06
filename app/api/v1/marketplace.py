@@ -6,9 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.middleware import authenticate
 from app.auth.rbac import require_org_role, require_org_role_path, resolve_org_id
+from app.candidates.auth import authenticate_candidate, optional_candidate_auth
 from app.database.deps import get_db
 from app.marketplace.schemas import (
+    ApplicationOutcomeRequest,
+    ApplicationResponse,
+    ApplyRequest,
+    CandidateResponseRequest,
     CreatePublicInterviewRequest,
+    FitScoreRequest,
     OrgListingResponse,
     OrgPublicInterviewResponse,
     PublicInterviewResponse,
@@ -18,12 +24,18 @@ from app.marketplace.schemas import (
 )
 from app.services.audit_log import AuditLogService
 from app.marketplace.service import (
+    apply_to_public_interview,
     create_public_interview,
     delete_public_interview,
     get_org_profile,
     get_public_interview,
+    invite_application,
+    list_org_applications,
     list_org_public_interviews,
     list_organizations,
+    respond_to_application,
+    set_application_fit,
+    set_application_outcome,
     start_public_interview,
     update_public_interview,
 )
@@ -125,3 +137,68 @@ async def delete_listing(
         user_id=str(request.state.user.id) if hasattr(request.state, "user") else None,
         ip_address=request.client.host if request.client else None,
     )
+
+
+@router.post("/interviews/{interview_id}/apply", response_model=ApplicationResponse)
+async def apply_to_interview(
+    interview_id: UUID,
+    req: ApplyRequest,
+    candidate=Depends(optional_candidate_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    return await apply_to_public_interview(str(interview_id), req, db, candidate=candidate)
+
+
+@router.get("/org/{org_id}/applications", response_model=list[ApplicationResponse])
+async def org_applications(
+    org_id: str,
+    _: None = Depends(require_org_role_path(["owner", "member", "viewer"])),
+    db: AsyncSession = Depends(get_db),
+):
+    return await list_org_applications(org_id, db)
+
+
+@router.post("/applications/{application_id}/fit", response_model=ApplicationResponse)
+async def set_fit(
+    application_id: UUID,
+    req: FitScoreRequest,
+    org_id: str = Depends(resolve_org_id),
+    _: None = Depends(require_org_role(["owner"])),
+    db: AsyncSession = Depends(get_db),
+):
+    return await set_application_fit(str(application_id), req, org_id, db)
+
+
+@router.post("/applications/{application_id}/invite", response_model=ApplicationResponse)
+async def invite_candidate(
+    application_id: UUID,
+    request: Request,
+    org_id: str = Depends(resolve_org_id),
+    _: None = Depends(require_org_role(["owner"])),
+    db: AsyncSession = Depends(get_db),
+):
+    actor_id = str(request.state.user.id) if hasattr(request.state, "user") else None
+    return await invite_application(str(application_id), org_id, actor_id, db)
+
+
+@router.post("/applications/{application_id}/outcome", response_model=ApplicationResponse)
+async def record_outcome(
+    application_id: UUID,
+    req: ApplicationOutcomeRequest,
+    request: Request,
+    org_id: str = Depends(resolve_org_id),
+    _: None = Depends(require_org_role(["owner"])),
+    db: AsyncSession = Depends(get_db),
+):
+    actor_id = str(request.state.user.id) if hasattr(request.state, "user") else None
+    return await set_application_outcome(str(application_id), req, org_id, actor_id, db)
+
+
+@router.post("/applications/{application_id}/respond", response_model=ApplicationResponse)
+async def candidate_respond(
+    application_id: UUID,
+    req: CandidateResponseRequest,
+    candidate=Depends(authenticate_candidate),
+    db: AsyncSession = Depends(get_db),
+):
+    return await respond_to_application(str(application_id), req, candidate.id, db)

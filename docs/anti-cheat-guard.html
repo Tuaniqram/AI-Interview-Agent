@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>anti-cheat-guard.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="anti-ai-cheating-integrity-guard">Anti-AI-Cheating Integrity Guard</h1>
+<blockquote>
+<p>Last updated: 2026-08-14 · Version: 1.1 (contract draft)
+Scope: any frontend that submits answers and the engine answer-intake
+pipeline. This document is the <strong>stable contract</strong> — engine and frontend
+implement it, and future frontend rebuilds must not drift from it.</p>
+</blockquote>
+<h2 id="1-purpose--philosophy">1. Purpose &amp; philosophy</h2>
+<p>Candidates increasingly use AI tools (LLMs, side-panels, auto-responders) to
+cheat in remote interviews. The guard detects plausible AI-assisted answers
+without breaking the interview or penalizing honest candidates.</p>
+<p>Intentionally chosen properties — do not regress these:</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Master switch</td>
+<td>env-gated, <strong>OFF by default</strong> (developers keep testing with AI)</td>
+</tr>
+<tr>
+<td>Failure mode</td>
+<td>best-effort, never raises, never blocks the interview (same contract as <code>persist_evidence</code>)</td>
+</tr>
+<tr>
+<td>Action on suspicion</td>
+<td><strong>flag only</strong> — no auto-fail, no interview interruption</td>
+</tr>
+<tr>
+<td>Visibility</td>
+<td>final report payload only; no live event-log spam</td>
+</tr>
+<tr>
+<td>Telemetry</td>
+<td>treated as <em>signals</em>, never proof (it is client-supplied and spoofable)</td>
+</tr>
+<tr>
+<td>Cost</td>
+<td>heuristics are free; the LLM judge is one LLM call per answer, only when enabled and the answer is long enough</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-status">2. Status</h2>
+<p>1.1 = documented contract + implemented. Engine files:
+<code>app/services/anti_cheat.py</code>, hook in <code>app/engine/answer_processor.py</code>,
+<code>question_asked_at</code> timestamp stamping at question emission, report section in
+<code>build_report_response</code>. Frontend: <code>frontend/src/utils/antiCheatTelemetry.ts</code>
+(listeners + hardening signals), <code>ConductorRoom</code> (rules gate, flag gauge,
+countdown, submit payload via <code>interviewController.ts</code>). Tests:
+<code>tests/test_anti_cheat.py</code>.</p>
+<h2 id="3-env-configuration">3. Env configuration</h2>
+<p>All vars live in <code>.env.example</code> under the <code># ----- Anti-cheat guard (default OFF) -----</code>
+block. The backend <strong>must</strong> function identically when every var is absent.</p>
+<table>
+<thead>
+<tr>
+<th>Var</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ANTI_CHEAT_GUARD_ENABLED</code></td>
+<td><code>false</code></td>
+<td>Master switch. <code>false</code> ⇒ <code>assess()</code> is a pass-through stub: zero LLM calls, zero state mutation.</td>
+</tr>
+<tr>
+<td><code>ANTI_CHEAT_LLM_JUDGE</code></td>
+<td><code>true</code></td>
+<td>Run the LLM judge layer (see §6). Only consulted when the guard is enabled and answer length ≥ 200 chars.</td>
+</tr>
+<tr>
+<td><code>ANTI_CHEAT_FLAG_THRESHOLD</code></td>
+<td><code>70</code></td>
+<td>Per-answer score ≥ threshold ⇒ that answer (and the aggregate) is <code>flagged: true</code>.</td>
+</tr>
+<tr>
+<td><code>ANTI_CHEAT_MAX_FLAGS</code></td>
+<td><code>3</code></td>
+<td>Flagged answers tolerated before the session is terminated (see §7.4).</td>
+</tr>
+<tr>
+<td><code>ANTI_CHEAT_ANSWER_TIME_LIMIT_S</code></td>
+<td><code>120</code></td>
+<td>Hard per-answer window surfaced in the integrity policy (0 = no UI countdown).</td>
+</tr>
+<tr>
+<td><code>ANTI_CHEAT_POINTER_LEAVE_THRESHOLD</code></td>
+<td><code>3</code></td>
+<td>Pointer-leave events per question that score as possible second-screen reading.</td>
+</tr>
+<tr>
+<td><code>ANTI_CHEAT_TAMPER_DIVERGENCE_S</code></td>
+<td><code>0.5</code></td>
+<td>Wall-clock vs rAF divergence (s) classified as a session-tamper gap.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-frontend--backend-contract-immutable">4. Frontend ↔ backend contract (immutable)</h2>
+<h3 id="41-submit_answer-ws-payload-backend--engine-input">4.1 <code>submit_answer</code> WS payload (backend → engine input)</h3>
+<p>The existing message gains <strong>optional</strong> fields. The backend must work with
+them absent — an older frontend, voice mode, or a stripped rebuild sends no
+telemetry, and that simply means <em>no signal</em>, never an error.</p>
+<pre class="hljs"><code><div>submit_answer:
+  type:              &quot;submit_answer&quot;        (existing)
+  candidate_answer:  string                 (existing)
+  paste_chars:       number | absent        (NEW, optional)
+  focus_lost_count:  number | absent        (NEW, optional)
+  answer_source:     &quot;typing&quot; | &quot;voice&quot; | absent
+  keystroke_intervals: number[] | absent    (NEW §4.6)
+  first_key_ms:      number | absent        (NEW §4.6)
+  pointer_leaves:    number | absent        (NEW §4.6)
+  heartbeat_gaps:    number | absent        (NEW §4.6)
+</div></code></pre>
+<ul>
+<li><code>paste_chars</code> — total chars inserted via clipboard paste while composing
+this answer.</li>
+<li><code>focus_lost_count</code> — number of tab/visibility-loss events while this
+question was active (i.e. after the question was shown, before submit).</li>
+<li><code>answer_source</code> — <code>&quot;voice&quot;</code> skips paste/typing-rate/cadence signals (a
+spoken answer cannot be copy-pasted or macro-typed).</li>
+<li><code>keystroke_intervals</code> — inter-key intervals (ms) for the answer being
+composed (capped by the client); feeds the cadence signal (§5).</li>
+<li><code>first_key_ms</code> — ms between the question appearing and the first keystroke.</li>
+<li><code>pointer_leaves</code> — times the pointer exited the focused window (possible
+side-by-side-screen reading; debounced client-side).</li>
+<li><code>heartbeat_gaps</code> — rAF/wall-clock divergences (debugger breakpoints, VM
+snapshots); an invariant a spoofing script must actively fake.</li>
+</ul>
+<p>The WS handler (<code>app/api/interview_ws.py</code>) reads these and passes them to
+<code>engine.process_answer(..., integrity_meta=...)</code>. <code>process_answer</code> forwards
+them into the guard. Rendering, storage, and calculation of these values are
+frontend concerns; the backend only consumes what it receives.</p>
+<h3 id="42-report-integrity-section-backend-output--frontend-rendering">4.2 Report <code>integrity</code> section (backend output → frontend rendering)</h3>
+<p>On interview completion, <code>build_report_response</code> adds an <code>integrity</code> object
+<strong>only when at least one signal exists</strong> (absent otherwise — frontends must
+render its absence as &quot;no signals recorded&quot;, never as a failure). Key names
+are frozen at 1.0; a frontend rebuild must not rename or omit any of them.</p>
+<pre class="hljs"><code><div>integrity:
+  score:    number   # aggregate 0–100 across the session (max per-answer score)
+  flagged:  boolean  # aggregate: score &gt;= ANTI_CHEAT_FLAG_THRESHOLD
+  signals:  [        # one entry per evaluated answer, in answer order
+    {
+      question_number:   number
+      score:             number   # 0–100 for this answer
+      latency_secs:      number | null   # null when question_asked_at missing
+      paste_hint:        boolean  # heuristic proxy (see §5)
+      focus_losses:      number   # client-reported tab/blur losses (0 when absent)
+      duplicate_ratio:   number   # 0–1 best match vs earlier answers in session
+      pointer_leaves:    number   # §4.6 second-screen signal (0 when absent)
+      heartbeat_gaps:    number   # §4.6 tamper signal (0 when absent)
+      cadence_score:     number | null   # §4.6 keystroke-rhythm score (null for voice/absent)
+      llm_ai_score:      number | null   # LLM judge 0–100; null when skipped/failed
+      reasons:           string[] # human-readable bullet reasons for this answer
+    }
+  ]
+</div></code></pre>
+<h3 id="43-integrity-policy-session-start-frontend-rules-gate">4.3 Integrity policy (session start, frontend rules gate)</h3>
+<p><code>integrity_policy</code> on the session-start/question payload drives the rules gate
+and the live gauge:</p>
+<pre class="hljs"><code><div>integrity_policy:
+  enabled:             boolean  # guard on
+  max_flags:           number   # flag limit before termination (0 = none)
+  flagged_count:       number   # current accumulated flags
+  answer_time_limit_s: number   # §4.7 hard per-answer window (0 = no countdown)
+</div></code></pre>
+<h3 id="44-live-flag-gauge-per-turn-evaluation-payload">4.4 Live flag gauge (per-turn evaluation payload)</h3>
+<p>Each answer response carries <code>integrity</code> (present only once the guard has a
+signal): <code>{ flagged_count, max_flags, score }</code> — the frontend renders the
+candidate-facing gauge from it. No surprises at termination time.</p>
+<h3 id="45-termination-on-repeated-flags">4.5 Termination on repeated flags</h3>
+<p>When <code>flagged_count</code> reaches <code>ANTI_CHEAT_MAX_FLAGS</code>, the engine finalizes the
+session after evaluating the current answer fairly: no further question is
+emitted, the <code>{type: report}</code> response carries <code>integrity_terminated: true</code>,
+and the report section includes the termination reason.</p>
+<h3 id="46-hardening-telemetry-v11">4.6 Hardening telemetry (v1.1)</h3>
+<p>Three additional client signals counter the vectors a tab-switch log cannot
+see. All are <strong>optional</strong>; a client sending none is judged on the classic
+signals alone.</p>
+<table>
+<thead>
+<tr>
+<th>Vector</th>
+<th>Signal</th>
+<th>Client behavior</th>
+<th>Judge reaction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Typed transcription of AI answers / macro input</td>
+<td><code>keystroke_intervals</code></td>
+<td>inter-key ms log per answer (capped)</td>
+<td>sustained mean &lt; 125 ms with &gt; 80% fast keys ⇒ cadence 92 (decisive); fast bursts + recurring 1.2–8 s look-up pauses with stable pause cadence ⇒ 55–72</td>
+</tr>
+<tr>
+<td>Side-by-side screen reading (tab stays focused)</td>
+<td><code>pointer_leaves</code></td>
+<td>debounced count of pointer exits from the focused window</td>
+<td>≥ threshold ⇒ 75; ≥ 2× ⇒ 90; 1–2 ⇒ 45</td>
+</tr>
+<tr>
+<td>Debugger breakpoints / VM snapshots</td>
+<td><code>heartbeat_gaps</code></td>
+<td>rAF vs wall-clock divergence &gt; 500 ms (skipped while tab hidden)</td>
+<td>1 ⇒ 85 (decisive); ≥ 2 ⇒ 95</td>
+</tr>
+<tr>
+<td>AI-prepped answers on a second device</td>
+<td>latency/typing-rate + session-context questions</td>
+<td>—</td>
+<td>questions reference the candidate's earlier statements/claims so a phone cannot carry prepared answers</td>
+</tr>
+</tbody>
+</table>
+<p>Scoring semantics: signals are blended with renormalized weights, then
+<strong>best-evidence-wins</strong> — the strongest single signal sets a floor on the score
+so a decisive machine-typing or tamper reading is never diluted below the flag
+threshold by weak style noise.</p>
+<h3 id="47-answer-time-boxing">4.7 Answer time-boxing</h3>
+<p><code>ANTI_CHEAT_ANSWER_TIME_LIMIT_S</code> (surfaced via <code>integrity_policy.answer_time_limit_s</code>)
+gives each question a hard answer window. The frontend shows a countdown and
+auto-submits at expiry (skipping the question if nothing is typed). A short
+window makes second-device lookup impractical; the judge independently
+penalizes near-instant long answers (latency signal).</p>
+<h2 id="5-signal-catalog-heuristics--free-pass">5. Signal catalog (heuristics — free pass)</h2>
+<p>Computed per answer in <code>app/services/anti_cheat.py::heuristic_signals()</code> and
+merged by <code>assess()</code>. Heuristics never make network calls.</p>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Detects</th>
+<th>How computed</th>
+<th>Spoofable?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>response_latency_secs</code></td>
+<td>Near-instant polished answers (copy-paste from AI)</td>
+<td><code>now - question_asked_at</code>; <code>question_asked_at</code> is stamped by the engine at question emission (session start in lifecycle, each turn in routing) and persisted with brain state; null when absent</td>
+<td>No (server time)</td>
+</tr>
+<tr>
+<td>Text fingerprint</td>
+<td>LLM-typical uniformity</td>
+<td>burstiness (sentence-length variance), zero typo/filler rate, em-dash + markdown + code-fence density; no external libraries</td>
+<td>Hard</td>
+</tr>
+<tr>
+<td><code>paste_hint</code></td>
+<td>Wholesale pasted answers</td>
+<td>heuristic: perfect markdown structure + abrupt lead-in on an otherwise unformatted session; combined with client <code>paste_chars</code> when present</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>duplicate_ratio</code></td>
+<td>Replayed/memorized answers</td>
+<td>normalized difflib ratio vs the session's earlier answers (no embeddings infra)</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Keystroke cadence</td>
+<td>Transcribed/macro answers</td>
+<td>mean interval, burst ratio, look-up-pause cadence from <code>keystroke_intervals</code> (§4.6)</td>
+<td>Hard (must fake realistic human rhythm)</td>
+</tr>
+<tr>
+<td>Pointer leaves</td>
+<td>Second-screen reading</td>
+<td>debounced pointer exits from the focused window (§4.6)</td>
+<td>Hard (must synthesize events)</td>
+</tr>
+<tr>
+<td>Tamper gaps</td>
+<td>Debugger/VM interference</td>
+<td>rAF vs wall-clock divergence (§4.6)</td>
+<td>Very hard (a frozen page cannot send events)</td>
+</tr>
+<tr>
+<td>Prompt injection</td>
+<td>Candidates trying to hijack the interviewer LLM</td>
+<td>existing <code>detect_prompt_injection</code> output, folded into <code>reasons</code></td>
+<td>N/A</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-llm-judge-optional-layer">6. LLM judge (optional layer)</h2>
+<ul>
+<li>Runs only when <code>ANTI_CHEAT_GUARD_ENABLED=true</code>, <code>ANTI_CHEAT_LLM_JUDGE=true</code>,
+and answer length ≥ 200 chars.</li>
+<li>Reuses the existing <code>get_llm_service()</code> seam (tests monkeypatch it today).</li>
+<li>One call per answer: returns a 0–100 AI-likelihood score plus short reasons.</li>
+<li><strong>Failure safety:</strong> any exception ⇒ judge is skipped (<code>llm_ai_score: null</code>),
+<code>assess()</code> continues with heuristic signals. The guard never raises.</li>
+</ul>
+<h2 id="7-scoring--decision-policy">7. Scoring &amp; decision policy</h2>
+<ol>
+<li>Heuristic signals score an answer 0–100 (<code>score</code>).</li>
+<li>If the judge ran, it is blended with heuristics (weights live in
+<code>anti_cheat.py</code>, documented there).</li>
+<li>Best-evidence-wins floor: the strongest single signal sets the minimum
+score, so decisive machine-typing/tamper evidence cannot be diluted (§4.6).</li>
+<li><code>score &gt;= ANTI_CHEAT_FLAG_THRESHOLD</code> ⇒ that answer flagged; session
+aggregate = max per-answer score, <code>flagged</code> likewise.</li>
+<li>Per-answer results append to <code>brain.integrity_signals</code>; <code>brain.integrity_score</code>
+holds the aggregate. Both persist with the session state (v4 store).</li>
+<li><strong>Flags are report-only while below the limit.</strong> No auto-fail, no
+interruption. When <code>flagged_count</code> reaches <code>ANTI_CHEAT_MAX_FLAGS</code>, the
+session terminates after a fair evaluation (§4.5) and the report carries
+<code>integrity_terminated</code> with a reason.</li>
+</ol>
+<h2 id="8-testing-matrix">8. Testing matrix</h2>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>Expectation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Guard disabled (default)</td>
+<td><code>assess()</code> pass-through; <strong>zero</strong> LLM calls; state untouched</td>
+</tr>
+<tr>
+<td>Heuristic math</td>
+<td>latency, duplicate_ratio, fingerprint values correct on crafted inputs</td>
+</tr>
+<tr>
+<td>Threshold</td>
+<td>correct <code>flagged</code> per answer and aggregate at boundary</td>
+</tr>
+<tr>
+<td>Cadence superhuman</td>
+<td>sustained &gt; 8 cps intervals ⇒ cadence 92, flagged</td>
+</tr>
+<tr>
+<td>Cadence transcription</td>
+<td>bursts + recurring look-up pauses ⇒ cadence 55–72, flagged at 72</td>
+</tr>
+<tr>
+<td>Human cadence</td>
+<td>variable rhythm ⇒ not flagged</td>
+</tr>
+<tr>
+<td>Pointer leaves / tamper gaps</td>
+<td>≥ threshold counts ⇒ flagged with reasons</td>
+</tr>
+<tr>
+<td>Voice answers</td>
+<td>cadence/paste/typing signals skipped even if client forwards them</td>
+</tr>
+<tr>
+<td>LLM judge success</td>
+<td>stubbed via <code>get_llm_service</code> monkeypatch; blend applied</td>
+</tr>
+<tr>
+<td>LLM judge failure</td>
+<td>skipped, <code>llm_ai_score: null</code>, guard still returns, no raise</td>
+</tr>
+<tr>
+<td>Engine flow with guard on</td>
+<td>a full answer turn completes with stubbed judge + enabled guard</td>
+</tr>
+<tr>
+<td>Missing client telemetry</td>
+<td>backend behaves identically (no paste/focus signals, no error)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="9-out-of-scope--future-tiers">9. Out of scope / future tiers</h2>
+<p>Not implemented (invasive and legally risky for v1; the timing + text + paste +
+tab-switch + cadence + pointer + tamper + time-box stack covers the realistic
+AI-cheating paths):</p>
+<ul>
+<li>Camera / eye-tracking proctoring, audio analysis (a second human whispering
+is only catchable by webcam/audio proctoring — deliberately deferred)</li>
+<li>Cross-candidate answer similarity (needs embeddings infra — Pinecone is
+available if desired later)</li>
+<li>Lockdown browser / second-display blocking (VM-level; beyond a web page)</li>
+</ul>
+<h2 id="10-change-log">10. Change log</h2>
+<table>
+<thead>
+<tr>
+<th>Version</th>
+<th>Date</th>
+<th>Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.0</td>
+<td>2026-08-13</td>
+<td>Contract drafted; spec frozen for implementation</td>
+</tr>
+<tr>
+<td>1.1</td>
+<td>2026-08-14</td>
+<td>Hardening: cadence/pointer/tamper signals (§4.6), answer time-box (§4.7), best-evidence-wins scoring, flag-limit termination policy (§4.5), new env vars, policy fields, report signal fields</td>
+</tr>
+</tbody>
+</table>
+
+</body>
+</html>

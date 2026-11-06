@@ -26,11 +26,13 @@ class SessionRepository(BaseRepository):
 
     async def create_session(
         self,
-        department_id: Optional[int] = None,
-        job_role: str = "",
+        org_id: Optional[str] = None,
+        it_role_id: Optional[str] = None,
+        job_role_snapshot: str = "",
+        level_code: Optional[str] = None,
         current_phase: str = "intro",
         total_questions: int = 10,
-        session_type: str = "department",
+        session_type: str = "organization",
         interaction_mode: str = "avatar",
         candidate_profile_id: Optional[str] = None,
         scorecard_template_id: Optional[str] = None,
@@ -38,8 +40,10 @@ class SessionRepository(BaseRepository):
         from uuid import UUID
         session_data = {
             "id": uuid4(),
-            "department_id": department_id,
-            "job_role": job_role,
+            "org_id": UUID(org_id) if isinstance(org_id, str) else org_id,
+            "it_role_id": UUID(it_role_id) if isinstance(it_role_id, str) else it_role_id,
+            "job_role_snapshot": job_role_snapshot,
+            "level_code": level_code,
             "status": "active",
             "current_phase": current_phase,
             "current_question_number": 1,

@@ -68,7 +68,7 @@ async def start_session(engine, state: dict, build_intelligence: bool = False, i
         try:
             bundle = await build_interview_intelligence(
                 job_role=state.get("job_role", ""),
-                department_id=state.get("department_id"),
+                department_id=None,
                 style=state.get("interview_style"),
                 candidate_profile=state.get("candidate_profile"),
                 candidate_id=state.get("candidate_id", ""),
@@ -152,6 +152,9 @@ async def start_session(engine, state: dict, build_intelligence: bool = False, i
 
     s = await question_generator_node(s)
     brain = sync_brain(brain, s)
+    from app.services.anti_cheat import now_iso
+
+    brain.question_asked_at = now_iso()
     brain.bump_version()
 
     store.set(session_id, brain.to_dict())
@@ -159,7 +162,8 @@ async def start_session(engine, state: dict, build_intelligence: bool = False, i
 
     await events.append(session_id, "session_started", {
         "job_role": brain.job_role,
-        "department_id": brain.department_id,
+        "org_id": getattr(brain, "org_id", None),
+        "it_role_id": getattr(brain, "it_role_id", None),
         "competency_count": len(brain.required_competencies),
         "domain_label": brain.domain_label,
         "has_company_brain": brain.company_brain is not None,
@@ -173,7 +177,7 @@ async def start_session(engine, state: dict, build_intelligence: bool = False, i
 
         await persist_intelligence_bundle(
             session_id,
-            state.get("department_id"),
+            state.get("org_id"),
             state.get("job_role", ""),
             intelligence,
         )

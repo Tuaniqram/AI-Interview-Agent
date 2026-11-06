@@ -11,7 +11,8 @@ import {
   EvaluationHistoryEntry,
   InterviewReport,
   InterviewMode,
-  InterviewStatus
+  InterviewStatus,
+  IntegrityPolicy
 } from '../types/interview';
 import { interviewController } from '../controllers/interviewController';
 import { interviewWebSocket } from '../services/interviewWebSocket';
@@ -41,6 +42,12 @@ export type InterviewState = {
   // AURA engine phase pushed over WebSocket (drives AuraCore states)
   wsPhase: 'idle' | 'evaluating' | 'question_ready' | 'reconnecting';
 
+  // Anti-cheat integrity (contract: docs/anti-cheat-guard.md)
+  integrityPolicy: IntegrityPolicy | null;
+  flaggedCount: number;
+  integrityTerminated: boolean;
+  integrityTerminationReason: string | null;
+
   // Interview mode
   interviewMode: InterviewMode;
   
@@ -68,6 +75,9 @@ type InterviewAction =
   | { type: 'TOGGLE_CARD' }
   | { type: 'SET_FINAL_REPORT'; payload: InterviewReport }
   | { type: 'SET_CONVERSATION_TURN'; payload: string }
+  | { type: 'SET_INTEGRITY_POLICY'; payload: IntegrityPolicy | null }
+  | { type: 'SET_FLAGGED_COUNT'; payload: number }
+  | { type: 'SET_INTEGRITY_TERMINATED'; payload: { reason: string | null } }
   | { type: 'SET_WS_PHASE'; payload: 'idle' | 'evaluating' | 'question_ready' | 'reconnecting' }
   | { type: 'SET_INTERVIEW_MODE'; payload: InterviewMode }
   | { type: 'SET_LOADING'; payload: boolean }
@@ -89,6 +99,10 @@ const initialState: InterviewState = {
   finalReport: null,
   conversationTurn: '',
   wsPhase: 'idle',
+  integrityPolicy: null,
+  flaggedCount: 0,
+  integrityTerminated: false,
+  integrityTerminationReason: null,
   interviewMode: (localStorage.getItem('aiInterviewMode') as InterviewMode) || 'avatar',
   isLoading: false,
   isEvaluating: false,
@@ -169,6 +183,26 @@ function interviewReducer(state: InterviewState, action: InterviewAction): Inter
         conversationTurn: action.payload,
       };
 
+    case 'SET_INTEGRITY_POLICY':
+      return {
+        ...state,
+        integrityPolicy: action.payload,
+        flaggedCount: action.payload?.flagged_count ?? state.flaggedCount,
+      };
+
+    case 'SET_FLAGGED_COUNT':
+      return {
+        ...state,
+        flaggedCount: action.payload,
+      };
+
+    case 'SET_INTEGRITY_TERMINATED':
+      return {
+        ...state,
+        integrityTerminated: true,
+        integrityTerminationReason: action.payload.reason,
+      };
+
     case 'SET_WS_PHASE':
       return {
         ...state,
@@ -247,7 +281,7 @@ interface InterviewStoreActions {
   cancelInterview: () => void;
   fetchFinalReport: () => Promise<void>;
   goToNextQuestion: () => Promise<void>;
-  submitAnswer: (answer: string) => Promise<void>;
+  submitAnswer: (answer: string, telemetry?: { paste_chars?: number; focus_lost_count?: number }) => Promise<void>;
   updateAnswer: (answer: string) => void;
   goToPrevEvaluation: () => void;
   goToNextEvaluation: () => void;
@@ -376,6 +410,11 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
           dispatch({ type: 'SET_SESSION', payload: result.session });
           dispatch({ type: 'SET_QUESTION', payload: result.firstQuestion });
           dispatch({ type: 'SET_CONVERSATION_TURN', payload: result.conversationTurn });
+          const resumedPolicy =
+            result.firstQuestion?.integrity_policy ??
+            controller.getSession()?.currentQuestion?.integrity_policy ??
+            null;
+          dispatch({ type: 'SET_INTEGRITY_POLICY', payload: resumedPolicy });
           dispatch({ type: 'SET_WS_PHASE', payload: 'question_ready' });
         } catch (error: any) {
           dispatch({ type: 'SET_ERROR', payload: error.message });
@@ -410,7 +449,7 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
         }
       },
 
-      submitAnswer: async (answer) => {
+      submitAnswer: async (answer, telemetry) => {
         if (!answer || !answer.trim()) {
           dispatch({ type: 'SET_ERROR', payload: 'Please enter an answer before submitting.' });
           return;
@@ -418,8 +457,16 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
         dispatch({ type: 'SET_EVALUATING', payload: true });
         dispatch({ type: 'SET_USER_ANSWER', payload: answer });
         try {
-          const result = await controller.submitAnswerViaWS({ answer });
+          const result = await controller.submitAnswerViaWS({ answer, ...telemetry });
           dispatch({ type: 'SET_EVALUATION', payload: result });
+
+          // Live anti-cheat flag gauge + integrity termination (contract §4.4)
+          if (result.integrity) {
+            dispatch({ type: 'SET_FLAGGED_COUNT', payload: result.integrity.flagged_count });
+          }
+          if (result.integrity_terminated) {
+            dispatch({ type: 'SET_INTEGRITY_TERMINATED', payload: { reason: null } });
+          }
 
           const currentQ = stateRef.current.currentQuestion;
           const entry: EvaluationHistoryEntry = {

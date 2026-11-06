@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 import shutil
 import uuid as libuuid
 from datetime import datetime
@@ -14,14 +15,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.rbac import require_org_role, resolve_org_id
 from app.database.deps import get_db
-from app.models.db import Department, DepartmentDocument, InterviewSession, InterviewTemplate
+from app.models.db import InterviewSession, InterviewTemplate, Organization, OrganizationDocument
 from app.schemas.department import DepartmentCreate, DepartmentResponse, DepartmentUpdate
+from app.services.it_role_resolver import resolve_it_role
 
 router = APIRouter(prefix="/departments", tags=["departments"])
 
-
 UPLOAD_DIR = "documents"
 ALLOWED_EXTENSIONS = {".pdf", ".doc", ".docx", ".txt", ".md"}
+logger = logging.getLogger(__name__)
 
 
 def _get_org_id(org_id: str = Depends(resolve_org_id)) -> str:
@@ -30,22 +32,33 @@ def _get_org_id(org_id: str = Depends(resolve_org_id)) -> str:
     return org_id
 
 
+async def _org_or_404(org_id: str, db: AsyncSession) -> Organization:
+    result = await db.execute(select(Organization).where(Organization.id == org_id))
+    org = result.scalar_one_or_none()
+    if not org:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+    return org
+
+
+def _synthetic_department(org: Organization) -> DepartmentResponse:
+    return DepartmentResponse(
+        id=0,
+        org_id=org.id,
+        name="IT Department",
+        website=org.website,
+        description=org.description,
+        created_at=org.created_at,
+    )
+
+
 @router.get("", response_model=list[DepartmentResponse])
 async def list_departments(
     org_id: str = Depends(_get_org_id),
     _: None = Depends(require_org_role(["owner", "member", "viewer"])),
     db: AsyncSession = Depends(get_db),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
 ):
-    result = await db.execute(
-        select(Department)
-        .where(Department.org_id == org_id)
-        .order_by(Department.name)
-        .offset(skip)
-        .limit(limit)
-    )
-    return [DepartmentResponse.model_validate(c) for c in result.scalars().all()]
+    org = await _org_or_404(org_id, db)
+    return [_synthetic_department(org)]
 
 
 @router.post("", response_model=DepartmentResponse)
@@ -55,11 +68,10 @@ async def create_department(
     _: None = Depends(require_org_role(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
-    department = Department(org_id=org_id, **req.model_dump())
-    db.add(department)
-    await db.commit()
-    await db.refresh(department)
-    return DepartmentResponse.model_validate(department)
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="Departments are not configurable; IT documents belong to the organization",
+    )
 
 
 @router.get("/{department_id}", response_model=DepartmentResponse)
@@ -69,13 +81,8 @@ async def get_department(
     _: None = Depends(require_org_role(["owner", "member", "viewer"])),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Department).where(Department.id == department_id, Department.org_id == org_id)
-    )
-    department = result.scalar_one_or_none()
-    if not department:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Department not found")
-    return DepartmentResponse.model_validate(department)
+    org = await _org_or_404(org_id, db)
+    return _synthetic_department(org)
 
 
 @router.patch("/{department_id}", response_model=DepartmentResponse)
@@ -86,17 +93,17 @@ async def update_department(
     _: None = Depends(require_org_role(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Department).where(Department.id == department_id, Department.org_id == org_id)
-    )
-    department = result.scalar_one_or_none()
-    if not department:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Department not found")
-    for field, value in req.model_dump(exclude_unset=True).items():
-        setattr(department, field, value)
+    org = await _org_or_404(org_id, db)
+    data = req.model_dump(exclude_unset=True)
+    if "name" in data and data["name"]:
+        org.name = data["name"]
+    if "website" in data:
+        org.website = data["website"]
+    if "description" in data:
+        org.description = data["description"]
     await db.commit()
-    await db.refresh(department)
-    return DepartmentResponse.model_validate(department)
+    await db.refresh(org)
+    return _synthetic_department(org)
 
 
 @router.delete("/{department_id}", status_code=204)
@@ -106,17 +113,10 @@ async def delete_department(
     _: None = Depends(require_org_role(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Department).where(Department.id == department_id, Department.org_id == org_id)
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="Departments are not configurable; delete organization documents instead",
     )
-    department = result.scalar_one_or_none()
-    if not department:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Department not found")
-    await db.delete(department)
-    await db.commit()
-
-
-# ── Sessions ────────────────────────────────────────────────────────────
 
 
 class SessionSummaryResponse(BaseModel):
@@ -138,23 +138,26 @@ async def list_department_sessions(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Department).where(Department.id == department_id, Department.org_id == org_id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Department not found")
-    sess_result = await db.execute(
         select(InterviewSession)
-        .where(InterviewSession.department_id == department_id)
+        .where(InterviewSession.org_id == org_id)
         .order_by(InterviewSession.started_at.desc())
+        .limit(100)
     )
-    return [SessionSummaryResponse.model_validate(s) for s in sess_result.scalars().all()]
-
-
-# ── Documents (knowledge) ──────────────────────────────────────────────
+    return [
+        SessionSummaryResponse(
+            id=str(s.id),
+            job_role=s.job_role_snapshot,
+            status=s.status,
+            final_score=float(s.final_score) if s.final_score is not None else None,
+            started_at=s.started_at,
+            interaction_mode=s.interaction_mode,
+        )
+        for s in result.scalars().all()
+    ]
 
 
 class DocumentResponse(BaseModel):
-    id: UUID
+    id: str
     filename: str
     document_type: str
     pinecone_namespace: str
@@ -171,14 +174,20 @@ async def list_documents(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Department).where(Department.id == department_id, Department.org_id == org_id)
+        select(OrganizationDocument)
+        .where(OrganizationDocument.org_id == org_id)
+        .order_by(OrganizationDocument.created_at.desc())
     )
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Department not found")
-    doc_result = await db.execute(
-        select(DepartmentDocument).where(DepartmentDocument.department_id == department_id).order_by(DepartmentDocument.created_at.desc())
-    )
-    return [DocumentResponse.model_validate(d) for d in doc_result.scalars().all()]
+    return [
+        DocumentResponse(
+            id=str(d.id),
+            filename=d.filename,
+            document_type=d.document_type,
+            pinecone_namespace=d.pinecone_namespace,
+            created_at=d.created_at,
+        )
+        for d in result.scalars().all()
+    ]
 
 
 @router.post("/{department_id}/documents")
@@ -190,20 +199,14 @@ async def upload_document(
     _: None = Depends(require_org_role(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Department).where(Department.id == department_id, Department.org_id == org_id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Department not found")
+    await _org_or_404(org_id, db)
 
     _, ext = os.path.splitext(file.filename or "")
     if ext.lower() not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail=f"File type '{ext}' not supported. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
+            detail=f"File type '{ext}' not supported. Allowed: {', '.join(ALLOWED_EXTENSIONS)}",
         )
-
-    import re
 
     def _save():
         os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -217,10 +220,10 @@ async def upload_document(
     filepath = await loop.run_in_executor(None, _save)
 
     doc_id = libuuid.uuid4()
-    namespace = f"department_{department_id}"
-    doc = DepartmentDocument(
+    namespace = f"department_{org_id}"
+    doc = OrganizationDocument(
         id=doc_id,
-        department_id=department_id,
+        org_id=org_id,
         filename=file.filename,
         document_type=ext.lstrip(".").lower() or "pdf",
         pinecone_namespace=namespace,
@@ -230,7 +233,7 @@ async def upload_document(
     await db.refresh(doc)
 
     if background_tasks:
-        background_tasks.add_task(_process_document, filepath, department_id, str(doc_id), file.filename)
+        background_tasks.add_task(_process_document, filepath, org_id, str(doc_id), file.filename)
 
     return {
         "message": "Upload queued",
@@ -240,7 +243,7 @@ async def upload_document(
     }
 
 
-async def _process_document(filepath: str, department_id: int, doc_id: str, filename: str):
+async def _process_document(filepath: str, org_id: str, doc_id: str, filename: str):
     try:
         from app.rag.loader import load_pdf
         from app.rag.splitter import split_documents
@@ -248,10 +251,10 @@ async def _process_document(filepath: str, department_id: int, doc_id: str, file
 
         documents = load_pdf(filepath)
         chunks = split_documents(documents)
-        store_department_knowledge(chunks, department_id, doc_id=doc_id)
-        logging.getLogger(__name__).info(f"RAG pipeline completed: {len(chunks)} chunks stored (doc_id={doc_id})")
+        store_department_knowledge(chunks, org_id, doc_id=doc_id)
+        logger.info(f"RAG pipeline completed: {len(chunks)} chunks stored (doc_id={doc_id})")
     except Exception as e:
-        logging.getLogger(__name__).error(f"RAG pipeline failed for {filename} (doc_id={doc_id}): {e}")
+        logger.error(f"RAG pipeline failed for {filename} (doc_id={doc_id}): {e}")
 
 
 @router.delete("/{department_id}/documents/{doc_id}", status_code=204)
@@ -262,16 +265,10 @@ async def delete_document(
     _: None = Depends(require_org_role(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Department).where(Department.id == department_id, Department.org_id == org_id)
-    )
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Department not found")
-
     doc_result = await db.execute(
-        select(DepartmentDocument).where(
-            DepartmentDocument.id == doc_id,
-            DepartmentDocument.department_id == department_id,
+        select(OrganizationDocument).where(
+            OrganizationDocument.id == doc_id,
+            OrganizationDocument.org_id == org_id,
         )
     )
     doc = doc_result.scalar_one_or_none()
@@ -280,9 +277,9 @@ async def delete_document(
 
     try:
         from app.rag.pinecone_store import delete_department_knowledge
-        delete_department_knowledge(department_id, doc_id)
+        delete_department_knowledge(org_id, doc_id)
     except Exception as e:
-        logging.getLogger(__name__).warning(f"Pinecone delete failed (continuing): {e}")
+        logger.warning(f"Pinecone delete failed (continuing): {e}")
 
     filepath = os.path.join(UPLOAD_DIR, doc.filename)
     if os.path.exists(filepath):
@@ -292,12 +289,10 @@ async def delete_document(
     await db.commit()
 
 
-# ── Templates ──────────────────────────────────────────────────────────
-
-
 class TemplateCreateRequest(BaseModel):
     name: str
     job_role: str
+    level_code: Optional[str] = None
     description: Optional[str] = None
     interview_style: Optional[str] = "STANDARD"
     competencies: Optional[list[dict]] = None
@@ -308,6 +303,7 @@ class TemplateCreateRequest(BaseModel):
 class TemplateUpdateRequest(BaseModel):
     name: Optional[str] = None
     job_role: Optional[str] = None
+    level_code: Optional[str] = None
     description: Optional[str] = None
     interview_style: Optional[str] = None
     competencies: Optional[list[dict]] = None
@@ -317,9 +313,11 @@ class TemplateUpdateRequest(BaseModel):
 
 class TemplateResponse(BaseModel):
     id: UUID
-    department_id: int
+    department_id: int = 0
+    it_role_id: Optional[UUID] = None
     name: str
     job_role: str
+    level_code: Optional[str] = None
     description: Optional[str] = None
     interview_style: Optional[str] = None
     competencies: Optional[list] = None
@@ -328,6 +326,23 @@ class TemplateResponse(BaseModel):
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+
+
+def _template_response(t: InterviewTemplate) -> TemplateResponse:
+    return TemplateResponse(
+        id=t.id,
+        department_id=0,
+        it_role_id=t.it_role_id,
+        name=t.name,
+        job_role=t.job_role_snapshot,
+        level_code=t.level_code,
+        description=t.description,
+        interview_style=t.interview_style,
+        competencies=t.competencies,
+        total_questions=t.total_questions,
+        scorecard_template_id=t.scorecard_template_id,
+        created_at=t.created_at,
+    )
 
 
 @router.get("/{department_id}/templates", response_model=list[TemplateResponse])
@@ -339,11 +354,10 @@ async def list_templates(
 ):
     result = await db.execute(
         select(InterviewTemplate)
-        .join(Department, InterviewTemplate.department_id == Department.id)
-        .where(Department.id == department_id, Department.org_id == org_id)
+        .where(InterviewTemplate.org_id == org_id)
         .order_by(InterviewTemplate.created_at.desc())
     )
-    return [TemplateResponse.model_validate(t) for t in result.scalars().all()]
+    return [_template_response(t) for t in result.scalars().all()]
 
 
 @router.post("/{department_id}/templates", response_model=TemplateResponse)
@@ -354,17 +368,16 @@ async def create_template(
     _: None = Depends(require_org_role(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
-    department_result = await db.execute(
-        select(Department).where(Department.id == department_id, Department.org_id == org_id)
-    )
-    if not department_result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Department not found")
+    await _org_or_404(org_id, db)
+    it_role = await resolve_it_role(db, req.job_role)
 
     template = InterviewTemplate(
         id=libuuid.uuid4(),
-        department_id=department_id,
+        org_id=org_id,
+        it_role_id=it_role.id,
+        level_code=req.level_code,
         name=req.name,
-        job_role=req.job_role,
+        job_role_snapshot=req.job_role,
         description=req.description,
         interview_style=req.interview_style,
         competencies=req.competencies,
@@ -374,7 +387,7 @@ async def create_template(
     db.add(template)
     await db.commit()
     await db.refresh(template)
-    return TemplateResponse.model_validate(template)
+    return _template_response(template)
 
 
 @router.get("/{department_id}/templates/{template_id}", response_model=TemplateResponse)
@@ -386,18 +399,15 @@ async def get_template(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(InterviewTemplate)
-        .join(Department, InterviewTemplate.department_id == Department.id)
-        .where(
+        select(InterviewTemplate).where(
             InterviewTemplate.id == template_id,
-            Department.id == department_id,
-            Department.org_id == org_id,
+            InterviewTemplate.org_id == org_id,
         )
     )
     template = result.scalar_one_or_none()
     if not template:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
-    return TemplateResponse.model_validate(template)
+    return _template_response(template)
 
 
 @router.put("/{department_id}/templates/{template_id}", response_model=TemplateResponse)
@@ -410,12 +420,9 @@ async def update_template(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(InterviewTemplate)
-        .join(Department, InterviewTemplate.department_id == Department.id)
-        .where(
+        select(InterviewTemplate).where(
             InterviewTemplate.id == template_id,
-            Department.id == department_id,
-            Department.org_id == org_id,
+            InterviewTemplate.org_id == org_id,
         )
     )
     template = result.scalar_one_or_none()
@@ -423,14 +430,19 @@ async def update_template(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
 
     update_data = req.model_dump(exclude_unset=True)
-    if 'scorecard_template_id' in update_data:
-        update_data['scorecard_template_id'] = UUID(update_data['scorecard_template_id']) if update_data['scorecard_template_id'] else None
+    if "job_role" in update_data:
+        it_role = await resolve_it_role(db, update_data.pop("job_role"))
+        template.it_role_id = it_role.id
+        template.job_role_snapshot = it_role.name
+    if "scorecard_template_id" in update_data:
+        value = update_data["scorecard_template_id"]
+        update_data["scorecard_template_id"] = UUID(value) if value else None
     for field, value in update_data.items():
         setattr(template, field, value)
 
     await db.commit()
     await db.refresh(template)
-    return TemplateResponse.model_validate(template)
+    return _template_response(template)
 
 
 @router.delete("/{department_id}/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -442,12 +454,9 @@ async def delete_template(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(InterviewTemplate)
-        .join(Department, InterviewTemplate.department_id == Department.id)
-        .where(
+        select(InterviewTemplate).where(
             InterviewTemplate.id == template_id,
-            Department.id == department_id,
-            Department.org_id == org_id,
+            InterviewTemplate.org_id == org_id,
         )
     )
     template = result.scalar_one_or_none()

@@ -72,6 +72,28 @@ export interface Question {
   rag_context_available?: boolean;
   nodes_executed?: string[];
   rag_metadata?: Record<string, unknown>;
+  /** Anti-cheat policy from the session-start payload (contract §4.3) */
+  integrity_policy?: IntegrityPolicy;
+}
+
+/**
+ * Anti-cheat policy surfaced on the session-start payload. Present on every
+ * start/question response; `enabled: false` means the guard is off and no
+ * flag limit applies.
+ */
+export interface IntegrityPolicy {
+  enabled: boolean;
+  max_flags: number;
+  flagged_count: number;
+  /** Hard per-answer window in seconds (0 = no UI countdown) */
+  answer_time_limit_s: number;
+}
+
+/** Live flag-gauge data in the per-turn evaluation payload (contract §4.4) */
+export interface LiveIntegrity {
+  flagged_count: number;
+  max_flags: number;
+  score: number | null;
 }
 
 /**
@@ -143,6 +165,10 @@ export interface AnswerEvaluation {
   probing_active?: boolean;
   /** AURA conductor spoken turn: acknowledgement + bridge + question */
   conversationTurn?: string;
+  /** Live anti-cheat flag gauge (contract §4.4) */
+  integrity?: LiveIntegrity;
+  /** Set on the completion payload when the session ended on integrity flags */
+  integrity_terminated?: boolean;
 }
 
 /**
@@ -191,4 +217,13 @@ export interface InterviewReport {
   evaluations: Array<Record<string, unknown>>;
   messages_count: number;
   evaluations_count: number;
+  /** Integrity section (contract §4.2) — absent = no signals recorded */
+  integrity?: {
+    score: number;
+    flagged: boolean;
+    signals: Array<Record<string, unknown>>;
+  };
+  /** True when the session was terminated for reaching the flag limit */
+  integrity_terminated?: boolean;
+  integrity_termination_reason?: string;
 }

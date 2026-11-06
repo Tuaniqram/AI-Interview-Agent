@@ -25,6 +25,8 @@ class InterviewBrain:
     # -- Interview Context --------------------------------------------------
     job_role: str = "Software Engineer"
     department_id: Optional[int] = None
+    org_id: Optional[str] = None
+    it_role_id: Optional[str] = None
     candidate_id: str = ""
     interview_style: dict = field(default_factory=dict)
     persona: str = "friendly"

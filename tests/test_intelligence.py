@@ -161,6 +161,100 @@ async def test_resume_analyzer_merges_profile():
     assert "python" in data["skills"]
 
 
+async def test_resume_analyzer_dspy_branch_merges_typed_output(monkeypatch):
+    """The DSPy branch returns a typed dict; the merge + source=resume_llm are
+    identical to the old parse_llm_json_with_retry path."""
+    async def fake_run(resume_text, job_role):
+        return {
+            "full_name": "Jane Doe",
+            "headline": "Backend dev",
+            "skills": ["python", "postgresql", "python"],
+            "strengths": ["python"],
+            "weaknesses": [],
+            "experience": ["Backend Engineer at X (2020 - Present)"],
+            "education": ["B.S. CS, UW (2014-2018)"],
+            "years_of_experience": "8+ years",
+        }
+
+    monkeypatch.setattr("app.intelligence.dspy_modules.run_resume_analysis", fake_run)
+    data = await analyze_resume(
+        "Jane Doe\nBackend Engineer - Python, PostgreSQL\n8+ years experience.",
+        job_role="Backend Engineer",
+        use_llm=True,
+    )
+    assert data["source"] == "resume_llm"
+    assert data["full_name"] == "Jane Doe"
+    assert "python" in data["skills"]
+    assert data["skills"].count("python") == 1  # dedupe still applies
+    assert data["years_of_experience"] == 8  # _coerce_years still applies
+
+
+async def test_resume_analyzer_dspy_branch_falls_back_to_heuristics(monkeypatch):
+    """When the DSPy call raises (LM unreachable), behavior is byte-identical
+    to today: heuristics, source='heuristics'."""
+
+    async def boom(resume_text, job_role):
+        raise RuntimeError("LM unreachable")
+
+    monkeypatch.setattr("app.intelligence.dspy_modules.run_resume_analysis", boom)
+    data = await analyze_resume(
+        "Jane Doe\nSenior Backend Engineer - Python, Django, PostgreSQL\n"
+        "8+ years building distributed systems with Docker and AWS.",
+        job_role="Backend Engineer",
+        use_llm=True,
+    )
+    assert data["source"] == "heuristics"
+    assert "python" in data["skills"]
+    assert data["years_of_experience"] == 8
+
+
+async def test_resume_analyzer_legacy_backend_when_env_legacy(monkeypatch):
+    """RESUME_LLM_BACKEND=legacy routes to the old prompt-loader path; the DSPy
+    path must NOT be touched."""
+    from app.intelligence import resume_analyzer
+
+    async def fake_legacy(text, job_role):
+        return {
+            "full_name": "Jane Doe",
+            "headline": "Backend dev",
+            "skills": ["python", "python"],
+            "strengths": [],
+            "weaknesses": [],
+            "experience": [],
+            "education": [],
+            "years_of_experience": "8+ years",
+        }
+
+    called = {"dspy": False}
+
+    async def fake_dspy(resume_text, job_role):
+        called["dspy"] = True
+        return {}
+
+    monkeypatch.setenv("RESUME_LLM_BACKEND", "legacy")
+    monkeypatch.setattr("app.intelligence.dspy_modules.run_resume_analysis", fake_dspy)
+    monkeypatch.setattr("app.intelligence.resume_analyzer._legacy_llm_parse", fake_legacy)
+
+    data = await analyze_resume(
+        "Jane Doe\nBackend Engineer - Python, PostgreSQL\n8+ years experience.",
+        job_role="Backend Engineer",
+        use_llm=True,
+    )
+    assert data["source"] == "resume_llm"
+    assert data["full_name"] == "Jane Doe"
+    assert data["skills"] == ["python"]
+    assert called["dspy"] is False
+    assert resume_analyzer._use_dspy_backend() is False
+
+
+async def test_resume_analyzer_default_backend_is_dspy(monkeypatch):
+    """Without the env var the default backend is DSPy."""
+    monkeypatch.delenv("RESUME_LLM_BACKEND", raising=False)
+    from app.intelligence.resume_analyzer import _use_dspy_backend
+
+    assert _use_dspy_backend() is True
+
+
 def test_matcher_scores_coverage_and_probes():
     result = match_candidate_to_role(
         skills=["python", "postgresql", "docker"],

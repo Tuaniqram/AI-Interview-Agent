@@ -215,7 +215,10 @@ async def persist_v5_snapshot(
         if hasattr(persister, "save_relational"):
             await persister.save_relational(brain, finalize=finalize)
     except Exception as exc:  # noqa: BLE001 - best-effort by design
-        logger.warning(f"Failed to persist v5 snapshot (non-fatal): {exc}")
+        logger.error(
+            f"Failed to persist v5 snapshot (session={session_id[:12]}..., finalize={finalize})",
+            exc_info=exc,
+        )
 
 
 async def persist_completion(session_id: str, brain: InterviewBrain) -> None:

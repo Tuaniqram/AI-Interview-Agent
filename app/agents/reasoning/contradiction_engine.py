@@ -48,6 +48,21 @@ CONFIDENCE_QUALITY_FLOOR = 0.5
 # strong signal the interview has probed far enough to decide.
 HIGH_DIFFICULTY_FINISH = 5
 
+# V5 hypothesis confidence: only hypotheses that were actually TESTED may
+# count toward the confirmation ratio. Untested hypotheses dilute it, so a
+# candidate whose claims were never probed cannot carry a 100% confirmation
+# bonus regardless of how many weak claims were "confirmed" along the way.
+def resolved_hypothesis_confidence(confirmed: int, refuted: int, untested: int, fallback: float) -> float:
+    """confirmed / (confirmed + refuted + untested); fallback when nothing tested."""
+    tested = int(confirmed or 0) + int(refuted or 0) + int(untested or 0)
+    if tested > 0:
+        return int(confirmed or 0) / tested
+    return float(fallback)
+
+# F5: the composite's bonus terms (hypothesis confidence, coverage) may lift a
+# candidate at most this far above the demonstrated competency average.
+COMPOSITE_CEILING_ABOVE_AVERAGE = 1.5
+
 # V5 role gate: an interview may only finish once it pushed the candidate
 # across most of the required set. 80% over the resolved blueprint is the
 # "senior hire needs breadth" floor — 5 required competencies need 8+ answers.
@@ -186,13 +201,22 @@ def compute_canonical_score(
     the persisted session ``final_score``, the synthesis ``holistic_score`` and
     the hiring-decision anchor all read from this one formula so the report can
     never show competing truths.
+
+    F5 ceiling: the composite may never exceed the demonstrated competency
+    average by more than ``COMPOSITE_CEILING_ABOVE_AVERAGE``. Confidence and
+    coverage are refinements — they can push a strong performer to the top of
+    their demonstrated band, but they can never rescue a candidate whose raw
+    evidence sits below the bar. Without the cap, a candidate averaging 6.5
+    but claiming 100% hypothesis confirmation and 100% coverage would score
+    8.25 and be "hired" on bonuses alone.
     """
-    return round(
+    composite = (
         float(competency_average_score) * 0.5
         + (float(hypothesis_confidence) * 10.0) * 0.3
-        + (float(coverage_ratio) * 10.0) * 0.2,
-        2,
+        + (float(coverage_ratio) * 10.0) * 0.2
     )
+    ceiling = float(competency_average_score) + COMPOSITE_CEILING_ABOVE_AVERAGE
+    return round(min(composite, ceiling), 2)
 
 
 def canonical_score_from_state(state: dict) -> float | None:
@@ -224,10 +248,13 @@ def canonical_score_from_state(state: dict) -> float | None:
 
     confirmed = sum(1 for h in hypotheses if h.get("status") == "confirmed")
     refuted = sum(1 for h in hypotheses if h.get("status") == "refuted")
-    if confirmed + refuted > 0:
-        hypothesis_confidence = confirmed / (confirmed + refuted)
-    else:
-        hypothesis_confidence = average_evidence_confidence(summary) or 0.5
+    untested = sum(1 for h in hypotheses if h.get("status") == "untested")
+    hypothesis_confidence = resolved_hypothesis_confidence(
+        confirmed,
+        refuted,
+        untested,
+        average_evidence_confidence(summary) or 0.5,
+    )
 
     coverage = rec.get("coverage_ratio")
     if coverage is None:
@@ -373,12 +400,15 @@ def evaluate_sufficiency(
         else 0.0
     )
 
-    # hypothesis_confidence in 0..1
-    if confirmed + refuted > 0:
-        hypothesis_confidence = confirmed / (confirmed + refuted)
-    else:
-        # fallback to overall evidence confidence when no hypotheses resolved
-        hypothesis_confidence = avg_confidence if avg_confidence > 0 else 0.5
+    # hypothesis_confidence in 0..1 — diluted by untested hypotheses so an
+    # unvalidated profile can never carry a full confirmation bonus.
+    untested = hypothesis_statuses.get("untested", 0)
+    hypothesis_confidence = resolved_hypothesis_confidence(
+        confirmed,
+        refuted,
+        untested,
+        avg_confidence if avg_confidence > 0 else 0.5,
+    )
 
     # coverage_ratio already computed (0..1)
 

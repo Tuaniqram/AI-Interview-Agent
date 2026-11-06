@@ -39,5 +39,9 @@ resend>=2.30.0,<3.0.0
 email-validator>=2.0.0
 bcrypt>=4.0.0
 
+# DSPy typed LLM programs (resume analysis pilot). Pinned — see docs/aura/dspy-plan.md
+# Step 0 (CVE-2025-69872 diskcache: cache is always configured restrict_pickle=True in-app).
+dspy==3.3.0
+
 # Email templates
 Jinja2>=3.1.0

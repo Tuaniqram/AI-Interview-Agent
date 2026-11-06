@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.middleware import authenticate
 from app.auth.rbac import require_admin, require_org_role_path
 from app.database.deps import get_db
-from app.models.db import Department, InterviewTemplate, Organization, User, ScorecardTemplate, ScorecardResult
+from app.models.db import InterviewTemplate, Organization, User, ScorecardTemplate, ScorecardResult
 from app.orgs.schemas import (
     AddMemberByEmailRequest,
     AddMemberRequest,
@@ -128,36 +128,39 @@ async def remove_member_endpoint(
 async def list_org_templates(
     org_id: UUID,
     department_id: int | None = None,
+    it_role_id: UUID | None = None,
     _: User = Depends(require_org_role_path(["owner", "member", "viewer"])),
     db: AsyncSession = Depends(get_db),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
 ):
     query = (
-        select(InterviewTemplate, Department.name.label("department_name"))
-        .join(Department, InterviewTemplate.department_id == Department.id)
-        .where(Department.org_id == org_id)
+        select(InterviewTemplate, Organization.name.label("org_name"))
+        .join(Organization, InterviewTemplate.org_id == Organization.id)
+        .where(InterviewTemplate.org_id == org_id)
         .order_by(InterviewTemplate.created_at.desc())
     )
-    if department_id is not None:
-        query = query.where(InterviewTemplate.department_id == department_id)
+    if it_role_id is not None:
+        query = query.where(InterviewTemplate.it_role_id == it_role_id)
 
     result = await db.execute(query.offset(skip).limit(limit))
     rows = result.all()
     return [
         {
             "id": str(t.id),
-            "department_id": t.department_id,
-            "department_name": dept_name,
+            "department_id": None,
+            "department_name": org_name,
+            "it_role_id": str(t.it_role_id),
+            "level_code": t.level_code,
             "name": t.name,
-            "job_role": t.job_role,
+            "job_role": t.job_role_snapshot,
             "description": t.description,
             "interview_style": t.interview_style,
             "competencies": t.competencies,
             "total_questions": t.total_questions,
             "created_at": t.created_at.isoformat() if t.created_at else None,
         }
-        for t, dept_name in rows
+        for t, org_name in rows
     ]
 
 

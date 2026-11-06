@@ -1,0 +1,3760 @@
+{
+  "candidate": {
+    "email": "alice.chan@test.com",
+    "name": "Alice Chan"
+  },
+  "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+  "interview": {
+    "title": "Senior Python Developer",
+    "style": "AURA",
+    "mode": "typing"
+  },
+  "summary": {
+    "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+    "department_id": 6,
+    "job_role": "Senior Python Developer",
+    "status": "completed",
+    "current_phase": "summary",
+    "question_number": 0,
+    "total_questions": 10,
+    "final_score": 8.46,
+    "hiring_score": 8.46,
+    "average_answer_score": 7.27,
+    "technical_score": 7.79,
+    "communication_score": 8.25,
+    "strengths": [
+      "Confident in stated knowledge",
+      "Clear structure",
+      "Considered tradeoffs",
+      "Best practices",
+      "Good coverage of basics",
+      "Confident in own expertise",
+      "Good pushback",
+      "Awareness of best practices and trade-offs",
+      "Awareness of best practices",
+      "Pushed back on scalability decisions",
+      "Concise",
+      "Cause-effect reasoning",
+      "Considered rate limiting and idempotent writes",
+      "Good coverage of trade-offs",
+      "Some cause-effect reasoning",
+      "Good vocabulary",
+      "Honest about limits",
+      "Aware of scalability considerations",
+      "Logical flow",
+      "Awareness of performance implications",
+      "Good vocabulary and articulation",
+      "Considered alternatives",
+      "Consideration of alternatives",
+      "Good conceptual understanding",
+      "Considered system constraints",
+      "Proper terminology",
+      "Concise language",
+      "Good pacing",
+      "Calibrated certainty",
+      "Comprehensive explanation",
+      "Concise and clear explanation"
+    ],
+    "weaknesses": [
+      "Missing edge cases and performance implications",
+      "Hesitated on advanced topics",
+      "Shallow analysis on partitioning strategy",
+      "Shallow analysis of failure modes",
+      "Missing edge cases in partitioning strategy",
+      "Missing some edge cases",
+      "Shallow analysis",
+      "No alternative consideration",
+      "Missing edge cases and performance implications discussion",
+      "Minor omissions",
+      "No real-world examples",
+      "Missing edge cases"
+    ],
+    "answered_ratio": 1.4,
+    "total_questions_answered": 14,
+    "messages_count": 28,
+    "evaluations_count": 14,
+    "interview_complete": true,
+    "started_at": "2026-08-14T14:07:21.174414+00:00",
+    "ended_at": "2026-08-14T14:27:10.991561+00:00",
+    "messages": [
+      {
+        "id": "c2831723-6bcc-474d-b963-ba8eb1c87c6c",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "interviewer",
+        "message_type": "question",
+        "content": "You've had experience building production APIs and AI-powered products. Can you walk me through your approach to designing a scalable and maintainable tech stack for a large-scale AI interviewer system like the one we're building here?",
+        "question_number": 1,
+        "phase": "intro",
+        "score": null,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:09:22.460148+00:00"
+      },
+      {
+        "id": "3221333a-a02a-4271-ba78-29643c3c66ca",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "candidate",
+        "message_type": "candidate_answer",
+        "content": "I own a FastAPI service handling about 40k requests per minute with async SQLAlchemy sessions and versioned routes. We used JWT auth with refresh-token rotation, per-tenant row-level isolation, structured JSON logging, and kept test coverage above 85 percent. When a slow endpoint surfaced I profiled it with cProfile, found N+1 queries in the list endpoint, switched to selectinload and added an in-process cache \u2014 p95 dropped from 900ms to 210ms. I also design OpenAPI contracts first so the frontend can build against the schema before the implementation lands.",
+        "question_number": 1,
+        "phase": "intro",
+        "score": 7.06,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:09:24.197919+00:00"
+      },
+      {
+        "id": "998b8066-c527-4af8-9e33-2fef81b0b274",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "interviewer",
+        "message_type": "question",
+        "content": "How would you approach optimizing the data ingestion pipeline for our company brain, considering the volume of internal department documents and the need for fast data retrieval, while also ensuring data isolation and scalability?",
+        "question_number": 2,
+        "phase": "intro",
+        "score": null,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:11:03.159414+00:00"
+      },
+      {
+        "id": "cae3086d-d3b6-499a-8ae4-a0fdf5b9520e",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "candidate",
+        "message_type": "candidate_answer",
+        "content": "I own a FastAPI service handling about 40k requests per minute with async SQLAlchemy sessions and versioned routes. We used JWT auth with refresh-token rotation, per-tenant row-level isolation, structured JSON logging, and kept test coverage above 85 percent. When a slow endpoint surfaced I profiled it with cProfile, found N+1 queries in the list endpoint, switched to selectinload and added an in-process cache \u2014 p95 dropped from 900ms to 210ms. I also design OpenAPI contracts first so the frontend can build against the schema before the implementation lands.",
+        "question_number": 2,
+        "phase": "intro",
+        "score": 7.06,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:11:04.670908+00:00"
+      },
+      {
+        "id": "877c19af-14e3-4efe-83b5-edeec88cfed0",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "interviewer",
+        "message_type": "question",
+        "content": "I'd like to understand your experience with tech system design. Tell me about a time when you faced a significant challenge in this area. How did you approach it and what was the outcome?",
+        "question_number": 3,
+        "phase": "technical",
+        "score": null,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:12:13.594756+00:00"
+      },
+      {
+        "id": "d91b7383-00f8-4d3d-88a1-3005af2814ea",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "candidate",
+        "message_type": "candidate_answer",
+        "content": "Given a design for 10k users growing to 20M, I would start with the constraints: read versus write ratio, consistency needs, and the single biggest failure mode. Start with one Postgres primary with read replicas, an API layer with rate limiting and idempotent writes, and put a CDN in front of static assets. When the DB becomes the bottleneck, partition by tenant id and move hot paths into Redis or Kafka for async processing. I would not jump to microservices \u2014 I would keep the monolith until the team and the failure modes demand splitting, and I would define SLOs and error budgets up front so scaling decisions are measurable.",
+        "question_number": 3,
+        "phase": "technical",
+        "score": 7.44,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:12:14.917389+00:00"
+      },
+      {
+        "id": "3e574a3b-53a8-4406-8195-e5c9062459f7",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "interviewer",
+        "message_type": "question",
+        "content": "Let's stress that constraint handling is critical in system design. Given the constraints you've identified for a 10k user system growing to 20M, how would you prioritize and implement data isolation and scalability measures to prevent the single biggest failure mode from occurring?",
+        "question_number": 4,
+        "phase": "technical",
+        "score": null,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:12:59.284964+00:00"
+      },
+      {
+        "id": "8acdcf23-6cd9-4d20-befb-1e9f6caf22ea",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "candidate",
+        "message_type": "candidate_answer",
+        "content": "I own a FastAPI service handling about 40k requests per minute with async SQLAlchemy sessions and versioned routes. We used JWT auth with refresh-token rotation, per-tenant row-level isolation, structured JSON logging, and kept test coverage above 85 percent. When a slow endpoint surfaced I profiled it with cProfile, found N+1 queries in the list endpoint, switched to selectinload and added an in-process cache \u2014 p95 dropped from 900ms to 210ms. I also design OpenAPI contracts first so the frontend can build against the schema before the implementation lands.",
+        "question_number": 4,
+        "phase": "technical",
+        "score": 7.06,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:13:00.596195+00:00"
+      },
+      {
+        "id": "580e6877-0cf6-4bae-8e99-8a1dc0428c88",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "interviewer",
+        "message_type": "question",
+        "content": "You mentioned designing OpenAPI contracts first for your API. Can you walk me through your thought process when it comes to modeling complex workflows and integrating with downstream systems in an event-driven architecture?",
+        "question_number": 5,
+        "phase": "technical",
+        "score": null,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:15:21.432761+00:00"
+      },
+      {
+        "id": "1df95243-6910-4d20-9199-81014a366438",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "candidate",
+        "message_type": "candidate_answer",
+        "content": "I own a FastAPI service handling about 40k requests per minute with async SQLAlchemy sessions and versioned routes. We used JWT auth with refresh-token rotation, per-tenant row-level isolation, structured JSON logging, and kept test coverage above 85 percent. When a slow endpoint surfaced I profiled it with cProfile, found N+1 queries in the list endpoint, switched to selectinload and added an in-process cache \u2014 p95 dropped from 900ms to 210ms. I also design OpenAPI contracts first so the frontend can build against the schema before the implementation lands.",
+        "question_number": 5,
+        "phase": "technical",
+        "score": 7.31,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:15:22.862697+00:00"
+      },
+      {
+        "id": "7f972ee2-7a0f-481f-9983-1afca9a82984",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "interviewer",
+        "message_type": "question",
+        "content": "Can you walk me through how you would design a data model for a FastAPI service handling high-traffic, low-latency requests, considering the trade-offs between data consistency, scalability, and maintainability?",
+        "question_number": 6,
+        "phase": "technical",
+        "score": null,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:16:00.276177+00:00"
+      },
+      {
+        "id": "c2f3a7ce-0e34-4a93-950d-0faef6d5d53d",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "candidate",
+        "message_type": "candidate_answer",
+        "content": "I lead by pairing with juniors and reviewing designs early, before the code is written. I run weekly 1:1s where the agenda belongs to the engineer, and I prefer incremental migrations over rewrites because small reversible steps keep the team shipping. When a junior missed a deadline I looked at what the process hid from them \u2014 unclear acceptance criteria \u2014 and we fixed the intake instead of blaming the engineer. I also mentor by working in public: design docs, code reviews, and postmortems are shared so everyone learns the same lessons.",
+        "question_number": 6,
+        "phase": "technical",
+        "score": 7.06,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:16:01.970378+00:00"
+      },
+      {
+        "id": "f7507e3d-b5c6-4e0a-8743-5102f21049d5",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "interviewer",
+        "message_type": "question",
+        "content": "Given the event-driven architecture you've described, can you walk me through how you would handle and process a burst of 10,000 new user registrations within a 10-minute window, considering the potential impact on your system's scalability and data consistency?",
+        "question_number": 7,
+        "phase": "technical",
+        "score": null,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:16:44.201931+00:00"
+      },
+      {
+        "id": "d26703f7-d136-4f72-a356-19676ae0d628",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "candidate",
+        "message_type": "candidate_answer",
+        "content": "Given a design for 10k users growing to 20M, I would start with the constraints: read versus write ratio, consistency needs, and the single biggest failure mode. Start with one Postgres primary with read replicas, an API layer with rate limiting and idempotent writes, and put a CDN in front of static assets. When the DB becomes the bottleneck, partition by tenant id and move hot paths into Redis or Kafka for async processing. I would not jump to microservices \u2014 I would keep the monolith until the team and the failure modes demand splitting, and I would define SLOs and error budgets up front so scaling decisions are measurable.",
+        "question_number": 7,
+        "phase": "technical",
+        "score": 7.59,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:16:45.603861+00:00"
+      },
+      {
+        "id": "46625324-06c3-47eb-846a-30d76a5669c6",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "interviewer",
+        "message_type": "question",
+        "content": "Let's stress that approach: what are the specific trade-offs you would make when choosing between partitioning by tenant ID and using Redis for async processing, and how would you measure the impact on overall system performance?",
+        "question_number": 8,
+        "phase": "technical",
+        "score": null,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:20:16.947682+00:00"
+      },
+      {
+        "id": "adb149c8-cfa6-4ab6-aaa5-ef648d617c99",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "candidate",
+        "message_type": "candidate_answer",
+        "content": "I own a FastAPI service handling about 40k requests per minute with async SQLAlchemy sessions and versioned routes. We used JWT auth with refresh-token rotation, per-tenant row-level isolation, structured JSON logging, and kept test coverage above 85 percent. When a slow endpoint surfaced I profiled it with cProfile, found N+1 queries in the list endpoint, switched to selectinload and added an in-process cache \u2014 p95 dropped from 900ms to 210ms. I also design OpenAPI contracts first so the frontend can build against the schema before the implementation lands.",
+        "question_number": 8,
+        "phase": "technical",
+        "score": 7.06,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:20:18.375266+00:00"
+      },
+      {
+        "id": "3b4279b0-63ef-4964-93f4-407352fc2d87",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "interviewer",
+        "message_type": "question",
+        "content": "Walk me through a difficult tech event driven problem you solved recently in your Senior Python Developer work. What made it hard, and how did you decide between the options?",
+        "question_number": 9,
+        "phase": "behavioral",
+        "score": null,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:22:03.709711+00:00"
+      },
+      {
+        "id": "ffdb24d7-5e0d-4194-8017-4b4d507425cc",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "candidate",
+        "message_type": "candidate_answer",
+        "content": "Eight years of Python, most recently designing an LLM evaluation service that scores candidate answers per competency dimension and reconciles them into a composite score. Each answer is sanitized, evidence is extracted, and scores are normalized to avoid model drift between runs. I profile with cProfile, use dataclasses and pydantic for boundaries, and keep the hot loops out of the event loop. I also maintain a knowledge base pipeline that ingests PDFs, chunks them, embeds them, and stores them in per-department Pinecone namespaces so retrieval stays tenant-isolated.",
+        "question_number": 9,
+        "phase": "behavioral",
+        "score": 7.59,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:22:05.560346+00:00"
+      },
+      {
+        "id": "b84a0c50-9156-4d44-97ca-77b22120b4f4",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "interviewer",
+        "message_type": "question",
+        "content": "Describe a time your tech deployment skills were tested at work. What specifically did you do, and what did you learn from how it turned out?",
+        "question_number": 10,
+        "phase": "behavioral",
+        "score": null,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:23:34.781333+00:00"
+      },
+      {
+        "id": "0e05417a-cc1f-477e-8d7a-969bfa2233ba",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "candidate",
+        "message_type": "candidate_answer",
+        "content": "I treat tests as the safety net that lets us refactor. On my last project I introduced a layered test strategy: unit tests for pure logic, integration tests against a real Postgres in a docker compose, and a small set of end-to-end flows for critical paths. Coverage went from 41 to 88 percent while the suite stayed under four minutes by mocking the slowest external calls. I also set up mutation testing for the scoring module \u2014 it caught three assertions that never failed. I review test quality in PRs, not just coverage numbers.",
+        "question_number": 10,
+        "phase": "behavioral",
+        "score": 7.06,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:23:36.556073+00:00"
+      },
+      {
+        "id": "b833531c-e4dd-4d51-8cd7-45fe8bf9aae3",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "interviewer",
+        "message_type": "question",
+        "content": "Let's explore a situation where a production issue surfaces in a distributed system, and you need to quickly roll out a fix to mitigate the impact. How would you prioritize the roll-out and ensure the fix doesn't introduce new issues?",
+        "question_number": 11,
+        "phase": "behavioral",
+        "score": null,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:24:30.829395+00:00"
+      },
+      {
+        "id": "ceef43f7-3f4d-4128-a242-34cd212521f0",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "candidate",
+        "message_type": "candidate_answer",
+        "content": "Given a design for 10k users growing to 20M, I would start with the constraints: read versus write ratio, consistency needs, and the single biggest failure mode. Start with one Postgres primary with read replicas, an API layer with rate limiting and idempotent writes, and put a CDN in front of static assets. When the DB becomes the bottleneck, partition by tenant id and move hot paths into Redis or Kafka for async processing. I would not jump to microservices \u2014 I would keep the monolith until the team and the failure modes demand splitting, and I would define SLOs and error budgets up front so scaling decisions are measurable.",
+        "question_number": 11,
+        "phase": "behavioral",
+        "score": 7.06,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:24:32.541012+00:00"
+      },
+      {
+        "id": "381709d5-6ead-4446-9239-99c25c512a18",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "interviewer",
+        "message_type": "question",
+        "content": "In your design, what trade-offs do you see between the performance of a single Postgres primary with read replicas versus partitioning the database by tenant ID and moving hot paths into Redis or Kafka for async processing?",
+        "question_number": 12,
+        "phase": "behavioral",
+        "score": null,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:25:28.909666+00:00"
+      },
+      {
+        "id": "e3c40076-6da4-4ae2-a121-19d4dd5c9686",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "candidate",
+        "message_type": "candidate_answer",
+        "content": "Given a design for 10k users growing to 20M, I would start with the constraints: read versus write ratio, consistency needs, and the single biggest failure mode. Start with one Postgres primary with read replicas, an API layer with rate limiting and idempotent writes, and put a CDN in front of static assets. When the DB becomes the bottleneck, partition by tenant id and move hot paths into Redis or Kafka for async processing. I would not jump to microservices \u2014 I would keep the monolith until the team and the failure modes demand splitting, and I would define SLOs and error budgets up front so scaling decisions are measurable.",
+        "question_number": 12,
+        "phase": "behavioral",
+        "score": 7.53,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:25:30.441339+00:00"
+      },
+      {
+        "id": "c3a47919-922b-4275-8155-bcb31e077b7e",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "interviewer",
+        "message_type": "question",
+        "content": "Given the technical lead role, how would you articulate the trade-offs and constraints you've identified to the development team, ensuring everyone is aligned with the design decisions?",
+        "question_number": 13,
+        "phase": "behavioral",
+        "score": null,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:26:32.514533+00:00"
+      },
+      {
+        "id": "0feb671e-e0d4-41fb-a321-88e87301bc9e",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "candidate",
+        "message_type": "candidate_answer",
+        "content": "Given a design for 10k users growing to 20M, I would start with the constraints: read versus write ratio, consistency needs, and the single biggest failure mode. Start with one Postgres primary with read replicas, an API layer with rate limiting and idempotent writes, and put a CDN in front of static assets. When the DB becomes the bottleneck, partition by tenant id and move hot paths into Redis or Kafka for async processing. I would not jump to microservices \u2014 I would keep the monolith until the team and the failure modes demand splitting, and I would define SLOs and error budgets up front so scaling decisions are measurable.",
+        "question_number": 13,
+        "phase": "behavioral",
+        "score": 7.44,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:26:34.355171+00:00"
+      },
+      {
+        "id": "e5929bea-d7d7-4615-9c94-7af04e47c0c8",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "interviewer",
+        "message_type": "question",
+        "content": "Given the technical lead role, how would you articulate the trade-offs and constraints you've identified to the development team, ensuring everyone is aligned with the design decisions?",
+        "question_number": 14,
+        "phase": "conclusion",
+        "score": null,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:27:05.569647+00:00"
+      },
+      {
+        "id": "96b878ba-5b96-433c-af28-ade5664f905e",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "role": "candidate",
+        "message_type": "candidate_answer",
+        "content": "Given a design for 10k users growing to 20M, I would start with the constraints: read versus write ratio, consistency needs, and the single biggest failure mode. Start with one Postgres primary with read replicas, an API layer with rate limiting and idempotent writes, and put a CDN in front of static assets. When the DB becomes the bottleneck, partition by tenant id and move hot paths into Redis or Kafka for async processing. I would not jump to microservices \u2014 I would keep the monolith until the team and the failure modes demand splitting, and I would define SLOs and error budgets up front so scaling decisions are measurable.",
+        "question_number": 14,
+        "phase": "conclusion",
+        "score": 7.44,
+        "follow_up_question": null,
+        "evaluated_at": null,
+        "created_at": "2026-08-14T14:27:07.551762+00:00"
+      }
+    ],
+    "evaluations": [
+      {
+        "id": "173cad9c-d4a5-403f-864b-616b2f9009ca",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "message_id": "3221333a-a02a-4271-ba78-29643c3c66ca",
+        "score": 7.06,
+        "technical_score": 7.5,
+        "communication_score": 8,
+        "strengths": "Good conceptual understanding, Proper terminology, Clear structure, Good pacing, Logical flow, Honest about limits, Good coverage of basics",
+        "weaknesses": "Missing edge cases, No real-world examples, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases",
+        "feedback_detail": null,
+        "evaluated_at": "2026-08-14T14:09:26.564326+00:00",
+        "created_at": "2026-08-14T14:09:26.564326+00:00"
+      },
+      {
+        "id": "aa8ad159-69b4-43ca-8d08-7051888a70de",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "message_id": "cae3086d-d3b6-499a-8ae4-a0fdf5b9520e",
+        "score": 7.06,
+        "technical_score": 8,
+        "communication_score": 9,
+        "strengths": "Good conceptual understanding, Proper terminology, Awareness of best practices, Clear structure, Good pacing, Concise and clear explanation, Logical flow, Cause-effect reasoning, Honest about limits, Calibrated certainty, Good coverage of basics",
+        "weaknesses": "No real-world examples, No alternative consideration, Shallow analysis, Missing edge cases and performance implications",
+        "feedback_detail": null,
+        "evaluated_at": "2026-08-14T14:11:06.200264+00:00",
+        "created_at": "2026-08-14T14:11:06.200264+00:00"
+      },
+      {
+        "id": "3122884c-c416-4803-8da9-c573bb14316c",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "message_id": "d91b7383-00f8-4d3d-88a1-3005af2814ea",
+        "score": 7.44,
+        "technical_score": 8,
+        "communication_score": 8.5,
+        "strengths": "Good conceptual understanding, Proper terminology, Awareness of best practices and trade-offs, Clear structure, Good pacing, Concise, Logical flow, Honest about limits, Pushed back on scalability decisions, Good coverage of basics",
+        "weaknesses": "Missing edge cases, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases",
+        "feedback_detail": null,
+        "evaluated_at": "2026-08-14T14:12:16.239018+00:00",
+        "created_at": "2026-08-14T14:12:16.239018+00:00"
+      },
+      {
+        "id": "045771e3-5aaa-4bc5-ae15-6b0306b93a42",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "message_id": "8acdcf23-6cd9-4d20-befb-1e9f6caf22ea",
+        "score": 7.06,
+        "technical_score": 7.5,
+        "communication_score": 8,
+        "strengths": "Good conceptual understanding, Proper terminology, Clear structure, Good pacing, Logical flow, Honest about limits, Good coverage of basics",
+        "weaknesses": "Missing edge cases, No real-world examples, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases",
+        "feedback_detail": null,
+        "evaluated_at": "2026-08-14T14:13:01.871294+00:00",
+        "created_at": "2026-08-14T14:13:01.871294+00:00"
+      },
+      {
+        "id": "05da62ae-ddd1-421d-b45a-8d5943b9f3b4",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "message_id": "1df95243-6910-4d20-9199-81014a366438",
+        "score": 7.31,
+        "technical_score": 8,
+        "communication_score": 8,
+        "strengths": "Good conceptual understanding, Proper terminology, Awareness of best practices, Clear structure, Good pacing, Good vocabulary and articulation, Logical flow, Honest about limits, Confident in own expertise, Good coverage of basics",
+        "weaknesses": "Missing edge cases, No alternative consideration, Shallow analysis, Missing edge cases",
+        "feedback_detail": null,
+        "evaluated_at": "2026-08-14T14:15:25.128304+00:00",
+        "created_at": "2026-08-14T14:15:25.128304+00:00"
+      },
+      {
+        "id": "192552f6-d346-4350-b48b-bdc138b847fa",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "message_id": "c2f3a7ce-0e34-4a93-950d-0faef6d5d53d",
+        "score": 7.06,
+        "technical_score": 7.5,
+        "communication_score": 8,
+        "strengths": "Good conceptual understanding, Proper terminology, Clear structure, Good pacing, Logical flow, Honest about limits, Good coverage of basics",
+        "weaknesses": "Missing edge cases, No real-world examples, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases",
+        "feedback_detail": null,
+        "evaluated_at": "2026-08-14T14:16:03.275490+00:00",
+        "created_at": "2026-08-14T14:16:03.275490+00:00"
+      },
+      {
+        "id": "d85a518e-4d37-4434-a8fb-4cd2cb21bdd6",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "message_id": "d26703f7-d136-4f72-a356-19676ae0d628",
+        "score": 7.59,
+        "technical_score": 8,
+        "communication_score": 8.5,
+        "strengths": "Good conceptual understanding, Proper terminology, Awareness of performance implications, Clear structure, Good pacing, Concise language, Logical flow, Consideration of alternatives, Honest about limits, Confident in stated knowledge, Good coverage of basics, Comprehensive explanation",
+        "weaknesses": "Missing some edge cases, Shallow analysis",
+        "feedback_detail": null,
+        "evaluated_at": "2026-08-14T14:16:46.888182+00:00",
+        "created_at": "2026-08-14T14:16:46.888182+00:00"
+      },
+      {
+        "id": "9ee2fe6f-8972-4ef2-8889-4bc0d5e04087",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "message_id": "adb149c8-cfa6-4ab6-aaa5-ef648d617c99",
+        "score": 7.06,
+        "technical_score": 7.5,
+        "communication_score": 8,
+        "strengths": "Good conceptual understanding, Proper terminology, Clear structure, Good pacing, Logical flow, Honest about limits, Good coverage of basics",
+        "weaknesses": "Missing edge cases, No real-world examples, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases",
+        "feedback_detail": null,
+        "evaluated_at": "2026-08-14T14:20:19.871737+00:00",
+        "created_at": "2026-08-14T14:20:19.871737+00:00"
+      },
+      {
+        "id": "9dcc1c25-54e4-465b-bfbf-95319dcd63ef",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "message_id": "ffdb24d7-5e0d-4194-8017-4b4d507425cc",
+        "score": 7.59,
+        "technical_score": 8,
+        "communication_score": 8.5,
+        "strengths": "Good conceptual understanding, Proper terminology, Aware of scalability considerations, Clear structure, Good pacing, Good vocabulary, Logical flow, Considered tradeoffs, Some cause-effect reasoning, Honest about limits, Calibrated certainty, Good coverage of basics",
+        "weaknesses": "No real-world examples, No real-world examples, Missing edge cases and performance implications discussion",
+        "feedback_detail": null,
+        "evaluated_at": "2026-08-14T14:22:07.471027+00:00",
+        "created_at": "2026-08-14T14:22:07.471027+00:00"
+      },
+      {
+        "id": "c414c7c2-3197-4f1f-ba80-95ad5384a4d5",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "message_id": "0e05417a-cc1f-477e-8d7a-969bfa2233ba",
+        "score": 7.06,
+        "technical_score": 7.5,
+        "communication_score": 8,
+        "strengths": "Good conceptual understanding, Proper terminology, Clear structure, Good pacing, Logical flow, Honest about limits, Good coverage of basics",
+        "weaknesses": "Missing edge cases, No real-world examples, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases",
+        "feedback_detail": null,
+        "evaluated_at": "2026-08-14T14:23:38.710475+00:00",
+        "created_at": "2026-08-14T14:23:38.710475+00:00"
+      },
+      {
+        "id": "11cb4135-9bb3-498c-8693-26e81099688b",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "message_id": "ceef43f7-3f4d-4128-a242-34cd212521f0",
+        "score": 7.06,
+        "technical_score": 7.5,
+        "communication_score": 8,
+        "strengths": "Good conceptual understanding, Proper terminology, Clear structure, Good pacing, Logical flow, Honest about limits, Good coverage of basics",
+        "weaknesses": "Missing edge cases, No real-world examples, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases",
+        "feedback_detail": null,
+        "evaluated_at": "2026-08-14T14:24:34.193975+00:00",
+        "created_at": "2026-08-14T14:24:34.193975+00:00"
+      },
+      {
+        "id": "4b55cdd3-8fb3-4fbe-96e9-1d9e803f1bc1",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "message_id": "e3c40076-6da4-4ae2-a121-19d4dd5c9686",
+        "score": 7.53,
+        "technical_score": 8,
+        "communication_score": 8,
+        "strengths": "Good conceptual understanding, Proper terminology, Considered system constraints, Clear structure, Good pacing, Concise language, Logical flow, Considered alternatives, Honest about limits, Calibrated certainty, Good coverage of basics",
+        "weaknesses": "Missing edge cases in partitioning strategy, Shallow analysis on partitioning strategy, Missing edge cases",
+        "feedback_detail": null,
+        "evaluated_at": "2026-08-14T14:25:31.799398+00:00",
+        "created_at": "2026-08-14T14:25:31.799398+00:00"
+      },
+      {
+        "id": "2a1a6354-1557-4c9a-95f6-f41f26434b07",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "message_id": "0feb671e-e0d4-41fb-a321-88e87301bc9e",
+        "score": 7.44,
+        "technical_score": 8,
+        "communication_score": 8.5,
+        "strengths": "Good conceptual understanding, Proper terminology, Best practices, Clear structure, Good pacing, Good vocabulary, Logical flow, Considered rate limiting and idempotent writes, Honest about limits, Good pushback, Good coverage of basics, Good coverage of trade-offs",
+        "weaknesses": "Missing edge cases, No alternative consideration, Shallow analysis of failure modes, Minor omissions",
+        "feedback_detail": null,
+        "evaluated_at": "2026-08-14T14:26:35.759784+00:00",
+        "created_at": "2026-08-14T14:26:35.759784+00:00"
+      },
+      {
+        "id": "85ccd354-27b6-48cd-b3c6-8b90b6b8b9c7",
+        "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+        "message_id": "96b878ba-5b96-433c-af28-ade5664f905e",
+        "score": 7.44,
+        "technical_score": 8,
+        "communication_score": 8.5,
+        "strengths": "Good conceptual understanding, Proper terminology, Best practices, Clear structure, Good pacing, Good vocabulary, Logical flow, Considered rate limiting and idempotent writes, Honest about limits, Good pushback, Good coverage of basics, Good coverage of trade-offs",
+        "weaknesses": "Missing edge cases, No alternative consideration, Shallow analysis of failure modes, Minor omissions",
+        "feedback_detail": null,
+        "evaluated_at": "2026-08-14T14:27:09.389803+00:00",
+        "created_at": "2026-08-14T14:27:09.389803+00:00"
+      }
+    ],
+    "v4_verdict": "hire",
+    "v4_confidence": 0.68,
+    "v4_composite_score": 8.46,
+    "v4_evidence_count": 13,
+    "v4_questions_asked": 14,
+    "v4_competency_summary": {
+      "tech_core": {
+        "average_score": 8.0,
+        "evidence_count": 1,
+        "gap": 0.5
+      },
+      "tech_caching": {
+        "average_score": 8.0,
+        "evidence_count": 1,
+        "gap": 0.0
+      },
+      "tech_deployment": {
+        "average_score": 8.0,
+        "evidence_count": 3,
+        "gap": 0.0
+      },
+      "tech_event_driven": {
+        "average_score": 8.33,
+        "evidence_count": 3,
+        "gap": 0.0
+      },
+      "tech_data_modeling": {
+        "average_score": 8.0,
+        "evidence_count": 1,
+        "gap": 0.5
+      },
+      "tech_system_design": {
+        "average_score": 8.5,
+        "evidence_count": 3,
+        "gap": 0.0
+      },
+      "behav_communication": {
+        "average_score": 8.5,
+        "evidence_count": 1,
+        "gap": 0.5
+      }
+    },
+    "v4_hypothesis_outcomes": {
+      "confirmed": 3,
+      "refuted": 0,
+      "testing": 11,
+      "untested": 0
+    }
+  },
+  "brain_view": {
+    "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+    "interview_brain": {
+      "version": 3,
+      "current_hypotheses": [
+        {
+          "id": "5a2a52c2-0f21-4d38-8d1c-44fe2b97ab67",
+          "source": "resume_profile",
+          "status": "testing",
+          "direction": "positive",
+          "statement": "Candidate has strong Strong experience with Python and its ecosystem",
+          "competency": "tech_core",
+          "confidence": 0.7363,
+          "created_at": "2026-08-14T14:08:08.859769+00:00",
+          "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+          "probability": 0.7363,
+          "last_updated": "2026-08-14T14:25:23.529085+00:00",
+          "evidence_based": false,
+          "evidence_count": 1,
+          "required_evidence": 3,
+          "supporting_evidence": [
+            "c858835d-678b-46de-a771-2ca06a762442"
+          ],
+          "max_allowed_evidence": 6,
+          "contradicting_evidence": []
+        },
+        {
+          "id": "89373f5c-7b20-46d4-8d95-ac8bc8c6a200",
+          "source": "resume_profile",
+          "status": "testing",
+          "direction": "positive",
+          "statement": "Candidate has strong Familiarity with scalable systems and cloud infrastructure",
+          "competency": "tech_core",
+          "confidence": 0.7363,
+          "created_at": "2026-08-14T14:08:08.859769+00:00",
+          "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+          "probability": 0.7363,
+          "last_updated": "2026-08-14T14:25:23.529085+00:00",
+          "evidence_based": false,
+          "evidence_count": 1,
+          "required_evidence": 3,
+          "supporting_evidence": [
+            "c858835d-678b-46de-a771-2ca06a762442"
+          ],
+          "max_allowed_evidence": 6,
+          "contradicting_evidence": []
+        },
+        {
+          "id": "e57fbfac-45b9-4ea9-9f92-618797a222b5",
+          "source": "resume_profile",
+          "status": "testing",
+          "direction": "negative",
+          "statement": "Candidate is weak in Limited testing exposure",
+          "competency": "tech_core",
+          "confidence": 0.2637,
+          "created_at": "2026-08-14T14:08:08.859769+00:00",
+          "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+          "probability": 0.2637,
+          "last_updated": "2026-08-14T14:25:23.529085+00:00",
+          "evidence_based": false,
+          "evidence_count": 1,
+          "required_evidence": 3,
+          "supporting_evidence": [],
+          "max_allowed_evidence": 6,
+          "contradicting_evidence": [
+            "c858835d-678b-46de-a771-2ca06a762442"
+          ]
+        },
+        {
+          "id": "4db63841-ced0-445a-8a24-7d2a73c4b8f7",
+          "source": "resume_profile",
+          "status": "testing",
+          "direction": "negative",
+          "statement": "Candidate is weak in Possible gaps in professional experience and formal education",
+          "competency": "tech_core",
+          "confidence": 0.2637,
+          "created_at": "2026-08-14T14:08:08.859769+00:00",
+          "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+          "probability": 0.2637,
+          "last_updated": "2026-08-14T14:25:23.529085+00:00",
+          "evidence_based": false,
+          "evidence_count": 1,
+          "required_evidence": 3,
+          "supporting_evidence": [],
+          "max_allowed_evidence": 6,
+          "contradicting_evidence": [
+            "c858835d-678b-46de-a771-2ca06a762442"
+          ]
+        },
+        {
+          "id": "400383a0-6d69-49aa-99e7-ae36e2583011",
+          "source": "resume_profile",
+          "status": "testing",
+          "direction": "positive",
+          "statement": "Candidate has strong python skills for this role",
+          "competency": "tech_core",
+          "confidence": 0.7363,
+          "created_at": "2026-08-14T14:08:08.859769+00:00",
+          "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+          "probability": 0.7363,
+          "last_updated": "2026-08-14T14:25:23.529085+00:00",
+          "evidence_based": false,
+          "evidence_count": 1,
+          "required_evidence": 3,
+          "supporting_evidence": [
+            "c858835d-678b-46de-a771-2ca06a762442"
+          ],
+          "max_allowed_evidence": 6,
+          "contradicting_evidence": []
+        },
+        {
+          "id": "596be7a4-0030-47d0-b635-19b0cf6db941",
+          "source": "resume_profile",
+          "status": "testing",
+          "direction": "positive",
+          "statement": "Candidate communicates clearly and effectively",
+          "competency": "behav_communication",
+          "confidence": 0.9256,
+          "created_at": "2026-08-14T14:08:08.860718+00:00",
+          "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+          "probability": 0.9256,
+          "last_updated": "2026-08-14T14:27:00.875374+00:00",
+          "evidence_based": false,
+          "evidence_count": 2,
+          "required_evidence": 3,
+          "supporting_evidence": [
+            "71b2c38a-1700-4043-ba63-a1b8fd965d45"
+          ],
+          "max_allowed_evidence": 6,
+          "contradicting_evidence": []
+        },
+        {
+          "id": "42cadca2-87a1-4e21-9401-7f6e8ec9bb9d",
+          "status": "confirmed",
+          "direction": "positive",
+          "statement": "Candidate demonstrates System Design & Scalability",
+          "competency": "tech_system_design",
+          "confidence": 0.9788,
+          "created_at": "2026-08-14T14:08:29.993325+00:00",
+          "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+          "probability": 0.9788,
+          "last_updated": "2026-08-14T14:12:07.078781+00:00",
+          "evidence_count": 3,
+          "required_evidence": 2,
+          "supporting_evidence": [
+            "6271e25e-df54-4adc-b6cd-123afd7d54a6",
+            "ac2fd534-51dd-4fab-8338-417565534646",
+            "ad89b059-7217-4197-94fb-deab192c9ee4"
+          ],
+          "max_allowed_evidence": 4,
+          "contradicting_evidence": []
+        },
+        {
+          "id": "bf3c35f2-a9ba-4810-bf90-014daedf195a",
+          "status": "testing",
+          "direction": "positive",
+          "statement": "Candidate demonstrates System Design & Scalability",
+          "competency": "tech_system_design",
+          "confidence": 0.7791,
+          "created_at": "2026-08-14T14:10:57.950035+00:00",
+          "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+          "probability": 0.7791,
+          "last_updated": "2026-08-14T14:12:07.078781+00:00",
+          "evidence_count": 1,
+          "required_evidence": 2,
+          "supporting_evidence": [
+            "ad89b059-7217-4197-94fb-deab192c9ee4"
+          ],
+          "max_allowed_evidence": 4,
+          "contradicting_evidence": []
+        },
+        {
+          "id": "7aa09429-d258-440f-94a2-430081a1d070",
+          "status": "confirmed",
+          "direction": "positive",
+          "statement": "Candidate demonstrates Reliable Deployments & AWS",
+          "competency": "tech_deployment",
+          "confidence": 0.9561,
+          "created_at": "2026-08-14T14:12:07.078781+00:00",
+          "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+          "probability": 0.9561,
+          "last_updated": "2026-08-14T14:24:22.673807+00:00",
+          "evidence_count": 3,
+          "required_evidence": 2,
+          "supporting_evidence": [
+            "e59b22bf-74b9-462c-a2f5-2b79a85524b0",
+            "9f125a04-fd2b-4fce-a5ad-2401ecae84d1",
+            "d20d1692-7dc1-497d-a0c1-78adab14d08c"
+          ],
+          "max_allowed_evidence": 4,
+          "contradicting_evidence": []
+        },
+        {
+          "id": "57d868bc-2791-4a0a-9989-2551bd77045b",
+          "status": "confirmed",
+          "direction": "positive",
+          "statement": "Candidate demonstrates Event-Driven Processing & Kafka",
+          "competency": "tech_event_driven",
+          "confidence": 0.972,
+          "created_at": "2026-08-14T14:12:53.122724+00:00",
+          "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+          "probability": 0.972,
+          "last_updated": "2026-08-14T14:21:55.584560+00:00",
+          "evidence_count": 3,
+          "required_evidence": 1,
+          "supporting_evidence": [
+            "fdcd4c2b-a6f3-43af-be7f-e4e223ae4435",
+            "ade872de-3012-4797-b091-f38b253ad6cb",
+            "083dc64f-3b41-4a5d-afc1-fd8031fbb145"
+          ],
+          "max_allowed_evidence": 2,
+          "contradicting_evidence": []
+        },
+        {
+          "id": "cdca41ad-eed7-4441-ae12-227e84923c0c",
+          "status": "testing",
+          "direction": "positive",
+          "statement": "Candidate demonstrates PostgreSQL Data Modeling & SQLAlchemy",
+          "competency": "tech_data_modeling",
+          "confidence": 0.7363,
+          "created_at": "2026-08-14T14:15:16.125099+00:00",
+          "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+          "probability": 0.7363,
+          "last_updated": "2026-08-14T14:15:55.358308+00:00",
+          "evidence_count": 1,
+          "required_evidence": 2,
+          "supporting_evidence": [
+            "6c61c6b2-7b3e-4afd-a453-204ddae2b7d6"
+          ],
+          "max_allowed_evidence": 4,
+          "contradicting_evidence": []
+        },
+        {
+          "id": "09e20e8b-6599-4187-8139-e725db223742",
+          "status": "testing",
+          "direction": "positive",
+          "statement": "Candidate demonstrates Caching & Redis",
+          "competency": "tech_caching",
+          "confidence": 0.7363,
+          "created_at": "2026-08-14T14:16:37.521416+00:00",
+          "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+          "probability": 0.7363,
+          "last_updated": "2026-08-14T14:20:09.573630+00:00",
+          "evidence_count": 1,
+          "required_evidence": 1,
+          "supporting_evidence": [
+            "5ef992be-7797-4cb7-84b4-9e6d1411d82c"
+          ],
+          "max_allowed_evidence": 2,
+          "contradicting_evidence": []
+        },
+        {
+          "id": "25062058-28dc-44bb-97e2-057e7af4d6e9",
+          "status": "testing",
+          "direction": "positive",
+          "statement": "Candidate demonstrates Event-Driven Processing & Kafka",
+          "competency": "tech_event_driven",
+          "confidence": 0.7791,
+          "created_at": "2026-08-14T14:20:09.573630+00:00",
+          "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+          "probability": 0.7791,
+          "last_updated": "2026-08-14T14:21:55.584560+00:00",
+          "evidence_count": 1,
+          "required_evidence": 1,
+          "supporting_evidence": [
+            "083dc64f-3b41-4a5d-afc1-fd8031fbb145"
+          ],
+          "max_allowed_evidence": 2,
+          "contradicting_evidence": []
+        },
+        {
+          "id": "cd729064-3b41-4e5b-9d09-e6dac21e7598",
+          "status": "testing",
+          "direction": "positive",
+          "statement": "Candidate demonstrates Reliable Deployments & AWS",
+          "competency": "tech_deployment",
+          "confidence": 0.7363,
+          "created_at": "2026-08-14T14:23:28.733723+00:00",
+          "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+          "probability": 0.7363,
+          "last_updated": "2026-08-14T14:24:22.673807+00:00",
+          "evidence_count": 1,
+          "required_evidence": 2,
+          "supporting_evidence": [
+            "d20d1692-7dc1-497d-a0c1-78adab14d08c"
+          ],
+          "max_allowed_evidence": 4,
+          "contradicting_evidence": []
+        }
+      ],
+      "evidence_summary": {
+        "tech_core": {
+          "gap": 0.5,
+          "scores": [
+            8.0
+          ],
+          "coverage": 0.5,
+          "latest_score": 8.0,
+          "average_score": 8.0,
+          "evidence_count": 1,
+          "latest_evidence": "Demonstrated solid domain knowledge, explained trade-offs, used proper terminology, and considered system constraints",
+          "average_strength": 0.72,
+          "average_confidence": 0.9
+        },
+        "tech_caching": {
+          "gap": 0.0,
+          "scores": [
+            8.0
+          ],
+          "coverage": 1.0,
+          "latest_score": 8.0,
+          "average_score": 8.0,
+          "evidence_count": 1,
+          "latest_evidence": "Well-structured response with clear explanation flow",
+          "average_strength": 0.72,
+          "average_confidence": 0.9
+        },
+        "tech_deployment": {
+          "gap": 0.0,
+          "scores": [
+            8.0,
+            8.0,
+            8.0
+          ],
+          "coverage": 1.0,
+          "latest_score": 8.0,
+          "average_score": 8.0,
+          "evidence_count": 3,
+          "latest_evidence": "Well-structured response with clear explanation flow",
+          "average_strength": 0.72,
+          "average_confidence": 0.9
+        },
+        "tech_event_driven": {
+          "gap": 0.0,
+          "scores": [
+            8.0,
+            8.5,
+            8.5
+          ],
+          "coverage": 1.0,
+          "latest_score": 8.5,
+          "average_score": 8.33,
+          "evidence_count": 3,
+          "latest_evidence": "Well-structured response with clear explanation flow, good pacing and vocabulary",
+          "average_strength": 0.765,
+          "average_confidence": 0.92
+        },
+        "tech_data_modeling": {
+          "gap": 0.5,
+          "scores": [
+            8.0
+          ],
+          "coverage": 0.5,
+          "latest_score": 8.0,
+          "average_score": 8.0,
+          "evidence_count": 1,
+          "latest_evidence": "Well-structured response with clear explanation flow",
+          "average_strength": 0.72,
+          "average_confidence": 0.9
+        },
+        "tech_system_design": {
+          "gap": 0.0,
+          "scores": [
+            8.0,
+            9.0,
+            8.5
+          ],
+          "coverage": 1.0,
+          "latest_score": 8.5,
+          "average_score": 8.5,
+          "evidence_count": 3,
+          "latest_evidence": "Well-structured response with clear explanation flow, concise and articulate",
+          "average_strength": 0.78,
+          "average_confidence": 0.92
+        },
+        "behav_communication": {
+          "gap": 0.5,
+          "scores": [
+            8.5
+          ],
+          "coverage": 0.5,
+          "latest_score": 8.5,
+          "average_score": 8.5,
+          "evidence_count": 1,
+          "latest_evidence": "Well-structured response with clear explanation flow, crisp and concise with good vocabulary and articulation",
+          "average_strength": 0.765,
+          "average_confidence": 0.9
+        }
+      },
+      "competency_scores": {
+        "tech_core": {
+          "type": "competency",
+          "count": 1,
+          "scores": [
+            8.0
+          ],
+          "average_score": 8.0
+        },
+        "tech_caching": {
+          "type": "competency",
+          "count": 1,
+          "scores": [
+            8.0
+          ],
+          "average_score": 8.0
+        },
+        "tech_deployment": {
+          "type": "competency",
+          "count": 3,
+          "scores": [
+            8.0,
+            8.0,
+            8.0
+          ],
+          "average_score": 8.0
+        },
+        "tech_event_driven": {
+          "type": "competency",
+          "count": 3,
+          "scores": [
+            8.0,
+            8.5,
+            8.5
+          ],
+          "average_score": 8.3333
+        },
+        "tech_data_modeling": {
+          "type": "competency",
+          "count": 1,
+          "scores": [
+            8.0
+          ],
+          "average_score": 8.0
+        },
+        "tech_system_design": {
+          "type": "competency",
+          "count": 3,
+          "scores": [
+            8.0,
+            9.0,
+            8.5
+          ],
+          "average_score": 8.5
+        },
+        "behav_communication": {
+          "type": "competency",
+          "count": 1,
+          "scores": [
+            8.5
+          ],
+          "average_score": 8.5
+        }
+      },
+      "difficulty_profile": {
+        "delta": 0,
+        "level": 4,
+        "rationale": "Recent answers averaging 8.17 \u2014 keeping difficulty steady",
+        "dimensions": [
+          {
+            "name": "problem_complexity",
+            "value": 4,
+            "description": "Problem complexity presented to the candidate"
+          },
+          {
+            "name": "abstraction_depth",
+            "value": 4,
+            "description": "Level of abstraction the candidate must operate at"
+          },
+          {
+            "name": "time_pressure",
+            "value": 4,
+            "description": "Implicit time pressure applied"
+          },
+          {
+            "name": "scaffolding_needed",
+            "value": 1,
+            "description": "How much guidance the candidate is given (inverse)"
+          },
+          {
+            "name": "precision_required",
+            "value": 4,
+            "description": "Precision and correctness demanded from answers"
+          },
+          {
+            "name": "follow_up_aggression",
+            "value": 4,
+            "description": "Intensity of follow-up probing"
+          }
+        ],
+        "time_pressure": 4,
+        "abstraction_depth": 4,
+        "precision_required": 4,
+        "problem_complexity": 4,
+        "scaffolding_needed": 1,
+        "follow_up_aggression": 4
+      },
+      "decision_state": {
+        "director": {
+          "action": "CONTINUE",
+          "reason": "calibration gate: proof ratio 0.00 < 0.35 \u2014 keep probing before concluding",
+          "target_id": "596be7a4-0030-47d0-b635-19b0cf6db941",
+          "probe_mode": "challenge_candidate"
+        },
+        "contradictions": [],
+        "hiring_decision": {
+          "draft": "hire",
+          "review": {
+            "checks": [
+              {
+                "issue": "unverifiable_claims",
+                "detail": "13 answer(s) claimed skills without verifiable specifics.",
+                "severity": "medium"
+              },
+              {
+                "issue": "missing_competency",
+                "detail": "Some competencies remain above the sufficiency gap threshold.",
+                "severity": "low"
+              }
+            ],
+            "adjusted": true,
+            "confidence_after": 0.56,
+            "confidence_before": 0.61
+          },
+          "signals": {
+            "coverage_ratio": 0.68,
+            "evidence_count": 13,
+            "confirmed_ratio": 0.75,
+            "coverage_capped": "strong_hire capped to hire: coverage 68% < 85%",
+            "difficulty_reached": 4.0,
+            "contradiction_count": 0
+          },
+          "decision": "hire",
+          "llm_draft": {
+            "rationale": "The deterministic score of 8.56 was produced by combining the canonical composite score of 8.46 with a difficulty credit of 0.91, which was adjusted based on a coverage ratio of 0.68 and a confirmed-hypothesis ratio of 0.75, with no serious contradictions. The evidence collected across 7 competencies, including strong evidence in technical skills such as caching, core, and deployment, supported the hiring decision. Although there were evidence gaps in some areas, the overall strength of the evidence led to a hire decision.",
+            "next_steps": [
+              "Extend an offer to the candidate",
+              "Create an onboarding plan to address evidence gaps"
+            ]
+          },
+          "rationale": "Deterministic 7-point decision: score 8.56/10 (holistic 8.5 scaled by difficulty credit 0.91 at difficulty 4, adjusted by coverage 68%, confirmed-ratio 75%, 0 serious contradiction(s)). strong_hire capped to hire: coverage 68% < 85%.",
+          "confidence": 0.56,
+          "next_steps": [
+            "schedule follow-up with the hiring manager",
+            "prepare offer discussion"
+          ],
+          "flag_review": true,
+          "decision_scale": "7_point",
+          "decision_score": 6.5,
+          "calibration_source": "aura_v5_calibration",
+          "demoted_to_undecided": false
+        },
+        "reflection_action": "probe",
+        "consecutive_probes": 0,
+        "consistency_checks": [
+          {
+            "type": "technical",
+            "score": 7.5,
+            "evidence": "Demonstrated solid domain knowledge, explained tradeoffs, used proper terminology",
+            "timestamp": "2026-08-14T14:09:13.317625+00:00",
+            "assessment": "positive",
+            "confidence": 0.85
+          },
+          {
+            "type": "communication",
+            "score": 8.0,
+            "evidence": "Well-structured response with clear explanation flow",
+            "timestamp": "2026-08-14T14:09:13.317625+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "confidence",
+            "score": 7.0,
+            "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps",
+            "timestamp": "2026-08-14T14:09:13.317625+00:00",
+            "assessment": "positive",
+            "confidence": 0.8
+          },
+          {
+            "type": "completeness",
+            "score": 7.5,
+            "evidence": "Covered main concepts but skipped edge cases and performance implications",
+            "timestamp": "2026-08-14T14:09:13.317625+00:00",
+            "assessment": "positive",
+            "confidence": 0.8
+          },
+          {
+            "type": "technical",
+            "score": 8.0,
+            "evidence": "Demonstrated solid domain knowledge, explained N+1 query problem, used async SQLAlchemy sessions and OpenAPI contracts",
+            "timestamp": "2026-08-14T14:10:55.441805+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "communication",
+            "score": 9.0,
+            "evidence": "Well-structured response with clear explanation flow, used technical terms correctly",
+            "timestamp": "2026-08-14T14:10:55.441805+00:00",
+            "assessment": "positive",
+            "confidence": 0.95
+          },
+          {
+            "type": "reasoning",
+            "score": 7.0,
+            "evidence": "Explained one approach but did not consider multiple alternatives or edge cases",
+            "timestamp": "2026-08-14T14:10:55.441805+00:00",
+            "assessment": "positive",
+            "confidence": 0.75
+          },
+          {
+            "type": "confidence",
+            "score": 8.0,
+            "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps, and pushed back with a concrete example",
+            "timestamp": "2026-08-14T14:10:55.441805+00:00",
+            "assessment": "positive",
+            "confidence": 0.95
+          },
+          {
+            "type": "completeness",
+            "score": 7.0,
+            "evidence": "Covered main concepts but skipped edge cases, performance implications, and data isolation trade-offs",
+            "timestamp": "2026-08-14T14:10:55.441805+00:00",
+            "assessment": "positive",
+            "confidence": 0.75
+          },
+          {
+            "type": "technical",
+            "score": 8.0,
+            "evidence": "Demonstrated solid domain knowledge, explained tradeoffs, used proper terminology",
+            "timestamp": "2026-08-14T14:12:03.693600+00:00",
+            "assessment": "positive",
+            "confidence": 0.85
+          },
+          {
+            "type": "communication",
+            "score": 8.5,
+            "evidence": "Well-structured response with clear explanation flow, concise and articulate",
+            "timestamp": "2026-08-14T14:12:03.693600+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "reasoning",
+            "score": 7.0,
+            "evidence": "Explained one approach but did not consider alternatives or edge cases",
+            "timestamp": "2026-08-14T14:12:03.693600+00:00",
+            "assessment": "positive",
+            "confidence": 0.7
+          },
+          {
+            "type": "confidence",
+            "score": 8.0,
+            "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps and pushed back when discussing scalability",
+            "timestamp": "2026-08-14T14:12:03.693600+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "completeness",
+            "score": 7.5,
+            "evidence": "Covered main concepts but skipped edge cases and performance implications",
+            "timestamp": "2026-08-14T14:12:03.693600+00:00",
+            "assessment": "positive",
+            "confidence": 0.8
+          },
+          {
+            "type": "technical",
+            "score": 7.5,
+            "evidence": "Demonstrated solid domain knowledge, explained tradeoffs, used proper terminology",
+            "timestamp": "2026-08-14T14:12:49.824861+00:00",
+            "assessment": "positive",
+            "confidence": 0.85
+          },
+          {
+            "type": "communication",
+            "score": 8.0,
+            "evidence": "Well-structured response with clear explanation flow",
+            "timestamp": "2026-08-14T14:12:49.824861+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "confidence",
+            "score": 7.0,
+            "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps",
+            "timestamp": "2026-08-14T14:12:49.824861+00:00",
+            "assessment": "positive",
+            "confidence": 0.8
+          },
+          {
+            "type": "completeness",
+            "score": 7.5,
+            "evidence": "Covered main concepts but skipped edge cases and performance implications",
+            "timestamp": "2026-08-14T14:12:49.824861+00:00",
+            "assessment": "positive",
+            "confidence": 0.8
+          },
+          {
+            "type": "technical",
+            "score": 8.0,
+            "evidence": "Demonstrated solid domain knowledge, explained tradeoffs, used proper terminology and showed awareness of best practices",
+            "timestamp": "2026-08-14T14:15:13.518217+00:00",
+            "assessment": "positive",
+            "confidence": 0.85
+          },
+          {
+            "type": "communication",
+            "score": 8.0,
+            "evidence": "Well-structured response with clear explanation flow, good vocabulary and articulation",
+            "timestamp": "2026-08-14T14:15:13.518217+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "reasoning",
+            "score": 7.0,
+            "evidence": "Explained one approach but did not consider alternatives or go into depth of analysis",
+            "timestamp": "2026-08-14T14:15:13.518217+00:00",
+            "assessment": "positive",
+            "confidence": 0.7
+          },
+          {
+            "type": "confidence",
+            "score": 8.0,
+            "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps and showed confidence in own expertise",
+            "timestamp": "2026-08-14T14:15:13.518217+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "completeness",
+            "score": 7.0,
+            "evidence": "Covered main concepts but skipped edge cases and performance implications",
+            "timestamp": "2026-08-14T14:15:13.518217+00:00",
+            "assessment": "positive",
+            "confidence": 0.8
+          },
+          {
+            "type": "technical",
+            "score": 7.5,
+            "evidence": "Demonstrated solid domain knowledge, explained tradeoffs, used proper terminology",
+            "timestamp": "2026-08-14T14:15:52.238507+00:00",
+            "assessment": "positive",
+            "confidence": 0.85
+          },
+          {
+            "type": "communication",
+            "score": 8.0,
+            "evidence": "Well-structured response with clear explanation flow",
+            "timestamp": "2026-08-14T14:15:52.238507+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "confidence",
+            "score": 7.0,
+            "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps",
+            "timestamp": "2026-08-14T14:15:52.238507+00:00",
+            "assessment": "positive",
+            "confidence": 0.8
+          },
+          {
+            "type": "completeness",
+            "score": 7.5,
+            "evidence": "Covered main concepts but skipped edge cases and performance implications",
+            "timestamp": "2026-08-14T14:15:52.238507+00:00",
+            "assessment": "positive",
+            "confidence": 0.8
+          },
+          {
+            "type": "technical",
+            "score": 8.0,
+            "evidence": "Demonstrated solid domain knowledge, explained tradeoffs, used proper terminology, acknowledged the importance of scalability and data consistency",
+            "timestamp": "2026-08-14T14:16:34.720636+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "communication",
+            "score": 8.5,
+            "evidence": "Well-structured response with clear explanation flow, easy to follow and understand",
+            "timestamp": "2026-08-14T14:16:34.720636+00:00",
+            "assessment": "positive",
+            "confidence": 0.95
+          },
+          {
+            "type": "reasoning",
+            "score": 7.5,
+            "evidence": "Explained one approach and considered alternatives, demonstrated understanding of system constraints and tradeoffs",
+            "timestamp": "2026-08-14T14:16:34.720636+00:00",
+            "assessment": "positive",
+            "confidence": 0.85
+          },
+          {
+            "type": "confidence",
+            "score": 8.0,
+            "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps and potential performance implications",
+            "timestamp": "2026-08-14T14:16:34.720636+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "completeness",
+            "score": 8.0,
+            "evidence": "Covered main concepts, considered system constraints and scalability implications, acknowledged the importance of data consistency",
+            "timestamp": "2026-08-14T14:16:34.720636+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "technical",
+            "score": 7.5,
+            "evidence": "Demonstrated solid domain knowledge, explained tradeoffs, used proper terminology",
+            "timestamp": "2026-08-14T14:20:05.768638+00:00",
+            "assessment": "positive",
+            "confidence": 0.85
+          },
+          {
+            "type": "communication",
+            "score": 8.0,
+            "evidence": "Well-structured response with clear explanation flow",
+            "timestamp": "2026-08-14T14:20:05.768638+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "confidence",
+            "score": 7.0,
+            "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps",
+            "timestamp": "2026-08-14T14:20:05.768638+00:00",
+            "assessment": "positive",
+            "confidence": 0.8
+          },
+          {
+            "type": "completeness",
+            "score": 7.5,
+            "evidence": "Covered main concepts but skipped edge cases and performance implications",
+            "timestamp": "2026-08-14T14:20:05.768638+00:00",
+            "assessment": "positive",
+            "confidence": 0.8
+          },
+          {
+            "type": "technical",
+            "score": 8.0,
+            "evidence": "Demonstrated solid domain knowledge, explained tradeoffs, used proper terminology and mentioned scalability considerations",
+            "timestamp": "2026-08-14T14:21:51.592470+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "communication",
+            "score": 8.5,
+            "evidence": "Well-structured response with clear explanation flow, good pacing and vocabulary",
+            "timestamp": "2026-08-14T14:21:51.592470+00:00",
+            "assessment": "positive",
+            "confidence": 0.95
+          },
+          {
+            "type": "reasoning",
+            "score": 7.5,
+            "evidence": "Explained one approach but considered alternatives and tradeoffs, showed some cause-effect reasoning",
+            "timestamp": "2026-08-14T14:21:51.593017+00:00",
+            "assessment": "positive",
+            "confidence": 0.85
+          },
+          {
+            "type": "confidence",
+            "score": 8.0,
+            "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps and showed some caution",
+            "timestamp": "2026-08-14T14:21:51.593017+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "completeness",
+            "score": 8.0,
+            "evidence": "Covered main concepts, including scalability considerations, but could have discussed edge cases and performance implications further",
+            "timestamp": "2026-08-14T14:21:51.593017+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "technical",
+            "score": 7.5,
+            "evidence": "Demonstrated solid domain knowledge, explained tradeoffs, used proper terminology",
+            "timestamp": "2026-08-14T14:23:25.348277+00:00",
+            "assessment": "positive",
+            "confidence": 0.85
+          },
+          {
+            "type": "communication",
+            "score": 8.0,
+            "evidence": "Well-structured response with clear explanation flow",
+            "timestamp": "2026-08-14T14:23:25.348277+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "confidence",
+            "score": 7.0,
+            "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps",
+            "timestamp": "2026-08-14T14:23:25.348277+00:00",
+            "assessment": "positive",
+            "confidence": 0.8
+          },
+          {
+            "type": "completeness",
+            "score": 7.5,
+            "evidence": "Covered main concepts but skipped edge cases and performance implications",
+            "timestamp": "2026-08-14T14:23:25.348277+00:00",
+            "assessment": "positive",
+            "confidence": 0.8
+          },
+          {
+            "type": "technical",
+            "score": 7.5,
+            "evidence": "Demonstrated solid domain knowledge, explained tradeoffs, used proper terminology",
+            "timestamp": "2026-08-14T14:24:18.915393+00:00",
+            "assessment": "positive",
+            "confidence": 0.85
+          },
+          {
+            "type": "communication",
+            "score": 8.0,
+            "evidence": "Well-structured response with clear explanation flow",
+            "timestamp": "2026-08-14T14:24:18.915393+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "confidence",
+            "score": 7.0,
+            "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps",
+            "timestamp": "2026-08-14T14:24:18.915393+00:00",
+            "assessment": "positive",
+            "confidence": 0.8
+          },
+          {
+            "type": "completeness",
+            "score": 7.5,
+            "evidence": "Covered main concepts but skipped edge cases and performance implications",
+            "timestamp": "2026-08-14T14:24:18.915393+00:00",
+            "assessment": "positive",
+            "confidence": 0.8
+          },
+          {
+            "type": "technical",
+            "score": 8.0,
+            "evidence": "Demonstrated solid domain knowledge, explained trade-offs, used proper terminology, and considered system constraints",
+            "timestamp": "2026-08-14T14:25:20.801813+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "communication",
+            "score": 8.0,
+            "evidence": "Well-structured response with clear explanation flow and concise language",
+            "timestamp": "2026-08-14T14:25:20.801813+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "reasoning",
+            "score": 7.5,
+            "evidence": "Explained one approach, considered alternatives, and demonstrated logical flow",
+            "timestamp": "2026-08-14T14:25:20.801813+00:00",
+            "assessment": "positive",
+            "confidence": 0.85
+          },
+          {
+            "type": "confidence",
+            "score": 8.0,
+            "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps, and demonstrated honesty about unknowns",
+            "timestamp": "2026-08-14T14:25:20.801813+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "completeness",
+            "score": 7.5,
+            "evidence": "Covered main concepts but skipped edge cases and performance implications",
+            "timestamp": "2026-08-14T14:25:20.801813+00:00",
+            "assessment": "positive",
+            "confidence": 0.8
+          },
+          {
+            "type": "technical",
+            "score": 8.0,
+            "evidence": "Demonstrated solid domain knowledge, explained tradeoffs, used proper terminology and awareness of best practices and trade-offs",
+            "timestamp": "2026-08-14T14:26:23.425576+00:00",
+            "assessment": "positive",
+            "confidence": 0.85
+          },
+          {
+            "type": "communication",
+            "score": 8.5,
+            "evidence": "Well-structured response with clear explanation flow, crisp and concise with good vocabulary and articulation",
+            "timestamp": "2026-08-14T14:26:23.425576+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "reasoning",
+            "score": 7.0,
+            "evidence": "Explained one approach but considered rate limiting and idempotent writes, and SLOs and error budgets",
+            "timestamp": "2026-08-14T14:26:23.425576+00:00",
+            "assessment": "positive",
+            "confidence": 0.7
+          },
+          {
+            "type": "confidence",
+            "score": 8.0,
+            "evidence": "Spoke with certainty on familiar topics, acknowledged knowledge gaps and good pushback on microservices",
+            "timestamp": "2026-08-14T14:26:23.425576+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          },
+          {
+            "type": "completeness",
+            "score": 8.0,
+            "evidence": "Covered main concepts and trade-offs, some minor omissions",
+            "timestamp": "2026-08-14T14:26:23.425576+00:00",
+            "assessment": "positive",
+            "confidence": 0.9
+          }
+        ],
+        "evidence_sufficiency": {
+          "details": {
+            "tech_caching": {
+              "gap": 0.0,
+              "weight": 1.5,
+              "covered": false,
+              "average_score": 8.0,
+              "evidence_count": 1
+            },
+            "tech_deployment": {
+              "gap": 0.0,
+              "weight": 2.5,
+              "covered": true,
+              "average_score": 8.0,
+              "evidence_count": 3
+            },
+            "tech_event_driven": {
+              "gap": 0.0,
+              "weight": 2.0,
+              "covered": true,
+              "average_score": 8.33,
+              "evidence_count": 3
+            },
+            "tech_data_modeling": {
+              "gap": 0.5,
+              "weight": 2.0,
+              "covered": false,
+              "average_score": 8.0,
+              "evidence_count": 1
+            },
+            "tech_system_design": {
+              "gap": 0.0,
+              "weight": 3.0,
+              "covered": true,
+              "average_score": 8.5,
+              "evidence_count": 3
+            }
+          },
+          "severity": "sufficient",
+          "total_weight": 11.0,
+          "is_sufficient": true,
+          "coverage_ratio": 0.68,
+          "covered_weight": 7.5,
+          "remaining_gaps": 2,
+          "average_confidence": 0.9092,
+          "difficulty_reached": 4,
+          "unanswered_hypotheses": 11
+        },
+        "hiring_recommendation": {
+          "family": {
+            "tech_core": null,
+            "tech_caching": null,
+            "tech_deployment": null,
+            "tech_event_driven": null,
+            "tech_data_modeling": null,
+            "tech_system_design": null,
+            "behav_communication": null
+          },
+          "verdict": "hire",
+          "confidence": 0.68,
+          "confidence_v2": 0.19,
+          "coverage_ratio": 0.68,
+          "composite_score": 8.46,
+          "calibrated_score": 6.5,
+          "dimension_scores": {
+            "tech_core": {
+              "gap": 0.5,
+              "covered": false,
+              "average_score": 8.0,
+              "evidence_count": 1
+            },
+            "tech_caching": {
+              "gap": 0.0,
+              "covered": false,
+              "average_score": 8.0,
+              "evidence_count": 1
+            },
+            "tech_deployment": {
+              "gap": 0.0,
+              "covered": true,
+              "average_score": 8.0,
+              "evidence_count": 3
+            },
+            "tech_event_driven": {
+              "gap": 0.0,
+              "covered": true,
+              "average_score": 8.33,
+              "evidence_count": 3
+            },
+            "tech_data_modeling": {
+              "gap": 0.5,
+              "covered": false,
+              "average_score": 8.0,
+              "evidence_count": 1
+            },
+            "tech_system_design": {
+              "gap": 0.0,
+              "covered": true,
+              "average_score": 8.5,
+              "evidence_count": 3
+            },
+            "behav_communication": {
+              "gap": 0.5,
+              "covered": false,
+              "average_score": 8.5,
+              "evidence_count": 1
+            }
+          },
+          "average_confidence": 0.9092,
+          "calibrated_verdict": "hire",
+          "calibration_source": "aura_v5_calibration",
+          "difficulty_reached": 4,
+          "refuted_hypotheses": 0,
+          "testing_hypotheses": 11,
+          "confirmed_hypotheses": 3,
+          "contradictions_found": 0,
+          "unanswered_hypotheses": 11
+        }
+      },
+      "role": "Senior Python Developer",
+      "brain_layers": {
+        "hypotheses": [
+          {
+            "id": "5a2a52c2-0f21-4d38-8d1c-44fe2b97ab67",
+            "source": "resume_profile",
+            "status": "testing",
+            "direction": "positive",
+            "statement": "Candidate has strong Strong experience with Python and its ecosystem",
+            "competency": "tech_core",
+            "confidence": 0.7363,
+            "created_at": "2026-08-14T14:08:08.859769+00:00",
+            "importance": 5,
+            "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+            "probability": 0.7363,
+            "uncertainty": 0.116,
+            "last_updated": "2026-08-14T14:25:23.529085+00:00",
+            "evidence_based": false,
+            "evidence_count": 1,
+            "collected_count": 1,
+            "missing_evidence": [
+              "language_ecosystem",
+              "concurrency",
+              "memory_management"
+            ],
+            "required_evidence": 3,
+            "collected_evidence": [
+              "c858835d-678b-46de-a771-2ca06a762442"
+            ],
+            "supporting_evidence": [
+              "c858835d-678b-46de-a771-2ca06a762442"
+            ],
+            "max_allowed_evidence": 6,
+            "contradicting_evidence": []
+          },
+          {
+            "id": "89373f5c-7b20-46d4-8d95-ac8bc8c6a200",
+            "source": "resume_profile",
+            "status": "testing",
+            "direction": "positive",
+            "statement": "Candidate has strong Familiarity with scalable systems and cloud infrastructure",
+            "competency": "tech_core",
+            "confidence": 0.7363,
+            "created_at": "2026-08-14T14:08:08.859769+00:00",
+            "importance": 5,
+            "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+            "probability": 0.7363,
+            "uncertainty": 0.116,
+            "last_updated": "2026-08-14T14:25:23.529085+00:00",
+            "evidence_based": false,
+            "evidence_count": 1,
+            "collected_count": 1,
+            "missing_evidence": [
+              "language_ecosystem",
+              "concurrency",
+              "memory_management"
+            ],
+            "required_evidence": 3,
+            "collected_evidence": [
+              "c858835d-678b-46de-a771-2ca06a762442"
+            ],
+            "supporting_evidence": [
+              "c858835d-678b-46de-a771-2ca06a762442"
+            ],
+            "max_allowed_evidence": 6,
+            "contradicting_evidence": []
+          },
+          {
+            "id": "e57fbfac-45b9-4ea9-9f92-618797a222b5",
+            "source": "resume_profile",
+            "status": "testing",
+            "direction": "negative",
+            "statement": "Candidate is weak in Limited testing exposure",
+            "competency": "tech_core",
+            "confidence": 0.2637,
+            "created_at": "2026-08-14T14:08:08.859769+00:00",
+            "importance": 5,
+            "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+            "probability": 0.2637,
+            "uncertainty": 0.324,
+            "last_updated": "2026-08-14T14:25:23.529085+00:00",
+            "evidence_based": false,
+            "evidence_count": 1,
+            "collected_count": 1,
+            "missing_evidence": [
+              "language_ecosystem",
+              "concurrency",
+              "memory_management"
+            ],
+            "required_evidence": 3,
+            "collected_evidence": [
+              "c858835d-678b-46de-a771-2ca06a762442"
+            ],
+            "supporting_evidence": [],
+            "max_allowed_evidence": 6,
+            "contradicting_evidence": [
+              "c858835d-678b-46de-a771-2ca06a762442"
+            ]
+          },
+          {
+            "id": "4db63841-ced0-445a-8a24-7d2a73c4b8f7",
+            "source": "resume_profile",
+            "status": "testing",
+            "direction": "negative",
+            "statement": "Candidate is weak in Possible gaps in professional experience and formal education",
+            "competency": "tech_core",
+            "confidence": 0.2637,
+            "created_at": "2026-08-14T14:08:08.859769+00:00",
+            "importance": 5,
+            "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+            "probability": 0.2637,
+            "uncertainty": 0.324,
+            "last_updated": "2026-08-14T14:25:23.529085+00:00",
+            "evidence_based": false,
+            "evidence_count": 1,
+            "collected_count": 1,
+            "missing_evidence": [
+              "language_ecosystem",
+              "concurrency",
+              "memory_management"
+            ],
+            "required_evidence": 3,
+            "collected_evidence": [
+              "c858835d-678b-46de-a771-2ca06a762442"
+            ],
+            "supporting_evidence": [],
+            "max_allowed_evidence": 6,
+            "contradicting_evidence": [
+              "c858835d-678b-46de-a771-2ca06a762442"
+            ]
+          },
+          {
+            "id": "400383a0-6d69-49aa-99e7-ae36e2583011",
+            "source": "resume_profile",
+            "status": "testing",
+            "direction": "positive",
+            "statement": "Candidate has strong python skills for this role",
+            "competency": "tech_core",
+            "confidence": 0.7363,
+            "created_at": "2026-08-14T14:08:08.859769+00:00",
+            "importance": 5,
+            "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+            "probability": 0.7363,
+            "uncertainty": 0.116,
+            "last_updated": "2026-08-14T14:25:23.529085+00:00",
+            "evidence_based": false,
+            "evidence_count": 1,
+            "collected_count": 1,
+            "missing_evidence": [
+              "language_ecosystem",
+              "concurrency",
+              "memory_management"
+            ],
+            "required_evidence": 3,
+            "collected_evidence": [
+              "c858835d-678b-46de-a771-2ca06a762442"
+            ],
+            "supporting_evidence": [
+              "c858835d-678b-46de-a771-2ca06a762442"
+            ],
+            "max_allowed_evidence": 6,
+            "contradicting_evidence": []
+          },
+          {
+            "id": "596be7a4-0030-47d0-b635-19b0cf6db941",
+            "source": "resume_profile",
+            "status": "testing",
+            "direction": "positive",
+            "statement": "Candidate communicates clearly and effectively",
+            "competency": "behav_communication",
+            "confidence": 0.9256,
+            "created_at": "2026-08-14T14:08:08.860718+00:00",
+            "importance": 5,
+            "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+            "probability": 0.9256,
+            "uncertainty": 0.05,
+            "last_updated": "2026-08-14T14:27:00.875374+00:00",
+            "evidence_based": false,
+            "evidence_count": 2,
+            "collected_count": 1,
+            "missing_evidence": [
+              "documentation",
+              "tradeoff_debate"
+            ],
+            "required_evidence": 3,
+            "collected_evidence": [
+              "71b2c38a-1700-4043-ba63-a1b8fd965d45"
+            ],
+            "supporting_evidence": [
+              "71b2c38a-1700-4043-ba63-a1b8fd965d45"
+            ],
+            "max_allowed_evidence": 6,
+            "contradicting_evidence": []
+          },
+          {
+            "id": "42cadca2-87a1-4e21-9401-7f6e8ec9bb9d",
+            "status": "confirmed",
+            "direction": "positive",
+            "statement": "Candidate demonstrates System Design & Scalability",
+            "competency": "tech_system_design",
+            "confidence": 0.9788,
+            "created_at": "2026-08-14T14:08:29.993325+00:00",
+            "importance": 10,
+            "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+            "probability": 0.9788,
+            "uncertainty": 0.1,
+            "last_updated": "2026-08-14T14:12:07.078781+00:00",
+            "evidence_count": 3,
+            "collected_count": 3,
+            "missing_evidence": [
+              "scalability"
+            ],
+            "required_evidence": 2,
+            "collected_evidence": [
+              "6271e25e-df54-4adc-b6cd-123afd7d54a6",
+              "ac2fd534-51dd-4fab-8338-417565534646",
+              "ad89b059-7217-4197-94fb-deab192c9ee4"
+            ],
+            "supporting_evidence": [
+              "6271e25e-df54-4adc-b6cd-123afd7d54a6",
+              "ac2fd534-51dd-4fab-8338-417565534646",
+              "ad89b059-7217-4197-94fb-deab192c9ee4"
+            ],
+            "max_allowed_evidence": 4,
+            "contradicting_evidence": []
+          },
+          {
+            "id": "bf3c35f2-a9ba-4810-bf90-014daedf195a",
+            "status": "testing",
+            "direction": "positive",
+            "statement": "Candidate demonstrates System Design & Scalability",
+            "competency": "tech_system_design",
+            "confidence": 0.7791,
+            "created_at": "2026-08-14T14:10:57.950035+00:00",
+            "importance": 10,
+            "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+            "probability": 0.7791,
+            "uncertainty": 0.1414,
+            "last_updated": "2026-08-14T14:12:07.078781+00:00",
+            "evidence_count": 1,
+            "collected_count": 3,
+            "missing_evidence": [
+              "scalability"
+            ],
+            "required_evidence": 2,
+            "collected_evidence": [
+              "6271e25e-df54-4adc-b6cd-123afd7d54a6",
+              "ac2fd534-51dd-4fab-8338-417565534646",
+              "ad89b059-7217-4197-94fb-deab192c9ee4"
+            ],
+            "supporting_evidence": [
+              "ad89b059-7217-4197-94fb-deab192c9ee4"
+            ],
+            "max_allowed_evidence": 4,
+            "contradicting_evidence": []
+          },
+          {
+            "id": "7aa09429-d258-440f-94a2-430081a1d070",
+            "status": "confirmed",
+            "direction": "positive",
+            "statement": "Candidate demonstrates Reliable Deployments & AWS",
+            "competency": "tech_deployment",
+            "confidence": 0.9561,
+            "created_at": "2026-08-14T14:12:07.078781+00:00",
+            "importance": 9,
+            "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+            "probability": 0.9561,
+            "uncertainty": 0.1,
+            "last_updated": "2026-08-14T14:24:22.673807+00:00",
+            "evidence_count": 3,
+            "collected_count": 3,
+            "missing_evidence": [
+              "ci_cd"
+            ],
+            "required_evidence": 2,
+            "collected_evidence": [
+              "e59b22bf-74b9-462c-a2f5-2b79a85524b0",
+              "9f125a04-fd2b-4fce-a5ad-2401ecae84d1",
+              "d20d1692-7dc1-497d-a0c1-78adab14d08c"
+            ],
+            "supporting_evidence": [
+              "e59b22bf-74b9-462c-a2f5-2b79a85524b0",
+              "9f125a04-fd2b-4fce-a5ad-2401ecae84d1",
+              "d20d1692-7dc1-497d-a0c1-78adab14d08c"
+            ],
+            "max_allowed_evidence": 4,
+            "contradicting_evidence": []
+          },
+          {
+            "id": "57d868bc-2791-4a0a-9989-2551bd77045b",
+            "status": "confirmed",
+            "direction": "positive",
+            "statement": "Candidate demonstrates Event-Driven Processing & Kafka",
+            "competency": "tech_event_driven",
+            "confidence": 0.972,
+            "created_at": "2026-08-14T14:12:53.122724+00:00",
+            "importance": 10,
+            "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+            "probability": 0.972,
+            "uncertainty": 0.1,
+            "last_updated": "2026-08-14T14:21:55.584560+00:00",
+            "evidence_count": 3,
+            "collected_count": 3,
+            "missing_evidence": [],
+            "required_evidence": 1,
+            "collected_evidence": [
+              "fdcd4c2b-a6f3-43af-be7f-e4e223ae4435",
+              "ade872de-3012-4797-b091-f38b253ad6cb",
+              "083dc64f-3b41-4a5d-afc1-fd8031fbb145"
+            ],
+            "supporting_evidence": [
+              "fdcd4c2b-a6f3-43af-be7f-e4e223ae4435",
+              "ade872de-3012-4797-b091-f38b253ad6cb",
+              "083dc64f-3b41-4a5d-afc1-fd8031fbb145"
+            ],
+            "max_allowed_evidence": 2,
+            "contradicting_evidence": []
+          },
+          {
+            "id": "cdca41ad-eed7-4441-ae12-227e84923c0c",
+            "status": "testing",
+            "direction": "positive",
+            "statement": "Candidate demonstrates PostgreSQL Data Modeling & SQLAlchemy",
+            "competency": "tech_data_modeling",
+            "confidence": 0.7363,
+            "created_at": "2026-08-14T14:15:16.125099+00:00",
+            "importance": 8,
+            "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+            "probability": 0.7363,
+            "uncertainty": 0.1856,
+            "last_updated": "2026-08-14T14:15:55.358308+00:00",
+            "evidence_count": 1,
+            "collected_count": 1,
+            "missing_evidence": [
+              "normalization",
+              "aggregation",
+              "schema_evolution"
+            ],
+            "required_evidence": 2,
+            "collected_evidence": [
+              "6c61c6b2-7b3e-4afd-a453-204ddae2b7d6"
+            ],
+            "supporting_evidence": [
+              "6c61c6b2-7b3e-4afd-a453-204ddae2b7d6"
+            ],
+            "max_allowed_evidence": 4,
+            "contradicting_evidence": []
+          },
+          {
+            "id": "09e20e8b-6599-4187-8139-e725db223742",
+            "status": "testing",
+            "direction": "positive",
+            "statement": "Candidate demonstrates Caching & Redis",
+            "competency": "tech_caching",
+            "confidence": 0.7363,
+            "created_at": "2026-08-14T14:16:37.521416+00:00",
+            "importance": 8,
+            "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+            "probability": 0.7363,
+            "uncertainty": 0.1856,
+            "last_updated": "2026-08-14T14:20:09.573630+00:00",
+            "evidence_count": 1,
+            "collected_count": 1,
+            "missing_evidence": [
+              "cache_invalidation"
+            ],
+            "required_evidence": 1,
+            "collected_evidence": [
+              "5ef992be-7797-4cb7-84b4-9e6d1411d82c"
+            ],
+            "supporting_evidence": [
+              "5ef992be-7797-4cb7-84b4-9e6d1411d82c"
+            ],
+            "max_allowed_evidence": 2,
+            "contradicting_evidence": []
+          },
+          {
+            "id": "25062058-28dc-44bb-97e2-057e7af4d6e9",
+            "status": "testing",
+            "direction": "positive",
+            "statement": "Candidate demonstrates Event-Driven Processing & Kafka",
+            "competency": "tech_event_driven",
+            "confidence": 0.7791,
+            "created_at": "2026-08-14T14:20:09.573630+00:00",
+            "importance": 10,
+            "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+            "probability": 0.7791,
+            "uncertainty": 0.1414,
+            "last_updated": "2026-08-14T14:21:55.584560+00:00",
+            "evidence_count": 1,
+            "collected_count": 3,
+            "missing_evidence": [],
+            "required_evidence": 1,
+            "collected_evidence": [
+              "fdcd4c2b-a6f3-43af-be7f-e4e223ae4435",
+              "ade872de-3012-4797-b091-f38b253ad6cb",
+              "083dc64f-3b41-4a5d-afc1-fd8031fbb145"
+            ],
+            "supporting_evidence": [
+              "083dc64f-3b41-4a5d-afc1-fd8031fbb145"
+            ],
+            "max_allowed_evidence": 2,
+            "contradicting_evidence": []
+          },
+          {
+            "id": "cd729064-3b41-4e5b-9d09-e6dac21e7598",
+            "status": "testing",
+            "direction": "positive",
+            "statement": "Candidate demonstrates Reliable Deployments & AWS",
+            "competency": "tech_deployment",
+            "confidence": 0.7363,
+            "created_at": "2026-08-14T14:23:28.733723+00:00",
+            "importance": 9,
+            "session_id": "ea01f773-f830-4271-81cb-a123536be68a",
+            "probability": 0.7363,
+            "uncertainty": 0.1519,
+            "last_updated": "2026-08-14T14:24:22.673807+00:00",
+            "evidence_count": 1,
+            "collected_count": 3,
+            "missing_evidence": [
+              "ci_cd"
+            ],
+            "required_evidence": 2,
+            "collected_evidence": [
+              "e59b22bf-74b9-462c-a2f5-2b79a85524b0",
+              "9f125a04-fd2b-4fce-a5ad-2401ecae84d1",
+              "d20d1692-7dc1-497d-a0c1-78adab14d08c"
+            ],
+            "supporting_evidence": [
+              "d20d1692-7dc1-497d-a0c1-78adab14d08c"
+            ],
+            "max_allowed_evidence": 4,
+            "contradicting_evidence": []
+          }
+        ],
+        "role_brain": {
+          "role": "Senior Python Developer",
+          "class": "general",
+          "source": "knowledge_base",
+          "mission": "Deliver high-quality engineering work in a fast-moving product team",
+          "seniority": "senior",
+          "seniority_floor": 3,
+          "emphasis_keywords": [],
+          "level_expectations": [
+            "design independently",
+            "mentor others",
+            "handle ambiguity",
+            "own production systems"
+          ],
+          "critical_competencies": [
+            {
+              "id": "tech_system_design",
+              "name": "System Design & Scalability",
+              "category": "technical",
+              "importance": 10,
+              "must_prove": "Design a high-throughput data processing system using Kafka and PostgreSQL, and explain your scaling strategy."
+            },
+            {
+              "id": "tech_event_driven",
+              "name": "Event-Driven Processing & Kafka",
+              "category": "technical",
+              "importance": 10,
+              "must_prove": "Walk me through an event-driven processing system you designed, and explain how you handled producer-consumer interactions."
+            },
+            {
+              "id": "tech_deployment",
+              "name": "Reliable Deployments & AWS",
+              "category": "technical",
+              "importance": 9,
+              "must_prove": "Describe your experience with deployment pipelines and explain how you ensured reliability in your last AWS deployment."
+            },
+            {
+              "id": "tech_data_modeling",
+              "name": "PostgreSQL Data Modeling & SQLAlchemy",
+              "category": "technical",
+              "importance": 8,
+              "must_prove": "Describe your experience with data modeling in PostgreSQL, and explain how you optimized query performance using SQLAlchemy."
+            },
+            {
+              "id": "tech_caching",
+              "name": "Caching & Redis",
+              "category": "technical",
+              "importance": 8,
+              "must_prove": "Walk me through your experience with caching using Redis, and explain how you determined cache expiration times."
+            }
+          ]
+        },
+        "company_brain": {
+          "source": "llm",
+          "culture": [
+            "Collaboration through weekly syncs and all-hands demos",
+            "Constructive feedback in peer discussions",
+            "Active listening and clear explanation of technical concepts"
+          ],
+          "mission": "To analyze and build a durable company brain from internal department documents to power an AI interviewer.",
+          "process": [
+            "trunk-based development model",
+            "short-lived feature branches (max 3 days)",
+            "CI pipeline with type checking, linting, unit tests, and integration tests",
+            "code review with at least one approval from a senior engineer",
+            "automated deployment on merge to main after a 10-minute smoke test window",
+            "blue-green deployment strategy with zero downtime",
+            "automated rollbacks if error rates exceed 1% within 5 minutes of deploy"
+          ],
+          "summary": "The department builds a company brain to power an AI interviewer, leveraging internal department documents and a trunk-based development model.",
+          "version": "v1",
+          "job_role": "Senior Python Developer",
+          "challenges": [
+            "Scalability considerations for load balancing, caching, sharding, and replication"
+          ],
+          "tech_stack": [
+            "Python 3.12",
+            "FastAPI",
+            "LangGraph",
+            "SQLAlchemy (async)",
+            "PostgreSQL (Supabase)",
+            "Redis",
+            "Pinecone",
+            "React 19",
+            "TypeScript",
+            "Tailwind CSS",
+            "Vite",
+            "React Router v7",
+            "OpenRouter",
+            "Groq",
+            "LangChain",
+            "sentence-transformers",
+            "Whisper",
+            "Docker",
+            "GitHub Actions",
+            "Vercel",
+            "Render",
+            "Supabase"
+          ],
+          "rag_metadata": {
+            "success": true,
+            "department_id": 6,
+            "documents_retrieved": 5
+          },
+          "role_context": "The Senior Python Developer role involves developing features end-to-end, owning small projects, participating in design reviews, and leading medium-sized projects, with a focus on architecture, coding, technical knowledge, communication, and system design.",
+          "department_id": 6,
+          "culture_signals": [
+            "collaborative"
+          ],
+          "failure_patterns": {
+            "avoid": [
+              "clickers who only implement assigned tickets",
+              "no tradeoff discussion in designs",
+              "cannot explain why a decision was made",
+              "no production / operational experience",
+              "milestone-driven without ownership"
+            ]
+          },
+          "documents_analyzed": 5,
+          "senior_expectations": [
+            "design independently",
+            "mentor others",
+            "handle ambiguity",
+            "debate tradeoffs with evidence",
+            "own production systems",
+            "prioritize reliability and measurement",
+            "take end-to-end ownership"
+          ],
+          "engineering_philosophy": {
+            "ownership_model": "strong_ownership",
+            "speed_vs_quality": "quality_first",
+            "architecture_style": "monolith"
+          },
+          "technical_expectations": {
+            "mid": {
+              "expected_behavior": [
+                "design within an owned service or component",
+                "deploy and operate what you ship",
+                "don't leave final decisions undiscussed",
+                "prioritize reliability and measurement",
+                "take end-to-end ownership"
+              ]
+            },
+            "junior": {
+              "expected_behavior": [
+                "complete code review cycles",
+                "follow team standards",
+                "raise questions about ambiguity",
+                "prioritize reliability and measurement",
+                "take end-to-end ownership"
+              ]
+            },
+            "senior": {
+              "expected_behavior": [
+                "design independently",
+                "mentor others",
+                "handle ambiguity",
+                "debate tradeoffs with evidence",
+                "own production systems",
+                "prioritize reliability and measurement",
+                "take end-to-end ownership"
+              ]
+            }
+          }
+        },
+        "decision_state": {
+          "source": "deterministic",
+          "decision": "hire",
+          "confidence": 0.095,
+          "risk_flags": [
+            "evidence largely claimed, not proven",
+            "13 answer(s) with claims not backed by specifics"
+          ],
+          "decision_score": 8.56,
+          "calibrated_score": 6.5,
+          "decision_reasoning": "Deterministic 7-point decision: score 8.56/10 (holistic 8.5 scaled by difficulty credit 0.91 at difficulty 4, adjusted by coverage 68%, confirmed-ratio 75%, 0 serious contradiction(s)). strong_hire capped to hire: coverage 68% < 85%.",
+          "recommendation_verdict": "hire"
+        },
+        "evidence_graph": {
+          "edges": [
+            {
+              "source": "6271e25e-df54-4adc-b6cd-123afd7d54a6",
+              "target": "tech_system_design",
+              "weight": 0.8,
+              "relation": "supports",
+              "confidence": 0.405
+            },
+            {
+              "source": "6271e25e-df54-4adc-b6cd-123afd7d54a6",
+              "target": "role:general",
+              "weight": 0.405,
+              "relation": "required_for"
+            },
+            {
+              "source": "ac2fd534-51dd-4fab-8338-417565534646",
+              "target": "tech_system_design",
+              "weight": 0.9,
+              "relation": "supports",
+              "confidence": 0.4275
+            },
+            {
+              "source": "ac2fd534-51dd-4fab-8338-417565534646",
+              "target": "role:general",
+              "weight": 0.4275,
+              "relation": "required_for"
+            },
+            {
+              "source": "ad89b059-7217-4197-94fb-deab192c9ee4",
+              "target": "tech_system_design",
+              "weight": 0.85,
+              "relation": "supports",
+              "confidence": 0.405
+            },
+            {
+              "source": "ad89b059-7217-4197-94fb-deab192c9ee4",
+              "target": "role:general",
+              "weight": 0.405,
+              "relation": "required_for"
+            },
+            {
+              "source": "e59b22bf-74b9-462c-a2f5-2b79a85524b0",
+              "target": "tech_deployment",
+              "weight": 0.8,
+              "relation": "supports",
+              "confidence": 0.405
+            },
+            {
+              "source": "e59b22bf-74b9-462c-a2f5-2b79a85524b0",
+              "target": "role:general",
+              "weight": 0.405,
+              "relation": "required_for"
+            },
+            {
+              "source": "fdcd4c2b-a6f3-43af-be7f-e4e223ae4435",
+              "target": "tech_event_driven",
+              "weight": 0.8,
+              "relation": "supports",
+              "confidence": 0.3825
+            },
+            {
+              "source": "fdcd4c2b-a6f3-43af-be7f-e4e223ae4435",
+              "target": "role:general",
+              "weight": 0.3825,
+              "relation": "required_for"
+            },
+            {
+              "source": "6c61c6b2-7b3e-4afd-a453-204ddae2b7d6",
+              "target": "tech_data_modeling",
+              "weight": 0.8,
+              "relation": "supports",
+              "confidence": 0.405
+            },
+            {
+              "source": "6c61c6b2-7b3e-4afd-a453-204ddae2b7d6",
+              "target": "role:general",
+              "weight": 0.405,
+              "relation": "required_for"
+            },
+            {
+              "source": "ade872de-3012-4797-b091-f38b253ad6cb",
+              "target": "tech_event_driven",
+              "weight": 0.85,
+              "relation": "supports",
+              "confidence": 0.4275
+            },
+            {
+              "source": "ade872de-3012-4797-b091-f38b253ad6cb",
+              "target": "role:general",
+              "weight": 0.4275,
+              "relation": "required_for"
+            },
+            {
+              "source": "5ef992be-7797-4cb7-84b4-9e6d1411d82c",
+              "target": "tech_caching",
+              "weight": 0.8,
+              "relation": "supports",
+              "confidence": 0.405
+            },
+            {
+              "source": "5ef992be-7797-4cb7-84b4-9e6d1411d82c",
+              "target": "role:general",
+              "weight": 0.405,
+              "relation": "required_for"
+            },
+            {
+              "source": "083dc64f-3b41-4a5d-afc1-fd8031fbb145",
+              "target": "tech_event_driven",
+              "weight": 0.85,
+              "relation": "supports",
+              "confidence": 0.4275
+            },
+            {
+              "source": "083dc64f-3b41-4a5d-afc1-fd8031fbb145",
+              "target": "role:general",
+              "weight": 0.4275,
+              "relation": "required_for"
+            },
+            {
+              "source": "9f125a04-fd2b-4fce-a5ad-2401ecae84d1",
+              "target": "tech_deployment",
+              "weight": 0.8,
+              "relation": "supports",
+              "confidence": 0.405
+            },
+            {
+              "source": "9f125a04-fd2b-4fce-a5ad-2401ecae84d1",
+              "target": "role:general",
+              "weight": 0.405,
+              "relation": "required_for"
+            },
+            {
+              "source": "d20d1692-7dc1-497d-a0c1-78adab14d08c",
+              "target": "tech_deployment",
+              "weight": 0.8,
+              "relation": "supports",
+              "confidence": 0.405
+            },
+            {
+              "source": "d20d1692-7dc1-497d-a0c1-78adab14d08c",
+              "target": "role:general",
+              "weight": 0.405,
+              "relation": "required_for"
+            },
+            {
+              "source": "c858835d-678b-46de-a771-2ca06a762442",
+              "target": "tech_core",
+              "weight": 0.8,
+              "relation": "supports",
+              "confidence": 0.405
+            },
+            {
+              "source": "c858835d-678b-46de-a771-2ca06a762442",
+              "target": "role:general",
+              "weight": 0.405,
+              "relation": "required_for"
+            },
+            {
+              "source": "71b2c38a-1700-4043-ba63-a1b8fd965d45",
+              "target": "behav_communication",
+              "weight": 0.85,
+              "relation": "supports",
+              "confidence": 0.405
+            },
+            {
+              "source": "71b2c38a-1700-4043-ba63-a1b8fd965d45",
+              "target": "role:general",
+              "weight": 0.405,
+              "relation": "required_for"
+            }
+          ],
+          "nodes": {
+            "role:general": {
+              "id": "role:general",
+              "name": "Senior Python Developer",
+              "type": "role"
+            },
+            "083dc64f-3b41-4a5d-afc1-fd8031fbb145": {
+              "id": "083dc64f-3b41-4a5d-afc1-fd8031fbb145",
+              "type": "evidence",
+              "claim_type": "mentioned",
+              "confidence": 0.4275,
+              "question_number": 9
+            },
+            "5ef992be-7797-4cb7-84b4-9e6d1411d82c": {
+              "id": "5ef992be-7797-4cb7-84b4-9e6d1411d82c",
+              "type": "evidence",
+              "claim_type": "mentioned",
+              "confidence": 0.405,
+              "question_number": 8
+            },
+            "6271e25e-df54-4adc-b6cd-123afd7d54a6": {
+              "id": "6271e25e-df54-4adc-b6cd-123afd7d54a6",
+              "type": "evidence",
+              "claim_type": "mentioned",
+              "confidence": 0.405,
+              "question_number": 1
+            },
+            "6c61c6b2-7b3e-4afd-a453-204ddae2b7d6": {
+              "id": "6c61c6b2-7b3e-4afd-a453-204ddae2b7d6",
+              "type": "evidence",
+              "claim_type": "mentioned",
+              "confidence": 0.405,
+              "question_number": 6
+            },
+            "71b2c38a-1700-4043-ba63-a1b8fd965d45": {
+              "id": "71b2c38a-1700-4043-ba63-a1b8fd965d45",
+              "type": "evidence",
+              "claim_type": "mentioned",
+              "confidence": 0.405,
+              "question_number": 13
+            },
+            "9f125a04-fd2b-4fce-a5ad-2401ecae84d1": {
+              "id": "9f125a04-fd2b-4fce-a5ad-2401ecae84d1",
+              "type": "evidence",
+              "claim_type": "mentioned",
+              "confidence": 0.405,
+              "question_number": 10
+            },
+            "ac2fd534-51dd-4fab-8338-417565534646": {
+              "id": "ac2fd534-51dd-4fab-8338-417565534646",
+              "type": "evidence",
+              "claim_type": "mentioned",
+              "confidence": 0.4275,
+              "question_number": 2
+            },
+            "ad89b059-7217-4197-94fb-deab192c9ee4": {
+              "id": "ad89b059-7217-4197-94fb-deab192c9ee4",
+              "type": "evidence",
+              "claim_type": "mentioned",
+              "confidence": 0.405,
+              "question_number": 3
+            },
+            "ade872de-3012-4797-b091-f38b253ad6cb": {
+              "id": "ade872de-3012-4797-b091-f38b253ad6cb",
+              "type": "evidence",
+              "claim_type": "mentioned",
+              "confidence": 0.4275,
+              "question_number": 7
+            },
+            "c858835d-678b-46de-a771-2ca06a762442": {
+              "id": "c858835d-678b-46de-a771-2ca06a762442",
+              "type": "evidence",
+              "claim_type": "mentioned",
+              "confidence": 0.405,
+              "question_number": 12
+            },
+            "d20d1692-7dc1-497d-a0c1-78adab14d08c": {
+              "id": "d20d1692-7dc1-497d-a0c1-78adab14d08c",
+              "type": "evidence",
+              "claim_type": "mentioned",
+              "confidence": 0.405,
+              "question_number": 11
+            },
+            "e59b22bf-74b9-462c-a2f5-2b79a85524b0": {
+              "id": "e59b22bf-74b9-462c-a2f5-2b79a85524b0",
+              "type": "evidence",
+              "claim_type": "mentioned",
+              "confidence": 0.405,
+              "question_number": 4
+            },
+            "fdcd4c2b-a6f3-43af-be7f-e4e223ae4435": {
+              "id": "fdcd4c2b-a6f3-43af-be7f-e4e223ae4435",
+              "type": "evidence",
+              "claim_type": "mentioned",
+              "confidence": 0.3825,
+              "question_number": 5
+            }
+          }
+        },
+        "uncertainty_map": {
+          "tech_core": {
+            "competency": "tech_core",
+            "importance": 5,
+            "uncertainty": 0.324,
+            "missing_evidence": [
+              "language_ecosystem",
+              "concurrency",
+              "memory_management"
+            ],
+            "placeholder_confidence": 0.2637
+          },
+          "tech_caching": {
+            "competency": "tech_caching",
+            "importance": 8,
+            "uncertainty": 0.1856,
+            "missing_evidence": [
+              "cache_invalidation"
+            ],
+            "placeholder_confidence": 0.7363
+          },
+          "tech_deployment": {
+            "competency": "tech_deployment",
+            "importance": 9,
+            "uncertainty": 0.1519,
+            "missing_evidence": [
+              "ci_cd"
+            ],
+            "placeholder_confidence": 0.7363
+          },
+          "tech_event_driven": {
+            "competency": "tech_event_driven",
+            "importance": 10,
+            "uncertainty": 0.1414,
+            "missing_evidence": [],
+            "placeholder_confidence": 0.7791
+          },
+          "tech_data_modeling": {
+            "competency": "tech_data_modeling",
+            "importance": 8,
+            "uncertainty": 0.3,
+            "missing_evidence": [
+              "normalization",
+              "aggregation",
+              "schema_evolution"
+            ],
+            "placeholder_confidence": 0.7363
+          },
+          "tech_system_design": {
+            "competency": "tech_system_design",
+            "importance": 10,
+            "uncertainty": 0.1414,
+            "missing_evidence": [
+              "scalability"
+            ],
+            "placeholder_confidence": 0.7791
+          },
+          "behav_communication": {
+            "competency": "behav_communication",
+            "importance": 5,
+            "uncertainty": 0.3,
+            "missing_evidence": [
+              "documentation",
+              "tradeoff_debate"
+            ],
+            "placeholder_confidence": 0.9256
+          }
+        },
+        "candidate_memory": {
+          "history": [
+            {
+              "role": "Senior Python Developer",
+              "gap_areas": [
+                "tech_system_design",
+                "tech_deployment",
+                "tech_event_driven",
+                "tech_caching"
+              ],
+              "strengths": [
+                "Strong experience with Python and its ecosystem",
+                "Familiarity with scalable systems and cloud infrastructure"
+              ],
+              "weaknesses": [
+                "Limited testing exposure",
+                "Possible gaps in professional experience and formal education"
+              ],
+              "risk_signals": []
+            }
+          ],
+          "candidate_id": "",
+          "interview_count": 1,
+          "learned_strengths": [
+            "Strong experience with Python and its ecosystem",
+            "Familiarity with scalable systems and cloud infrastructure"
+          ],
+          "learned_weaknesses": [
+            "Limited testing exposure",
+            "Possible gaps in professional experience and formal education"
+          ],
+          "learned_risk_signals": []
+        },
+        "competency_graph": {
+          "edges": [
+            {
+              "source": "tech_system_design",
+              "target": "scalability",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_system_design",
+              "target": "reliability",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_system_design",
+              "target": "tradeoffs",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_system_design",
+              "target": "architecture_decision",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_system_design",
+              "target": "capacity_planning",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_system_design",
+              "target": "observability",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_deployment",
+              "target": "ci_cd",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_deployment",
+              "target": "infra_as_code",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_deployment",
+              "target": "zero_downtime",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_deployment",
+              "target": "deploy_strategy",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_event_driven",
+              "target": "kafka",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_event_driven",
+              "target": "event_ordering",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_event_driven",
+              "target": "failure_handling",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_event_driven",
+              "target": "idempotency",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_event_driven",
+              "target": "backpressure",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_data_modeling",
+              "target": "normalization",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_data_modeling",
+              "target": "aggregation",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_data_modeling",
+              "target": "schema_evolution",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_caching",
+              "target": "cache_invalidation",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_caching",
+              "target": "eviction_strategy",
+              "weight": 1.0,
+              "relation": "specializes"
+            },
+            {
+              "source": "tech_caching",
+              "target": "staleness_handling",
+              "weight": 1.0,
+              "relation": "specializes"
+            }
+          ],
+          "nodes": {
+            "ci_cd": {
+              "id": "ci_cd",
+              "name": "CI/CD pipelines",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "kafka": {
+              "id": "kafka",
+              "name": "Kafka/streaming fundamentals",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "tradeoffs": {
+              "id": "tradeoffs",
+              "name": "Design tradeoff debate",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "aggregation": {
+              "id": "aggregation",
+              "name": "Analytical aggregation",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "idempotency": {
+              "id": "idempotency",
+              "name": "Idempotent consumers",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "reliability": {
+              "id": "reliability",
+              "name": "Fault tolerance & SLAs",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "scalability": {
+              "id": "scalability",
+              "name": "Scale handling & growth",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "backpressure": {
+              "id": "backpressure",
+              "name": "Backpressure",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "tech_caching": {
+              "id": "tech_caching",
+              "name": "Caching & Performance",
+              "type": "competency",
+              "scope": "required",
+              "category": "technical",
+              "default_min_evidence": 1
+            },
+            "infra_as_code": {
+              "id": "infra_as_code",
+              "name": "Infrastructure as code",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "normalization": {
+              "id": "normalization",
+              "name": "Normalization",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "observability": {
+              "id": "observability",
+              "name": "Monitoring & tracing",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "zero_downtime": {
+              "id": "zero_downtime",
+              "name": "Zero-downtime release",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "event_ordering": {
+              "id": "event_ordering",
+              "name": "Event ordering guarantees",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "deploy_strategy": {
+              "id": "deploy_strategy",
+              "name": "Rollout & rollback strategy",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "tech_deployment": {
+              "id": "tech_deployment",
+              "name": "Deployment & Release Engineering",
+              "type": "competency",
+              "scope": "required",
+              "category": "technical",
+              "default_min_evidence": 2
+            },
+            "failure_handling": {
+              "id": "failure_handling",
+              "name": "Failure & DLQ handling",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "schema_evolution": {
+              "id": "schema_evolution",
+              "name": "Schema evolution",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "capacity_planning": {
+              "id": "capacity_planning",
+              "name": "Load estimation",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "eviction_strategy": {
+              "id": "eviction_strategy",
+              "name": "Eviction strategies",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "tech_event_driven": {
+              "id": "tech_event_driven",
+              "name": "Event-Driven & Streaming Systems",
+              "type": "competency",
+              "scope": "required",
+              "category": "technical",
+              "default_min_evidence": 2
+            },
+            "cache_invalidation": {
+              "id": "cache_invalidation",
+              "name": "Cache invalidation",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "staleness_handling": {
+              "id": "staleness_handling",
+              "name": "Staleness handling",
+              "type": "skill",
+              "default_min_evidence": 0
+            },
+            "tech_data_modeling": {
+              "id": "tech_data_modeling",
+              "name": "Data Modeling & Schema Design",
+              "type": "competency",
+              "scope": "required",
+              "category": "technical",
+              "default_min_evidence": 2
+            },
+            "tech_system_design": {
+              "id": "tech_system_design",
+              "name": "System Design & Architecture",
+              "type": "competency",
+              "scope": "required",
+              "category": "technical",
+              "default_min_evidence": 3
+            },
+            "architecture_decision": {
+              "id": "architecture_decision",
+              "name": "Clear architecture decision rationale",
+              "type": "skill",
+              "default_min_evidence": 0
+            }
+          }
+        },
+        "difficulty_state": {
+          "role_floor": 3,
+          "evidence_total": 13,
+          "floor_satisfied": true,
+          "difficulty_reached": 4
+        },
+        "evidence_reading": {
+          "off_rubric": {
+            "red_flags": [],
+            "hidden_strengths": []
+          },
+          "per_answer": {
+            "083dc64f-3b41-4a5d-afc1-fd8031fbb145": {
+              "quote": "Well-structured response with clear explanation flow, good pacing and vocabulary",
+              "ownership": "vague",
+              "verifiable": false,
+              "evidence_id": "083dc64f-3b41-4a5d-afc1-fd8031fbb145",
+              "specificity": "low",
+              "supporting_metric": "",
+              "claim_classification": "mentioned"
+            },
+            "5ef992be-7797-4cb7-84b4-9e6d1411d82c": {
+              "quote": "Well-structured response with clear explanation flow",
+              "ownership": "vague",
+              "verifiable": false,
+              "evidence_id": "5ef992be-7797-4cb7-84b4-9e6d1411d82c",
+              "specificity": "low",
+              "supporting_metric": "",
+              "claim_classification": "mentioned"
+            },
+            "6271e25e-df54-4adc-b6cd-123afd7d54a6": {
+              "quote": "Well-structured response with clear explanation flow",
+              "ownership": "vague",
+              "verifiable": false,
+              "evidence_id": "6271e25e-df54-4adc-b6cd-123afd7d54a6",
+              "specificity": "low",
+              "supporting_metric": "",
+              "claim_classification": "mentioned"
+            },
+            "6c61c6b2-7b3e-4afd-a453-204ddae2b7d6": {
+              "quote": "Well-structured response with clear explanation flow",
+              "ownership": "vague",
+              "verifiable": false,
+              "evidence_id": "6c61c6b2-7b3e-4afd-a453-204ddae2b7d6",
+              "specificity": "low",
+              "supporting_metric": "",
+              "claim_classification": "mentioned"
+            },
+            "71b2c38a-1700-4043-ba63-a1b8fd965d45": {
+              "quote": "Well-structured response with clear explanation flow, crisp and concise with good vocabulary and articulation",
+              "ownership": "vague",
+              "verifiable": false,
+              "evidence_id": "71b2c38a-1700-4043-ba63-a1b8fd965d45",
+              "specificity": "low",
+              "supporting_metric": "",
+              "claim_classification": "mentioned"
+            },
+            "9f125a04-fd2b-4fce-a5ad-2401ecae84d1": {
+              "quote": "Well-structured response with clear explanation flow",
+              "ownership": "vague",
+              "verifiable": false,
+              "evidence_id": "9f125a04-fd2b-4fce-a5ad-2401ecae84d1",
+              "specificity": "low",
+              "supporting_metric": "",
+              "claim_classification": "mentioned"
+            },
+            "ac2fd534-51dd-4fab-8338-417565534646": {
+              "quote": "Well-structured response with clear explanation flow, used technical terms correctly",
+              "ownership": "vague",
+              "verifiable": false,
+              "evidence_id": "ac2fd534-51dd-4fab-8338-417565534646",
+              "specificity": "low",
+              "supporting_metric": "",
+              "claim_classification": "mentioned"
+            },
+            "ad89b059-7217-4197-94fb-deab192c9ee4": {
+              "quote": "Well-structured response with clear explanation flow, concise and articulate",
+              "ownership": "vague",
+              "verifiable": false,
+              "evidence_id": "ad89b059-7217-4197-94fb-deab192c9ee4",
+              "specificity": "low",
+              "supporting_metric": "",
+              "claim_classification": "mentioned"
+            },
+            "ade872de-3012-4797-b091-f38b253ad6cb": {
+              "quote": "Well-structured response with clear explanation flow, easy to follow and understand",
+              "ownership": "vague",
+              "verifiable": false,
+              "evidence_id": "ade872de-3012-4797-b091-f38b253ad6cb",
+              "specificity": "low",
+              "supporting_metric": "",
+              "claim_classification": "mentioned"
+            },
+            "c858835d-678b-46de-a771-2ca06a762442": {
+              "quote": "Demonstrated solid domain knowledge, explained trade-offs, used proper terminology, and considered system constraints",
+              "ownership": "vague",
+              "verifiable": false,
+              "evidence_id": "c858835d-678b-46de-a771-2ca06a762442",
+              "specificity": "medium",
+              "supporting_metric": "",
+              "claim_classification": "demonstrated"
+            },
+            "d20d1692-7dc1-497d-a0c1-78adab14d08c": {
+              "quote": "Well-structured response with clear explanation flow",
+              "ownership": "vague",
+              "verifiable": false,
+              "evidence_id": "d20d1692-7dc1-497d-a0c1-78adab14d08c",
+              "specificity": "low",
+              "supporting_metric": "",
+              "claim_classification": "mentioned"
+            },
+            "e59b22bf-74b9-462c-a2f5-2b79a85524b0": {
+              "quote": "Well-structured response with clear explanation flow",
+              "ownership": "vague",
+              "verifiable": false,
+              "evidence_id": "e59b22bf-74b9-462c-a2f5-2b79a85524b0",
+              "specificity": "low",
+              "supporting_metric": "",
+              "claim_classification": "mentioned"
+            },
+            "fdcd4c2b-a6f3-43af-be7f-e4e223ae4435": {
+              "quote": "Demonstrated solid domain knowledge, explained tradeoffs, used proper terminology and showed awareness of best practices",
+              "ownership": "vague",
+              "verifiable": false,
+              "evidence_id": "fdcd4c2b-a6f3-43af-be7f-e4e223ae4435",
+              "specificity": "medium",
+              "supporting_metric": "",
+              "claim_classification": "demonstrated"
+            }
+          },
+          "semantic_risks": []
+        },
+        "calibration_state": {
+          "role_floor": 3,
+          "proof_ratio": 0.0,
+          "raw_composite": 8.46,
+          "evidence_depth": "high",
+          "total_evidence": 13,
+          "calibrated_score": 6.5,
+          "calibrated_verdict": "hire",
+          "difficulty_reached": 4,
+          "decision_confidence": 0.095,
+          "contradiction_penalty": 0
+        },
+        "question_strategy": {
+          "rationale": "claimed seniority must be proven under pressure (uncertainty=0.324)",
+          "question_strategy": {
+            "mode": "challenge",
+            "note": "pressure-test claimed seniority and ownership",
+            "action": "ask",
+            "uncertainty": 0.324,
+            "target_competency": "tech_core"
+          },
+          "planned_competency": "tech_core",
+          "next_question_strategy": {
+            "note": "pressure-test claimed seniority and ownership",
+            "action": "challenge",
+            "target": "tech_core",
+            "reduce_uncertainty": 0.324
+          }
+        },
+        "contradiction_state": {
+          "contradictions": [],
+          "seniority_risk": {
+            "level": "high",
+            "action": "challenge",
+            "proof_ratio": 0.0,
+            "proven_claims": 0,
+            "probe_questions": [
+              "What tradeoff did you make and what did you give up?",
+              "Why this design instead of the simpler alternative?",
+              "What failed in production and how did you diagnose it?",
+              "Who else depended on your design and what did you own end to end?"
+            ],
+            "ownership_claims": 2,
+            "serious_contradictions": 0
+          },
+          "needs_challenge": true
+        },
+        "evidence_summary": {
+          "tech_core": {
+            "gap": 0.5,
+            "scores": [
+              8.0
+            ],
+            "coverage": 0.5,
+            "latest_score": 8.0,
+            "average_score": 8.0,
+            "evidence_count": 1,
+            "latest_evidence": "Demonstrated solid domain knowledge, explained trade-offs, used proper terminology, and considered system constraints",
+            "average_strength": 0.72,
+            "average_confidence": 0.9
+          },
+          "tech_caching": {
+            "gap": 0.0,
+            "scores": [
+              8.0
+            ],
+            "coverage": 1.0,
+            "latest_score": 8.0,
+            "average_score": 8.0,
+            "evidence_count": 1,
+            "latest_evidence": "Well-structured response with clear explanation flow",
+            "average_strength": 0.72,
+            "average_confidence": 0.9
+          },
+          "tech_deployment": {
+            "gap": 0.0,
+            "scores": [
+              8.0,
+              8.0,
+              8.0
+            ],
+            "coverage": 1.0,
+            "latest_score": 8.0,
+            "average_score": 8.0,
+            "evidence_count": 3,
+            "latest_evidence": "Well-structured response with clear explanation flow",
+            "average_strength": 0.72,
+            "average_confidence": 0.9
+          },
+          "tech_event_driven": {
+            "gap": 0.0,
+            "scores": [
+              8.0,
+              8.5,
+              8.5
+            ],
+            "coverage": 1.0,
+            "latest_score": 8.5,
+            "average_score": 8.33,
+            "evidence_count": 3,
+            "latest_evidence": "Well-structured response with clear explanation flow, good pacing and vocabulary",
+            "average_strength": 0.765,
+            "average_confidence": 0.92
+          },
+          "tech_data_modeling": {
+            "gap": 0.5,
+            "scores": [
+              8.0
+            ],
+            "coverage": 0.5,
+            "latest_score": 8.0,
+            "average_score": 8.0,
+            "evidence_count": 1,
+            "latest_evidence": "Well-structured response with clear explanation flow",
+            "average_strength": 0.72,
+            "average_confidence": 0.9
+          },
+          "tech_system_design": {
+            "gap": 0.0,
+            "scores": [
+              8.0,
+              9.0,
+              8.5
+            ],
+            "coverage": 1.0,
+            "latest_score": 8.5,
+            "average_score": 8.5,
+            "evidence_count": 3,
+            "latest_evidence": "Well-structured response with clear explanation flow, concise and articulate",
+            "average_strength": 0.78,
+            "average_confidence": 0.92
+          },
+          "behav_communication": {
+            "gap": 0.5,
+            "scores": [
+              8.5
+            ],
+            "coverage": 0.5,
+            "latest_score": 8.5,
+            "average_score": 8.5,
+            "evidence_count": 1,
+            "latest_evidence": "Well-structured response with clear explanation flow, crisp and concise with good vocabulary and articulation",
+            "average_strength": 0.765,
+            "average_confidence": 0.9
+          }
+        }
+      }
+    },
+    "evidence_graph": {
+      "nodes": {
+        "tech_core": {
+          "type": "competency",
+          "count": 1,
+          "scores": [
+            8.0
+          ],
+          "average_score": 8.0
+        },
+        "tech_caching": {
+          "type": "competency",
+          "count": 1,
+          "scores": [
+            8.0
+          ],
+          "average_score": 8.0
+        },
+        "tech_deployment": {
+          "type": "competency",
+          "count": 3,
+          "scores": [
+            8.0,
+            8.0,
+            8.0
+          ],
+          "average_score": 8.0
+        },
+        "tech_event_driven": {
+          "type": "competency",
+          "count": 3,
+          "scores": [
+            8.0,
+            8.5,
+            8.5
+          ],
+          "average_score": 8.3333
+        },
+        "tech_data_modeling": {
+          "type": "competency",
+          "count": 1,
+          "scores": [
+            8.0
+          ],
+          "average_score": 8.0
+        },
+        "tech_system_design": {
+          "type": "competency",
+          "count": 3,
+          "scores": [
+            8.0,
+            9.0,
+            8.5
+          ],
+          "average_score": 8.5
+        },
+        "behav_communication": {
+          "type": "competency",
+          "count": 1,
+          "scores": [
+            8.5
+          ],
+          "average_score": 8.5
+        }
+      },
+      "edges": {
+        "083dc64f-3b41-4a5d-afc1-fd8031fbb145->25062058-28dc-44bb-97e2-057e7af4d6e9": {
+          "source": "083dc64f-3b41-4a5d-afc1-fd8031fbb145",
+          "target": "25062058-28dc-44bb-97e2-057e7af4d6e9",
+          "weight": 0.85,
+          "support": true
+        },
+        "083dc64f-3b41-4a5d-afc1-fd8031fbb145->57d868bc-2791-4a0a-9989-2551bd77045b": {
+          "source": "083dc64f-3b41-4a5d-afc1-fd8031fbb145",
+          "target": "57d868bc-2791-4a0a-9989-2551bd77045b",
+          "weight": 0.85,
+          "support": true
+        },
+        "5ef992be-7797-4cb7-84b4-9e6d1411d82c->09e20e8b-6599-4187-8139-e725db223742": {
+          "source": "5ef992be-7797-4cb7-84b4-9e6d1411d82c",
+          "target": "09e20e8b-6599-4187-8139-e725db223742",
+          "weight": 0.85,
+          "support": true
+        },
+        "6271e25e-df54-4adc-b6cd-123afd7d54a6->42cadca2-87a1-4e21-9401-7f6e8ec9bb9d": {
+          "source": "6271e25e-df54-4adc-b6cd-123afd7d54a6",
+          "target": "42cadca2-87a1-4e21-9401-7f6e8ec9bb9d",
+          "weight": 0.85,
+          "support": true
+        },
+        "6c61c6b2-7b3e-4afd-a453-204ddae2b7d6->cdca41ad-eed7-4441-ae12-227e84923c0c": {
+          "source": "6c61c6b2-7b3e-4afd-a453-204ddae2b7d6",
+          "target": "cdca41ad-eed7-4441-ae12-227e84923c0c",
+          "weight": 0.85,
+          "support": true
+        },
+        "71b2c38a-1700-4043-ba63-a1b8fd965d45->596be7a4-0030-47d0-b635-19b0cf6db941": {
+          "source": "71b2c38a-1700-4043-ba63-a1b8fd965d45",
+          "target": "596be7a4-0030-47d0-b635-19b0cf6db941",
+          "weight": 0.85,
+          "support": true
+        },
+        "9f125a04-fd2b-4fce-a5ad-2401ecae84d1->7aa09429-d258-440f-94a2-430081a1d070": {
+          "source": "9f125a04-fd2b-4fce-a5ad-2401ecae84d1",
+          "target": "7aa09429-d258-440f-94a2-430081a1d070",
+          "weight": 0.85,
+          "support": true
+        },
+        "ac2fd534-51dd-4fab-8338-417565534646->42cadca2-87a1-4e21-9401-7f6e8ec9bb9d": {
+          "source": "ac2fd534-51dd-4fab-8338-417565534646",
+          "target": "42cadca2-87a1-4e21-9401-7f6e8ec9bb9d",
+          "weight": 0.85,
+          "support": true
+        },
+        "ad89b059-7217-4197-94fb-deab192c9ee4->42cadca2-87a1-4e21-9401-7f6e8ec9bb9d": {
+          "source": "ad89b059-7217-4197-94fb-deab192c9ee4",
+          "target": "42cadca2-87a1-4e21-9401-7f6e8ec9bb9d",
+          "weight": 0.85,
+          "support": true
+        },
+        "ad89b059-7217-4197-94fb-deab192c9ee4->bf3c35f2-a9ba-4810-bf90-014daedf195a": {
+          "source": "ad89b059-7217-4197-94fb-deab192c9ee4",
+          "target": "bf3c35f2-a9ba-4810-bf90-014daedf195a",
+          "weight": 0.85,
+          "support": true
+        },
+        "ade872de-3012-4797-b091-f38b253ad6cb->57d868bc-2791-4a0a-9989-2551bd77045b": {
+          "source": "ade872de-3012-4797-b091-f38b253ad6cb",
+          "target": "57d868bc-2791-4a0a-9989-2551bd77045b",
+          "weight": 0.85,
+          "support": true
+        },
+        "c858835d-678b-46de-a771-2ca06a762442->400383a0-6d69-49aa-99e7-ae36e2583011": {
+          "source": "c858835d-678b-46de-a771-2ca06a762442",
+          "target": "400383a0-6d69-49aa-99e7-ae36e2583011",
+          "weight": 0.85,
+          "support": true
+        },
+        "c858835d-678b-46de-a771-2ca06a762442->4db63841-ced0-445a-8a24-7d2a73c4b8f7": {
+          "source": "c858835d-678b-46de-a771-2ca06a762442",
+          "target": "4db63841-ced0-445a-8a24-7d2a73c4b8f7",
+          "weight": 0.85,
+          "support": false
+        },
+        "c858835d-678b-46de-a771-2ca06a762442->5a2a52c2-0f21-4d38-8d1c-44fe2b97ab67": {
+          "source": "c858835d-678b-46de-a771-2ca06a762442",
+          "target": "5a2a52c2-0f21-4d38-8d1c-44fe2b97ab67",
+          "weight": 0.85,
+          "support": true
+        },
+        "c858835d-678b-46de-a771-2ca06a762442->89373f5c-7b20-46d4-8d95-ac8bc8c6a200": {
+          "source": "c858835d-678b-46de-a771-2ca06a762442",
+          "target": "89373f5c-7b20-46d4-8d95-ac8bc8c6a200",
+          "weight": 0.85,
+          "support": true
+        },
+        "c858835d-678b-46de-a771-2ca06a762442->e57fbfac-45b9-4ea9-9f92-618797a222b5": {
+          "source": "c858835d-678b-46de-a771-2ca06a762442",
+          "target": "e57fbfac-45b9-4ea9-9f92-618797a222b5",
+          "weight": 0.85,
+          "support": false
+        },
+        "d20d1692-7dc1-497d-a0c1-78adab14d08c->7aa09429-d258-440f-94a2-430081a1d070": {
+          "source": "d20d1692-7dc1-497d-a0c1-78adab14d08c",
+          "target": "7aa09429-d258-440f-94a2-430081a1d070",
+          "weight": 0.85,
+          "support": true
+        },
+        "d20d1692-7dc1-497d-a0c1-78adab14d08c->cd729064-3b41-4e5b-9d09-e6dac21e7598": {
+          "source": "d20d1692-7dc1-497d-a0c1-78adab14d08c",
+          "target": "cd729064-3b41-4e5b-9d09-e6dac21e7598",
+          "weight": 0.85,
+          "support": true
+        },
+        "e59b22bf-74b9-462c-a2f5-2b79a85524b0->7aa09429-d258-440f-94a2-430081a1d070": {
+          "source": "e59b22bf-74b9-462c-a2f5-2b79a85524b0",
+          "target": "7aa09429-d258-440f-94a2-430081a1d070",
+          "weight": 0.85,
+          "support": true
+        },
+        "fdcd4c2b-a6f3-43af-be7f-e4e223ae4435->57d868bc-2791-4a0a-9989-2551bd77045b": {
+          "source": "fdcd4c2b-a6f3-43af-be7f-e4e223ae4435",
+          "target": "57d868bc-2791-4a0a-9989-2551bd77045b",
+          "weight": 0.85,
+          "support": true
+        }
+      }
+    },
+    "timeline": [
+      {
+        "id": "7472a2bf-2e83-435b-9961-17e4f9bacedf",
+        "event_type": "brain_snapshot",
+        "question_number": 1,
+        "event_data": {
+          "phase": "intro",
+          "version": 2,
+          "evidence_count": 0,
+          "difficulty_level": 3,
+          "hypothesis_count": 7
+        },
+        "created_at": "2026-08-14T14:08:52.670356+00:00"
+      },
+      {
+        "id": "f3934fb3-9c4e-48ea-99a6-06801fae28b8",
+        "event_type": "brain_snapshot",
+        "question_number": 2,
+        "event_data": {
+          "phase": "intro",
+          "version": 3,
+          "evidence_count": 1,
+          "difficulty_level": 3,
+          "hypothesis_count": 7
+        },
+        "created_at": "2026-08-14T14:09:52.002825+00:00"
+      },
+      {
+        "id": "ed4e927f-5417-4325-9b78-4f9ea88ac893",
+        "event_type": "brain_snapshot",
+        "question_number": 3,
+        "event_data": {
+          "phase": "technical",
+          "version": 3,
+          "evidence_count": 2,
+          "difficulty_level": 3,
+          "hypothesis_count": 8
+        },
+        "created_at": "2026-08-14T14:11:23.113169+00:00"
+      },
+      {
+        "id": "2226a77b-07af-4606-a0b0-bfbe71fb1a55",
+        "event_type": "brain_snapshot",
+        "question_number": 4,
+        "event_data": {
+          "phase": "technical",
+          "version": 3,
+          "evidence_count": 3,
+          "difficulty_level": 3,
+          "hypothesis_count": 9
+        },
+        "created_at": "2026-08-14T14:12:22.110936+00:00"
+      },
+      {
+        "id": "c09284ce-1939-4170-a117-c8eed689734d",
+        "event_type": "brain_snapshot",
+        "question_number": 5,
+        "event_data": {
+          "phase": "technical",
+          "version": 3,
+          "evidence_count": 4,
+          "difficulty_level": 3,
+          "hypothesis_count": 10
+        },
+        "created_at": "2026-08-14T14:13:54.542763+00:00"
+      },
+      {
+        "id": "04513bad-7287-453b-b9c1-9c5ee7ebeb24",
+        "event_type": "brain_snapshot",
+        "question_number": 6,
+        "event_data": {
+          "phase": "technical",
+          "version": 3,
+          "evidence_count": 5,
+          "difficulty_level": 3,
+          "hypothesis_count": 11
+        },
+        "created_at": "2026-08-14T14:15:32.008652+00:00"
+      },
+      {
+        "id": "21b29ec6-d330-4a6e-b69d-fd3390581e9e",
+        "event_type": "brain_snapshot",
+        "question_number": 7,
+        "event_data": {
+          "phase": "technical",
+          "version": 3,
+          "evidence_count": 6,
+          "difficulty_level": 3,
+          "hypothesis_count": 11
+        },
+        "created_at": "2026-08-14T14:16:10.438768+00:00"
+      },
+      {
+        "id": "0e232813-8c1a-4aa7-9fcf-8f59df088291",
+        "event_type": "brain_snapshot",
+        "question_number": 8,
+        "event_data": {
+          "phase": "technical",
+          "version": 3,
+          "evidence_count": 7,
+          "difficulty_level": 3,
+          "hypothesis_count": 12
+        },
+        "created_at": "2026-08-14T14:17:09.715928+00:00"
+      },
+      {
+        "id": "1f245d5e-1995-4ec3-a849-4372a4a55072",
+        "event_type": "brain_snapshot",
+        "question_number": 9,
+        "event_data": {
+          "phase": "behavioral",
+          "version": 3,
+          "evidence_count": 8,
+          "difficulty_level": 3,
+          "hypothesis_count": 13
+        },
+        "created_at": "2026-08-14T14:21:00.595607+00:00"
+      },
+      {
+        "id": "99bc64cd-ce06-4839-a042-8effe338fa52",
+        "event_type": "brain_snapshot",
+        "question_number": 10,
+        "event_data": {
+          "phase": "behavioral",
+          "version": 3,
+          "evidence_count": 9,
+          "difficulty_level": 4,
+          "hypothesis_count": 13
+        },
+        "created_at": "2026-08-14T14:23:00.650784+00:00"
+      },
+      {
+        "id": "19545d1f-8a8c-4041-8c52-6672655c3ac8",
+        "event_type": "brain_snapshot",
+        "question_number": 11,
+        "event_data": {
+          "phase": "behavioral",
+          "version": 3,
+          "evidence_count": 10,
+          "difficulty_level": 4,
+          "hypothesis_count": 14
+        },
+        "created_at": "2026-08-14T14:23:47.409130+00:00"
+      },
+      {
+        "id": "27dfa2f9-7151-49fc-a093-dc754b5d4f4c",
+        "event_type": "brain_snapshot",
+        "question_number": 12,
+        "event_data": {
+          "phase": "behavioral",
+          "version": 3,
+          "evidence_count": 11,
+          "difficulty_level": 4,
+          "hypothesis_count": 14
+        },
+        "created_at": "2026-08-14T14:25:02.087179+00:00"
+      },
+      {
+        "id": "c0d30410-5564-44c2-8176-9001ef30f8c3",
+        "event_type": "brain_snapshot",
+        "question_number": 13,
+        "event_data": {
+          "phase": "behavioral",
+          "version": 3,
+          "evidence_count": 12,
+          "difficulty_level": 4,
+          "hypothesis_count": 14
+        },
+        "created_at": "2026-08-14T14:26:03.716280+00:00"
+      },
+      {
+        "id": "5715a768-b5b5-4546-b06c-0a43bf003180",
+        "event_type": "brain_snapshot",
+        "question_number": 14,
+        "event_data": {
+          "phase": "conclusion",
+          "version": 3,
+          "evidence_count": 13,
+          "difficulty_level": 4,
+          "hypothesis_count": 14
+        },
+        "created_at": "2026-08-14T14:26:52.919496+00:00"
+      }
+    ]
+  }
+}

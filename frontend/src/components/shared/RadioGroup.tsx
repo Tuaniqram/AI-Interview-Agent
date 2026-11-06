@@ -37,11 +37,11 @@ export function RadioGroup({ name, value, onChange, options, label }: RadioGroup
               />
               <div className={`w-4 h-4 rounded-full border-2 transition-colors ${
                 selected
-                  ? 'border-[#7C3AED]'
-                  : 'border-[var(--border-color)] group-hover:border-[#7C3AED]/50'
+                  ? 'border-[77C3AED]'
+                  : 'border-[var(--border-color)] group-hover:border-[77C3AED]/50'
               }`}>
                 {selected && (
-                  <div className="absolute inset-0.5 rounded-full bg-[#7C3AED]" />
+                  <div className="absolute inset-0.5 rounded-full bg-[77C3AED]" />
                 )}
               </div>
             </div>

@@ -187,31 +187,24 @@ async def _start_v4_engine(session_id: str) -> dict:
     from app.agents.planning.difficulty_engine import role_difficulty_floor
 
     taxonomy = default_taxonomy()
-    if db_session.department_id or db_session.scorecard_template_id:
+    if db_session.org_id or db_session.scorecard_template_id:
         async with get_session_factory()() as db:
             role_context = None
             try:
                 from app.intelligence.role_competency_profiler import build_role_context
-                from app.models.db import Department, Organization
+                from app.models.db import Organization
 
                 org_name = ""
-                dept_name = ""
                 org_result = await db.execute(
                     select(Organization).where(Organization.id == db_session.org_id)
                 )
                 org_row = org_result.scalar_one_or_none()
                 if org_row:
                     org_name = org_row.name or ""
-                dept_result = await db.execute(
-                    select(Department).where(Department.id == db_session.department_id)
-                )
-                dept_row = dept_result.scalar_one_or_none()
-                if dept_row:
-                    dept_name = dept_row.name or ""
                 role_context = build_role_context(
-                    job_role=db_session.job_role or "",
-                    department_id=db_session.department_id,
-                    department_name=dept_name,
+                    job_role=db_session.job_role_snapshot or "",
+                    department_id=None,
+                    department_name="",
                     org_name=org_name,
                 )
             except Exception as exc:  # noqa: BLE001 - role context is best-effort
@@ -220,7 +213,7 @@ async def _start_v4_engine(session_id: str) -> dict:
                 db,
                 scorecard_template_id=str(db_session.scorecard_template_id)
                 if db_session.scorecard_template_id else None,
-                department_id=db_session.department_id,
+                org_id=db_session.org_id,
                 role_context=role_context,
             )
     competency_taxonomy, required, domain_label = taxonomy_for_state(
@@ -231,13 +224,14 @@ async def _start_v4_engine(session_id: str) -> dict:
 
     state = {
         "session_id": session_id,
-        "job_role": db_session.job_role or "Software Engineer",
-        "department_id": db_session.department_id,
+        "job_role": db_session.job_role_snapshot or "Software Engineer",
+        "org_id": str(db_session.org_id) if db_session.org_id else None,
+        "it_role_id": str(db_session.it_role_id),
         "interview_style": style,
         "persona": style.get("persona", "friendly"),
         "difficulty_level": max(
             style.get("difficulty_range", (1, 3))[0],
-            role_difficulty_floor(db_session.job_role or ""),
+            role_difficulty_floor(db_session.job_role_snapshot or ""),
         ),
         "candidate_profile": candidate_profile,
         "resume_text": resume_text,
@@ -281,8 +275,8 @@ async def _start_v4_engine(session_id: str) -> dict:
 
     engine = InterviewEngine(store=store, v5_persister=_get_v5_persister())
     company_brain = await get_or_build_company_brain(
-        department_id=db_session.department_id,
-        job_role=db_session.job_role or "Software Engineer",
+        department_id=None,
+        job_role=db_session.job_role_snapshot or "Software Engineer",
     )
     response = await engine.start_session(
         state,
@@ -358,6 +352,18 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                     continue
                 candidate_answer = data.get("candidate_answer", "")
 
+                # Optional anti-cheat telemetry (contract docs/anti-cheat-guard.md
+                # §4.1 + §4.6). Absent from any client is always valid — no signal.
+                integrity_meta = {
+                    "paste_chars": data.get("paste_chars"),
+                    "focus_lost_count": data.get("focus_lost_count"),
+                    "answer_source": data.get("answer_source"),
+                    "keystroke_intervals": data.get("keystroke_intervals"),
+                    "first_key_ms": data.get("first_key_ms"),
+                    "pointer_leaves": data.get("pointer_leaves"),
+                    "heartbeat_gaps": data.get("heartbeat_gaps"),
+                }
+
                 await websocket.send_json(_send_id({"type": "status", "phase": "evaluating"}, data))
 
                 try:
@@ -365,7 +371,7 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                         store=get_v4_session_store(),
                         v5_persister=_get_v5_persister(),
                     )
-                    result = await engine.process_answer(sid, candidate_answer)
+                    result = await engine.process_answer(sid, candidate_answer, integrity_meta=integrity_meta)
                 except SessionNotFoundException:
                     await websocket.send_json(_send_id({"type": "error", "detail": "Session not found"}, data))
                     continue

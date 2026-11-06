@@ -29,17 +29,17 @@ export default function Login() {
 
   return (
     <AuthLayout role="org">
-      <div className="space-y-8">
+      <div className="space-y-4">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-[var(--text-primary)]">Welcome Back</h1>
-          <p className="mt-2 text-[var(--text-secondary)]">
+          <h1 className="text-xl font-bold text-[var(--text-primary)]">Welcome Back</h1>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">
             Sign in to your account to continue
           </p>
         </div>
-        <div className="bg-[var(--bg-section)] rounded-xl p-6 shadow-sm border border-[var(--border-color)] space-y-4">
+        <div className="glass-card space-y-3">
           <button
             onClick={() => handleGoogleLogin()}
-            className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-page)] transition-colors"
+            className="w-full flex items-center justify-center gap-3 px-4 py-1.5 rounded-lg border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-page)] transition-colors"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
@@ -51,7 +51,7 @@ export default function Login() {
           </button>
           <div className="relative">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[var(--border-color)]" /></div>
-            <div className="relative flex justify-center text-xs"><span className="bg-[var(--bg-section)] px-2 text-[var(--text-secondary)]">or</span></div>
+            <div className="relative flex justify-center text-xs"><span className="glass-or px-2 text-[var(--text-secondary)]">or</span></div>
           </div>
           <LoginForm />
         </div>
@@ -61,7 +61,7 @@ export default function Login() {
             Create one
           </Link>
         </p>
-        <p className="mt-2 text-center text-sm text-[var(--text-secondary)]">
+        <p className="mt-1 text-center text-sm text-[var(--text-secondary)]">
           Are you a candidate?{' '}
           <Link to="/candidate/login" className="text-[var(--action-primary)] hover:underline">
             Sign in here

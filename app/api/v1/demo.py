@@ -1,9 +1,8 @@
-"""Demo maintenance endpoints — local demo only.
+"""Demo maintenance endpoints - local demo only.
 
-Used by the end-to-end demo page to reset the interview/V5 runtime data
-(interviews, evidence, hypotheses, brains, scorecards, marketplace listings,
-bookings) while keeping the demo's org / department / documents / candidates /
-templates intact.
+Used by the end-to-end demo page to reset the lean interview runtime data
+(interviews, evidence, hypotheses, brains) while keeping users, organizations,
+organization documents, resumes, templates, marketplace listings, and the IT catalog.
 """
 import logging
 
@@ -18,40 +17,29 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/demo", tags=["demo"])
 
-# Wipe set — order matters for FK-safe deletes:
-#   1. interview_sessions  -> DB-level CASCADE clears: interview_messages,
-#      interview_evaluations, evidence_store, hypotheses, interview_objectives,
-#      consistency_checks, observations, scorecards, scorecard_results,
-#      company_brains, interview_blueprints, candidate_brains,
-#      candidate_evidence_requirements, interview_brain, evidence_graph,
-#      interview_timeline, candidate_sessions, public_interview_submissions,
-#      candidate_documents
-#   2. public_interviews   -> cascades: public_interview_submissions,
-#      candidate_saved_listings
-#   3. interview_slots     -> cascades: slot_availability, bookings
-#   4. v4_session_state    -> raw-SQL checkpoint table, no ORM model, no dependents
 WIPE_TABLES = [
     "interview_sessions",
-    "public_interviews",
-    "interview_slots",
-    "v4_session_state",
 ]
 
 KEPT_TABLES = [
     "users",
     "organizations",
-    "org_users",
-    "org_invitations",
-    "departments",
-    "department_documents",
+    "refresh_tokens",
+    "user_password_reset_tokens",
+    "organization_documents",
+    "it_roles",
+    "competencies",
+    "role_competencies",
     "candidate_profiles",
-    "candidate_invitations",
     "candidate_refresh_tokens",
     "candidate_password_reset_tokens",
-    "user_password_reset_tokens",
-    "refresh_tokens",
-    "interview_templates",
+    "candidate_documents",
+    "candidate_invitations",
+    "public_interviews",
+    "public_interview_submissions",
+    "candidate_saved_listings",
     "scorecard_templates",
+    "interview_templates",
     "audit_log",
 ]
 

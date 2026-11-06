@@ -75,18 +75,45 @@ class MemoryV4SessionStore:
         self._sessions: dict[str, InterviewState] = {}
         self._db_path = db_path or DEFAULT_DB_PATH
         self._dirty: Set[str] = set()
-        self._sync_engine = self._create_sync_engine()
-        if self._sync_engine:
-            self._load_from_db()
-        else:
+        # An explicit ``db_path`` marks a hermetic (test/local) store: file-backed
+        # only, never Postgres. Only the default config (db_path=None) uses
+        # DATABASE_URL, so unit tests never touch a live database.
+        self._sync_engine = None if db_path is not None else self._create_sync_engine()
+        # NOTE: the Postgres store is deliberately NOT bulk-loaded at init.
+        # Loading every v4_session_state row synchronously on the event loop
+        # froze the server for minutes on a slow/remote database (single
+        # session-start request blocked all traffic). Sessions hydrate lazily
+        # per id on ``get`` miss instead.
+        if not self._sync_engine:
             self._load_from_disk()
-        self._evict_old(max_age_hours)
 
     def get(self, session_id: str) -> InterviewState | None:
-        return self._sessions.get(session_id)
+        state = self._sessions.get(session_id)
+        if state is None and self._sync_engine:
+            state = self._hydrate_from_db(session_id)
+            if state is not None:
+                self._sessions[session_id] = state
+        return state
+
+    def _hydrate_from_db(self, session_id: str) -> InterviewState | None:
+        try:
+            from sqlalchemy import text
+
+            with self._sync_engine.connect() as conn:
+                row = conn.execute(
+                    text(
+                        "SELECT state::text FROM v4_session_state WHERE session_id = :sid"
+                    ),
+                    {"sid": session_id},
+                ).fetchone()
+            if row is not None:
+                return _state_from_json(row[0])
+        except Exception as e:
+            logger.warning(f"Failed to hydrate session {session_id} from DB: {e}")
+        return None
 
     def get_or_raise(self, session_id: str) -> InterviewState:
-        state = self._sessions.get(session_id)
+        state = self.get(session_id)
         if not state:
             raise SessionNotFoundException(session_id)
         return state
@@ -152,7 +179,15 @@ class MemoryV4SessionStore:
             from sqlalchemy import create_engine
 
             sync_url = raw_url.replace("+asyncpg", "").replace("+psycopg", "")
-            return create_engine(sync_url, pool_pre_ping=True, pool_size=2, max_overflow=2)
+            # Bounded connect: a wedged/slow remote pooler must fail fast so
+            # synchronous DB calls can never block the event loop for long.
+            return create_engine(
+                sync_url,
+                pool_pre_ping=True,
+                pool_size=2,
+                max_overflow=2,
+                connect_args={"connect_timeout": 3},
+            )
         except ImportError:
             logger.warning("sqlalchemy not available — falling back to file persistence")
             return None
@@ -333,7 +368,13 @@ class RedisV4SessionStore:
             from sqlalchemy import create_engine
 
             sync_url = raw_url.replace("+asyncpg", "").replace("+psycopg", "")
-            return create_engine(sync_url, pool_pre_ping=True, pool_size=2, max_overflow=2)
+            return create_engine(
+                sync_url,
+                pool_pre_ping=True,
+                pool_size=2,
+                max_overflow=2,
+                connect_args={"connect_timeout": 3},
+            )
         except Exception:
             return None
 

@@ -9,6 +9,7 @@ break an interview), and the session factory can be injected for tests.
 """
 import logging
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -17,13 +18,10 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.database.session import get_session_factory
 from app.models.db import (
-    ConsistencyCheck as ConsistencyCheckRecord,
-    EvidenceGraph as EvidenceGraphRecord,
     Hypothesis as HypothesisRecord,
     InterviewBrain as InterviewBrainRecord,
-    InterviewObjective as InterviewObjectiveRecord,
+    InterviewIntelligence,
     InterviewTimeline as InterviewTimelineRecord,
-    Observation as ObservationRecord,
     ScorecardResult as ScorecardResultRecord,
 )
 
@@ -46,6 +44,28 @@ def _clamp(value, lo: float = 0.0, hi: float = 1.0) -> float:
         return max(lo, min(hi, float(value)))
     except (TypeError, ValueError):
         return lo
+
+
+def _coerce_dt(value) -> datetime:
+    """Coerce a brain-carried timestamp into a tz-aware datetime.
+
+    The InterviewBrain JSON-round-trips through the session store, so
+    timestamps arrive as ISO strings (or naive datetimes); asyncpg rejects
+    both for timestamptz columns and would abort the whole finalize
+    transaction.
+    """
+    if isinstance(value, datetime):
+        dt = value
+    elif isinstance(value, str):
+        try:
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return datetime.now(timezone.utc)
+    else:
+        return datetime.now(timezone.utc)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 def _backfill_evidence_summary(summary: dict, required_competencies: list) -> dict:
@@ -104,7 +124,7 @@ class V5BrainPersister:
 
         async with factory() as session:
             await self._upsert_brain(session, session_id, brain)
-            await self._upsert_graph(session, session_id, brain)
+            await self._upsert_intelligence(session, session_id, brain)
             await self._append_timeline(session, session_id, brain)
             await session.commit()
 
@@ -166,21 +186,30 @@ class V5BrainPersister:
             "candidate_memory": getattr(brain, "candidate_memory", {}) or {},
         }
 
-    async def _upsert_graph(self, session, session_id: UUID, brain) -> None:
+    async def _upsert_intelligence(self, session, session_id: UUID, brain) -> None:
         result = await session.execute(
-            select(EvidenceGraphRecord).where(
-                EvidenceGraphRecord.session_id == session_id
+            select(InterviewIntelligence).where(
+                InterviewIntelligence.session_id == session_id
             )
         )
         record = result.scalar_one_or_none()
         if record is None:
-            record = EvidenceGraphRecord(session_id=session_id)
+            record = InterviewIntelligence(session_id=session_id)
             session.add(record)
 
-        graph = getattr(brain, "evidence_graph", {}) or {}
-        record.nodes = graph.get("nodes", {}) or {}
-        record.edges = graph.get("edges", {}) or {}
-        record.version = int(getattr(brain, "state_version", 0) or 0) + 1
+        record.company_context = getattr(brain, "company_brain", {}) or {}
+        record.candidate_context = getattr(brain, "candidate_brain", {}) or {}
+        record.blueprint = getattr(brain, "interview_blueprint", {}) or {}
+        record.scorecard = {
+            "competencies": getattr(brain, "competency_taxonomy", []) or [],
+            "scores": getattr(brain, "competency_summary", {}) or {},
+        }
+        record.evidence_requirements = getattr(brain, "evidence_requirements", []) or []
+        objective = getattr(brain, "question_objective", None)
+        record.objectives = [objective] if objective else []
+        record.consistency_checks = getattr(brain, "consistency_checks", []) or []
+        record.observations = getattr(brain, "observations", []) or []
+        record.evidence_graph = getattr(brain, "evidence_graph", {}) or {}
 
     async def _append_timeline(self, session, session_id: UUID, brain) -> None:
         qnum = int(getattr(brain, "question_number", 0) or 0)
@@ -250,14 +279,12 @@ class V5BrainPersister:
         try:
             async with factory() as session:
                 await self._upsert_hypotheses(session, session_id, brain)
-                await self._insert_observations(session, session_id, brain)
-                await self._upsert_objectives(session, session_id, brain, finalize)
+                await self._upsert_intelligence(session, session_id, brain)
                 if finalize:
-                    await self._insert_consistency_checks(session, session_id, brain)
                     await self._insert_scorecard_result(session, session_id, brain)
                 await session.commit()
         except Exception as exc:  # noqa: BLE001 - best-effort by design
-            logger.warning(f"V5 relational persistence failed (non-fatal): {exc}")
+            logger.error(f"V5 relational persistence failed (finalize={finalize})", exc_info=exc)
 
     async def _upsert_hypotheses(self, session, session_id: UUID, brain) -> None:
         hypotheses = getattr(brain, "hypotheses", []) or []
@@ -273,7 +300,7 @@ class V5BrainPersister:
                 "id": hid,
                 "session_id": session_id,
                 "statement": h.get("statement") or "",
-                "competency": h.get("competency"),
+                "competency_id": h.get("competency"),
                 "direction": h.get("direction") or "positive",
                 "confidence": _clamp(h.get("confidence", h.get("probability", 0.0))),
                 "supporting_evidence": _uuid_list(h.get("supporting_evidence")),
@@ -287,7 +314,7 @@ class V5BrainPersister:
             index_elements=[HypothesisRecord.id],
             set_={
                 "statement": stmt.excluded.statement,
-                "competency": stmt.excluded.competency,
+                "competency_id": stmt.excluded.competency_id,
                 "direction": stmt.excluded.direction,
                 "confidence": stmt.excluded.confidence,
                 "supporting_evidence": stmt.excluded.supporting_evidence,
@@ -417,7 +444,7 @@ class V5BrainPersister:
                 score=check.get("score"),
                 confidence=check.get("confidence"),
                 evidence=check.get("evidence", ""),
-                checked_at=check.get("checked_at"),
+                checked_at=_coerce_dt(check.get("checked_at")),
                 dimension=check.get("type") or "evaluation",
                 answers_compared={
                     "assessment": check.get("assessment"),
