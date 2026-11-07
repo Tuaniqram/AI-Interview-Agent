@@ -215,14 +215,18 @@ def finalize_decision(draft: dict, checks: list[dict]) -> dict:
         confidence = max(0.0, confidence - 0.05 * min(len(semantic_issues), 2))
 
     # ...with one exception, in the safe direction only: when most of the candidate's claims could not be
-    # verified, a hire-side verdict is lowered to "needs a probe round". Hiring on unverifiable claims is
-    # the costly mistake; a no-hire verdict is never touched by this rule.
-    if decision.get("decision") in HIRE_SIDE_DECISIONS and any(
-        c.get("issue") == "unverifiable_claims" and c.get("majority") for c in checks
-    ):
+    # verified, or their answers contradict each other more than once, a hire-side verdict is lowered to
+    # "needs a probe round". Hiring on unverifiable or inconsistent claims is the costly mistake; a no-hire
+    # verdict is never touched by this rule.
+    demoting = [c for c in checks if c.get("demote_hire")]
+    if decision.get("decision") in HIRE_SIDE_DECISIONS and demoting:
         decision["decision"] = "insufficient_evidence"
         decision["flag_review"] = True
-        decision["demotion_reason"] = "most claims could not be verified; probe the unverified claims before hiring"
+        decision["demotion_reason"] = (
+            "most claims could not be verified; probe them before hiring"
+            if demoting[0].get("issue") == "unverifiable_claims"
+            else "answers contradict each other; probe the inconsistencies before hiring"
+        )
         confidence = min(confidence, 0.5)
         demoted = True
 

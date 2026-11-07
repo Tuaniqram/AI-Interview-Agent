@@ -220,3 +220,13 @@ def test_completion_budget_adds_reasoning_headroom_and_is_capped():
     assert completion_budget(200) == 200 + REASONING_HEADROOM_TOKENS
     assert completion_budget(100_000) == MAX_COMPLETION_TOKENS
     assert completion_budget(0) > 0
+
+
+def test_every_model_gives_up_on_a_stuck_provider_instead_of_waiting_minutes():
+    from app.models.llm import REQUEST_TIMEOUT_S
+
+    assert 0 < REQUEST_TIMEOUT_S <= 120
+    for tier in ("strong", "cheap"):
+        for model in get_llm(tier)._models:
+            assert model.request_timeout == REQUEST_TIMEOUT_S
+            assert model.max_retries == 0  # retries belong to the fallback chain, not hidden in the client

@@ -511,6 +511,7 @@ async def test_hypothesis_node_seeds_from_initial_hypotheses(fake_evidence_repo)
         job_role="Software Engineer",
         hypotheses=[],
         initial_hypotheses=initial,
+        required_competencies=["tech_core"],  # the initial hypothesis already covers the only required competency
     )
 
     result = await hypothesis_node(state)

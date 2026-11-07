@@ -153,6 +153,11 @@ _CHEAP_LLM_CONFIGS: list[dict[str, Any]] = [
 ]
 
 
+# Per-request limit for one model call. The longest call (the final semantic read, ~3k tokens out) takes
+# well under 60 s on the fast providers, so 90 s only trips on a provider that is really stuck.
+REQUEST_TIMEOUT_S = float(os.getenv("LLM_REQUEST_TIMEOUT_S", "90"))
+
+
 def _build_llm_instance(config: dict[str, Any]) -> ChatOpenAI:
     api_key = config["api_key"] or "sk-no-key"
     kwargs: dict[str, Any] = {}
@@ -164,6 +169,11 @@ def _build_llm_instance(config: dict[str, Any]) -> ChatOpenAI:
         max_tokens=2048,
         openai_api_key=api_key,
         openai_api_base=str(config["base_url"]),
+        # A provider that hangs must not hold an interview for minutes: give up after REQUEST_TIMEOUT_S so the
+        # fallback chain moves to the next model. No hidden client retries either: FallbackLLM (next model)
+        # and LLMService (whole-chain retries) already retry, and a silent retry doubles the wait.
+        timeout=REQUEST_TIMEOUT_S,
+        max_retries=0,
         **kwargs,
     )
 

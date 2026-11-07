@@ -164,9 +164,12 @@ def evidence_reading_checks(reading: dict) -> list[dict]:
 
     risks = reading.get("semantic_risks", []) or []
     if risks:
+        # Two or more documented contradictions between answers (a metric that changes, "zero" next to a
+        # non-zero rate) mean a hire-side verdict needs a probe round first; one is common noise.
         checks.append({
             "issue": "cross_answer_risk",
             "severity": MAX_SEMANTIC_SEVERITY,
+            "demote_hire": len(risks) >= 2,
             "detail": f"{len(risks)} cross-answer risk(s): {'; '.join(risks[:2])}",
         })
 
@@ -180,6 +183,7 @@ def evidence_reading_checks(reading: dict) -> list[dict]:
             "issue": "unverifiable_claims",
             "severity": MAX_SEMANTIC_SEVERITY,
             "majority": majority,
+            "demote_hire": majority,
             "detail": f"{unverified} of {len(per)} answer(s) claimed skills without verifiable specifics.",
         })
 

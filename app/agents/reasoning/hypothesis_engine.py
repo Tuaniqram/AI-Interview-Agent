@@ -490,6 +490,35 @@ def _requirements_map(state: dict) -> dict[str, int]:
     return {k: v for k, v in req_map.items() if v > 0}
 
 
+# Sessions define at most 6 required competencies (MAX_REQUIRED_COMPETENCIES); never seed more than this.
+MAX_SEEDED_REQUIRED = 8
+
+
+def _seed_missing_required(hypotheses: list[dict], state: dict, req_map: dict) -> None:
+    """Give every REQUIRED competency at least one (untested) hypothesis.
+
+    Target selection ranks open hypotheses by information gain and an untested one is the maximum, which
+    is what guarantees the interview sweeps the whole role. But initial hypotheses come from the CV's
+    strengths and weaknesses, so a required competency the CV never mentions had no hypothesis at all: it
+    was invisible to the planner and to selection, and a strong candidate could spend most of the interview
+    on the few competencies that did have one (8 of 14 questions on one area, others never asked).
+    """
+    covered = {h.get("competency") for h in hypotheses}
+    added = []
+    for competency in (state.get("required_competencies") or [])[:MAX_SEEDED_REQUIRED]:
+        if competency and competency not in covered:
+            seed = _seed_hypothesis_for_competency(
+                competency,
+                session_id=state.get("session_id", ""),
+                competency_taxonomy=state.get("competency_taxonomy"),
+            )
+            hypotheses.append(seed)
+            added.append(seed)
+            covered.add(competency)
+    if added:
+        attach_evidence_requirements(added, req_map)
+
+
 def _capped_competencies(questions_asked: list) -> set[str]:
     """Competencies that already got their maximum share of questions (Fix 7)."""
     return {
@@ -600,6 +629,7 @@ async def hypothesis_node(state: dict) -> dict:
                 competency_taxonomy=state.get("competency_taxonomy"),
             )
         attach_evidence_requirements(hypotheses, req_map)
+        _seed_missing_required(hypotheses, state, req_map)
 
         hypo_state = {}
         for h in hypotheses:

@@ -262,3 +262,30 @@ def test_no_hire_is_never_touched_by_the_unverifiable_rule():
 
 def test_a_short_interview_cannot_trigger_the_majority_rule():
     assert _final("hire", [False, False, False])["decision"] == "hire"  # under 4 answers read
+
+
+def _final_with_risks(decision, risks):
+    from app.agents.decision.decision_review import finalize_decision
+    from app.agents.reasoning.evidence_reading import evidence_reading_checks
+
+    reading = _reading([True] * 8)  # everything verifiable: only the contradictions are in play
+    reading["semantic_risks"] = risks
+    return finalize_decision({"decision": decision, "confidence": 0.8}, evidence_reading_checks(reading))
+
+
+def test_hire_is_lowered_when_answers_contradict_each_other_more_than_once():
+    for verdict in ("strong_hire", "hire", "lean_hire"):
+        final = _final_with_risks(verdict, ["metric changes between Q3 and Q9", "zero writes vs a 0.5% anomaly rate"])
+        assert final["decision"] == "insufficient_evidence", verdict
+        assert "contradict each other" in final["demotion_reason"]
+        assert final["flag_review"] is True
+
+
+def test_a_single_contradiction_is_only_flagged():
+    final = _final_with_risks("hire", ["ownership wording shifts between answers"])
+    assert final["decision"] == "hire" and final["flag_review"] is True
+
+
+def test_contradictions_never_touch_a_no_hire_verdict():
+    for verdict in ("lean_no_hire", "no_hire", "strong_no_hire"):
+        assert _final_with_risks(verdict, ["a", "b", "c"])["decision"] == verdict
