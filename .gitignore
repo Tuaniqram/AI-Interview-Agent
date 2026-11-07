@@ -73,7 +73,13 @@ htmlcov/
 
 # Local documentation (keep files locally, do not commit)
 *.md
-docs/
+docs/*
+
+# ...except the working docs future sessions must follow (see CLAUDE.md)
+!CLAUDE.md
+!docs/PROBLEMS_AND_SOLUTIONS.md
+!docs/IMPLEMENTATION_PLAN.md
+!docs/PROMPTS.md
 
 # Prompt templates are source code, keep them tracked despite the *.md rule above
 !prompts/
