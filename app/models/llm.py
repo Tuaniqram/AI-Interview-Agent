@@ -126,7 +126,11 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 # down, the chain falls through to it. OpenRouter spells the reasoning setting differently from Groq.
 _OPENROUTER_STRONG_MODEL = os.getenv("OPENROUTER_STRONG_MODEL", "openai/gpt-oss-120b")
 _OPENROUTER_CHEAP_MODEL = os.getenv("OPENROUTER_CHEAP_MODEL", "openai/gpt-oss-20b")
-_OPENROUTER_EXTRA_BODY = {"reasoning": {"effort": "low"}}
+# ``provider.sort = throughput``: OpenRouter serves each model from several providers whose speed varies a lot
+# from minute to minute (a trivial call took 0.7-6.8 s); asking for the highest-throughput one halved the
+# median for gpt-oss-20b and cut the worst case for gpt-oss-120b from 6.8 s to 2.4 s in a small test.
+# It only changes routing: fallbacks stay allowed and these models cost a fraction of a cent per interview.
+_OPENROUTER_EXTRA_BODY = {"reasoning": {"effort": "low"}, "provider": {"sort": "throughput"}}
 
 _LLM_CONFIGS: list[dict[str, Any]] = [
     {"model": _OPENROUTER_STRONG_MODEL, "base_url": OPENROUTER_BASE_URL,

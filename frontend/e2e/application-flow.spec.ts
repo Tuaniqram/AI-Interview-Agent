@@ -388,14 +388,27 @@ test.describe('candidate application flow', () => {
     const firstScreen = await page.locator('body').innerText();
     expect(firstScreen).not.toMatch(/something went wrong|unexpected error|access denied/i);
 
-    const answer = 'I built and operated REST APIs in Python with Postgres, adding caching and pagination to keep p95 latency under 200 ms.';
-    await answerBox.fill(answer);
-    await page.getByRole('button', { name: /send|submit|answer/i }).last().click();
-    // The next question must actually arrive: the page keeps the first question and our answer in view,
-    // so wait for new text well beyond them (the previous check waited out its whole timeout and ignored it).
     const bodyLength = async () => (await page.locator('body').innerText()).length;
-    const sizeAtAnswer = firstScreen.length + answer.length;
-    await expect.poll(bodyLength, { timeout: 120_000, intervals: [1_000] }).toBeGreaterThan(sizeAtAnswer + 80);
+    const send = () => page.getByRole('button', { name: /send|submit|answer/i }).last().click();
+
+    // A nervous candidate asks for the question again: the interviewer re-explains it, it is not scored,
+    // and the same question stays open.
+    const ask = 'Could you repeat the question, please?';
+    await answerBox.fill(ask);
+    await send();
+    await expect.poll(bodyLength, { timeout: 120_000, intervals: [1_000] }).toBeGreaterThan(firstScreen.length + ask.length + 60);
+    await shot(page, '11b-clarification');
+    await expect(page.locator('body')).toContainText(ask); // our message is part of the conversation
+    await expect(page.locator('body')).not.toContainText(/Q2/); // the same question is still open
+    await expect(answerBox).toBeVisible();
+
+    // Then the real answer. The next question must actually arrive: the page keeps earlier text in view,
+    // so wait for new text well beyond it (the previous check waited out its whole timeout and ignored it).
+    const answer = 'I built and operated REST APIs in Python with Postgres, adding caching and pagination to keep p95 latency under 200 ms.';
+    const sizeBeforeAnswer = await bodyLength();
+    await answerBox.fill(answer);
+    await send();
+    await expect.poll(bodyLength, { timeout: 120_000, intervals: [1_000] }).toBeGreaterThan(sizeBeforeAnswer + answer.length + 80);
     await shot(page, '12-after-answer');
     expect(await page.locator('body').innerText()).not.toMatch(/something went wrong|unexpected error|access denied/i);
     expect(errors).toEqual([]);

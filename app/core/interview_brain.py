@@ -100,6 +100,7 @@ class InterviewBrain:
     evidence_cursor: dict = field(default_factory=dict)    # typed-graph targeting cursor
     evidence_reading: Optional[dict] = None                # semantic read of the raw answers (final step)
     conclusive_turns: int = 0                              # runs of decisive calibration turns
+    clarification_counts: dict = field(default_factory=dict)  # question number -> clarification requests answered
 
     # -- Evaluation ---------------------------------------------------------
     unified_evaluation: Optional[dict] = None

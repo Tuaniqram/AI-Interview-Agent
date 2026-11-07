@@ -455,6 +455,9 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
           dispatch({ type: 'SET_ERROR', payload: 'Please enter an answer before submitting.' });
           return;
         }
+        // The interviewer's message the candidate is answering. It must go into the history entry: the reply
+        // (result.conversationTurn) is the NEXT message, shown below, not the one above this answer.
+        const answeredTurn = stateRef.current.conversationTurn || stateRef.current.currentQuestion?.question || '';
         dispatch({ type: 'SET_EVALUATING', payload: true });
         dispatch({ type: 'SET_USER_ANSWER', payload: answer });
         try {
@@ -480,7 +483,7 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
             strengths: result.strengths || [],
             weaknesses: result.weaknesses || [],
             feedback: result.evaluation || '',
-            conversationTurn: result.conversationTurn || '',
+            conversationTurn: answeredTurn,
           };
           dispatch({ type: 'PUSH_EVALUATION', payload: entry });
 

@@ -18,5 +18,9 @@ async def store_get_or_raise(store, session_id: str) -> Any:
     return await asyncio.to_thread(store.get_or_raise, session_id)
 
 
+async def store_set(store, session_id: str, state: dict) -> None:
+    await asyncio.to_thread(store.set, session_id, state)
+
+
 async def store_checkpoint(store, session_id: str, state: dict) -> None:
     await asyncio.to_thread(store.checkpoint, session_id, state)

@@ -330,6 +330,22 @@ export class InterviewController {
         return evaluation;
       }
 
+      // ── Clarification: the interviewer re-explained the SAME question; nothing was scored ──
+      if (response?.clarification) {
+        this.isProbing = false;
+        return {
+          evaluation: 'Clarification requested. This is not scored.',
+          score: null,
+          phase: this.session.current_phase,
+          question_number: this.currentQuestion.question_number,
+          difficulty_level: this.session.difficulty_level ?? 1,
+          interview_status: 'active',
+          strengths: [],
+          weaknesses: [],
+          conversationTurn: response.conversation_turn || '',
+        };
+      }
+
       // ── In progress: evaluation + next question ──
       const scores = response?.evaluation?.scores || {};
       const scoredDims = Object.entries(scores)

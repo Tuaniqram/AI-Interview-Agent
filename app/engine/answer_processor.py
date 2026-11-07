@@ -47,6 +47,13 @@ async def process_answer(
         )
     answer = sanitized
 
+    # "Could you repeat / clarify the question?" is not an answer: help with the same question, score nothing
+    # (no anti-cheat flag, no evidence, no question used up).
+    from app.engine.clarification import clarification_turn, should_clarify
+
+    if should_clarify(brain, answer):
+        return await clarification_turn(engine, brain, session_id, answer)
+
     # Anti-cheat integrity guard (contract: docs/anti-cheat-guard.md). No-op
     # unless ANTI_CHEAT_GUARD_ENABLED=true. Never raises; stores per-answer
     # signals on the brain for the final report.

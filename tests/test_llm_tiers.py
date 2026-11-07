@@ -161,7 +161,8 @@ def test_openrouter_models_use_openrouters_reasoning_setting_not_groqs():
 
     paid = [m for m in get_llm("strong")._models if str(m.openai_api_base) == OPENROUTER_BASE_URL and m.model_name != "openrouter/free"]
     assert len(paid) == 1
-    assert paid[0].extra_body == {"reasoning": {"effort": "low"}}
+    assert paid[0].extra_body["reasoning"] == {"effort": "low"}
+    assert paid[0].extra_body["provider"] == {"sort": "throughput"}  # fastest provider, not the cheapest or default
 
 
 def _providers(chain):
