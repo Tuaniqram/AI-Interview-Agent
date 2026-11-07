@@ -21,13 +21,13 @@ class FallbackLLM:
     model id returning 404, a local gateway returning 410, a revoked key) no longer costs a
     network round trip on *every* call before the chain reaches one that works.
 
-    * permanent errors (401/403/404/410): skipped for ``PERMANENT_COOLDOWN_S``
+    * permanent errors (401/402/403/404/410): skipped for ``PERMANENT_COOLDOWN_S``
     * transient errors (429, 5xx, timeouts, connection): skipped for ``TRANSIENT_COOLDOWN_S``
     * when every model is cooling down they are all still tried (healthy ones first), so the
       chain degrades to the old behaviour instead of refusing to answer.
     """
 
-    PERMANENT_STATUS = frozenset({401, 403, 404, 410})
+    PERMANENT_STATUS = frozenset({401, 402, 403, 404, 410})
     PERMANENT_COOLDOWN_S = 15 * 60
     TRANSIENT_COOLDOWN_S = 30
 
@@ -118,10 +118,22 @@ _GROQ_EXTRA_BODY = {"reasoning_effort": "low"}
 _GROQ_STRONG_MODEL = os.getenv("GROQ_STRONG_MODEL", "openai/gpt-oss-120b")
 _GROQ_CHEAP_MODEL = os.getenv("GROQ_CHEAP_MODEL", "openai/gpt-oss-20b")
 
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
+# Paid OpenRouter models come FIRST: same gpt-oss family as the Groq ones, so prompts behave the same, but
+# with no free-tier daily cap (200k tokens/day per Groq model) and at a fraction of a cent per interview.
+# Groq is the backup: when the OpenRouter balance runs out (HTTP 402, skipped for 15 min) or OpenRouter is
+# down, the chain falls through to it. OpenRouter spells the reasoning setting differently from Groq.
+_OPENROUTER_STRONG_MODEL = os.getenv("OPENROUTER_STRONG_MODEL", "openai/gpt-oss-120b")
+_OPENROUTER_CHEAP_MODEL = os.getenv("OPENROUTER_CHEAP_MODEL", "openai/gpt-oss-20b")
+_OPENROUTER_EXTRA_BODY = {"reasoning": {"effort": "low"}}
+
 _LLM_CONFIGS: list[dict[str, Any]] = [
+    {"model": _OPENROUTER_STRONG_MODEL, "base_url": OPENROUTER_BASE_URL,
+     "api_key": os.getenv("OPENROUTER_API_KEY"), "extra_body": _OPENROUTER_EXTRA_BODY},
     {"model": _GROQ_STRONG_MODEL, "base_url": GROQ_BASE_URL, "api_key": os.getenv("GROQ_API_KEY"),
      "extra_body": _GROQ_EXTRA_BODY},
-    {"model": "openrouter/free", "base_url": "https://openrouter.ai/api/v1", "api_key": os.getenv("OPENROUTER_API_KEY")},
+    {"model": "openrouter/free", "base_url": OPENROUTER_BASE_URL, "api_key": os.getenv("OPENROUTER_API_KEY")},
     # Local gateway last: it is a developer convenience and is skipped by the circuit breaker when down.
     {"model": "one", "base_url": "http://localhost:20128/v1", "api_key": None},
 ]
@@ -129,6 +141,8 @@ _LLM_CONFIGS: list[dict[str, Any]] = [
 # Cheap tier — small/fast models for extraction, formatting and classification.
 # Falls back to the strong chain so it never fails outright when no cheap provider is configured.
 _CHEAP_LLM_CONFIGS: list[dict[str, Any]] = [
+    {"model": _OPENROUTER_CHEAP_MODEL, "base_url": OPENROUTER_BASE_URL,
+     "api_key": os.getenv("OPENROUTER_API_KEY"), "extra_body": _OPENROUTER_EXTRA_BODY},
     {"model": _GROQ_CHEAP_MODEL, "base_url": GROQ_BASE_URL, "api_key": os.getenv("GROQ_API_KEY"),
      "extra_body": _GROQ_EXTRA_BODY},
     *_LLM_CONFIGS,

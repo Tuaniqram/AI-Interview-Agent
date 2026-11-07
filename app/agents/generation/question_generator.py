@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 from uuid import uuid4
 from datetime import datetime, timezone
@@ -14,6 +15,24 @@ from app.agents.generation.question_similarity_guard import QuestionSimilarityGu
 logger = logging.getLogger(__name__)
 
 MAX_FOLLOWUPS_PER_COMPETENCY = 3
+
+# Question writing is the part the candidate reads, so it runs on the stronger model by default.
+# Set QUESTION_LLM_TIER=cheap to go back to the small model (for example to save tokens). The two
+# tiers are separate models with separate provider rate limits, so this also takes load off the
+# cheap model that scores every answer.
+QUESTION_TIER_ENV = "QUESTION_LLM_TIER"
+
+# How much of the conversation the question writer sees (turns are single messages, so 10 is five
+# question/answer pairs). The old window of the last 6 turns clipped at 500 characters lost the
+# candidate's earlier answers, which are exactly what a good follow-up refers back to.
+HISTORY_TURNS = 10
+HISTORY_CHARS = 600
+
+
+def _question_tier() -> str:
+    tier = os.getenv(QUESTION_TIER_ENV, "strong").strip().lower()
+    return tier if tier in ("strong", "cheap") else "strong"
+
 # One retry only: the cheap LLM tier repeats the rejected topic even when
 # told about it, so a second retry costs another 5-20s (429 backoff) for the
 # same outcome. The deterministic fallback guarantees a fresh question.
@@ -630,11 +649,11 @@ def _question_prompt_vars(
 ) -> dict:
     """Single source of truth for the question_generation prompt's variables."""
     history_lines = []
-    for h in (conversation_history or [])[-6:]:
+    for h in (conversation_history or [])[-HISTORY_TURNS:]:
         role = h.get("role", "")
         content = h.get("content", "")
         if content:
-            history_lines.append(f"{role}: {content[:500]}")
+            history_lines.append(f"{role}: {content[:HISTORY_CHARS]}")
     history_summary = "\n".join(history_lines) if history_lines else "(no previous conversation)"
     profile_json = json.dumps(candidate_profile) if candidate_profile else "{}"
     return {
@@ -728,7 +747,7 @@ async def _generate_conductor_turn(
             ),
         )
 
-        response = await llm_service.invoke(prompt=prompt, temperature=0.7, max_tokens=400, tier="cheap")
+        response = await llm_service.invoke(prompt=prompt, temperature=0.7, max_tokens=400, tier=_question_tier())
         return _parse_conductor_turn(response)
     except Exception as e:
         logger.warning(f"Conductor turn generation failed ({e}), using deterministic fallback")
@@ -860,7 +879,7 @@ async def _generate_llm_question(
         ),
     )
 
-    response = await llm_service.invoke(prompt=prompt, temperature=0.8, max_tokens=200, tier="cheap")
+    response = await llm_service.invoke(prompt=prompt, temperature=0.8, max_tokens=200, tier=_question_tier())
     from app.intelligence._helpers import unwrap_turn_json
 
     question = (response or "").strip()

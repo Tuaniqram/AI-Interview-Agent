@@ -44,7 +44,7 @@ async def test_permanently_dead_model_is_tried_once_then_skipped():
     assert ok.calls == 3
 
 
-@pytest.mark.parametrize("status", [401, 403, 404, 410])
+@pytest.mark.parametrize("status", [401, 402, 403, 404, 410])
 async def test_all_permanent_statuses_get_the_long_cooldown(status):
     clock = Clock()
     dead, ok = FakeModel("dead", HttpError(status)), FakeModel("good")

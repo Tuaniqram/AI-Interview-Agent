@@ -127,7 +127,7 @@ def build_state(session_id, role_id, role_name, taxonomy, required, domain_label
     }
 
 
-USAGE = {"calls": 0, "chars": 0, "sim": False}
+USAGE = {"calls": 0, "chars": 0, "cheap_chars": 0, "strong_chars": 0, "sim": False}
 
 
 def _install_usage_counter():
@@ -140,6 +140,7 @@ def _install_usage_counter():
         if not USAGE["sim"]:
             USAGE["calls"] += 1
             USAGE["chars"] += len(prompt or "")
+            USAGE["cheap_chars" if kw.get("tier") == "cheap" else "strong_chars"] += len(prompt or "")
         return await original(self, prompt, *a, **kw)
 
     LLMService.invoke = counted
@@ -194,6 +195,7 @@ async def run_one(name: str, persona: dict, role: tuple, questions: int, out_dir
             answer = await candidate_reply(persona, role_name, transcript)
             transcript.append(("Candidate", answer))
             calls0, chars0 = USAGE["calls"], USAGE["chars"]
+            cheap0, strong0 = USAGE["cheap_chars"], USAGE["strong_chars"]
             t0 = time.perf_counter()
             resp = await engine.process_answer(session_id, answer)
             took = time.perf_counter() - t0
@@ -202,6 +204,8 @@ async def run_one(name: str, persona: dict, role: tuple, questions: int, out_dir
             turns.append({
                 "question": question, "answer": answer, "seconds": round(took, 1),
                 "llm_calls": USAGE["calls"] - calls0, "approx_tokens": (USAGE["chars"] - chars0) // 4,
+                "cheap_tokens": (USAGE["cheap_chars"] - cheap0) // 4,
+                "strong_tokens": (USAGE["strong_chars"] - strong0) // 4,
                 "score": ev.get("composite"), "scored": ev.get("scored"),
                 "next_competency": (resp.get("next_question") or {}).get("target_competency"),
                 "strategy": brain.get("question_strategy") or {},
@@ -234,7 +238,8 @@ def render_markdown(r: dict) -> str:
             f"## Turn {i}", f"**Interviewer:** {t['question']}", "",
             f"**Candidate:** {t['answer']}", "",
             f"_score={t['score']} scored={t['scored']} next={t['next_competency']} mode={mode} ({t['seconds']}s, "
-            f"{t.get('llm_calls')} LLM calls, ~{t.get('approx_tokens')} prompt tokens)_", "",
+            f"{t.get('llm_calls')} LLM calls, ~{t.get('approx_tokens')} prompt tokens: "
+            f"{t.get('cheap_tokens')} cheap + {t.get('strong_tokens')} strong)_", "",
         ]
     rep = r.get("report") or {}
     if rep:
