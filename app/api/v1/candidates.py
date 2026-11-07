@@ -443,11 +443,13 @@ async def download_resume(
     if not candidate or not candidate.resume_url:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
 
-    import os
-    from fastapi.responses import FileResponse
-    filepath = candidate.resume_url
-    if not os.path.exists(filepath):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume file not found")
+    from fastapi.responses import Response
 
-    filename = f"{candidate.name.replace(' ', '_')}_resume.pdf"
-    return FileResponse(filepath, media_type="application/pdf", filename=filename)
+    from app.services import cv_storage
+
+    content = await cv_storage.read(candidate.resume_url)
+    if content is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume file not found")
+    safe_name = candidate.name.replace(" ", "_").replace('"', "")
+    filename = f"{safe_name}_resume.pdf"
+    return Response(content, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{filename}"'})

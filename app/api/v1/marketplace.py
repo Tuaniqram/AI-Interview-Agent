@@ -2,7 +2,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.middleware import authenticate
@@ -231,8 +231,9 @@ async def download_application_resume(
     db: AsyncSession = Depends(get_db),
 ):
     """Download the CV of an application to the organization that received it."""
-    path, filename = await get_application_resume(str(application_id), org_id, db)
-    return FileResponse(path, media_type="application/pdf", filename=filename)
+    content, filename = await get_application_resume(str(application_id), org_id, db)
+    safe = filename.replace('"', "").replace("\r", "").replace("\n", "") or "cv.pdf"
+    return Response(content, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{safe}"'})
 
 
 @router.post("/applications/{application_id}/invite", response_model=ApplicationResponse)

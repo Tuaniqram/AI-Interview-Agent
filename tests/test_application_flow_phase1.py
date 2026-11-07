@@ -125,7 +125,10 @@ def _guest_profile(**overrides):
 
 @pytest.fixture(autouse=True)
 def _resume_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(resume_service, "RESUMES_DIR", tmp_path)
+    from app.services import cv_storage
+
+    monkeypatch.setenv("CV_STORAGE", "local")
+    monkeypatch.setattr(cv_storage, "LOCAL_DIR", tmp_path)
 
 
 # ── resume helper ────────────────────────────────────────────────────────

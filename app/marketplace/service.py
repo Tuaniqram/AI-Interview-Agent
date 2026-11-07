@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
@@ -29,7 +28,7 @@ from app.marketplace.schemas import (
     UpdatePublicInterviewRequest,
 )
 from app.auth.interview_access import create_interview_access_token
-from app.candidates.resume_service import RESUMES_DIR, latest_resume_document, store_candidate_resume
+from app.candidates.resume_service import latest_resume_document, store_candidate_resume
 from app.models.db import (
     CandidateDocument,
     CandidateProfile,
@@ -761,8 +760,8 @@ async def queue_application_evaluation(
 
 async def get_application_resume(
     application_id: str, org_id: str, db: AsyncSession
-) -> tuple[str, str]:
-    """(file path, download name) of an application's CV; org ownership of the
+) -> tuple[bytes, str]:
+    """(PDF bytes, download name) of an application's CV; org ownership of the
     application is enforced by ``_get_org_application``."""
     submission, _pi = await _get_org_application(application_id, org_id, db)
     document = (
@@ -777,11 +776,13 @@ async def get_application_resume(
     if not path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
 
-    resolved = Path(path).resolve()
-    if not resolved.is_relative_to(RESUMES_DIR.resolve()) or not resolved.is_file():
+    from app.services import cv_storage
+
+    content = await cv_storage.read(path)  # local refs are confined to the CV directory
+    if content is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume file not found")
     name = (document.filename if document else None) or f"{submission.candidate_name}_resume.pdf"
-    return str(resolved), name
+    return content, name
 
 
 async def set_application_fit(

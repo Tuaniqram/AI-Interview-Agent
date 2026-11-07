@@ -408,3 +408,38 @@ async def run_application_fit_evaluation(application_id: str) -> None:
             await evaluate_application_fit(application_id, db)
     except Exception:  # noqa: BLE001 - a background task must never raise
         logger.exception("Background fit evaluation crashed for %s", application_id)
+
+
+async def resume_unfinished_evaluations(limit: int = 50) -> int:
+    """Re-run evaluations a previous process left unfinished.
+
+    Evaluations run as in-process background tasks, so a restart or redeploy in the middle of one
+    leaves the application ``pending`` / ``running`` forever (until someone presses Re-run). Called
+    once at startup; runs them one at a time so a backlog does not flood the LLM provider.
+    """
+    from app.database.session import get_session_factory
+
+    factory = get_session_factory()
+    if factory is None:
+        return 0
+    try:
+        async with factory() as db:
+            ids = (
+                await db.execute(
+                    select(PublicInterviewSubmission.id)
+                    .where(
+                        PublicInterviewSubmission.fit_status.in_(("pending", "running")),
+                        PublicInterviewSubmission.resume_document_id.is_not(None),
+                    )
+                    .order_by(PublicInterviewSubmission.created_at)
+                    .limit(limit)
+                )
+            ).scalars().all()
+    except Exception:  # noqa: BLE001 - startup recovery is best-effort
+        logger.exception("Could not look up unfinished fit evaluations")
+        return 0
+    if ids:
+        logger.info("Resuming %d unfinished fit evaluation(s)", len(ids))
+    for application_id in ids:
+        await run_application_fit_evaluation(str(application_id))
+    return len(ids)

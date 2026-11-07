@@ -49,6 +49,11 @@ async def lifespan(app: FastAPI):
 
             await asyncio.wait_for(_warm_db(), timeout=30.0)
             logger.info("Database connection pool warmed up")
+
+            # Evaluations interrupted by the previous shutdown would otherwise stay "pending" forever.
+            from app.marketplace.fit_evaluation import resume_unfinished_evaluations
+
+            app.state.resume_evaluations_task = asyncio.create_task(resume_unfinished_evaluations())
         except Exception as exc:  # noqa: BLE001 - never block startup on this
             logger.warning(f"Database warm-up skipped: {exc}")
     else:

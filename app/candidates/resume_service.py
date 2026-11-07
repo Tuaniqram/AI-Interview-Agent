@@ -44,6 +44,17 @@ async def save_resume_file(candidate_id: uuid.UUID, file) -> str:
     return str(filepath)
 
 
+async def extract_text_from_bytes(content: bytes) -> str:
+    def _read():
+        import io
+
+        reader = PdfReader(io.BytesIO(content))
+        return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+    text = await asyncio.get_running_loop().run_in_executor(None, _read)
+    return text.strip()
+
+
 async def extract_text(filepath: str) -> str:
     def _read():
         reader = PdfReader(filepath)
@@ -86,9 +97,10 @@ async def store_candidate_resume(candidate, file, db: AsyncSession) -> Candidate
     """Validate, save and register a candidate's PDF CV; returns the new document.
 
     Shared by the authenticated profile upload and the apply flow (guest or
-    logged-in). Validates the PDF, writes it under ``resumes/``, extracts the
-    text, creates a ``candidate_documents`` row, and points
-    ``candidate.resume_url`` at the new file. The caller owns the commit.
+    logged-in). Validates the PDF, extracts its text, stores the file through
+    ``app.services.cv_storage`` (local disk or Supabase Storage), creates a
+    ``candidate_documents`` row, and points ``candidate.resume_url`` at the stored
+    file. The caller owns the commit.
     """
     filename = (getattr(file, "filename", None) or "resume.pdf")
     ext = os.path.splitext(filename)[1].lower()
@@ -103,23 +115,22 @@ async def store_candidate_resume(candidate, file, db: AsyncSession) -> Candidate
     if not content.startswith(b"%PDF-"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "CV is not a valid PDF file")
 
-    await _ensure_dir()
     document_id = uuid.uuid4()
-    filepath = RESUMES_DIR / f"{candidate.id}-{document_id.hex[:8]}.pdf"
 
-    def _write():
-        with open(filepath, "wb") as buffer:
-            buffer.write(content)
-
-    loop = asyncio.get_running_loop()
-    await loop.run_in_executor(None, _write)
-
+    # Read the text before storing anything: a PDF we cannot parse is rejected and never stored.
     try:
-        text = await extract_text(str(filepath))
+        text = await extract_text_from_bytes(content)
     except Exception as exc:
         logger.warning("Could not read uploaded PDF %s: %s", filename, exc)
-        await loop.run_in_executor(None, lambda: filepath.unlink(missing_ok=True))
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Could not read the PDF; upload a text-based PDF")
+
+    from app.services import cv_storage
+
+    try:
+        ref = await cv_storage.save(f"{candidate.id}/{document_id.hex}.pdf", content)
+    except cv_storage.CVStorageError as exc:
+        logger.error("CV storage failed: %s", exc)
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Could not store the CV right now. Please try again.")
 
     document = CandidateDocument(
         id=document_id,
@@ -127,10 +138,10 @@ async def store_candidate_resume(candidate, file, db: AsyncSession) -> Candidate
         filename=filename,
         document_type="resume",
         extracted_text=(text or "")[:MAX_EXTRACTED_CHARS],
-        document_metadata={"ext": "pdf", "path": str(filepath), "size": len(content)},
+        document_metadata={"ext": "pdf", "path": ref, "size": len(content)},
     )
     db.add(document)
-    candidate.resume_url = str(filepath)
+    candidate.resume_url = ref
     await db.flush()
     return document
 

@@ -344,7 +344,10 @@ class DocDB:
 
 @pytest.fixture
 def resume_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(marketplace_service, "RESUMES_DIR", tmp_path)
+    from app.services import cv_storage
+
+    monkeypatch.setenv("CV_STORAGE", "local")
+    monkeypatch.setattr(cv_storage, "LOCAL_DIR", tmp_path)
     return tmp_path
 
 
@@ -362,9 +365,9 @@ async def test_resume_download_returns_stored_file(monkeypatch, resume_dir):
     doc = SimpleNamespace(filename="alex.pdf", document_metadata={"path": str(f)})
     sub = _submission(candidate_name="Alex", candidate_profile_id=uuid.uuid4())
 
-    path, name = await _resume_for(monkeypatch, DocDB(doc), sub)
+    content, name = await _resume_for(monkeypatch, DocDB(doc), sub)
 
-    assert path == str(f.resolve())
+    assert content == b"%PDF-1.4"
     assert name == "alex.pdf"
 
 
@@ -501,3 +504,52 @@ async def test_company_cache_is_keyed_and_invalidated_by_org():
     await cc.get_or_build_company_brain(org_id="B", job_role="x", builder=builder)  # untouched
     assert built == ["A", "A", "B", "A"]
     cc.invalidate_company_brain()
+
+
+# ── recovery of evaluations interrupted by a restart ─────────────────────
+
+
+async def test_unfinished_evaluations_are_resumed_at_startup(monkeypatch):
+    ids = [uuid.uuid4(), uuid.uuid4()]
+    seen_sql = []
+
+    class Session:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def execute(self, stmt):
+            seen_sql.append(str(stmt))
+            return SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: ids))
+
+    ran = []
+
+    async def fake_run(application_id):
+        ran.append(application_id)
+
+    monkeypatch.setattr("app.database.session.get_session_factory", lambda: (lambda: Session()))
+    monkeypatch.setattr(fe, "run_application_fit_evaluation", fake_run)
+
+    assert await fe.resume_unfinished_evaluations() == 2
+    assert ran == [str(i) for i in ids]
+    sql = seen_sql[0].lower()
+    assert "fit_status in" in sql and "resume_document_id is not null" in sql
+
+
+async def test_resume_is_a_noop_without_a_database(monkeypatch):
+    monkeypatch.setattr("app.database.session.get_session_factory", lambda: None)
+    assert await fe.resume_unfinished_evaluations() == 0
+
+
+async def test_resume_never_breaks_startup_when_the_lookup_fails(monkeypatch):
+    class Broken:
+        async def __aenter__(self):
+            raise RuntimeError("db down")
+
+        async def __aexit__(self, *exc):
+            return False
+
+    monkeypatch.setattr("app.database.session.get_session_factory", lambda: (lambda: Broken()))
+    assert await fe.resume_unfinished_evaluations() == 0
