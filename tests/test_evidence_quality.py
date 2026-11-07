@@ -222,15 +222,54 @@ def test_candidate_evidence_keeps_reading_order_for_two_claims():
     assert records[1]["evidence_text"].startswith("I scaled it")
 
 
-def test_candidate_evidence_empty_text_yields_no_claims():
+def test_candidate_evidence_empty_text_still_counts_the_answer():
+    """Plan step 2 (P1 link 4): no quote must not mean no evidence — the score
+    still counts, carried by one record built from the answer text."""
     records = build_candidate_evidence(
-        evaluation={"technical": {"score": 8.0, "confidence": 0.9, "evidence": "", "strengths": [], "weaknesses": []}},
+        evaluation={"technical": {"score": 2.0, "confidence": 0.9, "evidence": "", "strengths": [], "weaknesses": []}},
         question="Q",
         question_number=3,
         session_id="s1",
         question_objective={"target_competency": "tech_core"},
+        answer_text="  I am not   sure, maybe a cache?  ",
     )
-    assert records == []
+    assert len(records) == 1
+    assert records[0]["quote_missing"] is True
+    assert records[0]["score"] == 2.0
+    assert records[0]["evidence_text"] == "I am not sure, maybe a cache?"
+
+
+def test_candidate_evidence_without_quote_or_answer_falls_back_to_question():
+    records = build_candidate_evidence(
+        evaluation={"technical": {"score": 3.0, "confidence": 0.9, "evidence": "", "strengths": [], "weaknesses": []}},
+        question="Explain caching.",
+        question_number=3,
+        session_id="s1",
+        question_objective={"target_competency": "tech_core"},
+    )
+    assert len(records) == 1 and records[0]["quote_missing"] is True
+    assert records[0]["evidence_text"] == "Explain caching."
+
+
+def test_candidate_evidence_score_is_competency_score_not_top_dimension():
+    """Plan step 2 (P1 link 1): a fluent answer (communication 9) with weak
+    technical content (5) scores ~5.5 on a technical competency, not 9."""
+    records = build_candidate_evidence(
+        evaluation={
+            "technical": {"score": 5.0, "confidence": 0.9, "evidence": "I would use a cache.", "strengths": [], "weaknesses": []},
+            "communication": {"score": 9.0, "confidence": 0.9, "evidence": "Very clear delivery.", "strengths": [], "weaknesses": []},
+            "reasoning": {"score": 6.0, "confidence": 0.8, "evidence": "Some trade-offs.", "strengths": [], "weaknesses": []},
+            "completeness": {"score": 5.5, "confidence": 0.8, "evidence": "Partial.", "strengths": [], "weaknesses": []},
+        },
+        question="Q",
+        question_number=5,
+        session_id="s1",
+        question_objective={"target_competency": "tech_core"},
+    )
+    assert records
+    assert 5.2 <= records[0]["score"] <= 5.8
+    assert records[0]["dimension"] == "technical"
+    assert records[0]["quote_missing"] is False
 
 
 def test_candidate_evidence_ties_break_to_technical_priority():
@@ -290,7 +329,9 @@ async def test_extractor_node_zero_claims_still_records_metrics(fake_evidence_re
         },
     ))
     assert state["dimension_metrics"][-1]["claims_extracted"] == 0
-    assert state["extracted_evidence"] == []
+    # The score still counts (plan step 2): one quote_missing record.
+    assert len(state["extracted_evidence"]) == 1
+    assert state["extracted_evidence"][0]["quote_missing"] is True
 
 
 def test_candidate_evidence_maps_dimension_to_taxonomy_competency():

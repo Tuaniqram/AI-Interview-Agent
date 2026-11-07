@@ -53,12 +53,71 @@ CALIBRATION_BANDS = (
 __all__ = [
     "DEFAULT_DIMENSION_WEIGHTS",
     "CALIBRATION_BANDS",
+    "COMPETENCY_SCORE_WEIGHTS",
+    "competency_score",
+    "competency_score_weights",
+    "primary_competency_dimension",
     "score_band",
     "reconcile_composite",
     "rubric_breakdown",
     "build_score_reasons",
     "explainable_scoring_node",
 ]
+
+
+# Plan step 2 (P1): the score an answer contributes to its COMPETENCY. Only the dimensions that show
+# competence count; ``communication`` and ``confidence`` are delivery and never enter it (a fluent
+# bluffer's 9/10 delivery used to become technical evidence because evidence took the top dimension).
+COMPETENCY_SCORE_WEIGHTS: dict[str, dict[str, float]] = {
+    "technical": {"technical": 0.5, "reasoning": 0.3, "completeness": 0.2},
+    "behavioral": {"behavioral": 0.5, "reasoning": 0.3, "completeness": 0.2},
+    "cognitive": {"reasoning": 0.6, "technical": 0.2, "completeness": 0.2},
+    "experience": {"domain": 0.25, "technical": 0.25, "reasoning": 0.3, "completeness": 0.2},
+    "_domain": {"domain": 0.5, "reasoning": 0.3, "completeness": 0.2},  # every domain-first family
+}
+
+
+def competency_score_weights(category: str | None) -> dict[str, float]:
+    """Dimension weights of the competency score for a family (see ``COMPETENCY_SCORE_WEIGHTS``)."""
+    key = normalize_category(category)
+    return dict(COMPETENCY_SCORE_WEIGHTS.get(key) or COMPETENCY_SCORE_WEIGHTS["_domain"])
+
+
+def competency_score(evaluation: dict, category: str | None = None) -> float | None:
+    """The answer's competency score: weighted mean of the competence dimensions that were scored.
+
+    Weights are renormalized over the dimensions actually scored. When none of them was scored the
+    answer still counts, at the mean of whatever was scored (never the maximum). ``None`` only when
+    nothing at all was scored.
+    """
+    evaluation = evaluation or {}
+
+    def _score(dim: str):
+        data = evaluation.get(dim)
+        if not isinstance(data, dict) or data.get("score") is None:
+            return None
+        try:
+            return float(data["score"])
+        except (TypeError, ValueError):
+            return None
+
+    weights = competency_score_weights(category)
+    present = {dim: w for dim, w in weights.items() if _score(dim) is not None}
+    if present:
+        total = sum(present.values())
+        return round(sum(_score(dim) * w for dim, w in present.items()) / total, 2)
+    others = [s for s in (_score(dim) for dim in RUBRIC_DIMENSIONS) if s is not None]
+    return round(sum(others) / len(others), 2) if others else None
+
+
+def primary_competency_dimension(evaluation: dict, category: str | None = None) -> str | None:
+    """The highest-weighted competence dimension that was scored (the record's ``dimension``)."""
+    evaluation = evaluation or {}
+    for dim, _ in sorted(competency_score_weights(category).items(), key=lambda kv: -kv[1]):
+        data = evaluation.get(dim)
+        if isinstance(data, dict) and data.get("score") is not None:
+            return dim
+    return None
 
 
 def score_band(composite: float) -> str:

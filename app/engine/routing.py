@@ -230,13 +230,15 @@ def _track_target(brain: InterviewBrain, target_id: str) -> None:
 
 
 async def govern_difficulty(state: dict, question_number: int) -> dict:
-    """Conditional-LLM difficulty governor placed after hypothesis selection.
+    """Difficulty governor placed after hypothesis selection.
 
-    Uses the governor's own conditional-skip heuristic: the LLM path runs for
-    the first four turns, then only when the last read is not decisive. The
-    deterministic fallback inside the agent is cheap and avoids one LLM call
-    per established turn.
+    Plan step 2: the deterministic hold-band rule decides by default (no LLM call, and the LLM
+    could not move difficulty against the rule anyway). ``DIFFICULTY_GOVERNOR_LLM=1`` restores the
+    conditional LLM path — first four turns, then only when the last read is not decisive — which
+    then only words the rationale/scaffold.
     """
+    import os
+
     from app.agents.planning.difficulty_engine import (
         difficulty_governor,
         should_skip_llm_governor,
@@ -244,6 +246,12 @@ async def govern_difficulty(state: dict, question_number: int) -> dict:
 
     state = dict(state)
     state["_prev_difficulty"] = state.get("difficulty_level")
+    if os.getenv("DIFFICULTY_GOVERNOR_LLM", "").strip() != "1":
+        try:
+            return await difficulty_governor(state, use_llm=False)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Difficulty governor failed (non-fatal): {e}")
+            return state
     skip = should_skip_llm_governor(state)
     if question_number < 4:
         return await difficulty_governor(state, use_llm=True)

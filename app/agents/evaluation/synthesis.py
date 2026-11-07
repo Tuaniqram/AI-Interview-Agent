@@ -112,7 +112,9 @@ def _evidence_strengths(summary: dict) -> list[str]:
     for comp, s in sorted(summary.items()):
         count = int(s.get("evidence_count", 0) or 0)
         avg = float(s.get("average_score", 0.0) or 0.0)
-        if count > 0 and avg >= 7.0:
+        # 6.5 = the hire bar on the competency-score scale (plan step 2; evidence no longer carries the
+        # inflated top-dimension score, so the old 7.0 cut was ~1.5 points stricter than intended).
+        if count > 0 and avg >= 6.5:
             items.append(f"{comp}: strong evidence ({count} item(s), avg {avg:.1f}/10)")
     return items[: _MAX_HIGHLIGHTS]
 

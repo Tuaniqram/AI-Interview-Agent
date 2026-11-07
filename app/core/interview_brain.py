@@ -48,6 +48,9 @@ class InterviewBrain:
     difficulty_delta: int = 0
     difficulty_rationale: str = ""
     difficulty_scaffold: str = ""
+    low_windows: int = 0  # consecutive low difficulty windows (hold-band rule, plan step 2)
+    # Peak level reached (governor-tracked). Must be declared or sync_from_dict drops it and reports show the closing level.
+    max_difficulty_reached: Optional[int] = None
 
     # -- Company Intelligence ----------------------------------------------
     company_brain: Optional[dict] = None

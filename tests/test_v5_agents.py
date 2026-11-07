@@ -142,6 +142,7 @@ async def test_governor_deterministic_path_writes_profile(monkeypatch):
             {"id": "e1", "question_number": 1, "score": 3.0, "competency": "tech_core"},
         ],
         hypothesis_target={"confidence": 0.2, "status": "testing"},
+        low_windows=1,  # second low window in a row → -1 (hold-band rule)
     )
     state["difficulty_level"] = 3
     result = await difficulty_governor(state, use_llm=True)

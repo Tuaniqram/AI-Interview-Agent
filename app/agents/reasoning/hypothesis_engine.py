@@ -404,13 +404,19 @@ def bayesian_update(
     return h
 
 
+# Plan step 2: evidence at the hire bar (6.5/10) is neutral; 10 is full support, 3 full contradiction.
+# Centring on 5.0 meant any adequate answer pushed "candidate demonstrates X" towards confirmed.
+HYPOTHESIS_NEUTRAL_SCORE = 6.5
+_SUPPORT_SPAN = 7.0  # score points from full contradiction (3.0) to full support (10.0)
+
+
 def _evidence_support(normalized_score: float, direction: str) -> float:
     """Map a normalized 0..1 evidence score onto the 0..1 evidence likelihood
-    that the hypothesis is true, per its direction."""
-    if direction == "positive":
-        raw = normalized_score
-    else:
-        raw = 1 - normalized_score
+    that the hypothesis is true, per its direction (neutral at the hire bar)."""
+    score10 = float(normalized_score) * 10.0
+    raw = 0.5 + (score10 - HYPOTHESIS_NEUTRAL_SCORE) / _SUPPORT_SPAN
+    if direction != "positive":
+        raw = 1 - raw
     return _LR_MIN + (_LR_MAX - _LR_MIN) * max(0.0, min(1.0, raw))
 
 

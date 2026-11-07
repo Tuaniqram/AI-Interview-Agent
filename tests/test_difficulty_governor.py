@@ -53,17 +53,58 @@ def test_sustained_strong_performance_increases_difficulty():
     assert rationale
 
 
-def test_sustained_weak_performance_decreases_difficulty():
+def test_first_weak_window_holds_with_scaffold():
+    """Plan step 2 hold band: one weak window never drops difficulty — it holds
+    and asks for a concrete example."""
     state = _state_with_evidence([5.0, 6.0, 4.5])
-    delta, rationale, scaffold = _govern_deterministic(state)
+    delta, _, scaffold = _govern_deterministic(state)
+    assert delta == 0
+    assert "concrete example" in scaffold
+
+
+def test_second_consecutive_weak_window_decreases_difficulty():
+    state = _state_with_evidence([5.0, 5.0, 5.0], low_windows=1)
+    delta, _, scaffold = _govern_deterministic(state)
     assert delta == -1
     assert "concrete example" in scaffold
 
 
-def test_mixed_performance_keeps_steady():
-    state = _state_with_evidence([7.2, 7.5, 7.1])
+def test_hold_band_counts_low_windows():
+    from app.agents.planning.difficulty_engine import hold_band_delta
+
+    assert hold_band_delta(_state_with_evidence([5.0, 5.0])) == (0, 1)
+    assert hold_band_delta(_state_with_evidence([5.0, 5.0], low_windows=1)) == (-1, 2)
+    # a middle window resets the streak
+    assert hold_band_delta(_state_with_evidence([6.0, 6.0], low_windows=1)) == (0, 0)
+
+
+def test_middle_band_holds_steady():
+    state = _state_with_evidence([6.0, 6.0, 6.0])
     delta, _, _ = _govern_deterministic(state)
     assert delta == 0
+
+
+def test_window_at_raise_threshold_increases_difficulty():
+    state = _state_with_evidence([7.2, 7.5, 7.1])
+    delta, _, _ = _govern_deterministic(state)
+    assert delta == 1
+
+
+def test_raise_blocked_by_open_claim_conflict():
+    state = _state_with_evidence(
+        [8.0, 8.0, 8.0],
+        contradictions=[{"type": "claim_conflict", "severity": "high", "status": "open"}],
+    )
+    delta, _, _ = _govern_deterministic(state)
+    assert delta == 0
+
+
+def test_raise_blocked_by_two_serious_contradictions():
+    serious = {"type": "inconsistency", "severity": "high"}
+    one = _state_with_evidence([8.0, 8.0], contradictions=[serious])
+    two = _state_with_evidence([8.0, 8.0], contradictions=[serious, dict(serious)])
+    assert _govern_deterministic(one)[0] == 1
+    assert _govern_deterministic(two)[0] == 0
 
 
 def test_single_weak_answer_is_buffered_by_window():
@@ -71,14 +112,14 @@ def test_single_weak_answer_is_buffered_by_window():
     window average is still strong (8.50, 8.59, 6.38 -> 7.82)."""
     state = _state_with_evidence([8.50, 8.59, 6.38])
     delta, rationale, _ = _govern_deterministic(state)
-    assert delta == 0
+    assert delta == 1
     assert "7.82" in rationale
 
 
-def test_recovery_after_dip_holds_steady():
+def test_recovery_after_dip_does_not_drop():
     state = _state_with_evidence([8.50, 8.59, 6.38, 7.25, 7.72])
     delta, _, _ = _govern_deterministic(state)
-    assert delta == 0
+    assert delta >= 0
 
 
 def test_no_evidence_keeps_steady():
@@ -121,11 +162,12 @@ async def test_governor_llm_failure_falls_back_to_deterministic(monkeypatch):
             raise Exception("LLM down")
 
     monkeypatch.setattr("app.services.llm_service.get_llm_service", lambda: FailLLM())
-    state = _state_with_evidence([3.0])
+    state = _state_with_evidence([3.0], low_windows=1)
     state["difficulty_level"] = 3
     result = await difficulty_governor(state)
     assert result["difficulty_delta"] == -1
     assert result["difficulty_level"] == 2
+    assert result["low_windows"] == 2
 
 
 async def test_governor_llm_minus_one_clamped_up_on_strong_window(stub_llm):
@@ -139,21 +181,27 @@ async def test_governor_llm_minus_one_clamped_up_on_strong_window(stub_llm):
     assert result["difficulty_level"] == 3
 
 
-async def test_governor_llm_minus_one_clamped_to_zero_on_hold_band(stub_llm):
-    """Fix 11: at/above the hold band (7.0), the LLM can never lower difficulty."""
+async def test_governor_llm_cannot_lower_in_middle_band(stub_llm):
+    """The rule binds: in the hold band (5.5–7.0) the LLM can never lower difficulty."""
     stub_llm(response='{"delta": -1, "rationale": "complexity medium", "scaffold": ""}')
-    state = _state_with_evidence([7.5, 8.0])
+    state = _state_with_evidence([6.0, 6.5])
     state["difficulty_level"] = 2
     result = await difficulty_governor(state)
     assert result["difficulty_delta"] == 0
     assert result["difficulty_level"] == 2
 
 
-async def test_governor_llm_plus_one_allowed_on_weak_window_only_via_floor(stub_llm):
+async def test_governor_llm_plus_one_overridden_on_weak_windows(stub_llm):
     stub_llm(response='{"delta": 1, "rationale": "pushing", "scaffold": ""}')
-    state = _state_with_evidence([4.0, 4.5])
-    state["difficulty_level"] = 2
-    result = await difficulty_governor(state)
+    first = _state_with_evidence([4.0, 4.5])
+    first["difficulty_level"] = 2
+    held = await difficulty_governor(first)
+    assert held["difficulty_delta"] == 0
+    assert held["low_windows"] == 1
+
+    second = _state_with_evidence([4.0, 4.5], low_windows=held["low_windows"])
+    second["difficulty_level"] = 2
+    result = await difficulty_governor(second)
     assert result["difficulty_delta"] == -1
     assert result["difficulty_level"] == 1
 
@@ -192,7 +240,7 @@ async def test_governor_tracks_peak_difficulty_monotonically(monkeypatch):
     assert raised["max_difficulty_reached"] == 5
 
     # Now a weak window would normally lower difficulty — the peak must stay.
-    weak = _state_with_evidence([4.0, 4.5], job_role="Senior Backend Engineer")
+    weak = _state_with_evidence([4.0, 4.5], job_role="Senior Backend Engineer", low_windows=1)
     weak["difficulty_level"] = raised["difficulty_level"]
     weak["max_difficulty_reached"] = raised["max_difficulty_reached"]
     lowered = await difficulty_governor(weak)

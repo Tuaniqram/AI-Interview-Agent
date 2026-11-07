@@ -103,7 +103,8 @@ async def test_difficulty_governor_prompt_renders_completely(stub_llm):
     await difficulty_governor(state, use_llm=True)
     prompt = stub.calls[0]["prompt"]
     assert not _leftover(prompt), _leftover(prompt)
-    assert "difficulty change" in prompt.lower()
+    assert "hard rules" in prompt.lower()
+    assert "consecutive low windows" in prompt.lower()
 
 
 async def test_evidence_reading_prompt_renders_completely(stub_llm):

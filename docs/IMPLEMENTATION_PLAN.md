@@ -221,14 +221,23 @@ in the transcript.
 - `app/agents/reasoning/evidence_engine.py::_supports_hypothesis`: use `>= 6.5` for support and `< 4.5` for contradiction. Between
   the two it's neutral: return `None`, and treat `None` as "no edge sign" in `update_evidence_graph`.
 - `app/agents/planning/difficulty_engine.py` (hold band):
-  - `_govern_deterministic`: +1 if the window average is ≥ 7.5. −1 only if the window average is < 5.5 **and**
+  - `_govern_deterministic`: +1 if the window average is ≥ 7.0 (lowered from 7.5 during implementation: on the de-inflated
+    competency-score scale a clearly strong answer lands around 7–8, so 7.5 would rarely raise). −1 only if the window average
+    is < 5.5 **and**
     `state["low_windows"] >= 1`. Otherwise 0.
   - Return the updated `low_windows`: +1 when the average is below 5.5, reset to 0 otherwise.
   - Replace the clamp block (lines 257–266) with the same three rules, so the LLM path can't disagree.
-  - With any serious contradiction (including `claim_conflict` from step 5), never +1.
+  - Never +1 with more than one serious contradiction, or with any `claim_conflict` (step 5) whose status isn't `explained`.
+    (One serious contradiction alone no longer blocks: the evaluator flags one on many honest interviews.)
   - `routing.govern_difficulty`: call the LLM governor only when `os.getenv("DIFFICULTY_GOVERNOR_LLM") == "1"`, deterministic
     otherwise. This also covers P10, as the first four turns no longer make an extra LLM call.
   - Pass `low_windows` and `role_floor` into the prompt when it is used.
+- **Gate result (2026-11-08, `out/step2a`, `out/step2b`):** unscored 0/8, strong peak difficulty 5 and hired ×2, weak no-hire ×2,
+  bluffer hired 1/2 (was 2/2), `ev_minus_turn` +0.05…+0.88 (was +1.3…+2.0). **Not met:** awkward got `no_hire` ×2 and stayed at
+  difficulty 1 in one run. Cause: removing the delivery bonus exposed the evaluator's harsh scoring of hesitant but concrete
+  answers (e.g. a 1.7/10 for a concrete incident-communication answer). User decision: commit step 2 and **do step 4 before
+  step 3**; step 4's gate re-checks awkward. Also fixed here: `max_difficulty_reached` was not declared on the brain, so the
+  peak was dropped every turn.
 - `app/core/interview_brain.py`: add `low_windows: int = 0`.
 - `prompts/difficulty_governor/difficulty_governor.md`: replace it with **PROMPTS.md §7**.
 - Thresholds that read evidence scores and must move with the new scale (check each and document the change in the commit):

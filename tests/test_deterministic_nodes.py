@@ -342,22 +342,35 @@ def test_count_competency_questions():
 # --------------------------------------------------------------------- #
 
 
-async def test_govern_difficulty_parses_messy_llm_json(stub_llm):
+async def test_govern_difficulty_parses_messy_llm_json(stub_llm, monkeypatch):
     """Regression: cheap-tier LLM output with text after the JSON object (or
     wrapped in a fence) crashed the naive json.loads and disabled the
-    governor — it must parse either shape."""
+    governor — it must parse either shape. (The hold-band rule binds the
+    delta since plan step 2, so the states agree with the LLM and the parse is
+    proven by the LLM's own rationale surviving.)"""
     from app.engine.routing import govern_difficulty
 
+    monkeypatch.setenv("DIFFICULTY_GOVERNOR_LLM", "1")
     stub_llm(responses=[
         '{"delta": 1, "rationale": "kept up", "scaffold": ""}\nSome extra explanatory text.',
         '```json\n{"delta": -1, "rationale": "too hard", "scaffold": ""}\n```',
     ])
 
-    up = await govern_difficulty(make_v4_state(question_number=3), 3)
-    assert up["difficulty_level"] == 2
+    def _ev(scores):
+        return [
+            {"id": f"e{i}", "question_number": i + 1, "score": s, "competency": "tech_core"}
+            for i, s in enumerate(scores)
+        ]
 
-    down = await govern_difficulty(make_v4_state(question_number=3, difficulty_level=4), 3)
+    up = await govern_difficulty(make_v4_state(question_number=3, evidence_store=_ev([8.0, 8.2])), 3)
+    assert up["difficulty_level"] == 2
+    assert up["difficulty_rationale"] == "kept up"
+
+    down = await govern_difficulty(
+        make_v4_state(question_number=3, difficulty_level=4, low_windows=1, evidence_store=_ev([4.0, 4.5])), 3
+    )
     assert down["difficulty_level"] == 3
+    assert down["difficulty_rationale"] == "too hard"
 
 
 async def test_question_generator_uses_next_competency_when_target_missing(stub_llm):
@@ -551,7 +564,8 @@ def test_director_projects_pending_evidence_before_deciding():
                 "id": "e1",
                 "competency": "tech_core",
                 "dimension": "communication",
-                "score": 8.0,
+                # 9.0: since plan step 2 the hypothesis neutral point is 6.5, so 8.0 is only moderate support.
+                "score": 9.0,
                 "confidence": 0.9,
                 "evidence_text": "Well-structured response with clear explanation flow",
             }

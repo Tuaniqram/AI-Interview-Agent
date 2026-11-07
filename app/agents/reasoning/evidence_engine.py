@@ -4,12 +4,14 @@ Pure capability that turns an evaluation dict into evidence records and folds
 them into the competency summary + evidence graph. It never touches the
 database (the engine owns persistence) and never mutates shared state.
 
-Evidence extraction (V5 hardening):
-    One answer becomes 0–2 evidence records taken from the *top-scoring*
-    dimension only — the old per-dimension flattening inflated evidence
-    counts (up to 6 records per answer) and inflated coverage. Claims are
-    extracted deterministically from the top dimension's evidence text
-    (no extra LLM call) and kept in reading order.
+Evidence extraction (V5 hardening, plan step 2):
+    One scored answer becomes 1–2 evidence records. Each carries the answer's
+    COMPETENCY score (competence dimensions only, see
+    ``app.agents.evaluation.scoring.competency_score``) — taking the top-scoring
+    dimension made a fluent answer's communication/confidence score count as
+    technical evidence. Claims are extracted deterministically from the primary
+    competence dimension's quote (no extra LLM call); an answer with nothing
+    quotable still yields one record so its score is never dropped.
 
 Evidence quality signals computed per record:
     confidence   — the LLM's stated confidence in the dimension score
@@ -300,15 +302,17 @@ def build_candidate_evidence(
     session_id: str,
     question_objective: dict | None = None,
     competency_taxonomy: list[dict] | None = None,
+    answer_text: str | None = None,
 ) -> list[dict]:
-    """Turn a scored evaluation into 0–2 evidence records (V5).
+    """Turn a scored evaluation into 1–2 evidence records (V5, plan step 2).
 
-    Only the top-scoring dimension contributes claims; dimensions without a
-    ``score`` are ignored. Each record carries the dimension's score and
-    confidence (claims inherit them) plus the source question, competency
-    (the question's target, else the dimension's taxonomy competency — bare
-    ``dim_*`` attributions are never produced) and the raw strengths/
-    weaknesses for later synthesis.
+    Every record carries the answer's competency score (``scoring.competency_score``: the competence
+    dimensions only, never communication/confidence), the primary competence dimension, every
+    dimension's score (``dimension_scores``), the source question and the competency (the question's
+    target, else the dimension's taxonomy competency — bare ``dim_*`` attributions are never produced).
+    Claim sentences come from the primary dimension's quote. An answer with nothing quotable still
+    yields one record, built from ``answer_text`` and marked ``quote_missing``, so its score counts.
+    Returns ``[]`` only when nothing was scored.
     """
     question_objective = question_objective or {}
     raw_target = str(question_objective.get("target_competency", "") or "")
@@ -359,24 +363,58 @@ def build_candidate_evidence(
                 f"mapping and the question objective carried no target"
             )
             return []
-    confidence = float(top_data.get("confidence", 0.5))
+
+    # Plan step 2 (P1): the record carries the answer's COMPETENCY score (competence dimensions only,
+    # see ``scoring.competency_score``), not the top dimension's score — delivery dimensions such as
+    # communication/confidence used to become technical evidence.
+    from app.agents.evaluation.scoring import competency_score, primary_competency_dimension
+    from app.data.rubrics import category_from_taxonomy
+
+    category = category_from_taxonomy(competency_taxonomy, competency)
+    score = competency_score(evaluation, category)
+    if score is None:
+        score = float(top_data.get("score", 0.0))
+    primary_dim = primary_competency_dimension(evaluation, category) or top_dim
+    primary_data = evaluation.get(primary_dim) if isinstance(evaluation.get(primary_dim), dict) else top_data
+    confidence = float(primary_data.get("confidence", top_data.get("confidence", 0.5)) or 0.5)
+    dimension_scores = {dim: float(data.get("score")) for dim, data in scored}
+
+    # Claims come from the primary dimension's quote, else the top dimension's, else any quote.
+    quote_sources = [primary_data, top_data] + [data for _, data in scored]
+    answer_evidence, claims = "", []
+    for data in quote_sources:
+        text = str((data or {}).get("evidence", "") or "")
+        found = _extract_claims(text)
+        if found:
+            answer_evidence, claims = text, found
+            break
+
+    # Every scored answer counts (P1 link 4): with nothing quotable, the answer itself is the evidence.
+    # Before, such answers — mostly weak ones — produced no record and their low score vanished.
+    quote_missing = not claims
+    if quote_missing:
+        fallback = re.sub(r"\s+", " ", str(answer_text or "")).strip()[:300]
+        if not fallback:
+            fallback = str(question or "").strip()[:300] or "(no answer text)"
+        answer_evidence, claims = fallback, [fallback]
 
     extracted: list[dict] = []
-    answer_evidence = str(top_data.get("evidence", "") or "")
-    for claim in _extract_claims(answer_evidence):
+    for claim in claims:
         record = {
             "id": str(uuid4()),
             "session_id": session_id,
             "competency": competency,
-            "dimension": top_dim,
-            "score": float(top_data.get("score", 0.0)),
+            "dimension": primary_dim,
+            "score": float(score),
             "confidence": confidence,
             "evidence_text": claim,
             "answer_evidence_text": answer_evidence,
             "source_question": question,
             "question_number": question_number,
-            "strengths": top_data.get("strengths", []) or [],
-            "weaknesses": top_data.get("weaknesses", []) or [],
+            "strengths": primary_data.get("strengths", []) or [],
+            "weaknesses": primary_data.get("weaknesses", []) or [],
+            "dimension_scores": dimension_scores,
+            "quote_missing": quote_missing,
         }
         annotate_evidence_quality(record, {})
         extracted.append(record)
@@ -468,12 +506,23 @@ def update_evidence_graph(
     return {"nodes": nodes, "edges": edges}
 
 
-def _supports_hypothesis(direction: str, score: float) -> bool:
-    """A score above the midpoint supports a positive hypothesis and
-    contradicts a negative one."""
-    if direction == "negative":
-        return score < 5.0
-    return score >= 5.0
+# Plan step 2: a positive hypothesis ("candidate demonstrates X") is supported only by evidence at or
+# above the hire bar and contradicted only below the weak bar; in between the evidence is neutral.
+# The old single 5.0 midpoint let nearly every hypothesis confirm on inflated scores.
+SUPPORT_SCORE = 6.5
+CONTRADICT_SCORE = 4.5
+
+
+def _supports_hypothesis(direction: str, score: float) -> bool | None:
+    """True/False when the evidence supports/contradicts the hypothesis, ``None`` when neutral."""
+    score = float(score or 0.0)
+    if score >= SUPPORT_SCORE:
+        supports = True
+    elif score < CONTRADICT_SCORE:
+        supports = False
+    else:
+        return None
+    return supports if direction != "negative" else not supports
 
 
 def update_competency_summary(
@@ -562,10 +611,13 @@ async def evidence_extractor_node(state: dict) -> dict:
         session_id=state.get("session_id", ""),
         question_objective=state.get("question_objective", {}) or {},
         competency_taxonomy=state.get("competency_taxonomy"),
+        answer_text=state.get("candidate_answer", ""),
     )
     top_dim = max(scored, key=lambda pair: pair[1].get("score", 0.0) or 0.0)[0]
     dimension_metrics.append(
-        build_dimension_metrics(evaluation, top_dim, len(extracted))
+        build_dimension_metrics(
+            evaluation, top_dim, sum(1 for ev in extracted if not ev.get("quote_missing"))
+        )
     )
 
     if not extracted:

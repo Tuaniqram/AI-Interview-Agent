@@ -250,20 +250,13 @@ async def difficulty_governor(
     else:
         delta, rationale, scaffold = _govern_deterministic(state)
 
-    # Fix 11 (D1): the window average clamps whichever path ran — the LLM only
-    # tunes inside the deterministic rule's band. Above the band difficulty can
-    # never drop; at/above the hold threshold (7.0) it can never be lowered;
-    # below 7.0 it can never be raised.
-    recent_scores = _recent_answer_scores(state)
-    if recent_scores:
-        window_avg = sum(recent_scores) / len(recent_scores)
-        serious = _serious_contradiction_count(state)
-        if window_avg > 8.3 and serious < 2:
-            delta = max(delta, 1)
-        elif window_avg >= 7.0:
-            delta = max(delta, 0)
-        elif window_avg < 7.0 and serious < 2:
-            delta = min(delta, -1)
+    # Plan step 2 (P4): the hold-band rule is binding for whichever path ran — the LLM may only word the
+    # rationale/scaffold, never move difficulty against the rule.
+    rule_delta, low_windows = hold_band_delta(state)
+    if delta != rule_delta:
+        if use_llm:
+            rationale = f"hold-band rule applied ({rule_delta:+d}): {rationale}"
+        delta = rule_delta
 
     # Role floor: a senior interview never drops below senior-level probing,
     # whatever the LLM or the window rule says. This is what keeps the demo
@@ -291,6 +284,7 @@ async def difficulty_governor(
     return {
         **state,
         "difficulty_level": next_difficulty,
+        "low_windows": low_windows,
         "max_difficulty_reached": max(max_reached, next_difficulty),
         "difficulty_delta": delta,
         "difficulty_rationale": rationale,
@@ -345,6 +339,8 @@ async def _govern_with_llm(state: InterviewState) -> tuple[int, str, str]:
         contradiction_count=serious_contradictions,
         answer_complexity=answer_complexity,
         confidence_delta=f"{abs(float(target_confidence or 0.0) - 0.5):.2f}",
+        low_windows=int(state.get("low_windows", 0) or 0),
+        role_floor=role_difficulty_floor(state.get("job_role", "")),
     )
 
     response = await llm_service.invoke(prompt=prompt, temperature=0.2, max_tokens=150, tier="cheap")
@@ -356,25 +352,66 @@ async def _govern_with_llm(state: InterviewState) -> tuple[int, str, str]:
     return delta, str(data.get("rationale", "")), str(data.get("scaffold", ""))
 
 
-def _govern_deterministic(state: InterviewState) -> tuple[int, str, str]:
-    """D1: deterministic difficulty move from a recent-answers window.
+# Plan step 2 (P4, user decision "slower drop + hold band"). The window is the last 3 answers'
+# competency scores (evidence scores, now free of delivery inflation).
+RAISE_WINDOW_SCORE = 7.0   # at/above: one level harder
+DROP_WINDOW_SCORE = 5.5    # below, twice in a row: one level easier
+# More than this many serious contradictions (or any open claim conflict) blocks raising difficulty:
+# reconcile the profile before going harder.
+MAX_SERIOUS_FOR_RAISE = 1
 
-    Window rule (matches the report's own per-question scores):
-        last-3 average > 8.3  -> +1 (sustained strong performance)
-        last-3 average < 7.0  -> -1 (sustained weak performance)
-        otherwise             ->  0 (hold)
 
-    A single noisy answer can no longer swing difficulty — the window
-    buffers it.
+def _blocks_raise(state: InterviewState) -> bool:
+    if _serious_contradiction_count(state) > MAX_SERIOUS_FOR_RAISE:
+        return True
+    return any(
+        isinstance(c, dict) and c.get("type") == "claim_conflict"
+        and c.get("status", "open") not in ("explained",)
+        for c in (state.get("contradictions") or [])
+    )
+
+
+def hold_band_delta(state: InterviewState) -> tuple[int, int]:
+    """``(delta, low_windows)`` from the hold-band rule.
+
+    * window average >= RAISE_WINDOW_SCORE (and nothing blocks raising) -> +1
+    * window average <  DROP_WINDOW_SCORE on this AND the previous decision -> -1
+    * otherwise -> 0. A single weak stretch, hedging or nerves never lowers difficulty.
+
+    ``low_windows`` counts consecutive low windows including this one (stored on the brain).
     """
+    recent_scores = _recent_answer_scores(state)
+    prior_low = int(state.get("low_windows", 0) or 0)
+    if not recent_scores:
+        return 0, prior_low
+    window_avg = sum(recent_scores) / len(recent_scores)
+    if window_avg < DROP_WINDOW_SCORE:
+        return (-1 if prior_low >= 1 else 0), prior_low + 1
+    if window_avg >= RAISE_WINDOW_SCORE and not _blocks_raise(state):
+        return 1, 0
+    return 0, 0
+
+
+def _govern_deterministic(state: InterviewState) -> tuple[int, str, str]:
+    """Deterministic difficulty move: the hold-band rule (``hold_band_delta``) with a readable rationale."""
     recent_scores = _recent_answer_scores(state)
     if not recent_scores:
         return 0, "No evidence yet, keeping difficulty steady", ""
 
     window_avg = sum(recent_scores) / len(recent_scores)
+    delta, low_windows = hold_band_delta(state)
 
-    if window_avg > 8.3:
+    if delta > 0:
         return 1, f"Recent answers averaging {window_avg:.2f} — increasing difficulty", "push on trade-offs and edge cases"
-    if window_avg < 7.0:
-        return -1, f"Recent answers averaging {window_avg:.2f} — scaffolding down", "ask for a concrete example and walk through the thought process"
+    if delta < 0:
+        return -1, (
+            f"Recent answers averaging {window_avg:.2f}, below {DROP_WINDOW_SCORE} for {low_windows} windows "
+            "in a row — scaffolding down"
+        ), "ask for a concrete example and walk through the thought process"
+    if window_avg < DROP_WINDOW_SCORE:
+        return 0, (
+            f"Recent answers averaging {window_avg:.2f} — first low window, holding difficulty"
+        ), "ask for a concrete example"
+    if window_avg >= RAISE_WINDOW_SCORE:
+        return 0, f"Recent answers averaging {window_avg:.2f} — unresolved contradictions, holding difficulty", ""
     return 0, f"Recent answers averaging {window_avg:.2f} — keeping difficulty steady", ""

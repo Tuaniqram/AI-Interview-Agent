@@ -184,10 +184,19 @@ async def test_reflect_and_select_finishes_on_sufficient_evidence(
     assert finished_brain.director["action"] == "FINISH"
 
 
-async def test_govern_difficulty_forces_llm_before_question_four(fake_store, stub_llm):
+async def test_govern_difficulty_forces_llm_before_question_four(fake_store, stub_llm, monkeypatch):
+    monkeypatch.setenv("DIFFICULTY_GOVERNOR_LLM", "1")  # LLM governor is opt-in since plan step 2
     stub = stub_llm(response=GOVERNOR_JSON)
 
     result = await govern_difficulty(make_v4_state(question_number=3), 3)
 
     assert stub.calls, "governor must call the LLM for question_number < 4"
     assert result["difficulty_level"] == 1
+
+
+async def test_govern_difficulty_is_deterministic_by_default(fake_store, stub_llm, monkeypatch):
+    """Plan step 2: without DIFFICULTY_GOVERNOR_LLM=1 the governor never calls the LLM."""
+    monkeypatch.delenv("DIFFICULTY_GOVERNOR_LLM", raising=False)
+    stub = stub_llm(response=GOVERNOR_JSON)
+    await govern_difficulty(make_v4_state(question_number=3), 3)
+    assert stub.calls == []
