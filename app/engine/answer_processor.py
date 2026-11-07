@@ -94,11 +94,11 @@ async def process_answer(
         "injection_signals": list(injections),
     })
 
+    # The answer to the LAST question is evaluated like every other one; the director then ends the
+    # interview at the question budget (``director._director_decision``). An early "budget reached ->
+    # finalize" exit used to sit here, before evaluation, so the final answer was never scored.
+    # Late or duplicate answers after the report are handled by the ``finalized`` guard above.
     question_number = brain.question_number
-    if question_number >= brain.max_questions:
-        from app.engine.decision import finalize_session
-
-        return await finalize_session(engine, brain)
 
     if brain.current_question:
         brain.conversation_history.append(
