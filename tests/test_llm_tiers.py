@@ -199,7 +199,7 @@ class _RecordingChain:
 
 
 async def test_service_passes_temperature_and_max_tokens_as_model_arguments(monkeypatch):
-    from app.services.llm_service import LLMService, completion_budget
+    from app.services.llm_service import LLMService, completion_budget, request_timeout
 
     chain = _RecordingChain()
     monkeypatch.setattr(llm_service_module, "get_llm", lambda tier=None: chain)
@@ -212,6 +212,7 @@ async def test_service_passes_temperature_and_max_tokens_as_model_arguments(monk
     assert call["config"] is None  # nothing model-related hides inside the LangChain config
     assert call["kwargs"]["temperature"] == 0.1
     assert call["kwargs"]["max_tokens"] == completion_budget(300)
+    assert call["kwargs"]["timeout"] == request_timeout(300)
 
 
 def test_completion_budget_adds_reasoning_headroom_and_is_capped():
@@ -230,3 +231,12 @@ def test_every_model_gives_up_on_a_stuck_provider_instead_of_waiting_minutes():
         for model in get_llm(tier)._models:
             assert model.request_timeout == REQUEST_TIMEOUT_S
             assert model.max_retries == 0  # retries belong to the fallback chain, not hidden in the client
+
+
+def test_request_timeout_scales_with_the_requested_answer_length():
+    from app.services.llm_service import MAX_REQUEST_TIMEOUT_S, MIN_REQUEST_TIMEOUT_S, request_timeout
+
+    assert request_timeout(100) == MIN_REQUEST_TIMEOUT_S  # short replies: a stuck provider costs ~35 s, not 90
+    assert MIN_REQUEST_TIMEOUT_S < request_timeout(1500) < MAX_REQUEST_TIMEOUT_S
+    assert request_timeout(5000) == MAX_REQUEST_TIMEOUT_S  # the long final read keeps its room
+    assert request_timeout(0) >= MIN_REQUEST_TIMEOUT_S

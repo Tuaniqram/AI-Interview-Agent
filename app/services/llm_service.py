@@ -22,6 +22,18 @@ REASONING_HEADROOM_TOKENS = 1500
 MAX_COMPLETION_TOKENS = 8192
 
 
+# A stuck provider must cost an interview seconds, not minutes. The limit grows with the answer length the
+# caller asked for: ~20 s of headroom plus the answer at a deliberately slow 40 tokens/s, between 35 s (typical
+# calls take 1-5 s) and 90 s (the long final read).
+MIN_REQUEST_TIMEOUT_S = 35
+MAX_REQUEST_TIMEOUT_S = 90
+
+
+def request_timeout(requested: int) -> float:
+    """Per-request timeout in seconds for a call that asks for ``requested`` tokens of answer."""
+    return float(min(MAX_REQUEST_TIMEOUT_S, max(MIN_REQUEST_TIMEOUT_S, 20 + (max(1, int(requested)) + 400) / 40)))
+
+
 def completion_budget(requested: int) -> int:
     """The max_tokens actually sent to the model for a caller's requested answer length."""
     return min(MAX_COMPLETION_TOKENS, max(1, int(requested)) + REASONING_HEADROOM_TOKENS)
@@ -107,7 +119,8 @@ class LLMService:
                     # every call silently ran with the model's defaults (temperature 0.7, 2048 tokens).
                     response = await asyncio.wait_for(
                         target_llm.ainvoke(
-                            messages, None, temperature=temperature, max_tokens=completion_budget(max_tokens)
+                            messages, None, temperature=temperature, max_tokens=completion_budget(max_tokens),
+                            timeout=request_timeout(max_tokens),
                         ),
                         timeout=180
                     )
@@ -179,7 +192,8 @@ class LLMService:
 
         async with self._rate_limiter:
             async for token in target_llm.astream(
-                messages, None, temperature=temperature, max_tokens=completion_budget(max_tokens)
+                messages, None, temperature=temperature, max_tokens=completion_budget(max_tokens),
+                timeout=request_timeout(max_tokens),
             ):
                 yield token
     
