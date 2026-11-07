@@ -162,6 +162,7 @@ async def test_resume_analyzer_merges_profile():
 
 
 async def test_resume_analyzer_dspy_branch_merges_typed_output(monkeypatch):
+    monkeypatch.setenv("RESUME_LLM_BACKEND", "dspy")  # the env may be set to 'legacy'
     """The DSPy branch returns a typed dict; the merge + source=resume_llm are
     identical to the old parse_llm_json_with_retry path."""
     async def fake_run(resume_text, job_role):
@@ -190,6 +191,7 @@ async def test_resume_analyzer_dspy_branch_merges_typed_output(monkeypatch):
 
 
 async def test_resume_analyzer_dspy_branch_falls_back_to_heuristics(monkeypatch):
+    monkeypatch.setenv("RESUME_LLM_BACKEND", "dspy")  # the env may be set to 'legacy'
     """When the DSPy call raises (LM unreachable), behavior is byte-identical
     to today: heuristics, source='heuristics'."""
 
@@ -432,36 +434,19 @@ async def test_persist_intelligence_bundle_maps_actual_bundle_keys():
     fake = _FakeBundleSession()
 
     saved = await persist_intelligence_bundle(
-        session_id, department_id=None, job_role="Backend", bundle=bundle, db=fake
+        session_id, org_id=None, job_role="Backend", bundle=bundle, db=fake
     )
 
     assert all(saved.values()), saved
-    rows = {type(r): r for r in fake.added}
+    # Persistence is consolidated: one interview_intelligence row per session.
+    assert len(fake.added) == 1
+    row = fake.added[0]
+    assert type(row).__name__ == "InterviewIntelligence"
+    assert str(row.session_id) == session_id
 
-    company = rows[CompanyBrainRecord]
-    assert company.company_vision == "ship fast"
-    assert company.technical_stack == ["python"]
-    assert company.source_documents == ["resume.txt"]
-    assert company.snapshot == bundle["company_brain"]
-
-    blueprint = rows[BlueprintRecord]
-    assert blueprint.objectives == [{"competency": "tech_core", "name": "Core", "weight": 2.0}]
-    assert blueprint.hypothesis_template == [
-        {"competency": "tech_core", "statement": "Candidate demonstrates Core"}
-    ]
-    assert blueprint.snapshot == bundle["interview_blueprint"]
-
-    scorecard = rows[ScorecardRecord]
-    assert scorecard.competencies == [{"id": "tech_core", "name": "Core", "weight": 1.0}]
-    assert scorecard.snapshot == bundle["interview_blueprint"]
-
-    candidate = rows[CandidateBrainRecord]
-    assert candidate.resume_summary == "10y backend engineer"
-    assert candidate.work_history == bundle["candidate_brain"]["experience"]
-    assert candidate.inferred_seniority == "mid"
-    assert candidate.snapshot == bundle["candidate_brain"]
-
-    requirement = rows[RequirementRecord]
-    assert requirement.required_probes == ["Ask about X"]
-    assert requirement.dimension == "technical"
-    assert requirement.snapshot == bundle["evidence_requirements"][0]
+    assert row.company_context == bundle["company_brain"]
+    assert row.candidate_context == bundle["candidate_brain"]
+    assert row.blueprint == bundle["interview_blueprint"]
+    assert row.evidence_requirements == bundle["evidence_requirements"]
+    assert row.evidence_requirements[0]["verification_probe"] == "Ask about X"
+    assert row.scorecard == {"competencies": []}  # no scorecard in the bundle -> blueprint fallback

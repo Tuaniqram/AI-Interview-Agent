@@ -3,16 +3,18 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.deps import get_db
 from app.marketplace.schemas import (
+    ApplicationInvitationResponse,
     ApplicationOutcomeRequest,
     ApplicationResponse,
     ApplyRequest,
@@ -26,7 +28,10 @@ from app.marketplace.schemas import (
     StartInterviewResponse,
     UpdatePublicInterviewRequest,
 )
+from app.auth.interview_access import create_interview_access_token
+from app.candidates.resume_service import RESUMES_DIR, latest_resume_document, store_candidate_resume
 from app.models.db import (
+    CandidateDocument,
     CandidateProfile,
     InterviewSession,
     InterviewTemplate,
@@ -340,7 +345,9 @@ async def start_public_interview(
     }
     store.set(str(session.id), state)
 
-    token = uuid.uuid4().hex
+    # A real credential for this one session (the WebSocket requires it); it used to be a random
+    # string that nothing ever checked.
+    token = create_interview_access_token(session.id)
     submission = PublicInterviewSubmission(
         id=uuid.uuid4(),
         public_id=pi.id,
@@ -482,6 +489,7 @@ def _application_response(
     row: PublicInterviewSubmission,
     public_title: Optional[str] = None,
     org_name: Optional[str] = None,
+    resume_filename: Optional[str] = None,
 ) -> ApplicationResponse:
     return ApplicationResponse(
         id=row.id,
@@ -496,6 +504,11 @@ def _application_response(
         status=row.status,
         fit_score=float(row.fit_score) if row.fit_score is not None else None,
         fit_summary=row.fit_summary,
+        fit_status=row.fit_status or "pending",
+        fit_breakdown=row.fit_breakdown,
+        fit_evaluated_at=row.fit_evaluated_at,
+        has_resume=row.resume_document_id is not None,
+        resume_filename=resume_filename,
         org_decision=row.org_decision,
         candidate_response=row.candidate_response,
         outcome=row.outcome,
@@ -505,38 +518,141 @@ def _application_response(
     )
 
 
+def _applications_query():
+    """Submission + listing + org name + CV filename, for list responses."""
+    return (
+        select(
+            PublicInterviewSubmission,
+            PublicInterview,
+            Organization.name,
+            CandidateDocument.filename,
+        )
+        .join(PublicInterview, PublicInterviewSubmission.public_id == PublicInterview.id)
+        .join(Organization, PublicInterview.org_id == Organization.id)
+        .outerjoin(
+            CandidateDocument,
+            PublicInterviewSubmission.resume_document_id == CandidateDocument.id,
+        )
+    )
+
+
+async def _application_response_for(
+    submission: PublicInterviewSubmission, pi: PublicInterview, db: AsyncSession
+) -> ApplicationResponse:
+    """Build a full response (org name + CV filename) for a single submission."""
+    org_name = (
+        await db.execute(select(Organization.name).where(Organization.id == pi.org_id))
+    ).scalar_one_or_none()
+    filename = None
+    if submission.resume_document_id is not None:
+        filename = (
+            await db.execute(
+                select(CandidateDocument.filename).where(
+                    CandidateDocument.id == submission.resume_document_id
+                )
+            )
+        ).scalar_one_or_none()
+    return _application_response(submission, pi.title, org_name, filename)
+
+
+def _normalize_email(value: Optional[str]) -> str:
+    email = (value or "").strip()
+    local, _, domain = email.partition("@")
+    if not local or "." not in domain or " " in email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A valid email is required")
+    return email
+
+
+async def _resolve_resume_document(
+    profile: CandidateProfile,
+    req: ApplyRequest,
+    resume: Optional[UploadFile],
+    authenticated: bool,
+    db: AsyncSession,
+) -> tuple[CandidateDocument, bool]:
+    """Pick the CV for an application. Returns (document, is_new_upload).
+
+    Guests must upload a file. Logged-in candidates may upload one, point at an
+    existing document of theirs, or fall back to the CV already on their profile.
+    """
+    if resume is not None and (resume.filename or ""):
+        return await store_candidate_resume(profile, resume, db), True
+
+    if authenticated:
+        if req.resume_document_id is not None:
+            doc = (
+                await db.execute(
+                    select(CandidateDocument).where(
+                        CandidateDocument.id == req.resume_document_id,
+                        CandidateDocument.candidate_id == profile.id,
+                    )
+                )
+            ).scalar_one_or_none()
+            if doc is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid resume document")
+            return doc, False
+
+        existing = await latest_resume_document(profile.id, db)
+        if existing is not None:
+            return existing, False
+
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="CV is required")
+
+
 async def apply_to_public_interview(
     interview_id: str,
     req: ApplyRequest,
     db: AsyncSession,
     candidate=None,
+    resume: Optional[UploadFile] = None,
 ) -> ApplicationResponse:
-    result = await db.execute(
-        select(PublicInterview).where(
-            PublicInterview.id == interview_id,
-            PublicInterview.is_open.is_(True),
+    # One query for the listing and its organization name (every round trip counts
+    # when the database is remote).
+    row = (
+        await db.execute(
+            select(PublicInterview, Organization.name)
+            .join(Organization, PublicInterview.org_id == Organization.id)
+            .where(
+                PublicInterview.id == interview_id,
+                PublicInterview.is_open.is_(True),
+            )
         )
-    )
-    pi = result.scalar_one_or_none()
-    if not pi:
+    ).one_or_none()
+    if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found or closed")
+    pi, org_name = row
 
-    if candidate is not None:
+    authenticated = candidate is not None
+    if authenticated:
         profile = candidate
     else:
+        email = _normalize_email(req.candidate_email)
+        name = (req.candidate_name or "").strip()
+        if not name:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Name is required")
         profile_result = await db.execute(
-            select(CandidateProfile).where(CandidateProfile.email == req.candidate_email)
+            select(CandidateProfile).where(func.lower(CandidateProfile.email) == email.lower())
         )
-        profile = profile_result.scalar_one_or_none()
+        profile = profile_result.scalars().first()
+        if profile is not None and profile.is_registered:
+            # A guest must not attach a CV to (or apply as) someone's real account.
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="An account already exists for this email. Please sign in to apply.",
+            )
         if profile is None:
             profile = CandidateProfile(
                 id=uuid.uuid4(),
-                email=req.candidate_email,
-                name=req.candidate_name,
+                email=email,
+                name=name,
                 is_registered=False,
             )
             db.add(profile)
             await db.flush()
+        else:
+            profile.name = name
+
+    document, is_new_upload = await _resolve_resume_document(profile, req, resume, authenticated, db)
 
     existing_result = await db.execute(
         select(PublicInterviewSubmission).where(
@@ -545,38 +661,45 @@ async def apply_to_public_interview(
         )
     )
     submission = existing_result.scalar_one_or_none()
+    now = datetime.now(timezone.utc)
     if submission is None:
         submission = PublicInterviewSubmission(
             id=uuid.uuid4(),
+            created_at=now,
+            updated_at=now,
             public_id=pi.id,
             candidate_profile_id=profile.id,
-            resume_document_id=req.resume_document_id,
+            resume_document_id=document.id,
             candidate_email=profile.email,
             candidate_name=profile.name,
             status="applied",
             org_decision="pending",
             candidate_response="pending",
             outcome="pending",
+            fit_status="pending",
         )
         db.add(submission)
     else:
-        submission.resume_document_id = req.resume_document_id or submission.resume_document_id
+        submission.resume_document_id = document.id
+        if is_new_upload:
+            # A new CV invalidates any earlier fit evaluation.
+            submission.fit_status = "pending"
+            submission.fit_error = None
 
     await db.commit()
-    await db.refresh(submission)
-    return _application_response(submission, pi.title)
+    # Everything the response needs is already in hand: no extra queries or refresh.
+    return _application_response(submission, pi.title, org_name, document.filename)
 
 
 async def list_org_applications(org_id: str, db: AsyncSession) -> list[ApplicationResponse]:
     result = await db.execute(
-        select(PublicInterviewSubmission, PublicInterview)
-        .join(PublicInterview, PublicInterviewSubmission.public_id == PublicInterview.id)
+        _applications_query()
         .where(PublicInterview.org_id == org_id)
         .order_by(PublicInterviewSubmission.created_at.desc())
     )
     return [
-        _application_response(submission, pi.title)
-        for submission, pi in result.all()
+        _application_response(submission, pi.title, org_name, filename)
+        for submission, pi, org_name, filename in result.all()
     ]
 
 
@@ -584,14 +707,13 @@ async def list_candidate_applications(
     candidate_id: UUID, db: AsyncSession
 ) -> list[ApplicationResponse]:
     result = await db.execute(
-        select(PublicInterviewSubmission, PublicInterview)
-        .join(PublicInterview, PublicInterviewSubmission.public_id == PublicInterview.id)
+        _applications_query()
         .where(PublicInterviewSubmission.candidate_profile_id == candidate_id)
         .order_by(PublicInterviewSubmission.created_at.desc())
     )
     return [
-        _application_response(submission, pi.title)
-        for submission, pi in result.all()
+        _application_response(submission, pi.title, org_name, filename)
+        for submission, pi, org_name, filename in result.all()
     ]
 
 
@@ -612,6 +734,55 @@ async def _get_org_application(
     return row[0], row[1]
 
 
+EVALUATION_STALE_AFTER = timedelta(minutes=5)
+
+
+async def queue_application_evaluation(
+    application_id: str, org_id: str, db: AsyncSession
+) -> ApplicationResponse:
+    """Mark an application for (re-)evaluation. The caller schedules the actual
+    run as a background task after this returns."""
+    submission, pi = await _get_org_application(application_id, org_id, db)
+    if submission.resume_document_id is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Application has no CV to evaluate")
+    if (
+        submission.fit_status == "running"
+        and submission.updated_at is not None
+        and datetime.now(timezone.utc) - submission.updated_at < EVALUATION_STALE_AFTER
+    ):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Evaluation is already running")
+    submission.fit_status = "pending"
+    submission.fit_error = None
+    await db.commit()
+    await db.refresh(submission)
+    return await _application_response_for(submission, pi, db)
+
+
+async def get_application_resume(
+    application_id: str, org_id: str, db: AsyncSession
+) -> tuple[str, str]:
+    """(file path, download name) of an application's CV; org ownership of the
+    application is enforced by ``_get_org_application``."""
+    submission, _pi = await _get_org_application(application_id, org_id, db)
+    document = (
+        await db.get(CandidateDocument, submission.resume_document_id)
+        if submission.resume_document_id
+        else None
+    )
+    path = ((document.document_metadata or {}).get("path") if document else None)
+    if not path and submission.candidate_profile_id:
+        profile = await db.get(CandidateProfile, submission.candidate_profile_id)
+        path = profile.resume_url if profile else None
+    if not path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+
+    resolved = Path(path).resolve()
+    if not resolved.is_relative_to(RESUMES_DIR.resolve()) or not resolved.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume file not found")
+    name = (document.filename if document else None) or f"{submission.candidate_name}_resume.pdf"
+    return str(resolved), name
+
+
 async def set_application_fit(
     application_id: str,
     req: FitScoreRequest,
@@ -625,7 +796,7 @@ async def set_application_fit(
         submission.status = "screening"
     await db.commit()
     await db.refresh(submission)
-    return _application_response(submission, pi.title)
+    return await _application_response_for(submission, pi, db)
 
 
 async def invite_application(
@@ -635,8 +806,11 @@ async def invite_application(
     db: AsyncSession,
 ) -> ApplicationResponse:
     submission, pi = await _get_org_application(application_id, org_id, db)
-    if submission.org_decision == "rejected":
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Application was rejected")
+    if submission.org_decision == "rejected" or submission.outcome in {"hired", "rejected"}:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Application is closed")
+    if submission.candidate_response in {"accepted", "declined"}:
+        # Re-inviting would overwrite the candidate's answer and status.
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Candidate already responded")
 
     if submission.session_id is None:
         session = InterviewSession(
@@ -655,6 +829,15 @@ async def invite_application(
         db.add(session)
         await db.flush()
         submission.session_id = session.id
+    else:
+        # Re-sending the invite: make sure the link is still valid.
+        existing = (
+            await db.execute(select(InterviewSession).where(InterviewSession.id == submission.session_id))
+        ).scalar_one_or_none()
+        if existing is not None:
+            if not existing.invite_token:
+                existing.invite_token = uuid.uuid4().hex
+            existing.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=7)
 
     now = datetime.now(timezone.utc)
     submission.org_decision = "invited"
@@ -664,7 +847,108 @@ async def invite_application(
     submission.org_decided_at = now
     await db.commit()
     await db.refresh(submission)
-    return _application_response(submission, pi.title)
+    return await _application_response_for(submission, pi, db)
+
+
+async def _record_candidate_response(
+    submission: PublicInterviewSubmission, response: str, db: AsyncSession
+) -> None:
+    """Apply an accept/decline to the application (and cancel the session on decline)."""
+    submission.candidate_response = response
+    submission.candidate_responded_at = datetime.now(timezone.utc)
+    submission.status = "interview_accepted" if response == "accepted" else "interview_declined"
+
+    if submission.session_id is not None and response == "declined":
+        session = (
+            await db.execute(select(InterviewSession).where(InterviewSession.id == submission.session_id))
+        ).scalar_one_or_none()
+        if session is not None:
+            session.status = "cancelled"
+
+
+async def _get_invitation(
+    token: str, db: AsyncSession
+) -> tuple[PublicInterviewSubmission, InterviewSession, PublicInterview, Optional[str]]:
+    """Resolve an application invitation by its emailed token
+    (``interview_sessions.invite_token``). The public listing token is never used here."""
+    token = (token or "").strip()
+    row = None
+    if token:
+        row = (
+            await db.execute(
+                select(PublicInterviewSubmission, InterviewSession, PublicInterview, Organization.name)
+                .join(InterviewSession, PublicInterviewSubmission.session_id == InterviewSession.id)
+                .join(PublicInterview, PublicInterviewSubmission.public_id == PublicInterview.id)
+                .join(Organization, PublicInterview.org_id == Organization.id)
+                .where(InterviewSession.invite_token == token)
+            )
+        ).one_or_none()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found")
+    return row[0], row[1], row[2], row[3]
+
+
+def _invitation_response(
+    submission: PublicInterviewSubmission,
+    session: InterviewSession,
+    pi: PublicInterview,
+    org_name: Optional[str],
+) -> ApplicationInvitationResponse:
+    now = datetime.now(timezone.utc)
+    expired = bool(session.invite_expires_at and session.invite_expires_at < now)
+    open_invite = (
+        submission.org_decision == "invited"
+        and submission.outcome == "pending"
+        and session.status != "cancelled"
+    )
+    return ApplicationInvitationResponse(
+        org_name=org_name,
+        job_title=pi.title,
+        candidate_name=submission.candidate_name,
+        candidate_email=submission.candidate_email,
+        status=submission.status,
+        candidate_response=submission.candidate_response,
+        can_respond=open_invite and submission.candidate_response == "pending" and not expired,
+        expired=expired and submission.candidate_response == "pending",
+        expires_at=session.invite_expires_at,
+        session_id=session.id if submission.candidate_response == "accepted" and open_invite else None,
+        access_token=(
+            create_interview_access_token(session.id)
+            if submission.candidate_response == "accepted" and open_invite
+            else None
+        ),
+    )
+
+
+async def get_application_invitation(token: str, db: AsyncSession) -> ApplicationInvitationResponse:
+    submission, session, pi, org_name = await _get_invitation(token, db)
+    return _invitation_response(submission, session, pi, org_name)
+
+
+async def respond_to_invitation(
+    token: str, response: str, db: AsyncSession
+) -> ApplicationInvitationResponse:
+    response = (response or "").lower()
+    if response not in {"accepted", "declined"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="response must be accepted or declined")
+
+    submission, session, pi, org_name = await _get_invitation(token, db)
+    state = _invitation_response(submission, session, pi, org_name)
+
+    if submission.candidate_response == response:
+        return state  # idempotent: a double click or a reopened email link
+    if submission.candidate_response != "pending":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You have already responded to this invitation")
+    if state.expired:
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="This invitation has expired")
+    if not state.can_respond:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This invitation is no longer active")
+
+    await _record_candidate_response(submission, response, db)
+    await db.commit()
+    await db.refresh(submission)
+    await db.refresh(session)
+    return _invitation_response(submission, session, pi, org_name)
 
 
 async def respond_to_application(
@@ -692,21 +976,10 @@ async def respond_to_application(
     if submission.org_decision != "invited":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No active invitation")
 
-    submission.candidate_response = response
-    submission.candidate_responded_at = datetime.now(timezone.utc)
-    submission.status = "interview_accepted" if response == "accepted" else "interview_declined"
-
-    if submission.session_id is not None:
-        session_result = await db.execute(
-            select(InterviewSession).where(InterviewSession.id == submission.session_id)
-        )
-        session = session_result.scalar_one_or_none()
-        if session is not None and response == "declined":
-            session.status = "cancelled"
-
+    await _record_candidate_response(submission, response, db)
     await db.commit()
     await db.refresh(submission)
-    return _application_response(submission, pi.title)
+    return await _application_response_for(submission, pi, db)
 
 
 async def set_application_outcome(
@@ -728,4 +1001,4 @@ async def set_application_outcome(
     submission.outcome_decided_at = now
     await db.commit()
     await db.refresh(submission)
-    return _application_response(submission, pi.title)
+    return await _application_response_for(submission, pi, db)

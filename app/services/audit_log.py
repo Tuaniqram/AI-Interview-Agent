@@ -1,4 +1,3 @@
-import json
 import logging
 import uuid
 from typing import Any, Optional
@@ -42,7 +41,7 @@ class AuditLogService:
             resource_id=resource_id,
             user_id=_to_uuid(user_id),
             org_id=_to_uuid(org_id),
-            details=json.dumps(details) if details else None,
+            details=details or {},
             ip_address=ip_address,
         ))
         await self.db.flush()

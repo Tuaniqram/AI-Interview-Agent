@@ -18,11 +18,23 @@ export function BackButton() {
 }
 
 export function LoadingScreen({ label = 'Preparing interview...' }: { label?: string }) {
+  // Preparing an interview (role profile, company context, strategy, first question) can take a
+  // minute or more: say so, instead of an unexplained spinner that looks stuck.
+  const [slow, setSlow] = React.useState(false);
+  React.useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), 15000);
+    return () => clearTimeout(timer);
+  }, []);
   return (
-    <div className="fixed inset-0 bg-page flex items-center justify-center" data-theme="dark">
-      <div className="text-center space-y-4">
+    <div className="fixed inset-0 bg-page flex items-center justify-center" data-theme="dark" role="status" aria-live="polite">
+      <div className="text-center space-y-4 max-w-xs px-4">
         <Loader2 className="animate-spin w-12 h-12 text-action-primary mx-auto" />
         <p className="text-secondary">{label}</p>
+        {slow && (
+          <p className="text-muted text-xs">
+            Tailoring the interview to the role takes a little while the first time. Please keep this tab open.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -78,7 +90,7 @@ export function PhaseProgress() {
   );
 }
 
-export function EvaluationFeedback({ entry }: { entry: { strengths: string[]; weaknesses: string[]; feedback: string; score: number } }) {
+export function EvaluationFeedback({ entry }: { entry: { strengths: string[]; weaknesses: string[]; feedback: string; score: number | null } }) {
   const [open, setOpen] = React.useState(true);
 
   const scoreColor = (s: number) => s >= 7 ? 'text-success-text' : s >= 5 ? 'text-warning-text' : 'text-error-text';
@@ -87,8 +99,14 @@ export function EvaluationFeedback({ entry }: { entry: { strengths: string[]; we
     <div className="bg-elevated rounded-lg overflow-hidden text-xs">
       <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-3 py-2 hover:bg-hover transition-colors">
         <span className="flex items-center gap-2">
-          <span className={`font-bold text-sm ${scoreColor(entry.score)}`}>{entry.score.toFixed(1)}</span>
-          <span className="text-muted">/ 10</span>
+          {entry.score === null ? (
+            <span className="font-semibold text-sm text-muted">Not scored</span>
+          ) : (
+            <>
+              <span className={`font-bold text-sm ${scoreColor(entry.score)}`}>{entry.score.toFixed(1)}</span>
+              <span className="text-muted">/ 10</span>
+            </>
+          )}
         </span>
         {open ? <ChevronUp className="w-3.5 h-3.5 text-muted" /> : <ChevronDown className="w-3.5 h-3.5 text-muted" />}
       </button>

@@ -1,3 +1,4 @@
+import { getCandidateToken } from '../../utils/candidateToken';
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Mic, MicOff, Sparkles, Volume2, VolumeX } from 'lucide-react';
@@ -32,7 +33,7 @@ export function ConductorRoom() {
   const lastSpokenRef = React.useRef('');
 
   const session = state.session;
-  const isPractice = !session?.department_id;
+  const isPractice = !session?.org_id && !session?.department_id;
   const isCompleted = session?.status === 'completed';
 
   // ── Answer time-box (contract §4.7): hard per-question window from the
@@ -142,15 +143,24 @@ export function ConductorRoom() {
   }
 
   if (state.error && !state.currentQuestion) {
+    const accessDenied = /denied/i.test(state.error);
+    const loggedIn = !!getCandidateToken();
     return (
-      <div className="flex-1 h-full bg-page flex items-center justify-center" data-theme="dark">
+      <div className="flex-1 h-full bg-page flex items-center justify-center" data-theme="dark" role="alert">
         <div className="text-center space-y-4 max-w-sm px-4">
-          <p className="text-secondary text-sm">{state.error}</p>
+          <p className="text-primary text-base font-semibold">
+            {accessDenied ? "You don't have access to this interview" : "We couldn't start your interview"}
+          </p>
+          <p className="text-secondary text-sm">
+            {accessDenied
+              ? 'Open the invitation link from your email, or sign in with the account that was invited.'
+              : state.error}
+          </p>
           <button
-            onClick={() => navigate('/candidate/practice')}
+            onClick={() => navigate(loggedIn ? '/candidate/applications' : '/opportunity-hub')}
             className="px-4 py-2 rounded-lg bg-action-primary text-inverse text-xs hover:bg-action-primary-hover transition-colors"
           >
-            Back to practice
+            {loggedIn ? 'Back to my applications' : 'Back to opportunities'}
           </button>
         </div>
       </div>

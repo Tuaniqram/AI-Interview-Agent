@@ -56,10 +56,20 @@ class FakeStore:
         return len(self.data)
 
 
+def _ws_url(session_id: str) -> str:
+    """The socket denies by default: connect with the per-session access token."""
+    from app.auth.interview_access import create_interview_access_token
+
+    return f"/ws/interview/{session_id}?access={create_interview_access_token(session_id)}"
+
+
 class FakeRow:
     def __init__(self, session_id):
         self.id = uuid4()
         self.job_role = "Software Engineer"
+        self.job_role_snapshot = "Software Engineer"
+        self.org_id = None
+        self.it_role_id = uuid4()
         self.department_id = None
         self.scorecard_template_id = None
         self.candidate_profile_id = None
@@ -96,7 +106,8 @@ def test_ws_full_cycle(ws_env, client, stub_llm, fake_evidence_repo, fake_repos,
         CONDUCTOR_TURN_JSON,           # question_generator conductor turn (answer)
     ])
 
-    with client.websocket_connect(f"/ws/interview/{uuid4()}") as ws:
+    session_id = str(uuid4())
+    with client.websocket_connect(_ws_url(session_id)) as ws:
             connected = ws.receive_json()
             assert connected["type"] == "connected"
 
@@ -172,7 +183,7 @@ def test_ws_start_full_boot_when_store_preseeded(ws_env, client, stub_llm, fake_
         CONDUCTOR_TURN_JSON, # question_generator conductor turn (start)
     ])
 
-    with client.websocket_connect(f"/ws/interview/{session_id}") as ws:
+    with client.websocket_connect(_ws_url(session_id)) as ws:
         ws.receive_json()  # connected
         ws.send_json({"_id": "1", "type": "start_interview"})
         question_msg = ws.receive_json()
@@ -203,7 +214,7 @@ def test_ws_start_resumes_started_session_without_llm(ws_env, client, stub_llm, 
 
     stub_llm(responses=[])
 
-    with client.websocket_connect(f"/ws/interview/{session_id}") as ws:
+    with client.websocket_connect(_ws_url(session_id)) as ws:
         ws.receive_json()  # connected
         ws.send_json({"_id": "1", "type": "start_interview"})
         question_msg = ws.receive_json()

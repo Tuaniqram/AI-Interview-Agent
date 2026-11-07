@@ -41,6 +41,7 @@ __all__ = [
 async def build_interview_intelligence(
     *,
     job_role: str,
+    org_id: str | None = None,
     department_id: int | None = None,
     style: dict | None = None,
     candidate_profile: dict | None = None,
@@ -72,6 +73,7 @@ async def build_interview_intelligence(
     """
     if company_brain is None:
         company_brain = await build_company_brain(
+            org_id=org_id,
             department_id=department_id,
             job_role=job_role,
             use_rag=use_rag,

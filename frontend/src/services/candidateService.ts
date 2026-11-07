@@ -1,6 +1,7 @@
 import { apiClient } from './apiClient';
 import type {
   CandidateAuthResponse,
+  CandidateClaimPending,
   CandidateLoginRequest,
   CandidateRegisterRequest,
   CandidateTokens,
@@ -17,8 +18,17 @@ import type {
 import type { Application } from '../types/marketplace';
 
 export const candidateService = {
-  async register(data: CandidateRegisterRequest): Promise<CandidateAuthResponse> {
-    return apiClient.post<CandidateAuthResponse>('/api/v1/candidates/register', data);
+  async register(data: CandidateRegisterRequest): Promise<CandidateAuthResponse | CandidateClaimPending> {
+    return apiClient.post<CandidateAuthResponse | CandidateClaimPending>('/api/v1/candidates/register', data);
+  },
+
+  /** Finish claiming a guest profile: emailed token + a new password. Signs the candidate in. */
+  async claimAccount(data: { token: string; password: string; name?: string }): Promise<CandidateAuthResponse> {
+    return apiClient.post<CandidateAuthResponse>('/api/v1/candidates/claim', data);
+  },
+
+  async verifyEmail(token: string): Promise<{ message: string }> {
+    return apiClient.post<{ message: string }>(`/api/v1/candidates/verify?token=${encodeURIComponent(token)}`);
   },
 
   async login(data: CandidateLoginRequest): Promise<CandidateAuthResponse> {
@@ -62,7 +72,8 @@ export const candidateService = {
   },
 
   async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
-    return apiClient.post<{ message: string }>(`/api/v1/candidates/reset-password?token=${token}&new_password=${newPassword}`);
+    // Body, not query string: the new password must never end up in URLs or access logs.
+    return apiClient.post<{ message: string }>('/api/v1/candidates/reset-password', { token, new_password: newPassword });
   },
 
   async startPractice(data: PracticeStartRequest): Promise<PracticeStartResponse> {
@@ -96,6 +107,7 @@ export const candidateService = {
   async uploadResume(file: File): Promise<CandidateProfile> {
     const formData = new FormData();
     formData.append('file', file);
-    return apiClient.post<CandidateProfile>('/api/v1/candidates/me/resume', formData);
+    // upload(), not post(): post() JSON-serializes FormData bodies.
+    return apiClient.upload<CandidateProfile>('/api/v1/candidates/me/resume', formData);
   },
 };

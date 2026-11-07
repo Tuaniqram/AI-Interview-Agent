@@ -25,13 +25,24 @@ from uuid import UUID
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 
+from app.auth.interview_access import verify_interview_access_token
 from app.auth.jwt import decode_token
+from app.engine.guards import (
+    IDLE_TIMEOUT_S,
+    MessageRateLimiter,
+    SessionLocks,
+    clean_message_id,
+    parse_frame,
+    validate_answer,
+    validate_session_id,
+)
 from app.database.session import get_session_factory
 from app.services.event_log import get_event_log
 from app.models.db import CandidateProfile, InterviewSession
 from app.exceptions import SessionNotFoundException
 
 from app.engine.engine import InterviewEngine
+from app.engine.store_io import store_get
 from app.engine.builders import build_start_response, build_state_response
 from app.config.interview_styles import get_style
 from app.data.competency_resolver import (
@@ -52,6 +63,14 @@ _connections: dict[str, dict[str, Any]] = {}
 _connection_timestamps: dict[str, float] = {}
 
 _cleanup_task = None
+
+# One lock per session: start / answer steps for the same interview never run concurrently
+# (two tabs, a double click, a reconnect racing a slow evaluation).
+_session_locks = SessionLocks()
+
+# Upper bound for one answer evaluation (LLM chain included); beyond it the client is told to retry.
+ANSWER_TIMEOUT_S = 300
+START_TIMEOUT_S = 300
 
 def start_cleanup_task():
     global _cleanup_task
@@ -83,26 +102,40 @@ async def _resolve_candidate_from_token(token: Optional[str]) -> Optional[str]:
         return None
 
 
-async def _verify_ws_session_access(session_id: str, candidate_id: Optional[str]) -> bool:
-    """Verify the candidate owns the session (conditional — skip if no candidate_id)."""
+async def _verify_ws_session_access(
+    session_id: str, candidate_id: Optional[str], access_session_id: Optional[str] = None
+) -> bool:
+    """Deny by default. A client may drive a session only if it holds
+
+    * a valid per-session access token for exactly this session (guests: issued with the
+      application invitation / public start), or
+    * the login token of the candidate who owns the session.
+
+    Previously a connection without any token was allowed into every session, so anyone
+    who learned a session id could read the questions and submit answers.
+    """
+    if access_session_id is not None and access_session_id == session_id:
+        return True
     if candidate_id is None:
-        return True  # org session, out of scope
-    async with get_session_factory()() as db:
-        result = await db.execute(
-            select(InterviewSession).where(InterviewSession.id == UUID(session_id))
-        )
-        session = result.scalar_one_or_none()
-    if not session:
         return False
-    if session.candidate_profile_id is not None:
-        return str(session.candidate_profile_id) == candidate_id
-    return True  # unowned session, allow
+    try:
+        sid = UUID(session_id)
+    except (ValueError, TypeError):
+        return False
+    async with get_session_factory()() as db:
+        result = await db.execute(select(InterviewSession).where(InterviewSession.id == sid))
+        session = result.scalar_one_or_none()
+    if not session or session.candidate_profile_id is None:
+        return False
+    return str(session.candidate_profile_id) == str(candidate_id)
 
 
 def _send_id(message: dict, request: dict) -> dict:
-    """Echo the client's _id (when present) so the client can resolve the request."""
-    if "_id" in request:
-        message["_id"] = request["_id"]
+    """Echo the client's _id (when present and sane) so the client can resolve the request."""
+    if isinstance(request, dict) and "_id" in request:
+        msg_id = clean_message_id(request["_id"])
+        if msg_id is not None:
+            message["_id"] = msg_id
     return message
 
 
@@ -175,7 +208,7 @@ async def _start_v4_engine(session_id: str) -> dict:
     All orchestration is delegated to ``InterviewEngine``.
     """
     store = get_v4_session_store()
-    existing = store.get(session_id)
+    existing = await store_get(store, session_id)
     if existing is not None and existing.get("nodes_executed"):
         return build_start_response(session_id, existing)
 
@@ -186,8 +219,12 @@ async def _start_v4_engine(session_id: str) -> dict:
     style = get_style("AURA")
     from app.agents.planning.difficulty_engine import role_difficulty_floor
 
-    taxonomy = default_taxonomy()
-    if db_session.org_id or db_session.scorecard_template_id:
+    org_id_str = str(db_session.org_id) if db_session.org_id else None
+    job_role = db_session.job_role_snapshot or "Software Engineer"
+
+    async def _resolve_taxonomy() -> list:
+        if not (db_session.org_id or db_session.scorecard_template_id):
+            return default_taxonomy()
         async with get_session_factory()() as db:
             role_context = None
             try:
@@ -209,18 +246,25 @@ async def _start_v4_engine(session_id: str) -> dict:
                 )
             except Exception as exc:  # noqa: BLE001 - role context is best-effort
                 logger.warning("Failed to build role context: %s", exc)
-            taxonomy = await resolve_competencies(
+            return await resolve_competencies(
                 db,
                 scorecard_template_id=str(db_session.scorecard_template_id)
                 if db_session.scorecard_template_id else None,
                 org_id=db_session.org_id,
                 role_context=role_context,
             )
+
+    # The three pre-start inputs do not depend on each other (competency taxonomy, the candidate's
+    # resume, the organization's company brain), so gather them instead of waiting for each in turn.
+    # Each of them is dominated by network time (LLM / remote database / vector search).
+    taxonomy, (candidate_profile, resume_text), company_brain = await asyncio.gather(
+        _resolve_taxonomy(),
+        _load_candidate_profile_data(db_session),
+        get_or_build_company_brain(org_id=org_id_str, job_role=job_role),
+    )
     competency_taxonomy, required, domain_label = taxonomy_for_state(
         taxonomy, priority_map=style.get("base_competency_priority")
     )
-
-    candidate_profile, resume_text = await _load_candidate_profile_data(db_session)
 
     state = {
         "session_id": session_id,
@@ -274,10 +318,6 @@ async def _start_v4_engine(session_id: str) -> dict:
     }
 
     engine = InterviewEngine(store=store, v5_persister=_get_v5_persister())
-    company_brain = await get_or_build_company_brain(
-        department_id=None,
-        job_role=db_session.job_role_snapshot or "Software Engineer",
-    )
     response = await engine.start_session(
         state,
         build_intelligence=True,
@@ -290,67 +330,101 @@ async def _start_v4_engine(session_id: str) -> dict:
 
 @router.websocket("/ws/interview/{session_id}")
 async def interview_websocket(websocket: WebSocket, session_id: str):
-    token = websocket.query_params.get("token")
-    candidate_id = await _resolve_candidate_from_token(token)
+    candidate_id = await _resolve_candidate_from_token(websocket.query_params.get("token"))
+    access_session_id = verify_interview_access_token(websocket.query_params.get("access"))
+
+    if validate_session_id(session_id) is None:
+        await websocket.close(code=1008, reason="Invalid session")
+        return
 
     await websocket.accept()
 
     conn_state: dict[str, Any] = {"session_id": session_id, "candidate_id": candidate_id}
     _connections[session_id] = conn_state
     _connection_timestamps[session_id] = time_module.time()
+    limiter = MessageRateLimiter()
+    authorized: set[str] = set()  # sessions this connection already proved access to (saves DB hits)
+
+    async def reply(message: dict, request: Optional[dict] = None) -> None:
+        await websocket.send_json(_send_id(message, request or {}))
+
+    async def deny(sid: str) -> bool:
+        """True (and tell the client) when this connection may NOT use ``sid``."""
+        if sid in authorized:
+            return False
+        if await _verify_ws_session_access(sid, candidate_id, access_session_id):
+            authorized.add(sid)
+            return False
+        return True
 
     try:
-        await websocket.send_json({
-            "type": "connected",
-            "session_id": session_id,
-        })
+        await websocket.send_json({"type": "connected", "session_id": session_id})
 
         while True:
+            try:
+                raw = await asyncio.wait_for(websocket.receive_text(), timeout=IDLE_TIMEOUT_S)
+            except asyncio.TimeoutError:
+                await websocket.close(code=1000, reason="Idle timeout")
+                break
             _connection_timestamps[session_id] = time_module.time()
-            raw = await websocket.receive_text()
-            data = json.loads(raw)
-            msg_type = data.get("type", "")
+
+            data, frame_error = parse_frame(raw)
+            if frame_error:
+                # A bad frame gets an error reply; it must never close the interview connection.
+                await reply({"type": "error", "detail": frame_error})
+                continue
+            msg_type = data["type"]
+
+            if not limiter.allow():
+                await reply({"type": "error", "detail": "Too many messages. Please slow down."}, data)
+                continue
 
             if msg_type == "ping":
-                _connection_timestamps[session_id] = time_module.time()
-                await websocket.send_json(_send_id({"type": "pong"}, data))
+                await reply({"type": "pong"}, data)
 
             elif msg_type == "start_interview":
-                sid = data.get("session_id") or session_id
-                if not await _verify_ws_session_access(sid, candidate_id):
-                    await websocket.send_json(_send_id({"type": "error", "detail": "Session access denied"}, data))
+                sid = validate_session_id(data.get("session_id")) or session_id
+                if await deny(sid):
+                    await reply({"type": "error", "detail": "Session access denied"}, data)
                     continue
                 conn_state["session_id"] = sid
                 _connections[sid] = conn_state
                 try:
-                    response = await _start_v4_engine(sid)
+                    async with _session_locks.lock(sid):
+                        response = await asyncio.wait_for(_start_v4_engine(sid), timeout=START_TIMEOUT_S)
                 except SessionNotFoundException:
-                    await websocket.send_json(_send_id({"type": "error", "detail": "Session not found"}, data))
+                    await reply({"type": "error", "detail": "Session not found"}, data)
                     continue
-                except Exception as e:
-                    logger.exception(f"WS start failed: {e}")
-                    await websocket.send_json(_send_id({"type": "error", "detail": f"Failed to start interview: {type(e).__name__}"}, data))
+                except asyncio.TimeoutError:
+                    logger.error(f"WS start timed out for session {sid}")
+                    await reply({"type": "error", "detail": "Starting the interview took too long. Please try again."}, data)
                     continue
-                await websocket.send_json(_send_id({"type": "question", **response}, data))
+                except Exception:
+                    logger.exception("WS start failed")
+                    await reply({"type": "error", "detail": "Failed to start the interview. Please try again."}, data)
+                    continue
+                await reply({"type": "question", **response}, data)
 
             elif msg_type == "request_question":
                 sid = conn_state["session_id"]
-                if not await _verify_ws_session_access(sid, candidate_id):
-                    await websocket.send_json(_send_id({"type": "error", "detail": "Session access denied"}, data))
+                if await deny(sid):
+                    await reply({"type": "error", "detail": "Session access denied"}, data)
                     continue
-                store = get_v4_session_store()
-                state = store.get(sid)
+                state = await store_get(get_v4_session_store(), sid)
                 if state is None:
-                    await websocket.send_json(_send_id({"type": "error", "detail": "Session not initialized"}, data))
+                    await reply({"type": "error", "detail": "Session not initialized"}, data)
                     continue
-                await websocket.send_json(_send_id({"type": "question", **build_start_response(sid, state)}, data))
+                await reply({"type": "question", **build_start_response(sid, state)}, data)
 
             elif msg_type == "submit_answer":
                 sid = conn_state["session_id"]
-                if not await _verify_ws_session_access(sid, candidate_id):
-                    await websocket.send_json(_send_id({"type": "error", "detail": "Session access denied"}, data))
+                if await deny(sid):
+                    await reply({"type": "error", "detail": "Session access denied"}, data)
                     continue
-                candidate_answer = data.get("candidate_answer", "")
+                candidate_answer, answer_error = validate_answer(data.get("candidate_answer"))
+                if answer_error:
+                    await reply({"type": "error", "detail": answer_error}, data)
+                    continue
 
                 # Optional anti-cheat telemetry (contract docs/anti-cheat-guard.md
                 # §4.1 + §4.6). Absent from any client is always valid — no signal.
@@ -364,56 +438,62 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                     "heartbeat_gaps": data.get("heartbeat_gaps"),
                 }
 
-                await websocket.send_json(_send_id({"type": "status", "phase": "evaluating"}, data))
+                await reply({"type": "status", "phase": "evaluating"}, data)
 
                 try:
                     engine = InterviewEngine(
                         store=get_v4_session_store(),
                         v5_persister=_get_v5_persister(),
                     )
-                    result = await engine.process_answer(sid, candidate_answer, integrity_meta=integrity_meta)
+                    async with _session_locks.lock(sid):
+                        result = await asyncio.wait_for(
+                            engine.process_answer(sid, candidate_answer, integrity_meta=integrity_meta),
+                            timeout=ANSWER_TIMEOUT_S,
+                        )
                 except SessionNotFoundException:
-                    await websocket.send_json(_send_id({"type": "error", "detail": "Session not found"}, data))
+                    await reply({"type": "error", "detail": "Session not found"}, data)
                     continue
-                except Exception as e:
-                    logger.exception(f"WS answer failed: {e}")
-                    await websocket.send_json(_send_id({"type": "error", "detail": f"Error processing answer: {type(e).__name__}"}, data))
+                except asyncio.TimeoutError:
+                    logger.error(f"WS answer timed out for session {sid}")
+                    await reply({"type": "error", "detail": "Evaluating your answer took too long. Please send it again."}, data)
+                    continue
+                except Exception:
+                    logger.exception("WS answer failed")
+                    await reply({"type": "error", "detail": "We could not process your answer. Please try again."}, data)
                     continue
 
                 completed = result.get("status") == "completed" or result.get("interview_complete")
                 if completed:
-                    await websocket.send_json(_send_id({"type": "report", **result}, data))
+                    await reply({"type": "report", **result}, data)
                 else:
-                    await websocket.send_json(_send_id({"type": "status", "phase": "question_ready"}, data))
-                    await websocket.send_json(_send_id({"type": "evaluation", **result}, data))
+                    await reply({"type": "status", "phase": "question_ready"}, data)
+                    await reply({"type": "evaluation", **result}, data)
 
             elif msg_type == "get_status":
                 sid = conn_state["session_id"]
-                if not await _verify_ws_session_access(sid, candidate_id):
-                    await websocket.send_json(_send_id({"type": "error", "detail": "Session access denied"}, data))
+                if await deny(sid):
+                    await reply({"type": "error", "detail": "Session access denied"}, data)
                     continue
-                store = get_v4_session_store()
-                state = store.get(sid)
+                state = await store_get(get_v4_session_store(), sid)
                 if state is None:
-                    await websocket.send_json(_send_id({"type": "error", "detail": "Session not found"}, data))
+                    await reply({"type": "error", "detail": "Session not found"}, data)
                     continue
-                status = build_state_response(sid, state)
-                await websocket.send_json(_send_id({"type": "status_snapshot", **status}, data))
+                await reply({"type": "status_snapshot", **build_state_response(sid, state)}, data)
 
             else:
-                await websocket.send_json(_send_id({
-                    "type": "error",
-                    "detail": f"Unknown message type: {msg_type}",
-                }, data))
+                await reply({"type": "error", "detail": "Unknown message type"}, data)
 
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected: {session_id}")
-    except Exception as e:
-        logger.exception(f"WebSocket error: {e}")
+    except Exception:
+        logger.exception("WebSocket error")
         try:
-            await websocket.send_json({"type": "error", "detail": str(e)})
+            await websocket.send_json({"type": "error", "detail": "Connection error"})  # no internals
         except Exception:
             pass
     finally:
-        _connections.pop(session_id, None)
-        _connection_timestamps.pop(session_id, None)
+        # Only remove our own registry entries (a newer connection may have replaced them).
+        for key in {session_id, conn_state.get("session_id")}:
+            if _connections.get(key) is conn_state:
+                _connections.pop(key, None)
+                _connection_timestamps.pop(key, None)

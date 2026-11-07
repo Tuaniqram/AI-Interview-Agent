@@ -43,7 +43,7 @@ async def generate_rich_description(interview_id: str) -> None:
                 skills=pi.skills_required or "Not specified",
             )
 
-            llm: LLMService = get_llm_service()
+            llm = get_llm_service()
             result_text = await llm.invoke(
                 prompt,
                 temperature=0.7,

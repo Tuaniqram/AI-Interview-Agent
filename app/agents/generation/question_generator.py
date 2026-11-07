@@ -724,6 +724,11 @@ async def _generate_conductor_turn(
 def _parse_conductor_turn(response: str) -> dict:
     from app.intelligence._helpers import parse_json
 
+    from app.intelligence._helpers import unwrap_turn_json
+
+    unwrapped = unwrap_turn_json(response)  # also handles a turn nested inside "question"
+    if unwrapped:
+        return unwrapped
     data = parse_json(response)
     question = str(data.get("question", "")).strip()
     if not question:
@@ -831,7 +836,12 @@ async def _generate_llm_question(
     )
 
     response = await llm_service.invoke(prompt=prompt, temperature=0.8, max_tokens=200, tier="cheap")
+    from app.intelligence._helpers import unwrap_turn_json
+
     question = (response or "").strip()
+    unwrapped = unwrap_turn_json(question)
+    if unwrapped:  # a model that answers with the conductor JSON where plain text was asked for
+        question = unwrapped["question"]
     if question.startswith("Question:"):
         question = question[len("Question:"):].strip()
     if not question:

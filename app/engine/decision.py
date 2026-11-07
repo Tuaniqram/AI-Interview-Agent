@@ -8,6 +8,7 @@ Decision Review stage is layered in on top of this module as the engine's
 import logging
 
 from app.core.interview_brain import InterviewBrain
+from app.engine.store_io import store_checkpoint
 from app.core.interview_state import brain_to_dict, sync_brain
 from app.engine.persistence import (
     persist_answer_turn,
@@ -208,10 +209,11 @@ async def finalize_session(engine, brain: InterviewBrain) -> dict:
     except Exception as exc:  # noqa: BLE001 - calibration override is best-effort
         logger.warning(f"Calibration verdict override failed (non-fatal): {exc}")
 
+    brain.finalized = True
     await persist_answer_turn(session_id, brain)
     await persist_completion(session_id, brain)
     store.set(session_id, brain.to_dict())
-    store.checkpoint(session_id, brain.to_dict())
+    await store_checkpoint(store, session_id, brain.to_dict())
     brain.bump_version()
 
     report = build_report_response(brain)

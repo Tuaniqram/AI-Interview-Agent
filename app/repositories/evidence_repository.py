@@ -36,7 +36,7 @@ class EvidenceRepository(BaseRepository):
         data = {
             "id": _UUID(evidence_id) if evidence_id else uuid4(),
             "session_id": UUID(session_id),
-            "competency": competency,
+            "competency_id": competency,
             "dimension": dimension,
             "score": score,
             "confidence": confidence,

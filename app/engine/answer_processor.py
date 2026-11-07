@@ -10,6 +10,7 @@ import logging
 from app.core.interview_brain import InterviewBrain
 from app.core.interview_state import brain_to_dict, dict_to_brain, sync_brain
 from app.engine.persistence import persist_evidence
+from app.engine.store_io import store_get_or_raise
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +22,17 @@ async def process_answer(
     store = engine._get_store()
     events = engine._get_events()
 
-    raw = store.get_or_raise(session_id)
+    raw = await store_get_or_raise(store, session_id)
     brain = dict_to_brain(raw)
+
+    # A finished interview never re-runs: a late or duplicate answer (second tab, retry after the
+    # report was already sent) gets the same report back instead of re-scoring and re-persisting.
+    if getattr(brain, "finalized", False):
+        from app.engine.builders import build_report_response
+
+        report = build_report_response(brain)
+        report["interview_complete"] = True
+        return report
 
     from app.utils.input_sanitizer import (
         detect_prompt_injection,

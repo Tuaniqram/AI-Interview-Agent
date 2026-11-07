@@ -19,29 +19,8 @@ load_dotenv()
 
 from app.database.base import Base
 
-# Import all models so Alembic can autodetect them
-from app.models import (  # noqa: F401
-    AuditLog,
-    Booking,
-    CandidateInvitation,
-    CandidateProfile,
-    CandidateRefreshToken,
-    CandidateSession,
-    Department,
-    DepartmentDocument,
-    InterviewEvaluation,
-    InterviewMessage,
-    InterviewSession,
-    InterviewSlot,
-    InterviewTemplate,
-    Organization,
-    OrgUser,
-    PublicInterview,
-    PublicInterviewSubmission,
-    RefreshToken,
-    SlotAvailability,
-    User,
-)
+# Import every current model so they register on Base.metadata (autodetect).
+import app.models.db  # noqa: F401
 
 config = context.config
 

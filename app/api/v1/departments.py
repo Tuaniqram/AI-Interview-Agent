@@ -243,6 +243,16 @@ async def upload_document(
     }
 
 
+def _invalidate_org_brain(org_id) -> None:
+    """Drop cached company brains so new/removed documents are used next session."""
+    try:
+        from app.intelligence.company_cache import invalidate_company_brain
+
+        invalidate_company_brain(org_id=str(org_id))
+    except Exception as exc:  # noqa: BLE001 - cache eviction is best-effort
+        logger.warning(f"Company brain cache invalidation failed: {exc}")
+
+
 async def _process_document(filepath: str, org_id: str, doc_id: str, filename: str):
     try:
         from app.rag.loader import load_pdf
@@ -252,6 +262,7 @@ async def _process_document(filepath: str, org_id: str, doc_id: str, filename: s
         documents = load_pdf(filepath)
         chunks = split_documents(documents)
         store_department_knowledge(chunks, org_id, doc_id=doc_id)
+        _invalidate_org_brain(org_id)
         logger.info(f"RAG pipeline completed: {len(chunks)} chunks stored (doc_id={doc_id})")
     except Exception as e:
         logger.error(f"RAG pipeline failed for {filename} (doc_id={doc_id}): {e}")
@@ -280,6 +291,7 @@ async def delete_document(
         delete_department_knowledge(org_id, doc_id)
     except Exception as e:
         logger.warning(f"Pinecone delete failed (continuing): {e}")
+    _invalidate_org_brain(org_id)
 
     filepath = os.path.join(UPLOAD_DIR, doc.filename)
     if os.path.exists(filepath):

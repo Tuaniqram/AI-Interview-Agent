@@ -97,9 +97,6 @@ class V5BrainPersister:
 
     def __init__(self, session_factory=None):
         self._session_factory = session_factory or get_session_factory
-        self._last_objective_key: dict[str, str] = {}
-        self._last_objective_row_id: dict[str, UUID] = {}
-        self._last_obs_qnum: dict[str, int] = {}
         self._finalize_done: dict[str, bool] = {}
 
     async def save_snapshot(self, brain) -> None:
@@ -269,7 +266,10 @@ class V5BrainPersister:
 
         if finalize and self._finalize_done.get(str(session_id)):
             return
-        self._finalize_done[str(session_id)] = True
+        if finalize:
+            # Only the real finalize call may mark it done: marking on every per-turn call
+            # made the end-of-interview call return early and the scorecard was never saved.
+            self._finalize_done[str(session_id)] = True
 
         factory = self._session_factory()
         if factory is None:
@@ -324,135 +324,6 @@ class V5BrainPersister:
             },
         )
         await session.execute(stmt)
-
-    async def _insert_observations(self, session, session_id: UUID, brain) -> None:
-        observations = getattr(brain, "observations", []) or []
-        if not observations:
-            return
-        key = str(session_id)
-        answered = getattr(brain, "answered_question_numbers", []) or []
-        qnum = answered[-1] if answered else int(getattr(brain, "question_number", 0) or 0)
-        if qnum == self._last_obs_qnum.get(key):
-            return
-        existing_obs = await session.execute(
-            select(ObservationRecord.id)
-            .where(
-                ObservationRecord.session_id == session_id,
-                ObservationRecord.question_number == qnum,
-            )
-            .limit(1)
-        )
-        if existing_obs.scalar_one_or_none() is not None:
-            return
-        self._last_obs_qnum[key] = qnum
-        risk_types = {"hedging", "certainty_shift", "sentiment_shift", "response_latency_estimate"}
-        for obs in observations:
-            obs_type = obs.get("type") or "observation"
-            raw_value = obs.get("value")
-            evidence = obs.get("evidence") or (
-                f"{obs_type}={float(raw_value):.2f}"
-                if isinstance(raw_value, (int, float))
-                else (str(raw_value) if raw_value else "")
-            )
-            risk_signal = obs.get("risk_signal")
-            if risk_signal is None:
-                risk_signal = {"signal": obs_type} if obs_type in risk_types else None
-            session.add(ObservationRecord(
-                session_id=session_id,
-                question_number=qnum,
-                type=obs_type,
-                value=_clamp(raw_value, 0.0, 1.0),
-                evidence=evidence,
-                pattern=obs.get("pattern") or obs_type,
-                risk_signal=risk_signal,
-            ))
-
-    async def _upsert_objectives(
-        self, session, session_id: UUID, brain, finalize: bool
-    ) -> None:
-        key = str(session_id)
-        objective = getattr(brain, "question_objective", None) or {}
-        question_id = objective.get("question_id")
-        if not question_id:
-            return
-
-        target_competency = objective.get("target_competency") or "unknown"
-        evidence_ids = _uuid_list([
-            ev.get("id")
-            for ev in (getattr(brain, "evidence_store", None) or [])
-            if ev.get("competency") == target_competency
-        ])
-
-        if self._last_objective_key.get(key) != question_id:
-            if self._last_objective_row_id.get(key) is not None:
-                await session.execute(
-                    update(InterviewObjectiveRecord)
-                    .where(InterviewObjectiveRecord.id == self._last_objective_row_id[key])
-                    .values(status="probed", evidence_ids=evidence_ids)
-                )
-            hypotheses = getattr(brain, "hypotheses", []) or []
-            target_id = objective.get("target_hypothesis_id") or ""
-            match = next((h for h in hypotheses if str(h.get("id", "")) == str(target_id)), None)
-            try:
-                hypothesis_id = UUID(str(target_id)) if target_id else None
-            except (ValueError, TypeError):
-                hypothesis_id = None
-            new_id = uuid.uuid4()
-            row = InterviewObjectiveRecord(
-                id=new_id,
-                session_id=session_id,
-                competency=target_competency,
-                dimension=objective.get("dimension")
-                or getattr(brain, "current_phase", None)
-                or "technical",
-                hypothesis_id=hypothesis_id,
-                hypothesis_statement=match.get("statement") if match else None,
-                hypothesis_confidence=_clamp(match.get("confidence", 0.0)) if match else None,
-                status="pending",
-                evidence_ids=evidence_ids,
-                priority=1,
-            )
-            session.add(row)
-            self._last_objective_row_id[key] = new_id
-            self._last_objective_key[key] = question_id
-        elif finalize and self._last_objective_row_id.get(key) is not None:
-            await session.execute(
-                update(InterviewObjectiveRecord)
-                .where(InterviewObjectiveRecord.id == self._last_objective_row_id[key])
-                .values(status="probed", evidence_ids=evidence_ids)
-            )
-
-    async def _insert_consistency_checks(self, session, session_id: UUID, brain) -> None:
-        checks = getattr(brain, "consistency_checks", []) or []
-        if not checks:
-            return
-        existing = await session.execute(
-            select(ConsistencyCheckRecord.id)
-            .where(ConsistencyCheckRecord.session_id == session_id)
-            .limit(1)
-        )
-        if existing.scalar_one_or_none() is not None:
-            return
-        contradictions = getattr(brain, "contradictions", []) or []
-        for check in checks:
-            score = check.get("score")
-            confidence = check.get("confidence", 0.5)
-            session.add(ConsistencyCheckRecord(
-                session_id=session_id,
-                check_type=check.get("type") or "evaluation",
-                assessment=check.get("assessment"),
-                score=check.get("score"),
-                confidence=check.get("confidence"),
-                evidence=check.get("evidence", ""),
-                checked_at=_coerce_dt(check.get("checked_at")),
-                dimension=check.get("type") or "evaluation",
-                answers_compared={
-                    "assessment": check.get("assessment"),
-                    "evidence": check.get("evidence", ""),
-                },
-                consistency_score=_clamp((score or 0) / 10.0 * _clamp(confidence)),
-                contradictions=contradictions,
-            ))
 
     async def _insert_scorecard_result(self, session, session_id: UUID, brain) -> None:
         existing = await session.execute(

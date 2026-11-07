@@ -1,3 +1,4 @@
+import { setInterviewAccess } from '../../utils/interviewAccess';
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
@@ -25,6 +26,7 @@ export default function PublicInterview() {
         throw new Error(err.detail || 'Failed to start interview');
       }
       const data = await res.json();
+      setInterviewAccess(data.session_id, data.token);
       navigate(`/interview/${data.session_id}`);
     } catch (err: any) {
       setError(err.message);

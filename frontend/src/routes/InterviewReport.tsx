@@ -84,8 +84,8 @@ export function InterviewReportPage() {
   const evaluations = (report.evaluations || []) as unknown as Evaluation[];
 
   // Pair questions with answers
-  const questions = messages.filter(m => m.role === 'interviewer' || m.message_type === 'question');
-  const answers = messages.filter(m => m.role === 'candidate' || m.message_type === 'candidate_answer');
+  const questions = messages.filter(m => m.role === 'assistant' || m.role === 'interviewer' || m.message_type.endsWith('question'));
+  const answers = messages.filter(m => m.role === 'user' || m.role === 'candidate' || m.message_type.endsWith('answer'));
 
   const scoreColor = (score: number | null) => {
     if (score === null || score === undefined) return 'text-muted';

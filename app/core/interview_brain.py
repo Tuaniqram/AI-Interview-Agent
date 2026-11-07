@@ -131,6 +131,9 @@ class InterviewBrain:
     questions_asked: list = field(default_factory=list)
     answered_question_numbers: list = field(default_factory=list)
 
+    # -- Lifecycle ----------------------------------------------------------
+    finalized: bool = False  # set once the report was produced; later answers just return it
+
     # -- Metadata -----------------------------------------------------------
     start_time: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     nodes_executed: list = field(default_factory=list)

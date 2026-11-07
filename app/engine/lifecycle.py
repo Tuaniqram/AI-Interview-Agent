@@ -7,6 +7,7 @@ question and persists the first brain snapshot.
 import logging
 
 from app.core.interview_state import brain_to_dict, dict_to_brain, sync_brain
+from app.engine.store_io import store_checkpoint, store_get
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ async def start_session(engine, state: dict, build_intelligence: bool = False, i
 
     from app.engine.builders import build_start_response
 
-    existing = store.get(session_id)
+    existing = await store_get(store, session_id)
     if existing is not None and existing.get("nodes_executed"):
         return build_start_response(session_id, existing)
 
@@ -68,7 +69,7 @@ async def start_session(engine, state: dict, build_intelligence: bool = False, i
         try:
             bundle = await build_interview_intelligence(
                 job_role=state.get("job_role", ""),
-                department_id=None,
+                org_id=state.get("org_id"),
                 style=state.get("interview_style"),
                 candidate_profile=state.get("candidate_profile"),
                 candidate_id=state.get("candidate_id", ""),
@@ -158,7 +159,7 @@ async def start_session(engine, state: dict, build_intelligence: bool = False, i
     brain.bump_version()
 
     store.set(session_id, brain.to_dict())
-    store.checkpoint(session_id, brain.to_dict())
+    await store_checkpoint(store, session_id, brain.to_dict())
 
     await events.append(session_id, "session_started", {
         "job_role": brain.job_role,

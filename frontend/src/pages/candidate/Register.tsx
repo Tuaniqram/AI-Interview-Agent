@@ -14,16 +14,23 @@ export default function CandidateRegister() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [claimMessage, setClaimMessage] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await register({ name, email, password });
+      const result = await register({ name, email, password });
+      if (result.claimPending) {
+        // Guest activity exists for this email: nothing is created until the inbox owner follows the link.
+        setClaimMessage(result.message || 'Check your email to finish setting up your account.');
+        return;
+      }
       navigate('/candidate/dashboard');
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Registration failed');
+      const detail = err?.response?.data?.detail;
+      setError(typeof detail === 'string' ? detail : 'Registration failed. Check your details and try again.');
     } finally {
       setLoading(false);
     }
@@ -47,7 +54,20 @@ export default function CandidateRegister() {
         <div className="text-center">
           <h1 className="text-xl font-bold text-[var(--text-primary)]">Create Candidate Account</h1>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">Track your interviews and practice with AI</p>
+          <p className="mt-2 text-xs text-[var(--text-secondary)]">
+            Applied before as a guest? Use the same email to keep your applications, CV and interview history.
+            We'll email you a link to confirm it's your inbox and set your password.
+          </p>
         </div>
+        {claimMessage ? (
+          <div className="glass-card space-y-2 text-sm text-[var(--text-secondary)]" role="status">
+            <p className="font-semibold text-[var(--text-primary)]">Check your email</p>
+            <p>
+              We found earlier applications under <strong>{email}</strong> and sent a link to that address. Open it to
+              choose your password and attach your applications, CV and interview history to your account.
+            </p>
+          </div>
+        ) : (
         <div className="glass-card space-y-3">
           <button
             onClick={() => googleLoginHandler()}
@@ -75,12 +95,13 @@ export default function CandidateRegister() {
             )}
             <Input label="Full Name" value={name} onChange={(e) => setName(e.target.value)} required />
             <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+            <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" hint="At least 8 characters" />
             <Button type="submit" loading={loading} className="w-full">
               Create Account
             </Button>
           </form>
         </div>
+        )}
         <p className="text-center text-sm text-[var(--text-secondary)]">
           Already have an account? <Link to="/candidate/login" className="text-[var(--action-primary)] hover:underline">Sign in</Link>
         </p>

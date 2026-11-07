@@ -65,7 +65,7 @@ class MessageRepository(BaseRepository):
         is_follow_up: bool = False, follow_up_number: int = 0,
     ) -> dict:
         return await self.create_message(
-            session_id=session_id, role="interviewer", message_type="question",
+            session_id=session_id, role="assistant", message_type="question",
             content=question_text, question_number=question_number, phase=phase,
             follow_up_number=follow_up_number if is_follow_up else None,
         )

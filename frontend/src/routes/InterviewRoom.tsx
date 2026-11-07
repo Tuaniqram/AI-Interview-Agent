@@ -8,7 +8,8 @@ export function InterviewRoom() {
   const navigate = useNavigate();
   const { state, actions } = useInterviewStore();
   const session = state.session;
-  const isPractice = !session?.department_id;
+  // Real interviews belong to an organization; practice sessions have none.
+  const isPractice = !session?.org_id && !session?.department_id;
 
   const handleEnd = () => {
     actions.cancelInterview();
@@ -32,7 +33,7 @@ export function InterviewRoom() {
               )}
               <span className="text-xs text-secondary truncate max-w-[40vw]">
                 {session.job_role || 'AURA Interview'}
-                {!isPractice && session.department_id ? ' · Live' : ''}
+                {!isPractice ? ' · Live' : ''}
               </span>
             </>
           )}

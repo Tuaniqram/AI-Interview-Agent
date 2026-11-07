@@ -152,6 +152,7 @@ async def _unified_evaluator(
         **state,
         "unified_evaluation": evaluation,
         "evaluation_score": composite,
+        "evaluation_failed": False,
         "observations": obs_list,
         "observation_trends": observations,
     }
@@ -179,6 +180,9 @@ def _empty_evaluation(state: InterviewState, reason: str, dimensions: list[str])
         **state,
         "unified_evaluation": empty,
         "evaluation_score": None,
+        # The answer was NOT scored (model unavailable / unreadable reply). Surfaced to the client so
+        # it can say "not scored" instead of presenting the missing score as 0.0.
+        "evaluation_failed": True,
         "observations": [],
         "observation_trends": {},
     }

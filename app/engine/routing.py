@@ -11,6 +11,7 @@ from typing import Optional
 from app.core.interview_brain import InterviewBrain
 from app.core.interview_state import brain_to_dict, sync_brain
 from app.engine.persistence import persist_answer_turn, summarize_hypotheses
+from app.engine.store_io import store_checkpoint
 
 logger = logging.getLogger(__name__)
 
@@ -305,7 +306,7 @@ async def emit_question_and_persist(
     })
 
     store.set(session_id, brain.to_dict())
-    store.checkpoint(session_id, brain.to_dict())
+    await store_checkpoint(store, session_id, brain.to_dict())
     brain.bump_version()
 
     logger.info(

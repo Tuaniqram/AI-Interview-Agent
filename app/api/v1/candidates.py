@@ -1,20 +1,25 @@
 import hashlib
 import json
 import secrets
+import uuid
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, status
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.candidates.auth import authenticate_candidate, require_verified_candidate
 from app.candidates.schemas import (
     CandidateAuthResponse,
+    CandidateClaimPendingResponse,
+    CandidateClaimRequest,
+    CandidateForgotPasswordRequest,
     CandidateInterviewResponse,
     CandidateLoginRequest,
     CandidateProfileResponse,
     CandidateRefreshRequest,
     CandidateRegisterRequest,
+    CandidateResetPasswordRequest,
     CandidateTokenResponse,
     CandidateUpdateRequest,
     GoogleAuthRequest,
@@ -23,6 +28,7 @@ from app.candidates.schemas import (
 )
 from app.services.audit_log import AuditLogService
 from app.candidates.service import (
+    complete_claim,
     get_competency_scores,
     get_interview_detail,
     get_interviews,
@@ -34,19 +40,31 @@ from app.candidates.service import (
     start_practice,
     update_profile,
 )
-from app.candidates.resume_service import save_resume_file, extract_text, parse_resume, ALLOWED_EXTENSIONS
+from app.candidates.resume_service import parse_resume, store_candidate_resume
 from app.auth.rbac import require_org_role_path
 from app.database.deps import get_db
-from app.models.db import CandidatePasswordResetToken, CandidateProfile, CandidateSavedListing, PublicInterview, Organization, User
+from app.auth.middleware import authenticate
+from app.models.db import (
+    CandidatePasswordResetToken,
+    CandidateProfile,
+    CandidateRefreshToken,
+    CandidateSavedListing,
+    Organization,
+    PublicInterview,
+    PublicInterviewSubmission,
+    User,
+)
 from app.auth.password import hash_password
 from app.config import settings
 
 router = APIRouter(prefix="/candidates", tags=["candidates"])
 
 
-@router.post("/register", response_model=CandidateAuthResponse)
+@router.post("/register", response_model=CandidateAuthResponse | CandidateClaimPendingResponse)
 async def register_endpoint(req: CandidateRegisterRequest, db: AsyncSession = Depends(get_db)):
     result = await register(req, db)
+    if isinstance(result, CandidateClaimPendingResponse):
+        return result  # guest profile exists: finish via the emailed link (POST /claim)
 
     from app.services.email import send_email
     candidate_id = result.candidate.id
@@ -68,6 +86,12 @@ async def register_endpoint(req: CandidateRegisterRequest, db: AsyncSession = De
         )
 
     return result
+
+
+@router.post("/claim", response_model=CandidateAuthResponse)
+async def claim_endpoint(req: CandidateClaimRequest, db: AsyncSession = Depends(get_db)):
+    """Finish claiming a guest profile: emailed token + a new password. Logs the candidate in."""
+    return await complete_claim(req, db)
 
 
 @router.post("/login", response_model=CandidateAuthResponse)
@@ -120,7 +144,8 @@ async def verify_email(
         select(CandidateProfile).where(CandidateProfile.verification_token_hash == token_hash)
     )
     candidate = result.scalar_one_or_none()
-    if not candidate:
+    if not candidate or not candidate.is_registered:
+        # Tokens on unregistered guest profiles are claim tokens: they go through POST /claim.
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid verification token")
     candidate.is_verified = True
     candidate.verified_at = __import__('datetime').datetime.now(__import__('datetime').timezone.utc)
@@ -286,13 +311,17 @@ async def start_practice_endpoint(
 
 @router.post("/forgot-password")
 async def forgot_password(
-    req: CandidateLoginRequest,
+    req: CandidateForgotPasswordRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(CandidateProfile).where(CandidateProfile.email == req.email))
-    candidate = result.scalar_one_or_none()
-    if not candidate:
-        return {"message": "If that email exists, a reset link has been sent."}
+    generic = {"message": "If that email exists, a reset link has been sent."}
+    result = await db.execute(
+        select(CandidateProfile).where(func.lower(CandidateProfile.email) == req.email.strip().lower())
+    )
+    candidate = result.scalars().first()
+    # Guest profiles have no account yet: they claim it through registration, not a reset.
+    if not candidate or not candidate.is_registered:
+        return generic
 
     token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(token.encode()).hexdigest()
@@ -320,10 +349,10 @@ async def forgot_password(
 
 @router.post("/reset-password")
 async def reset_password(
-    token: str = Query(...),
-    new_password: str = Query(...),
+    req: CandidateResetPasswordRequest,
     db: AsyncSession = Depends(get_db),
 ):
+    token, new_password = req.token, req.new_password
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     result = await db.execute(
         select(CandidatePasswordResetToken).where(
@@ -343,6 +372,12 @@ async def reset_password(
 
     candidate.password_hash = hash_password(new_password)
     reset.used = True
+    # Anyone holding an old session must sign in again with the new password.
+    await db.execute(
+        update(CandidateRefreshToken)
+        .where(CandidateRefreshToken.candidate_id == candidate.id)
+        .values(revoked=True)
+    )
     await db.commit()
 
     return {"message": "Password reset successfully"}
@@ -354,17 +389,12 @@ async def upload_resume(
     candidate: CandidateProfile = Depends(authenticate_candidate),
     db: AsyncSession = Depends(get_db),
 ):
-    import os
-    _, ext = os.path.splitext(file.filename or "")
-    if ext.lower() not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail=f"Only PDF files are supported")
+    document = await store_candidate_resume(candidate, file, db)
 
-    filepath = await save_resume_file(candidate.id, file)
-    text = await extract_text(filepath)
-
-    profile_data = candidate.profile_data or {}
-    parsed = await parse_resume(text)
+    parsed = await parse_resume(document.extracted_text or "")
+    profile_data = dict(candidate.profile_data or {})
     profile_data["resume_parsed"] = parsed
+    candidate.profile_data = profile_data
 
     skills_list = parsed.get("skills", [])
     if skills_list:
@@ -372,30 +402,40 @@ async def upload_resume(
         existing_skills.update(s.lower() for s in skills_list)
         candidate.skills = ", ".join(sorted(existing_skills))
 
-    from app.models.db import CandidateDocument
-
-    db.add(CandidateDocument(
-        candidate_id=candidate.id,
-        filename=file.filename or f"resume{ext}",
-        document_type="resume",
-        extracted_text=(text or "")[:20000],
-        document_metadata={"ext": ext.lstrip("."), "parsed_keys": list(parsed.keys())},
-    ))
-
-    candidate.resume_url = filepath
-    candidate.profile_data = profile_data
+    document.document_metadata = {
+        **(document.document_metadata or {}),
+        "parsed_keys": list(parsed.keys()),
+    }
     await db.commit()
     await db.refresh(candidate)
 
-    return CandidateProfileResponse.model_validate(candidate)
+    response = CandidateProfileResponse.model_validate(candidate)
+    response.resume_document_id = document.id
+    return response
 
 
 @router.get("/{candidate_id}/resume")
 async def download_resume(
     candidate_id: UUID,
+    org_id: UUID = Query(...),
+    user: User = Depends(authenticate),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(require_org_role_path(["owner", "member"])),
+    _: None = Depends(require_org_role_path(["owner", "member"])),
 ):
+    # Only organizations that received an application from this candidate may read their CV.
+    if not user.is_admin:
+        received = await db.execute(
+            select(PublicInterviewSubmission.id)
+            .join(PublicInterview, PublicInterviewSubmission.public_id == PublicInterview.id)
+            .where(
+                PublicInterviewSubmission.candidate_profile_id == candidate_id,
+                PublicInterview.org_id == org_id,
+            )
+            .limit(1)
+        )
+        if received.first() is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+
     result = await db.execute(
         select(CandidateProfile).where(CandidateProfile.id == candidate_id)
     )

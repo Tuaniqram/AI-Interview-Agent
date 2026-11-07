@@ -7,13 +7,15 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt import create_access_token, create_refresh_token, decode_token
 from app.auth.password import hash_password, verify_password
 from app.candidates.schemas import (
     CandidateAuthResponse,
+    CandidateClaimPendingResponse,
+    CandidateClaimRequest,
     CandidateInterviewResponse,
     CandidateLoginRequest,
     CandidateProfileResponse,
@@ -22,6 +24,7 @@ from app.candidates.schemas import (
     CandidateUpdateRequest,
     PracticeStartResponse,
 )
+from app.config import settings
 from app.database.deps import get_db
 from app.models.db import (
     CandidateInvitation,
@@ -38,14 +41,85 @@ from app.data.competency_resolver import default_taxonomy, taxonomy_for_state
 from app.models.db import EvidenceStore
 
 
-async def register(req: CandidateRegisterRequest, db: AsyncSession) -> CandidateAuthResponse:
-    existing = await db.execute(select(CandidateProfile).where(CandidateProfile.email == req.email))
-    if existing.scalar_one_or_none():
+async def _find_by_email(email: str, db: AsyncSession) -> Optional[CandidateProfile]:
+    """Case-insensitive lookup so a guest profile can be claimed regardless of casing."""
+    result = await db.execute(
+        select(CandidateProfile).where(func.lower(CandidateProfile.email) == email.strip().lower())
+    )
+    return result.scalars().first()
+
+
+CLAIM_TOKEN_TTL = timedelta(hours=24)
+
+
+async def _start_account_claim(candidate: CandidateProfile, db: AsyncSession) -> CandidateClaimPendingResponse:
+    """Email the inbox owner a link to claim an existing guest profile.
+
+    The password is deliberately NOT accepted here: it is set on the claim page, after the
+    link proves ownership of the inbox. Otherwise anyone could register a victim's email
+    with their own password and later ride on the victim's "verify" click.
+    """
+    import secrets
+
+    from app.services.email import send_email
+
+    token = secrets.token_urlsafe(32)
+    candidate.verification_token_hash = _hash(token)
+    candidate.verification_sent_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    await send_email(
+        to=candidate.email,
+        subject="Finish setting up your account — AI Interview Agent",
+        template_name="account_claim.html",
+        CANDIDATE_NAME=candidate.name,
+        CLAIM_URL=f"{settings.APP_URL.rstrip('/')}/candidate/claim?token={token}",
+        APP_URL=settings.APP_URL.rstrip("/"),
+    )
+    return CandidateClaimPendingResponse()
+
+
+async def complete_claim(req: CandidateClaimRequest, db: AsyncSession) -> CandidateAuthResponse:
+    """Finish claiming a guest profile: valid emailed token + chosen password."""
+    result = await db.execute(
+        select(CandidateProfile).where(CandidateProfile.verification_token_hash == _hash(req.token))
+    )
+    candidate = result.scalars().first()
+    expired = (
+        candidate is None
+        or candidate.verification_sent_at is None
+        or datetime.now(timezone.utc) - candidate.verification_sent_at > CLAIM_TOKEN_TTL
+    )
+    if candidate is None or candidate.is_registered or expired:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This link is invalid or has expired")
+
+    candidate.password_hash = hash_password(req.password)
+    if req.name and req.name.strip():
+        candidate.name = req.name.strip()
+    candidate.is_registered = True
+    candidate.is_verified = True  # the emailed link proved inbox ownership
+    candidate.verified_at = datetime.now(timezone.utc)
+    candidate.verification_token_hash = None
+    await db.commit()
+    await db.refresh(candidate)
+    return await _build_auth_response(candidate, db)
+
+
+async def register(
+    req: CandidateRegisterRequest, db: AsyncSession
+) -> CandidateAuthResponse | CandidateClaimPendingResponse:
+    existing = await _find_by_email(req.email, db)
+
+    if existing is not None and existing.is_registered:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+
+    if existing is not None:
+        # A guest profile (earlier applications) already owns this email: claim it by email link.
+        return await _start_account_claim(existing, db)
 
     candidate = CandidateProfile(
         id=uuid.uuid4(),
-        email=req.email,
+        email=req.email.strip(),
         name=req.name,
         password_hash=hash_password(req.password),
         is_registered=True,
@@ -76,8 +150,7 @@ async def google_login(google_data: dict, db: AsyncSession) -> CandidateAuthResp
 
     name = google_data.get("name", email.split("@")[0])
 
-    result = await db.execute(select(CandidateProfile).where(CandidateProfile.email == email))
-    candidate = result.scalar_one_or_none()
+    candidate = await _find_by_email(email, db)
 
     if not candidate:
         candidate = CandidateProfile(
@@ -92,6 +165,20 @@ async def google_login(google_data: dict, db: AsyncSession) -> CandidateAuthResp
         db.add(candidate)
     else:
         candidate.google_id = google_data.get("sub")
+        if not candidate.is_registered:
+            # Claim a guest profile: keep the id (and all history), mark registered.
+            candidate.is_registered = True
+        if google_data.get("email_verified") and not candidate.is_verified:
+            # Google has proven inbox ownership. Anything set up before that proof
+            # (a password or sessions from an unverified claim) is not trusted.
+            candidate.password_hash = None
+            await db.execute(
+                update(CandidateRefreshToken)
+                .where(CandidateRefreshToken.candidate_id == candidate.id)
+                .values(revoked=True)
+            )
+            candidate.is_verified = True
+            candidate.verified_at = datetime.now(timezone.utc)
 
     return await _build_auth_response(candidate, db)
 

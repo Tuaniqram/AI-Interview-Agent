@@ -54,7 +54,12 @@ const CandidateApplications = React.lazy(() => import('../pages/candidate/Applic
 const CandidateInterviewDetail = React.lazy(() => import('../pages/candidate/InterviewDetail'));
 const CandidatePractice = React.lazy(() => import('../pages/candidate/Practice'));
 const CandidateProfile = React.lazy(() => import('../pages/candidate/Profile'));
+const CandidateVerifyEmail = React.lazy(() => import('../pages/candidate/VerifyEmail'));
+const CandidateForgotPassword = React.lazy(() => import('../pages/candidate/ForgotPassword'));
+const CandidateResetPassword = React.lazy(() => import('../pages/candidate/ResetPassword'));
+const CandidateClaimAccount = React.lazy(() => import('../pages/candidate/ClaimAccount'));
 const AcceptInvitation = React.lazy(() => import('../pages/invite/AcceptInvitation'));
+const ApplicationInvite = React.lazy(() => import('../pages/invite/ApplicationInvite'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen bg-app flex items-center justify-center">
@@ -74,6 +79,7 @@ export function AppRoutes() {
       <Route path="/org-select" element={<Suspense fallback={<LoadingFallback />}><OrgSelect /></Suspense>} />
       <Route path="/public-interview/:token" element={<Suspense fallback={<LoadingFallback />}><PublicInterviewPage /></Suspense>} />
       <Route path="/invite/:token" element={<Suspense fallback={<LoadingFallback />}><AcceptInvitation /></Suspense>} />
+      <Route path="/application-invite/:token" element={<Suspense fallback={<LoadingFallback />}><ApplicationInvite /></Suspense>} />
       <Route path="/contact" element={<Suspense fallback={<LoadingFallback />}><ContactUs /></Suspense>} />
       <Route path="/aura-preview" element={<Suspense fallback={<LoadingFallback />}><AuraPreview /></Suspense>} />
       <Route path="/brain-graph" element={<Suspense fallback={<LoadingFallback />}><BrainGraphPage /></Suspense>} />
@@ -86,6 +92,10 @@ export function AppRoutes() {
 
       <Route path="/candidate/login" element={<Suspense fallback={<LoadingFallback />}><CandidateLogin /></Suspense>} />
       <Route path="/candidate/register" element={<Suspense fallback={<LoadingFallback />}><CandidateRegister /></Suspense>} />
+      <Route path="/candidate/verify" element={<Suspense fallback={<LoadingFallback />}><CandidateVerifyEmail /></Suspense>} />
+      <Route path="/candidate/forgot-password" element={<Suspense fallback={<LoadingFallback />}><CandidateForgotPassword /></Suspense>} />
+      <Route path="/candidate/reset-password" element={<Suspense fallback={<LoadingFallback />}><CandidateResetPassword /></Suspense>} />
+      <Route path="/candidate/claim" element={<Suspense fallback={<LoadingFallback />}><CandidateClaimAccount /></Suspense>} />
       <Route element={<ProtectedCandidateRoute><CandidateShell /></ProtectedCandidateRoute>}>
         <Route path="/candidate/dashboard" element={<Suspense fallback={<ContentSkeleton />}><CandidateDashboard /></Suspense>} />
         <Route path="/candidate/interviews" element={<Suspense fallback={<ContentSkeleton />}><CandidateInterviews /></Suspense>} />
@@ -122,7 +132,7 @@ export function AppRoutes() {
       </Route>
 
       <Route element={<InterviewShell />}>
-        <Route path="interview/:id" element={<Suspense fallback={<LoadingFallback />}><InterviewRoom /></Suspense>} />
+        <Route path="interview/:sessionId" element={<Suspense fallback={<LoadingFallback />}><InterviewRoom /></Suspense>} />
       </Route>
 
       <Route path="*" element={<Suspense fallback={<LoadingFallback />}><NotFound /></Suspense>} />

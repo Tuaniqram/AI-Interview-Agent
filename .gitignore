@@ -32,7 +32,10 @@ venv/
 ENV/
 env/
 skills-lock.json
-e2e/
+# e2e specs stay ignored except the application-flow spec (a directory itself can't be re-included)
+/e2e/
+frontend/e2e/*
+!frontend/e2e/application-flow.spec.ts
 playwright-report/
 test-results/
 .agents/
@@ -71,3 +74,7 @@ htmlcov/
 # Local documentation (keep files locally, do not commit)
 *.md
 docs/
+
+# Prompt templates are source code, keep them tracked despite the *.md rule above
+!prompts/
+!prompts/**/*.md

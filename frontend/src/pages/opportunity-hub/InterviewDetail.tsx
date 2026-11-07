@@ -6,21 +6,31 @@ import { EmptyState } from '../../components/shared/EmptyState';
 import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';
 import { useToast } from '../../components/shared/Toast';
-import { ArrowLeft, Building2, Clock, Tag, Shield, Briefcase, Upload } from 'lucide-react';
+import { useCandidateAuth } from '../../contexts/CandidateAuthContext';
+import { ArrowLeft, Building2, Clock, Tag, Shield, Briefcase, Upload, CheckCircle } from 'lucide-react';
 import type { PublicInterview } from '../../types/marketplace';
+
+const MAX_CV_BYTES = 5 * 1024 * 1024;
 
 export default function InterviewDetail() {
   const { interviewId } = useParams<{ interviewId: string }>();
+  const { candidate, isLoading: authLoading } = useCandidateAuth();
   const [interview, setInterview] = useState<PublicInterview | null>(null);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [starting, setStarting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [applied, setApplied] = useState(false);
   const [error, setError] = useState('');
+  const [accountExists, setAccountExists] = useState(false);
   const [cvFile, setCvFile] = useState<File | null>(null);
   const cvInputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
+
+  // A logged-in candidate is identified by their token; guests type their details.
+  const isLoggedIn = !!candidate;
+  const hasProfileCv = !!candidate?.resume_url;
+  const cvRequired = !hasProfileCv;
 
   useEffect(() => {
     if (!interviewId) return;
@@ -31,32 +41,50 @@ export default function InterviewDetail() {
       .finally(() => setLoading(false));
   }, [interviewId]);
 
+  useEffect(() => {
+    if (candidate) {
+      setName(candidate.name);
+      setEmail(candidate.email);
+    }
+  }, [candidate]);
+
+  const pickCv = (file: File | null) => {
+    setError('');
+    if (file) {
+      if (!file.name.toLowerCase().endsWith('.pdf')) {
+        setError('CV must be a PDF file');
+        return;
+      }
+      if (file.size > MAX_CV_BYTES) {
+        setError('CV is too large (max 5 MB)');
+        return;
+      }
+    }
+    setCvFile(file);
+  };
+
   const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!interviewId) return;
     setError('');
-    setStarting(true);
+    setAccountExists(false);
+    if (cvRequired && !cvFile) {
+      setError('Please upload your CV (PDF) to apply');
+      return;
+    }
+    setSubmitting(true);
     try {
-      if (cvFile) {
-        try {
-          const formData = new FormData();
-          formData.append('file', cvFile);
-          await fetch('/api/v1/candidates/me/resume', { method: 'POST', body: formData });
-          toast.success('CV uploaded successfully');
-        } catch {
-          toast.error('CV upload failed - you can upload it later from your profile');
-        }
-      }
       await marketplaceService.applyToInterview(interviewId, {
-        candidate_name: name,
-        candidate_email: email,
+        ...(isLoggedIn ? {} : { candidate_name: name, candidate_email: email }),
+        ...(cvFile ? { resume: cvFile } : {}),
       });
       setApplied(true);
       toast.success('Application submitted');
     } catch (err: any) {
+      if (err?.response?.status === 409) setAccountExists(true);
       setError(err?.response?.data?.detail || 'Failed to submit application');
     } finally {
-      setStarting(false);
+      setSubmitting(false);
     }
   };
 
@@ -159,32 +187,62 @@ export default function InterviewDetail() {
       {!isExpired && (
         <div className="rounded-xl bg-gradient-to-br from-[#7C3AED]/5 to-[#A78BFA]/5 border border-[#7C3AED]/10 p-6 sm:p-8">
           <h2 className="text-lg font-semibold text-primary mb-1 font-heading">Apply for this interview</h2>
-          <p className="text-sm text-secondary mb-6">Submit your application. The organization will review it and invite you to interview.</p>
-          {applied ? (
-            <div className="rounded-lg bg-green-500/10 p-4 text-sm text-green-700 border border-green-500/20">
-              Application submitted. Track your status in <Link to="/candidate/applications" className="font-medium underline">My Applications</Link>.
+          <p className="text-sm text-secondary mb-6">Submit your application with your CV. The organization will review it and invite you to interview.</p>
+          {authLoading ? (
+            <ContentSkeleton />
+          ) : applied ? (
+            <div className="rounded-lg bg-green-500/10 p-4 text-sm text-green-700 border border-green-500/20 space-y-2" role="status">
+              <p className="flex items-center gap-2 font-semibold">
+                <CheckCircle className="w-4 h-4" /> Application submitted
+              </p>
+              {isLoggedIn ? (
+                <p>
+                  Check your email for updates.{' '}
+                  {candidate?.is_verified ? (
+                    <>Track your status in <Link to="/candidate/applications" className="font-medium underline">My Applications</Link>.</>
+                  ) : (
+                    <>Verify your email to see your applications in <Link to="/candidate/applications" className="font-medium underline">My Applications</Link>.</>
+                  )}
+                </p>
+              ) : (
+                <p>
+                  Check your email ({email}) for updates. If the organization invites you, the interview link will be sent there.
+                  Want to keep your history? <Link to="/candidate/register" className="font-medium underline">Create an account</Link> with the same email.
+                </p>
+              )}
             </div>
           ) : (
           <form onSubmit={handleApply} className="space-y-4 max-w-md">
             {error && (
-              <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-600 border border-red-500/20">{error}</div>
+              <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-600 border border-red-500/20" role="alert">
+                {error}
+                {accountExists && (
+                  <> <Link to="/candidate/login" className="font-medium underline">Sign in</Link></>
+                )}
+              </div>
             )}
-            <Input label="Your Name" value={name} onChange={(e) => setName(e.target.value)} required placeholder="John Doe" />
-            <Input label="Email Address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="john@example.com" />
+            <Input label="Your Name" value={name} onChange={(e) => setName(e.target.value)} required readOnly={isLoggedIn} placeholder="John Doe" />
+            <Input label="Email Address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required readOnly={isLoggedIn} placeholder="john@example.com" />
             <div>
-              <label className="block text-sm font-medium text-primary mb-1">CV (optional)</label>
-              <input ref={cvInputRef} type="file" accept=".pdf,.doc,.docx" onChange={(e) => setCvFile(e.target.files?.[0] ?? null)} className="hidden" />
+              <label className="block text-sm font-medium text-primary mb-1">
+                CV (PDF){cvRequired ? ' *' : ''}
+              </label>
+              <input ref={cvInputRef} type="file" accept=".pdf,application/pdf" onChange={(e) => pickCv(e.target.files?.[0] ?? null)} className="hidden" />
+              {hasProfileCv && !cvFile && (
+                <p className="text-sm text-secondary mb-2">We'll use the CV on your profile. Upload a new one to replace it.</p>
+              )}
               <button type="button" onClick={() => cvInputRef.current?.click()}
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-secondary bg-input rounded-lg border border-border hover:border-action-primary/40 transition-colors">
                 <Upload className="w-4 h-4" />
-                {cvFile ? cvFile.name : 'Upload CV'}
+                {cvFile ? cvFile.name : hasProfileCv ? 'Upload a different CV' : 'Upload CV'}
               </button>
               {cvFile && (
                 <button type="button" onClick={() => { setCvFile(null); if (cvInputRef.current) cvInputRef.current.value = ''; }}
                   className="ml-2 text-xs text-red-500 hover:text-red-600">Remove</button>
               )}
+              <p className="text-xs text-muted mt-1">PDF only, up to 5 MB.</p>
             </div>
-            <Button type="submit" loading={starting} className="w-full sm:w-auto">
+            <Button type="submit" loading={submitting} className="w-full sm:w-auto">
               Submit application
             </Button>
           </form>

@@ -557,13 +557,18 @@ CREATE TABLE public_interview_submissions (
     candidate_name      text NOT NULL,
     status              text NOT NULL DEFAULT 'applied'
                         CHECK (status IN (
-                            'applied', 'screening', 'interview_offered',
+                            'applied', 'screening', 'evaluated', 'interview_offered',
                             'interview_accepted', 'interview_declined',
                             'interviewed', 'hired', 'rejected', 'withdrawn'
                         )),
     fit_score           numeric(5,2)
                         CHECK (fit_score IS NULL OR (fit_score >= 0 AND fit_score <= 10)),
     fit_summary         text,
+    fit_status          text NOT NULL DEFAULT 'pending'
+                        CHECK (fit_status IN ('pending', 'running', 'completed', 'failed')),
+    fit_breakdown       jsonb,
+    fit_evaluated_at    timestamptz,
+    fit_error           text,
     org_decision        text NOT NULL DEFAULT 'pending'
                         CHECK (org_decision IN ('pending', 'invited', 'rejected')),
     org_decided_by      uuid REFERENCES users(id) ON DELETE SET NULL,

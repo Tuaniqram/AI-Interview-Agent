@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback } from 'react';
+import { isClaimPending } from '../types/candidate';
 import type { CandidateProfile, CandidateTokens, CandidateLoginRequest, CandidateRegisterRequest } from '../types/candidate';
 import { candidateService } from '../services/candidateService';
 
@@ -45,7 +46,11 @@ function authReducer(state: CandidateAuthState, action: AuthAction): CandidateAu
 
 interface CandidateAuthContextType extends CandidateAuthState {
   login: (req: CandidateLoginRequest) => Promise<void>;
-  register: (req: CandidateRegisterRequest) => Promise<void>;
+  /** Resolves `{ claimPending: true }` when the email already has guest activity (finish via emailed link). */
+  register: (req: CandidateRegisterRequest) => Promise<{ claimPending: boolean; message?: string }>;
+  claimAccount: (data: { token: string; password: string; name?: string }) => Promise<void>;
+  /** Re-read the profile (e.g. after the email was verified in this browser). */
+  refreshProfile: () => Promise<void>;
   googleLogin: (credential: string) => Promise<void>;
   logout: () => void;
   updateProfile: (profile: CandidateProfile) => void;
@@ -90,8 +95,23 @@ export function CandidateAuthProvider({ children }: { children: React.ReactNode 
 
   const register = useCallback(async (req: CandidateRegisterRequest) => {
     const res = await candidateService.register(req);
+    if (isClaimPending(res)) return { claimPending: true, message: res.message };
     localStorage.setItem('candidate_tokens', JSON.stringify(res.tokens));
     dispatch({ type: 'LOGIN_SUCCESS', payload: res });
+    return { claimPending: false };
+  }, []);
+
+  const claimAccount = useCallback(async (data: { token: string; password: string; name?: string }) => {
+    const res = await candidateService.claimAccount(data);
+    localStorage.setItem('candidate_tokens', JSON.stringify(res.tokens));
+    dispatch({ type: 'LOGIN_SUCCESS', payload: res });
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    if (!localStorage.getItem('candidate_tokens')) return;
+    try {
+      dispatch({ type: 'UPDATE_PROFILE', payload: await candidateService.me() });
+    } catch { /* keep the current profile */ }
   }, []);
 
   const googleLogin = useCallback(async (credential: string) => {
@@ -109,7 +129,7 @@ export function CandidateAuthProvider({ children }: { children: React.ReactNode 
   }, []);
 
   return (
-    <CandidateAuthContext.Provider value={{ ...state, login, register, googleLogin, logout, updateProfile, sendVerification }}>
+    <CandidateAuthContext.Provider value={{ ...state, login, register, claimAccount, refreshProfile, googleLogin, logout, updateProfile, sendVerification }}>
       {children}
     </CandidateAuthContext.Provider>
   );

@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 
 async def build_company_brain(
     *,
-    department_id: int | None = None,
+    org_id: str | None = None,
+    department_id: int | str | None = None,
     job_role: str = "",
     documents: list[dict] | None = None,
     use_rag: bool = True,
@@ -20,20 +21,23 @@ async def build_company_brain(
 ) -> dict:
     """Build a ``company_brain`` dict.
 
-    Retrieves department docs from Pinecone when ``department_id`` is set and
-    ``use_rag`` is enabled, falls back to ``documents`` when provided, and
-    finally to an empty analysis. The LLM enrichment pass runs only when there
-    is actual document content to reason about.
+    Retrieves the organization's documents from Pinecone when ``org_id`` is set
+    and ``use_rag`` is enabled, falls back to ``documents`` when provided, and
+    finally to an empty analysis. ``department_id`` is a deprecated alias for
+    ``org_id`` (the IT-only schema has no departments). The LLM enrichment pass
+    runs only when there is actual document content to reason about.
     """
+    scope_id = org_id if org_id is not None else department_id
     rag_metadata = {
         "success": False,
+        "org_id": scope_id,
         "department_id": department_id,
         "documents_retrieved": 0,
-        "reason": "no_department_id",
+        "reason": "no_org_id",
     }
 
-    if documents is None and department_id is not None and use_rag:
-        documents, rag_metadata = await _retrieve_department_docs(department_id, job_role)
+    if documents is None and scope_id is not None and use_rag:
+        documents, rag_metadata = await _retrieve_org_docs(scope_id, job_role)
 
     documents = documents or []
     analysis = analyze_documents(documents, job_role)
@@ -42,6 +46,7 @@ async def build_company_brain(
 
     brain = {
         "version": "v1",
+        "org_id": scope_id,
         "department_id": department_id,
         "job_role": job_role,
         **analysis,
@@ -60,20 +65,20 @@ async def build_company_brain(
     return brain
 
 
-async def _retrieve_department_docs(department_id: int, job_role: str) -> tuple[list[dict], dict]:
-    """Pull the top department documents from Pinecone (best-effort)."""
+async def _retrieve_org_docs(org_id, job_role: str) -> tuple[list[dict], dict]:
+    """Pull the top organization documents from Pinecone (best-effort)."""
     metadata = {
         "success": True,
-        "department_id": department_id,
+        "org_id": org_id,
         "documents_retrieved": 0,
     }
     try:
         import asyncio
 
-        from app.rag.pinecone_store import get_department_retriever
+        from app.rag.pinecone_store import get_org_retriever
 
         def _retrieve():
-            retriever = get_department_retriever(department_id)
+            retriever = get_org_retriever(org_id)
             return retriever.invoke(
                 f"{job_role or ''} company overview, role context, technical stack, "
                 f"team culture, processes, challenges"
@@ -90,7 +95,7 @@ async def _retrieve_department_docs(department_id: int, job_role: str) -> tuple[
         metadata["documents_retrieved"] = len(chunks)
         return chunks, metadata
     except Exception as exc:  # noqa: BLE001
-        logger.warning(f"RAG retrieval failed for department {department_id}: {exc}")
+        logger.warning(f"RAG retrieval failed for org {org_id}: {exc}")
         metadata.update({"success": False, "reason": "retrieval_failed", "error": str(exc)})
         return [], metadata
 
@@ -109,7 +114,7 @@ async def _enrich_with_llm(brain: dict, documents: list[dict]) -> dict:
         "intelligence",
         "company_brain.md",
         job_role=brain.get("job_role", "Unknown"),
-        department_id=str(brain.get("department_id", "")),
+        department_id=str(brain.get("org_id") or brain.get("department_id") or ""),
         documents=doc_text,
     )
 

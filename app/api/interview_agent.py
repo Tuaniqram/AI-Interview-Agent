@@ -66,7 +66,7 @@ async def _get_legacy_summary(session_id: str) -> dict:
     except Exception:
         evaluations = []
 
-    answered_questions = len([m for m in messages if m.get("role") == "candidate"])
+    answered_questions = len([m for m in messages if m.get("role") == "user"])
     total_questions_possible = int(session.get("total_questions") or 10)
 
     if evaluations:

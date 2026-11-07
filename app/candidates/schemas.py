@@ -39,6 +39,8 @@ class CandidateProfileResponse(BaseModel):
     skills: Optional[str] = None
     profile_data: Optional[Dict[str, Any]] = None
     created_at: Optional[datetime] = None
+    # Set only by POST /candidates/me/resume (id of the newly stored CV document).
+    resume_document_id: Optional[UUID] = None
 
     model_config = {"from_attributes": True}
 
@@ -82,6 +84,29 @@ class PracticeStartResponse(BaseModel):
     job_role: str
     total_questions: int
     interview_style: str = "STANDARD"
+
+
+class CandidateClaimPendingResponse(BaseModel):
+    """Registering with an email that already has guest activity: nothing is created or
+    changed until the owner of that inbox follows the emailed link and sets a password."""
+
+    claim_pending: bool = True
+    message: str = "Check your email to finish setting up your account."
+
+
+class CandidateForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class CandidateResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8)
+
+
+class CandidateClaimRequest(BaseModel):
+    token: str
+    password: str = Field(min_length=8)
+    name: Optional[str] = None
 
 
 class GoogleAuthRequest(BaseModel):

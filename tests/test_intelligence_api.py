@@ -122,7 +122,7 @@ def test_build_persists_bundle_best_effort(client, fake_db):
     assert body["persisted"] is not None
     assert fake.added, "expected DB adds"
     types = {type(a).__name__ for a in fake.added}
-    assert {"CompanyBrain", "InterviewBlueprint", "CandidateBrain"} <= types
+    assert "InterviewIntelligence" in types  # consolidated into one row per session
 
 
 def test_build_survives_persistence_failure(client, fake_db):

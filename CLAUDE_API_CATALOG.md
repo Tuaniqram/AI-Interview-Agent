@@ -86,11 +86,11 @@ Organization access is checked through `organizations.owner_user_id`. There is n
 
 | Method | Path | Auth | Status | Purpose |
 |---|---|---|---|---|
-| POST | `/register` | Public | ALIGNED | Candidate registration |
+| POST | `/register` | Public | ALIGNED | Candidate registration. If the email already has guest activity, nothing is changed and `{claim_pending: true}` is returned while a claim link is emailed (finish with `POST /claim`) |
 | POST | `/login` | Public | ALIGNED | Candidate login |
 | POST | `/google` | Public | ALIGNED | Candidate Google login |
 | POST | `/send-verification` | Candidate | ALIGNED | Send email verification |
-| POST | `/verify` | Public | ALIGNED | Verify email |
+| POST | `/verify` | Public | ALIGNED | Verify email via `?token=` from the verification email (only for registered accounts) |
 | POST | `/refresh` | Public | ALIGNED | Refresh candidate token |
 | GET | `/me` | Candidate | ALIGNED | Candidate profile |
 | PATCH | `/me` | Candidate | ALIGNED | Update profile |
@@ -102,10 +102,11 @@ Organization access is checked through `organizations.owner_user_id`. There is n
 | DELETE | `/saved-listings/{listing_id}` | Candidate | ALIGNED | Remove saved listing |
 | GET | `/saved-listings` | Candidate | ALIGNED | List saved listings |
 | POST | `/practice/start` | Candidate | ALIGNED | Start practice session |
-| POST | `/forgot-password` | Public | ALIGNED | Candidate reset email |
-| POST | `/reset-password` | Public | ALIGNED | Candidate password reset |
-| POST | `/me/resume` | Candidate | ALIGNED | Upload resume |
-| GET | `/{candidate_id}/resume` | Candidate | PENDING AUTH | Resume access; verify ownership |
+| POST | `/forgot-password` | Public | ALIGNED | Body `{email}` only. Always the same response; guest (unregistered) profiles get no mail, they claim via register |
+| POST | `/reset-password` | Public | ALIGNED | JSON body `{token, new_password}` (min 8; never in the URL). Single use; revokes the candidate's refresh tokens |
+| POST | `/claim` | Public (emailed token) | ALIGNED | Finish claiming a guest profile: body `{token, password, name?}`. The password is chosen only after the emailed link proves inbox ownership; marks the profile registered + verified, single use, 24 h, returns the usual auth response |
+| POST | `/me/resume` | Candidate | ALIGNED | Upload PDF CV; stores a `candidate_documents` row and returns the profile plus `resume_document_id` (shared helper `resume_service.store_candidate_resume`) |
+| GET | `/{candidate_id}/resume` | Org owner (`?org_id=`) | ALIGNED | Legacy CV access; now requires that the organization received an application from this candidate (admins bypass). Prefer `/marketplace/applications/{id}/resume` |
 
 ## 7. Candidate Ranking — `/orgs/{org_id}/candidates`
 
@@ -171,12 +172,21 @@ The evidence graph now comes from `interview_intelligence.evidence_graph`.
 | GET | `/org/{org_id}/interviews` | Org role | ALIGNED | List org listings |
 | PUT | `/interviews/{interview_id}` | Org owner | ALIGNED | Update listing |
 | DELETE | `/interviews/{interview_id}` | Org owner | ALIGNED | Delete listing |
-| POST | `/interviews/{interview_id}/apply` | Optional candidate | ALIGNED | Apply with profile/resume |
+| POST | `/interviews/{interview_id}/apply` | Optional candidate | ALIGNED | **multipart/form-data.** Fields: `candidate_email`, `candidate_name` (guests), `resume` (PDF file; required unless the logged-in profile already has a CV), `resume_document_id` (optional, own documents only). `400 CV is required` when no CV can be resolved; `409` when a guest uses an email that already belongs to a registered account (sign in instead). Stores the application in `public_interview_submissions` with `fit_status = pending` |
+| GET | `/applications/me` | Verified candidate | ALIGNED | Candidate's applications (`require_verified_candidate`; unverified claimed accounts get 403) |
 | GET | `/org/{org_id}/applications` | Org role | ALIGNED | List applications |
 | POST | `/applications/{application_id}/fit` | Org owner | ALIGNED | Set fit score/summary |
-| POST | `/applications/{application_id}/invite` | Org owner | ALIGNED | Invite candidate; create session |
+| POST | `/applications/{application_id}/evaluate` | Org owner | ALIGNED | Re-run the automatic fit evaluation (sets `fit_status = pending`, runs as a background task). `409` while a run is in progress (<5 min), `400` when the application has no CV |
+| GET | `/applications/{application_id}/resume` | Org role | ALIGNED | Download the applicant's CV; only for the organization that received the application |
+| POST | `/applications/{application_id}/invite` | Org owner | ALIGNED | Invite candidate; creates the session + `invite_token`, then emails the invitation (background; a mail failure never undoes the invite). Calling it again re-sends the email and extends the link by 7 days. `409` once the candidate has answered or the application is closed |
+| GET | `/application-invitations/{token}` | Public (token) | ALIGNED | Invitation details for the no-login page: org, role, candidate, `can_respond`, `expired`; `session_id` only after accept. Token = `interview_sessions.invite_token` (never the listing token) |
+| POST | `/application-invitations/{token}/respond` | Public (token) | ALIGNED | Body `{response: accepted\|declined}`. Accept returns `session_id` (guest can start the interview); decline cancels the session. `410` expired, `409` already answered differently / closed, idempotent for the same answer |
 | POST | `/applications/{application_id}/outcome` | Org owner | ALIGNED | Record hired/rejected |
-| POST | `/applications/{application_id}/respond` | Candidate | ALIGNED | Accept/decline invitation |
+| POST | `/applications/{application_id}/respond` | Verified candidate | ALIGNED | Accept/decline invitation |
+
+`application-invitations/{token}` responses also carry `access_token` once the invitation is accepted (it lets an account-less guest open that one interview session).
+
+`ApplicationResponse` now also carries `fit_status` (`pending`/`running`/`completed`/`failed`), `fit_breakdown`, `fit_evaluated_at`, `has_resume`, `resume_filename`, and a populated `org_name`.
 
 ## 13. Public — `/public`
 
@@ -212,7 +222,7 @@ The evidence graph now comes from `interview_intelligence.evidence_graph`.
 | Method | Path | Auth | Status | Purpose |
 |---|---|---|---|---|
 | GET | `/interviews/{session_id}/summary` | Optional candidate | RUNTIME | Full session summary |
-| WS | `/ws/interview/{session_id}` | Optional candidate token | RUNTIME | Live interview WebSocket |
+| WS | `/ws/interview/{session_id}?token=<candidate JWT>&access=<session access token>` | **Required: owner login OR per-session access token** | RUNTIME | Live interview WebSocket. Deny by default: a connection is allowed into a session only with the owning candidate's login token, or an `access` token bound to exactly that session |
 
 WebSocket message types:
 - `start_interview`
@@ -220,6 +230,16 @@ WebSocket message types:
 - `submit_answer`
 - `get_status`
 - `ping`
+
+WebSocket guarantees (`app/engine/guards.py`, `app/api/interview_ws.py`):
+- **Authorization:** per-session access tokens (`app/auth/interview_access.py`, JWT type `interview_access`, 12 h) are issued by `POST /marketplace/application-invitations/{token}/respond` (and `GET` once accepted) as `access_token`, and by the public start as `token`. A token for one session cannot open another; `start_interview` cannot pivot to a different `session_id`.
+- **Frames:** a bad frame (not JSON, not an object, no `type`, > 64 KB) gets an `error` reply and the connection stays open. `_id` is only echoed when it is a short string/number.
+- **Answers:** must be non-empty text of at most 10,000 characters, validated before the engine runs.
+- **Limits:** 30 messages / 10 s per connection (`Too many messages`), 15 min idle timeout, 300 s cap for one start or one answer.
+- **Concurrency:** one interview step per session at a time (per-session lock), so two tabs or a double submit cannot double-score an answer.
+- **Idempotent completion:** once the report is produced (`brain.finalized`), any later `submit_answer` returns the same report instead of re-scoring.
+- **Errors:** replies never contain exception text or internals; details are only in the server log.
+- **Event loop:** the blocking session-store calls (hydrate / durable checkpoint) run on worker threads (`app/engine/store_io.py`), so a slow database cannot freeze every other interview.
 
 ## 17. Root / Health
 

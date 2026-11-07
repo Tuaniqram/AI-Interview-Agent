@@ -44,22 +44,23 @@ Focus areas: company roadmap, career development, company mission, future initia
 
 async def department_context_node(state: InterviewState) -> InterviewState:
     session_id = state.get('session_id')
-    department_id = state.get('department_id')
+    # Documents belong to the organization; ``department_id`` is a legacy alias.
+    org_id = state.get('org_id') or state.get('department_id')
     job_role = state.get('job_role')
     current_phase = state.get('current_phase', 'intro')
     skills_weak = state.get('skills_weak', [])
 
-    if not department_id:
-        logger.warning("No department_id provided, RAG context will be empty")
+    if not org_id:
+        logger.warning("No org_id provided, RAG context will be empty")
         return {
             **state,
             'department_context': [],
             'department_requirements': '',
-            'rag_metadata': {'success': False, 'reason': 'no_department_id'}
+            'rag_metadata': {'success': False, 'reason': 'no_org_id'}
         }
 
     # Phase-aware cache key: different phases retrieve different documents
-    cache_key = f"{session_id}:{department_id}:{current_phase}"
+    cache_key = f"{session_id}:{org_id}:{current_phase}"
     if cache_key in _session_context_cache:
         cache_time, cached = _session_context_cache[cache_key]
         if time.time() - cache_time < _CACHE_TTL:
@@ -72,7 +73,7 @@ async def department_context_node(state: InterviewState) -> InterviewState:
             }
 
     try:
-        from app.rag.pinecone_store import get_department_retriever
+        from app.rag.pinecone_store import get_org_retriever
         import asyncio
 
         template = _PHASE_QUERY_TEMPLATES.get(
@@ -89,17 +90,17 @@ async def department_context_node(state: InterviewState) -> InterviewState:
 
         t0 = time.time()
 
-        def _retrieve(department_id, query):
-            r = get_department_retriever(department_id)
+        def _retrieve(org_id, query):
+            r = get_org_retriever(org_id)
             return r.invoke(query)
 
         docs = await asyncio.wait_for(
-            asyncio.to_thread(_retrieve, department_id, query),
+            asyncio.to_thread(_retrieve, org_id, query),
             timeout=60.0
         )
         elapsed = time.time() - t0
         logger.info(
-            f"Retrieved {len(docs)} docs for department {department_id}, "
+            f"Retrieved {len(docs)} docs for org {org_id}, "
             f"phase={current_phase} in {elapsed:.2f}s"
         )
 
@@ -118,7 +119,7 @@ async def department_context_node(state: InterviewState) -> InterviewState:
             'department_requirements': department_requirements.strip(),
             'rag_metadata': {
                 'success': True,
-                'department_id': department_id,
+                'org_id': str(org_id),
                 'phase': current_phase,
                 'query': query,
                 'documents_retrieved': len(context_docs),
@@ -131,14 +132,14 @@ async def department_context_node(state: InterviewState) -> InterviewState:
         return {**state, **result}
 
     except Exception as e:
-        logger.error(f"RAG retrieval failed for department {department_id}, phase={current_phase}: {e}")
+        logger.error(f"RAG retrieval failed for org {org_id}, phase={current_phase}: {e}")
         return {
             **state,
             'department_context': [],
             'department_requirements': '',
             'rag_metadata': {
                 'success': False,
-                'department_id': department_id,
+                'org_id': str(org_id),
                 'phase': current_phase,
                 'error': str(e)
             }

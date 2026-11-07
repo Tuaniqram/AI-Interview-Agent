@@ -41,7 +41,8 @@ export function PastEvaluationCard() {
   const entry = evaluationHistory[historyIndex];
   if (!entry) return null;
 
-  const scoreColor = entry.score >= 7 ? 'text-success' : entry.score >= 5 ? 'text-warning' : 'text-error';
+  const scoreColor = entry.score === null ? 'text-muted'
+    : entry.score >= 7 ? 'text-success' : entry.score >= 5 ? 'text-warning' : 'text-error';
   const sections: Section[] = ['strengths', 'weaknesses', 'feedback'];
   const hasContent = (s: Section) => {
     if (s === 'strengths') return entry.strengths.length > 0;
@@ -80,8 +81,14 @@ export function PastEvaluationCard() {
       <div className="px-4 pb-3">
         <div className="flex items-end gap-3 mb-3">
           <div className="flex items-baseline gap-0.5">
-            <span className={`text-2xl font-bold ${scoreColor}`}>{entry.score}</span>
-            <span className="text-[10px] text-muted font-medium">/10</span>
+            {entry.score === null ? (
+              <span className="text-base font-semibold text-muted">Not scored</span>
+            ) : (
+              <>
+                <span className={`text-2xl font-bold ${scoreColor}`}>{entry.score}</span>
+                <span className="text-[10px] text-muted font-medium">/10</span>
+              </>
+            )}
           </div>
           <div className="flex gap-1.5 pb-0.5">
             {entry.technicalScore !== undefined && (

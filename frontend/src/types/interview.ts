@@ -52,6 +52,8 @@ export interface InterviewSession {
   /** AURA/v4 metadata returned by the engine */
   job_role?: string;
   department_id?: number | null;
+  /** Present for organization interviews (invited / public); absent for practice. */
+  org_id?: string | null;
 }
 
 /**
@@ -135,7 +137,8 @@ export interface EvaluationHistoryEntry {
   questionNumber: number;
   question: string;
   answer: string;
-  score: number;
+  /** null = the answer could not be scored (shown as "Not scored") */
+  score: number | null;
   technicalScore?: number;
   communicationScore?: number;
   strengths: string[];
@@ -151,7 +154,8 @@ export interface EvaluationHistoryEntry {
  */
 export interface AnswerEvaluation {
   evaluation: string;
-  score: number;
+  /** null when the answer could not be scored (shown as "Not scored", never as 0). */
+  score: number | null;
   technical_score?: number;
   communication_score?: number;
   strengths: string[];

@@ -41,8 +41,18 @@ def get_index():
     return get_pinecone_client().Index(INDEX_NAME)
 
 
+def org_namespace(org_id) -> str:
+    """Physical Pinecone namespace of an organization's documents.
+
+    Organization documents are ingested under ``department_{org_id}`` (the IT-only
+    schema has no departments, so the id is the organization id). The prefix is
+    kept so already-indexed documents stay readable without re-ingestion.
+    """
+    return f"department_{org_id}"
+
+
 def store_department_knowledge(chunks, department_id, doc_id=None):
-    namespace = f"department_{department_id}"
+    namespace = org_namespace(department_id)
     if doc_id:
         for chunk in chunks:
             chunk.metadata["doc_id"] = str(doc_id)
@@ -58,7 +68,7 @@ def store_department_knowledge(chunks, department_id, doc_id=None):
 def delete_department_knowledge(department_id, doc_id):
     try:
         index = get_index()
-        namespace = f"department_{department_id}"
+        namespace = org_namespace(department_id)
         index.delete(
             filter={"doc_id": str(doc_id)},
             namespace=namespace
@@ -68,13 +78,18 @@ def delete_department_knowledge(department_id, doc_id):
         logger.warning(f"Failed to delete vectors from Pinecone: {e}")
 
 
-def get_department_retriever(department_id):
-    namespace = f"department_{department_id}"
+def get_org_retriever(org_id, k: int = 5):
+    """Retriever over an organization's uploaded documents (org-scoped RAG)."""
     vector_store = PineconeVectorStore(
         index_name=INDEX_NAME,
         embedding=get_embedding(),
-        namespace=namespace
+        namespace=org_namespace(org_id)
     )
     return vector_store.as_retriever(
-        search_kwargs={"k": 5}
+        search_kwargs={"k": k}
     )
+
+
+def get_department_retriever(department_id):
+    """Backward-compatible alias: the old "department id" is the organization id."""
+    return get_org_retriever(department_id)

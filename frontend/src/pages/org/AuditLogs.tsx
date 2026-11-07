@@ -13,7 +13,7 @@ interface AuditEntry {
   action: string;
   resource_type: string | null;
   resource_id: string | null;
-  details: string | null;
+  details: Record<string, unknown> | string | null;
   ip_address: string | null;
   created_at: string | null;
 }
@@ -62,7 +62,11 @@ export default function AuditLogs() {
                   {log.resource_type && <span className="text-muted">{log.resource_type} </span>}
                   {log.resource_id && <span className="font-mono text-[10px] text-muted">#{log.resource_id.slice(0, 8)}</span>}
                 </p>
-                {log.details && <p className="text-muted mt-0.5">{log.details}</p>}
+                {log.details && (typeof log.details === 'string' || Object.keys(log.details).length > 0) && (
+                  <p className="text-muted mt-0.5 break-all">
+                    {typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}
+                  </p>
+                )}
               </div>
               <div className="text-right shrink-0">
                 <p className="text-muted">{log.created_at ? new Date(log.created_at).toLocaleString() : ''}</p>

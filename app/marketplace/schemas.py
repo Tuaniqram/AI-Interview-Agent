@@ -101,8 +101,14 @@ class StartInterviewResponse(BaseModel):
 
 
 class ApplyRequest(BaseModel):
-    candidate_email: str
-    candidate_name: str
+    """Fields of the multipart apply form (the CV file itself is a separate part).
+
+    Guests must supply email + name; logged-in candidates are identified by their
+    bearer token, so both are optional for them.
+    """
+
+    candidate_email: Optional[str] = None
+    candidate_name: Optional[str] = None
     resume_document_id: Optional[UUID] = None
 
 
@@ -119,6 +125,11 @@ class ApplicationResponse(BaseModel):
     status: str
     fit_score: Optional[float] = None
     fit_summary: Optional[str] = None
+    fit_status: str = "pending"
+    fit_breakdown: Optional[dict] = None
+    fit_evaluated_at: Optional[datetime] = None
+    has_resume: bool = False
+    resume_filename: Optional[str] = None
     org_decision: str
     candidate_response: str
     outcome: str
@@ -127,6 +138,24 @@ class ApplicationResponse(BaseModel):
     updated_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+
+
+class ApplicationInvitationResponse(BaseModel):
+    """What the public (no-login) invitation page needs. The token is the credential."""
+
+    org_name: Optional[str] = None
+    job_title: str
+    candidate_name: str
+    candidate_email: str
+    status: str
+    candidate_response: str
+    can_respond: bool
+    expired: bool = False
+    expires_at: Optional[datetime] = None
+    # Only revealed once the invitation has been accepted.
+    session_id: Optional[UUID] = None
+    # Grants the (account-less) guest access to exactly that interview session.
+    access_token: Optional[str] = None
 
 
 class FitScoreRequest(BaseModel):

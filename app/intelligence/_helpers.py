@@ -77,3 +77,38 @@ def dedupe(items) -> list:
             seen.add(key)
             out.append(item)
     return out
+
+
+def unwrap_turn_json(text) -> dict | None:
+    """If ``text`` is (or wraps, possibly double-encoded) a conductor turn
+    ``{"acknowledgement", "bridge", "question"}`` return it as a clean dict, else ``None``.
+
+    Weak or free models sometimes answer with the turn JSON nested inside the ``question`` field,
+    or return it where plain text was expected. Whatever the model does, the candidate must see
+    sentences, never a JSON object.
+    """
+    current = text
+    for _ in range(3):  # tolerate a couple of levels of double encoding
+        if not isinstance(current, str):
+            return None
+        stripped = current.strip()
+        if not stripped.startswith(("{", "```")):
+            return None
+        try:
+            data = parse_json(stripped)
+        except ValueError:
+            return None
+        question = data.get("question")
+        if not isinstance(question, str) or not question.strip():
+            return None
+        turn = {
+            "acknowledgement": str(data.get("acknowledgement") or "").strip(),
+            "bridge": str(data.get("bridge") or "").strip(),
+            "question": question.strip(),
+        }
+        inner = question.strip()
+        if inner.startswith(("{", "```")):
+            current = inner  # the question itself is another encoded turn: unwrap again
+            continue
+        return turn
+    return None

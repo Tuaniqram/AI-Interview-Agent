@@ -6,7 +6,7 @@ from typing import Optional
 
 from sqlalchemy import (
     BigInteger, Boolean, CheckConstraint, Date, DateTime, ForeignKey,
-    Index, Integer, Numeric, Text, Time, UniqueConstraint, func,
+    Index, Integer, Numeric, Text, Time, UniqueConstraint, func, text,
 )
 from sqlalchemy.dialects.postgresql import UUID, INET, ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
@@ -517,6 +517,10 @@ class PublicInterviewSubmission(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="applied")
     fit_score: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
     fit_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    fit_status: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
+    fit_breakdown: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    fit_evaluated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    fit_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     org_decision: Mapped[str] = mapped_column(Text, nullable=False, server_default="pending")
     org_decided_by: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
@@ -680,7 +684,7 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(Text, nullable=False)
     resource_type: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     resource_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    details: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb"))
     ip_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -710,7 +714,11 @@ class EvidenceStore(Base):
         ForeignKey("interview_sessions.id", ondelete="CASCADE"),
         nullable=False,
     )
-    competency: Mapped[str] = mapped_column(Text, nullable=False)
+    competency_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("competencies.id", ondelete="RESTRICT"), nullable=False
+    )
+    # Callers and queries across the engine say "competency"; the DB column is competency_id.
+    competency = synonym("competency_id")
     dimension: Mapped[str] = mapped_column(Text, nullable=False)
     score: Mapped[float] = mapped_column(nullable=False)
     confidence: Mapped[float] = mapped_column(nullable=False, default=1.0)
@@ -718,7 +726,7 @@ class EvidenceStore(Base):
     source_question: Mapped[str] = mapped_column(Text, nullable=False)
     question_number: Mapped[int] = mapped_column(Integer, nullable=False)
     hypothesis_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True
+        UUID(as_uuid=True), ForeignKey("hypotheses.id", ondelete="SET NULL"), nullable=True
     )
     hypothesis_relevance: Mapped[Optional[float]] = mapped_column(nullable=True)
     evidence_metadata: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict, nullable=True)
@@ -730,11 +738,11 @@ class EvidenceStore(Base):
         CheckConstraint("score >= 0 AND score <= 10", name="evidence_score_check"),
         CheckConstraint("confidence >= 0 AND confidence <= 1", name="evidence_confidence_check"),
         CheckConstraint(
-            "dimension IN ('technical','communication','reasoning','behavioral','confidence','completeness')",
+            "dimension IN ('technical','communication','reasoning','behavioral','confidence','completeness','domain')",
             name="evidence_dimension_check",
         ),
         Index("idx_evidence_session", "session_id"),
-        Index("idx_evidence_session_competency", "session_id", "competency"),
+        Index("idx_evidence_session_competency", "session_id", "competency_id"),
         Index("idx_evidence_session_dimension", "session_id", "dimension"),
         Index("idx_evidence_hypothesis", "hypothesis_id"),
     )

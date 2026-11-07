@@ -76,6 +76,7 @@ All prompts are inherited from the pre-IT-only system. **None have been fully au
 |---|---|---|---|---|
 | `evaluation/evidence_reading.md` | `app/agents/evaluation/evidence_reading.py` | Extract evidence from transcript | `evidence_transcript`, `job_role` | GENERIC |
 | `evaluation/synthesis.md` | `app/agents/evaluation/synthesis.py` | Synthesize final assessment | `avg_score`, `canonical_score`, `coverage_map`, `evidence_strengths`, `evidence_weaknesses`, `growth_trend`, `job_role`, `max_difficulty`, `score_timeline`, `skills_tested`, `skills_weak` | GENERIC |
+| `evaluation/application_fit.md` | `app/marketplace/fit_evaluation.py` | Score how well a CV fits a listing (0-10) with matched/missing role competencies, strengths, risks and interview probes. Inputs: listing, `role_competencies`, org documents (org-scoped RAG), CV text. Output validated by `FitResult`; untrusted text is brace-neutralized | `job_role`, `level`, `skills_required`, `organization_name`, `listing_description`, `role_competencies`, `deterministic_match`, `organization_context`, `candidate_profile`, `resume_text` | RUNTIME |
 | `evaluation/unified_evaluator.md` | `app/agents/evaluation/candidate_evaluator.py` | Score one answer | `answer`, `candidate_memory`, `competency`, `difficulty`, `domain_label`, `job_role`, `persona`, `primary_dimension`, `question`, `rubric` | RUNTIME |
 
 ## 7. Intelligence Prompts
@@ -105,6 +106,7 @@ All prompts are inherited from the pre-IT-only system. **None have been fully au
 | Agent / Service | Prompt |
 |---|---|
 | `app/agents/decision/hiring_decision.py` | `decision/hiring_decision.md` |
+| `app/marketplace/fit_evaluation.py` | `evaluation/application_fit.md` |
 | `app/agents/evaluation/candidate_evaluator.py` | `evaluation/unified_evaluator.md` |
 | `app/agents/evaluation/evidence_reading.py` | `evaluation/evidence_reading.md` |
 | `app/agents/evaluation/synthesis.py` | `evaluation/synthesis.md` |

@@ -8,6 +8,18 @@ export interface CandidateProfile {
   is_verified: boolean;
   skills: string | null;
   created_at: string | null;
+  /** Only present on the response of POST /candidates/me/resume. */
+  resume_document_id?: string | null;
+}
+
+/** Returned by register when the email already has guest activity: finish via the emailed link. */
+export interface CandidateClaimPending {
+  claim_pending: true;
+  message: string;
+}
+
+export function isClaimPending(res: CandidateAuthResponse | CandidateClaimPending): res is CandidateClaimPending {
+  return (res as CandidateClaimPending).claim_pending === true;
 }
 
 export interface CandidateTokens {

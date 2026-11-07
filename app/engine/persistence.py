@@ -102,7 +102,7 @@ async def persist_evidence(session_id: str, state: dict) -> None:
             hypothesis_id = (
                 best_hyp["id"] if best_hyp and best_hyp_relevance >= RELEVANCE_THRESHOLD else None
             )
-            await repo.create_evidence(
+            row = dict(
                 session_id=session_id,
                 competency=ev["competency"],
                 dimension=ev["dimension"],
@@ -111,11 +111,25 @@ async def persist_evidence(session_id: str, state: dict) -> None:
                 source_question=ev["source_question"],
                 question_number=ev["question_number"],
                 confidence=ev["confidence"],
-                hypothesis_id=hypothesis_id,
-                hypothesis_relevance=round(best_hyp_relevance, 4) if hypothesis_id else None,
                 evidence_metadata=evidence_metadata or None,
                 evidence_id=ev.get("id"),
             )
+            # One bad row (e.g. a hypothesis not persisted yet, now a foreign key) must not
+            # drop the rest of this answer's evidence: retry unlinked, then skip and go on.
+            try:
+                await repo.create_evidence(
+                    **row,
+                    hypothesis_id=hypothesis_id,
+                    hypothesis_relevance=round(best_hyp_relevance, 4) if hypothesis_id else None,
+                )
+            except Exception as row_exc:  # noqa: BLE001
+                try:
+                    await repo.create_evidence(**row)
+                except Exception as retry_exc:  # noqa: BLE001
+                    logger.warning(
+                        f"Skipped evidence row for competency={ev.get('competency')!r} "
+                        f"(non-fatal): {retry_exc or row_exc}"
+                    )
     except Exception as exc:  # noqa: BLE001 - best-effort by design
         logger.warning(f"Failed to save evidence (non-fatal): {exc}")
 
@@ -169,7 +183,7 @@ async def persist_answer_turn(session_id: str, brain: InterviewBrain) -> None:
         )
         answer_msg = await message_repo.create_candidate_answer(
             session_id=session_id,
-            role="candidate",
+            role="user",
             candidate_answer=turn["answer"],
             question_number=qnum,
             phase=turn["phase"],

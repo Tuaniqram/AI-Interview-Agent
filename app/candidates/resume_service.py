@@ -6,9 +6,13 @@ import shutil
 import uuid
 from pathlib import Path
 
+from fastapi import HTTPException, status
 from pypdf import PdfReader
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.models.db import CandidateDocument
 from app.models.llm import llm
 
 logger = logging.getLogger(__name__)
@@ -16,6 +20,8 @@ logger = logging.getLogger(__name__)
 RESUMES_DIR = Path("resumes")
 
 ALLOWED_EXTENSIONS = {".pdf"}
+MAX_RESUME_BYTES = 5 * 1024 * 1024
+MAX_EXTRACTED_CHARS = 20000
 
 
 async def _ensure_dir():
@@ -74,3 +80,70 @@ Resume text:
         logger.warning("LLM resume parsing failed: %s", e)
         data = {"skills": [], "experience": [], "education": [], "headline": "", "years_of_experience": None}
     return data
+
+
+async def store_candidate_resume(candidate, file, db: AsyncSession) -> CandidateDocument:
+    """Validate, save and register a candidate's PDF CV; returns the new document.
+
+    Shared by the authenticated profile upload and the apply flow (guest or
+    logged-in). Validates the PDF, writes it under ``resumes/``, extracts the
+    text, creates a ``candidate_documents`` row, and points
+    ``candidate.resume_url`` at the new file. The caller owns the commit.
+    """
+    filename = (getattr(file, "filename", None) or "resume.pdf")
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only PDF files are supported")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "CV file is empty")
+    if len(content) > MAX_RESUME_BYTES:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "CV file is too large (max 5 MB)")
+    if not content.startswith(b"%PDF-"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "CV is not a valid PDF file")
+
+    await _ensure_dir()
+    document_id = uuid.uuid4()
+    filepath = RESUMES_DIR / f"{candidate.id}-{document_id.hex[:8]}.pdf"
+
+    def _write():
+        with open(filepath, "wb") as buffer:
+            buffer.write(content)
+
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, _write)
+
+    try:
+        text = await extract_text(str(filepath))
+    except Exception as exc:
+        logger.warning("Could not read uploaded PDF %s: %s", filename, exc)
+        await loop.run_in_executor(None, lambda: filepath.unlink(missing_ok=True))
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Could not read the PDF; upload a text-based PDF")
+
+    document = CandidateDocument(
+        id=document_id,
+        candidate_id=candidate.id,
+        filename=filename,
+        document_type="resume",
+        extracted_text=(text or "")[:MAX_EXTRACTED_CHARS],
+        document_metadata={"ext": "pdf", "path": str(filepath), "size": len(content)},
+    )
+    db.add(document)
+    candidate.resume_url = str(filepath)
+    await db.flush()
+    return document
+
+
+async def latest_resume_document(candidate_id: uuid.UUID, db: AsyncSession) -> CandidateDocument | None:
+    """Most recent resume document for a candidate, if any."""
+    result = await db.execute(
+        select(CandidateDocument)
+        .where(
+            CandidateDocument.candidate_id == candidate_id,
+            CandidateDocument.document_type == "resume",
+        )
+        .order_by(CandidateDocument.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()

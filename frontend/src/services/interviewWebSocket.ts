@@ -12,6 +12,7 @@
  */
 
 import { getCandidateToken } from '../utils/candidateToken';
+import { getInterviewAccess } from '../utils/interviewAccess';
 
 type Listener = (data: any) => void;
 
@@ -41,10 +42,15 @@ export class InterviewWebSocket {
       this.ws.close();
       this.ws = null;
     }
+    // The server denies by default: send the owner's login token and/or the per-session access
+    // token (guests who accepted an invitation or started a public interview).
+    const params = new URLSearchParams();
     const token = getCandidateToken();
-    const url = token
-      ? `${this.baseUrl}/ws/interview/${sessionId}?token=${token}`
-      : `${this.baseUrl}/ws/interview/${sessionId}`;
+    const access = getInterviewAccess(sessionId);
+    if (token) params.set('token', token);
+    if (access) params.set('access', access);
+    const query = params.toString();
+    const url = `${this.baseUrl}/ws/interview/${sessionId}${query ? `?${query}` : ''}`;
     const ws = new WebSocket(url);
     this.ws = ws;
 
@@ -69,7 +75,10 @@ export class InterviewWebSocket {
 
           if (data._id && this.pendingResolvers.has(data._id)) {
             const expected = this.pendingTypes.get(data._id);
-            if (expected && expected.split('|').includes(data.type)) {
+            // An error reply always answers the request it carries the id of. Waiting for an
+            // "expected" type meant access-denied / validation errors were ignored until the
+            // 2-minute request timeout.
+            if (data.type === 'error' || (expected && expected.split('|').includes(data.type))) {
               this.pendingTypes.delete(data._id);
               const entry = this.pendingResolvers.get(data._id)!;
               clearTimeout(entry.timeout);
@@ -153,13 +162,15 @@ export class InterviewWebSocket {
     department_id?: number;
     job_role?: string;
   }): Promise<any> {
-    return this.sendAndWait('start_interview', params, ['question']);
+    // The server allows up to 300s to prepare an interview (role profile, company context, strategy,
+    // first question); the client must wait at least as long or it reports a failure that isn't one.
+    return this.sendAndWait('start_interview', params, ['question'], 300_000);
   }
 
   async getNextQuestion(params: {
     session_id: string;
   }): Promise<any> {
-    return this.sendAndWait('request_question', params, ['question']);
+    return this.sendAndWait('request_question', params, ['question'], 60_000);
   }
 
   async submitAnswer(params: {
@@ -170,11 +181,11 @@ export class InterviewWebSocket {
     paste_chars?: number;
     focus_lost_count?: number;
   }): Promise<any> {
-    return this.sendAndWait('submit_answer', params as Record<string, unknown>, ['evaluation', 'report']);
+    return this.sendAndWait('submit_answer', params as Record<string, unknown>, ['evaluation', 'report'], 300_000);
   }
 
   async getStatus(session_id: string): Promise<any> {
-    return this.sendAndWait('get_status', { session_id }, ['status_snapshot']);
+    return this.sendAndWait('get_status', { session_id }, ['status_snapshot'], 60_000);
   }
 
   disconnect(): void {

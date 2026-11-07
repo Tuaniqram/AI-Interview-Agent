@@ -37,7 +37,7 @@ Can:
 - Browse organizations in the Opportunity Hub
 - View organization profiles
 - View open interview listings
-- Apply to a listing with email, name, and optional resume
+- Apply to a listing with email, name, and a required PDF CV (guests), or with the profile CV when logged in
 - Start a public interview by listing token
 
 Cannot:
@@ -60,9 +60,8 @@ Can:
 - View interview history and detail
 - View stats and competency scores
 
-Candidate-side gaps:
-- There is no mounted endpoint yet for a candidate to list all their applications.
-- There is no dedicated candidate application-status page in the frontend yet.
+Candidate-side notes:
+- `GET /api/v1/marketplace/applications/me` lists a candidate's applications; the My Applications page shows them. Both require a verified email.
 
 ### 2.3 Organization owner
 
@@ -287,13 +286,25 @@ Function:
 - `app/marketplace/service.py::apply_to_public_interview`
 
 What happens:
-- Candidate profile is found or created.
-- Resume document can be linked.
+- The request is `multipart/form-data` (email, name, `resume` PDF; the bearer token identifies a logged-in candidate).
+- Guests: a `candidate_profiles` row is found by email (case-insensitive) or created with `is_registered = false`. If the email belongs to a registered account the guest is told to sign in (409).
+- A CV is required. Guests must upload one; logged-in candidates reuse the profile CV or upload one. Uploads go through `resume_service.store_candidate_resume` (PDF, 5 MB max): file saved under `resumes/`, text extracted, `candidate_documents` row created, `candidate_profiles.resume_url` updated.
+- The application is linked to the CV through `resume_document_id`.
+- Registering later with the same email claims the guest profile (same `candidate_profiles.id`); after email verification its applications, CV and sessions appear in the account.
 - Application is created with:
+  - `fit_status = pending`
   - `status = applied`
   - `org_decision = pending`
   - `candidate_response = pending`
   - `outcome = pending`
+
+- After the response, two background tasks run: the "application received" email and the automatic fit evaluation.
+
+Automatic fit evaluation (`app/marketplace/fit_evaluation.py`, prompt `evaluation/application_fit.md`):
+- `fit_status`: `pending` -> `running` -> `completed` | `failed`. A failure never blocks the application; the owner can re-run it (`POST /applications/{id}/evaluate`).
+- Inputs: the listing, the IT role's `role_competencies`, the organization's documents through org-scoped RAG (`get_org_retriever(org_id)`, namespace `department_{org_id}`), and the CV text.
+- Output: `fit_score` (0-10), `fit_summary`, `fit_breakdown` (matched/missing competencies, strengths, risks, interview probes). On success `status` moves `applied` -> `evaluated`. Nobody is rejected automatically.
+- Organization documents also feed the live interview: the WebSocket start passes `org_id` into the company brain and `department_context_node`. Uploading or deleting a document evicts that organization's cached company brains.
 
 Tables:
 - `candidate_profiles`
@@ -326,6 +337,8 @@ Tables:
 ### Step 11 — Organization invites candidate
 
 API:
+- `POST /api/v1/marketplace/applications/{application_id}/invite` (also emails the candidate a link to `/application-invite/{invite_token}`; email needs `RESEND_API_KEY`, otherwise it is logged as disabled)
+- Guest path, no login: `GET/POST /api/v1/marketplace/application-invitations/{token}[/respond]`; accepting returns the `session_id` plus an `access_token`. The page stores the token (sessionStorage) and opens `/interview/{session_id}`; the interview WebSocket sends it as `?access=` and refuses any connection without it or the owner's login
 - `POST /api/v1/marketplace/applications/{application_id}/invite`
 
 Function:

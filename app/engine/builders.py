@@ -21,16 +21,26 @@ def _as_dict(state: StateLike) -> dict:
 
 def compose_conversation_turn(state: StateLike) -> str:
     """Compose the spoken message: acknowledgement + bridge + question."""
+    from app.intelligence._helpers import unwrap_turn_json
+
     s = _as_dict(state)
     turn = s.get("conversation_turn") or {}
     if isinstance(turn, dict) and turn.get("question"):
+        # last line of defence: never show a JSON-encoded turn to the candidate
+        turn = unwrap_turn_json(turn["question"]) or turn
         parts = [
             p
             for p in (turn.get("acknowledgement", ""), turn.get("bridge", ""), turn["question"])
             if p
         ]
         return "\n\n".join(parts)
-    return s.get("current_question", "")
+    current = s.get("current_question", "")
+    unwrapped = unwrap_turn_json(current)
+    if unwrapped:
+        return "\n\n".join(
+            p for p in (unwrapped["acknowledgement"], unwrapped["bridge"], unwrapped["question"]) if p
+        )
+    return current
 
 
 def _integrity_policy(s: dict) -> dict:
@@ -87,6 +97,7 @@ def build_start_response(session_id: str, state: StateLike) -> dict:
         "status": "in_progress",
         "job_role": s.get("job_role", ""),
         "department_id": s.get("department_id"),
+        "org_id": s.get("org_id"),  # set for real (organization) interviews, absent for practice
         "conversation_turn": compose_conversation_turn(s),
         "question": {
             "text": question,
@@ -198,10 +209,13 @@ def build_answer_response(session_id: str, state: StateLike) -> dict:
         "status": "in_progress",
         "job_role": s.get("job_role", ""),
         "department_id": s.get("department_id"),
+        "org_id": s.get("org_id"),  # set for real (organization) interviews, absent for practice
         "conversation_turn": compose_conversation_turn(s),
         "evaluation": {
             "scores": scored,
             "composite": s.get("evaluation_score"),
+            # False when the answer could not be evaluated: the UI must not show that as 0.0.
+            "scored": not s.get("evaluation_failed", False),
         },
         "next_question": {
             "text": next_question,
@@ -243,6 +257,7 @@ def build_state_response(session_id: str, state: StateLike) -> dict:
         "persona": s.get("persona", ""),
         "job_role": s.get("job_role", ""),
         "department_id": s.get("department_id"),
+        "org_id": s.get("org_id"),  # set for real (organization) interviews, absent for practice
         "conversation_turn": compose_conversation_turn(s),
         "current_question": s.get("current_question", ""),
         "interview_complete": bool(s.get("reflection_action") == "finish"),

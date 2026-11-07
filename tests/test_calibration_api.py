@@ -10,6 +10,11 @@ from app.main import app
 from app.models.db import CalibrationFeedback
 
 
+pytestmark = pytest.mark.skip(
+    reason="Calibration API removed in the IT-only schema: calibration_feedback table dropped, router not mounted"
+)
+
+
 class _FakeUser:
     id = uuid.uuid4()
     is_admin = True

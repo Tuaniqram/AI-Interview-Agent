@@ -28,8 +28,8 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('active_org_id', orgId);
       const org = await orgService.get(orgId);
       setActiveOrg(org);
-      const memberList = await orgService.listMembers(orgId);
-      setMembers(memberList);
+      // Members are loaded on demand (refreshMembers): no page needs them at startup, and
+      // every extra request costs a full round trip to the database.
     } catch (err) {
       console.error('Failed to switch org', err);
     } finally {
@@ -57,21 +57,11 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!memberships || memberships.length === 0) return;
-    const initOrg = async () => {
-      let orgId = localStorage.getItem('active_org_id');
-      if (orgId) {
-        try {
-          await orgService.get(orgId);
-        } catch {
-          orgId = null;
-        }
-      }
-      if (!orgId) {
-        orgId = memberships[0].org_id;
-      }
-      switchOrg(orgId);
-    };
-    initOrg();
+    // Use the remembered org when the user still belongs to it, else the first membership.
+    // (No validation request: switchOrg fetches the org anyway.)
+    const stored = localStorage.getItem('active_org_id');
+    const orgId = stored && memberships.some(m => m.org_id === stored) ? stored : memberships[0].org_id;
+    switchOrg(orgId);
   }, [memberships, switchOrg]);
 
   useEffect(() => {

@@ -37,6 +37,20 @@ async def lifespan(app: FastAPI):
     eng = get_engine()
     if eng:
         logger.info("Async SQLAlchemy engine ready")
+        # Open the first connection now: against a remote database it takes several
+        # seconds, which the first user request would otherwise pay.
+        try:
+            import asyncio
+            from sqlalchemy import text
+
+            async def _warm_db():
+                async with eng.connect() as conn:
+                    await conn.execute(text("select 1"))
+
+            await asyncio.wait_for(_warm_db(), timeout=30.0)
+            logger.info("Database connection pool warmed up")
+        except Exception as exc:  # noqa: BLE001 - never block startup on this
+            logger.warning(f"Database warm-up skipped: {exc}")
     else:
         logger.warning("DATABASE_URL not set — async DB features disabled")
 
@@ -115,14 +129,32 @@ app.include_router(system_router)
 
 
 # ✅ Custom middleware to handle ngrok-specific headers
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.datastructures import MutableHeaders
 from app.middleware.rate_limit import RateLimitMiddleware
 
-class NgrokMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request, call_next):
-        response = await call_next(request)
-        response.headers["ngrok-skip-browser-warning"] = "true"
-        return response
+
+class NgrokMiddleware:
+    """Adds the ngrok header to every HTTP response.
+
+    Plain ASGI on purpose: ``BaseHTTPMiddleware`` delays the end of the response until
+    FastAPI background tasks (fit evaluation, emails, document ingestion) have finished.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_header(message):
+            if message["type"] == "http.response.start":
+                MutableHeaders(scope=message)["ngrok-skip-browser-warning"] = "true"
+            await send(message)
+
+        await self.app(scope, receive, send_with_header)
+
 
 # Innermost middleware (runs first)
 app.add_middleware(NgrokMiddleware)
@@ -137,7 +169,8 @@ app.add_middleware(
            "/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/refresh",
            "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password",
            "/api/v1/candidates/forgot-password", "/api/v1/candidates/reset-password",
-           "/api/v1/candidates/send-verification"],
+           "/api/v1/candidates/send-verification",
+           "/api/v1/candidates/claim", "/api/v1/candidates/verify"],
 )
 
 # General rate limit on all API + v4 endpoints (120 req/min per IP)

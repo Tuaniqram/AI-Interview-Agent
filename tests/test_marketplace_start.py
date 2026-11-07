@@ -50,6 +50,10 @@ def _fake_listing():
         is_open=True,
         template_id=None,
         org_id="org-1",
+        it_role_id="role-1",
+        description=None,
+        skills_required=None,
+        level_code=None,
         department_id=None,
         title="Backend Engineer",
         interview_mode="text",
@@ -61,7 +65,7 @@ async def test_start_public_interview_seeds_v4_state(monkeypatch):
     store = get_v4_session_store()
     db = _FakeDB(_fake_listing())
     req = StartInterviewRequest(candidate_email="a@b.com", candidate_name="Alice")
-    async def fake_resolve_competencies(db, scorecard_template_id=None, department_id=None, role_context=None):
+    async def fake_resolve_competencies(db, **kwargs):
         return []
 
     monkeypatch.setattr("app.marketplace.service.resolve_competencies", fake_resolve_competencies)
@@ -70,6 +74,11 @@ async def test_start_public_interview_seeds_v4_state(monkeypatch):
 
     assert db.committed == 1
     assert len(db.added) == 2  # InterviewSession + PublicInterviewSubmission
+
+    from app.auth.interview_access import verify_interview_access_token
+
+    # the returned token is a real credential for this one session (no longer a random string)
+    assert verify_interview_access_token(resp.token) == str(resp.session_id)
 
     state = store.get_or_raise(str(resp.session_id))
     assert state["flow_type"] == "v4_evidence_driven"

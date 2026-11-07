@@ -230,7 +230,7 @@ async def _resolve(*, scorecard=None, template=None, role_context=None, use_llm=
         return await resolve_competencies(
             db,
             scorecard_template_id=SCORECARD_UUID if scorecard is not None else None,
-            department_id=7 if template is not None or role_context else None,
+            org_id="7" if template is not None or role_context else None,
             role_context=role_context,
             use_llm=use_llm,
         )
@@ -272,9 +272,9 @@ def test_resolution_cached_in_memory():
                              "weight": 1.0, "evidence_dimensions": ["technical"],
                              "default_min_evidence": 2}], "ai:llm", "x"))) as sugg:
         db = FakeDB()
-        asyncio.run(resolve_competencies(db, department_id=7, role_context=ctx))
+        asyncio.run(resolve_competencies(db, org_id="7", role_context=ctx))
         assert sugg.await_count == 1
-        asyncio.run(resolve_competencies(db, department_id=7, role_context=ctx))
+        asyncio.run(resolve_competencies(db, org_id="7", role_context=ctx))
         assert sugg.await_count == 1  # second resolve hits the memory cache
         assert dbc.await_count == 1
 

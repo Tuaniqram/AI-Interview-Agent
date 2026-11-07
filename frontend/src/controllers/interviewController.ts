@@ -223,6 +223,7 @@ export class InterviewController {
       interaction_mode: 'typing',
       job_role: data.job_role,
       department_id: data.department_id ?? null,
+      org_id: data.org_id ?? null,
     };
     const question: Question = {
       session_id: data.session_id,
@@ -251,14 +252,16 @@ export class InterviewController {
           status: 'in_progress',
           job_role: snapshot.job_role,
           department_id: snapshot.department_id,
+          org_id: snapshot.org_id,
           difficulty: snapshot.difficulty,
           question: { text: snapshot.current_question, number: snapshot.question_number, target_competency: '' },
           conversation_turn: snapshot.conversation_turn,
         });
         return { ...mapped, resumed: true };
       }
-    } catch {
-      // Engine has no state — fresh start below
+    } catch (error: any) {
+      // Access problems are final; anything else just means the engine has no state yet.
+      if (/denied/i.test(error?.message || '')) throw error;
     }
 
     const data = await interviewWebSocket.startSession({ session_id: sessionId });
@@ -334,17 +337,24 @@ export class InterviewController {
         .map(([dim, v]: [string, any]) => ({ dim, ...v }));
 
       const composite = response?.evaluation?.composite;
-      const score = typeof composite === 'number'
-        ? composite
-        : scoredDims.length
-          ? scoredDims.reduce((s, d) => s + (d.score ?? 0), 0) / scoredDims.length
-          : 0;
+      // The server says when it could not evaluate the answer (model unavailable): that is "not
+      // scored", not a score of zero, and it must not look like the candidate answered badly.
+      const unscored = response?.evaluation?.scored === false;
+      const score: number | null = unscored
+        ? null
+        : typeof composite === 'number'
+          ? composite
+          : scoredDims.length
+            ? scoredDims.reduce((s, d) => s + (d.score ?? 0), 0) / scoredDims.length
+            : null;
 
       const strengths = scoredDims.flatMap((d) => d.strengths || []);
       const weaknesses = scoredDims.flatMap((d) => d.weaknesses || []);
       const feedback = scoredDims
         .map((d) => `${d.dim}: ${(d.score ?? 0).toFixed(1)}/10`)
-        .join(' · ') || (response.hiring_recommendation?.verdict || '');
+        .join(' · ') || (unscored
+          ? "We couldn't score this answer automatically. It won't count against you."
+          : (response.hiring_recommendation?.verdict || ''));
 
       const nextQ = response?.next_question || {};
       if (nextQ.text) {
