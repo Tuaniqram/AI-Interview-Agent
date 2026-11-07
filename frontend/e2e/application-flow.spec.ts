@@ -388,10 +388,14 @@ test.describe('candidate application flow', () => {
     const firstScreen = await page.locator('body').innerText();
     expect(firstScreen).not.toMatch(/something went wrong|unexpected error|access denied/i);
 
-    await answerBox.fill('I built and operated REST APIs in Python with Postgres, adding caching and pagination to keep p95 latency under 200 ms.');
+    const answer = 'I built and operated REST APIs in Python with Postgres, adding caching and pagination to keep p95 latency under 200 ms.';
+    await answerBox.fill(answer);
     await page.getByRole('button', { name: /send|submit|answer/i }).last().click();
-    await expect(page.locator('body')).not.toContainText(firstScreen.slice(0, 40), { timeout: 240_000, useInnerText: true }).catch(() => {});
-    await page.waitForTimeout(3000);
+    // The next question must actually arrive: the page keeps the first question and our answer in view,
+    // so wait for new text well beyond them (the previous check waited out its whole timeout and ignored it).
+    const bodyLength = async () => (await page.locator('body').innerText()).length;
+    const sizeAtAnswer = firstScreen.length + answer.length;
+    await expect.poll(bodyLength, { timeout: 120_000, intervals: [1_000] }).toBeGreaterThan(sizeAtAnswer + 80);
     await shot(page, '12-after-answer');
     expect(await page.locator('body').innerText()).not.toMatch(/something went wrong|unexpected error|access denied/i);
     expect(errors).toEqual([]);
