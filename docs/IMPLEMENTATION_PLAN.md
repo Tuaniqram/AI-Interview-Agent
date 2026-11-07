@@ -191,7 +191,7 @@ in the transcript.
 
 ---
 
-### Step 2: Evidence carries the answer's competency score; hypotheses and difficulty use the corrected scale (P1 links 1 and 3, P4)
+### Step 2: Evidence carries the answer's competency score; hypotheses and difficulty use the corrected scale (P1 links 1, 3 and 4, P4)
 
 **Candidate-facing:** yes, difficulty changes (approved: "slower drop + hold band").
 
@@ -211,6 +211,9 @@ in the transcript.
   - `"score"` becomes `competency_score(...)`; fall back to the top dimension's score only when every weighted dimension is null.
   - Keep `"dimension"` as the primary dimension (not the top one), and add `"dimension_scores": {dim: score}` for observability.
   - Claim sentences still come from the primary dimension's `evidence` quote, with the top dimension as the fallback.
+  - **Every scored answer produces at least one record** (P1 link 4). When no quote yields a claim sentence, create one record
+    whose `evidence_text` is the first 300 characters of the candidate's answer (`state["candidate_answer"]`), flagged
+    `"quote_missing": True`. Pass the answer into `build_candidate_evidence` as a new optional `answer_text` argument.
   - Update the module docstring, which still describes the "top-scoring dimension" rule.
 - `app/agents/reasoning/hypothesis_engine.py::_evidence_support`: centre on the hire bar. Use
   `raw = 0.5 + (score10 - 6.5) / 7.0`, clamped to 0..1, where `score10 = normalized_score * 10`. A score of 6.5 is neutral, 10 is
@@ -237,6 +240,7 @@ in the transcript.
 **Unit tests to update or add**
 - `tests/test_evidence_quality.py`, `tests/test_competency_consistency.py` and `tests/new/test_phase_a.py`: the record score is
   now the competency score. Add a case where communication is 9 and technical is 5, and the record score is about 5.5.
+- An evaluation whose quotes are all empty still yields one record, carrying the answer text and `quote_missing: True`.
 - `tests/test_difficulty_governor.py`:
   - window 6.0 → hold
   - two consecutive windows at 5.0 → −1
@@ -246,6 +250,7 @@ in the transcript.
 
 **Gate** `step2`: strong, bluffer, weak and awkward ×2. Pass:
 - `ev_minus_turn` is between −0.3 and +0.5 for every run.
+- `unscored=0` for every run (every answer produces evidence).
 - awkward reaches difficulty ≥ 2 in both runs (difficulty 1 in round8).
 - weak still ends on the no-hire side.
 - strong still reaches difficulty ≥ 4.
@@ -329,7 +334,7 @@ That's the rubric's and the ledger's job.
 
 ---
 
-### Step 4: Evaluator v2: substantiation, claims and gap flags in the same call (P1 link 4, P5, P6 detection, N2, N3, P12)
+### Step 4: Evaluator v2: substantiation, claims and gap flags in the same call (P1 link 5, P5, P6 detection, N2, N3, P12)
 
 **Files**
 - `prompts/evaluation/unified_evaluator.md`: **PROMPTS.md §1**.

@@ -3,6 +3,7 @@
     python tools/interview_sim/run.py                      # every persona, 6 questions each
     python tools/interview_sim/run.py strong bluffer -q 8  # chosen personas
     python tools/interview_sim/run.py --role senior-backend-developer --out some/dir
+    python tools/interview_sim/run.py strong bluffer -q 14 --repeat 3   # 3 runs each, in r1/ r2/ r3/
 
 What it does
   * loads the role's competencies from the database READ-ONLY (same catalog the live app uses);
@@ -127,6 +128,11 @@ def build_state(session_id, role_id, role_name, taxonomy, required, domain_label
     }
 
 
+BRAIN_EXTRA_KEYS = (
+    "contradictions", "claim_conflicts", "claim_ledger", "answer_signals", "max_difficulty_reached",
+    "difficulty_level", "clarification_counts",
+)
+
 USAGE = {"calls": 0, "chars": 0, "cheap_chars": 0, "strong_chars": 0, "sim": False}
 
 
@@ -207,6 +213,7 @@ async def run_one(name: str, persona: dict, role: tuple, questions: int, out_dir
                 "cheap_tokens": (USAGE["cheap_chars"] - cheap0) // 4,
                 "strong_tokens": (USAGE["strong_chars"] - strong0) // 4,
                 "score": ev.get("composite"), "scored": ev.get("scored"),
+                "clarification": bool(resp.get("clarification")),
                 "next_competency": (resp.get("next_question") or {}).get("target_competency"),
                 "strategy": brain.get("question_strategy") or {},
             })
@@ -219,16 +226,23 @@ async def run_one(name: str, persona: dict, role: tuple, questions: int, out_dir
 
         error = "".join(traceback.format_exception(exc))[-2000:]
 
-    evidence_store, evidence_reading = [], None
+    evidence_store, evidence_reading, brain_extras = [], None, {}
     try:
         final = engine.get_brain(session_id)
         evidence_store = list(getattr(final, "evidence_store", None) or [])
         evidence_reading = getattr(final, "evidence_reading", None)
+        # Fields the implementation-plan gates read (absent on older code: saved as empty).
+        brain_extras = {key: getattr(final, key, None) for key in BRAIN_EXTRA_KEYS}
+        brain_extras["questions_asked"] = [
+            {k: q.get(k) for k in ("competency", "difficulty", "mode", "question_source")}
+            for q in (getattr(final, "questions_asked", None) or [])
+            if isinstance(q, dict)
+        ]
     except Exception:  # noqa: BLE001 - diagnostics only
         pass
 
     result = {
-        "evidence_store": evidence_store, "evidence_reading": evidence_reading,
+        "evidence_store": evidence_store, "evidence_reading": evidence_reading, "brain": brain_extras,
         "persona": name, "label": persona["label"], "role": role_name,
         "seconds": round(time.perf_counter() - started, 1), "start_seconds": start_seconds, "turns": turns,
         "report": report, "error": error,
@@ -272,27 +286,33 @@ async def main():
     ap.add_argument("-q", "--questions", type=int, default=6)
     ap.add_argument("--role", default="backend-developer")
     ap.add_argument("--out", default=str(Path(__file__).resolve().parent / "out"))
+    ap.add_argument("--repeat", type=int, default=1,
+                    help="run every persona N times; repeats go to r1/, r2/, ... under the run folder")
     args = ap.parse_args()
 
     names = args.personas or list(PERSONAS)
     bad = [n for n in names if n not in PERSONAS]
     if bad:
         sys.exit(f"unknown persona(s) {bad}; choose from {list(PERSONAS)}")
-    out_dir = Path(args.out) / time.strftime("%Y%m%d-%H%M%S")
-    out_dir.mkdir(parents=True, exist_ok=True)
+    if args.repeat < 1:
+        sys.exit("--repeat must be at least 1")
+    run_dir = Path(args.out) / time.strftime("%Y%m%d-%H%M%S")
 
     _install_usage_counter()
     role = await load_role(args.role)
-    print(f"role={role[1]} competencies={len(role[2])} -> {out_dir}")
-    summary = []
-    for n in names:
-        print(f"... {n}", flush=True)
-        r = await run_one(n, PERSONAS[n], role, args.questions, out_dir)
-        rep = r["report"] or {}
-        summary.append((n, len(r["turns"]), rep.get("verdict"), r["seconds"], "CRASH" if r["error"] else ""))
-        print(f"    {len(r['turns'])} answers, verdict={rep.get('verdict')}, {r['seconds']}s {'CRASH' if r['error'] else ''}")
-    (out_dir / "summary.txt").write_text("\n".join(map(str, summary)), encoding="utf-8")
-    print(f"\ntranscripts: {out_dir}")
+    print(f"role={role[1]} competencies={len(role[2])} -> {run_dir}")
+    for k in range(1, args.repeat + 1):
+        out_dir = run_dir / f"r{k}" if args.repeat > 1 else run_dir
+        out_dir.mkdir(parents=True, exist_ok=True)
+        summary = []
+        for n in names:
+            print(f"... {n}" + (f" (repeat {k}/{args.repeat})" if args.repeat > 1 else ""), flush=True)
+            r = await run_one(n, PERSONAS[n], role, args.questions, out_dir)
+            rep = r["report"] or {}
+            summary.append((n, len(r["turns"]), rep.get("verdict"), r["seconds"], "CRASH" if r["error"] else ""))
+            print(f"    {len(r['turns'])} answers, verdict={rep.get('verdict')}, {r['seconds']}s {'CRASH' if r['error'] else ''}")
+        (out_dir / "summary.txt").write_text("\n".join(map(str, summary)), encoding="utf-8")
+    print(f"\ntranscripts: {run_dir}")
 
 
 if __name__ == "__main__":

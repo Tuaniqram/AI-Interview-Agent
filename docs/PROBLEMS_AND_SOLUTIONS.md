@@ -61,7 +61,7 @@ The c2 bluffer claimed *"2 million requests per second, which is 30× higher tha
 success"* and got `score=6.65`. Across the a162 bluffer run, per-answer scores averaged **6.60**, yet the competency averages were
 7.4 to 9.0, the composite was 8.53, the decision score was **10.0**, and the verdict was **strong_hire**.
 
-### Root causes (one chain, four links)
+### Root causes (one chain, five links)
 
 1. **Evidence takes the best dimension, not the answer's score.** `app/agents/reasoning/evidence_engine.py:339`:
    `top_dim, top_data = max(scored, key=lambda pair: pair[1].get("score", 0.0) ...)` and then `"score": float(top_data.get("score"))`
@@ -76,7 +76,12 @@ success"* and got `score=6.65`. Across the a162 bluffer run, per-answer scores a
 3. **Positive hypotheses confirm on any score ≥ 5.** `evidence_engine._supports_hypothesis` (line 471) treats a score at or above 5.0
    as support. With evidence scored around 8, almost every "Candidate demonstrates X" hypothesis confirms: 11 confirmed and 2 refuted
    for the bluffer.
-4. **The rubric rewards delivery and cannot see plausibility.** `prompts/evaluation/unified_evaluator.md` scores a "Confidence"
+4. **Answers with nothing quotable leave no evidence, so their low scores vanish.** `build_candidate_evidence` creates one record
+   per sentence returned by `_extract_claims(top_data["evidence"])`. When the evaluator's quote is empty, which happens most often
+   for weak answers, no record is created and the score never reaches any average. In round8 the weak candidate's Q3
+   (*"I haven't really done any large system design work before"*, score 1.85) and Q9 (5.7) produced no evidence. Found by the
+   step 0 harness, which now counts answers without evidence.
+5. **The rubric rewards delivery and cannot see plausibility.** `prompts/evaluation/unified_evaluator.md` scores a "Confidence"
    dimension ("Certainty in stated knowledge"), never asks whether numbers are plausible or substantiated, and shows the evaluator
    only the current question and answer. The evaluator runs on the cheap model tier
    (`candidate_evaluator.py:101`, `tier="cheap"`), although it's the most verdict-relevant call in the system.
