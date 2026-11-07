@@ -313,3 +313,13 @@ def make_v4_state(**overrides) -> dict:
     }
     state.update(overrides)
     return state
+
+
+@pytest.fixture(autouse=True)
+def _reset_competency_names():
+    """The question writer remembers competency display names process-wide; never leak them between tests."""
+    from app.agents.generation import question_generator
+
+    question_generator._COMPETENCY_NAMES.clear()
+    yield
+    question_generator._COMPETENCY_NAMES.clear()

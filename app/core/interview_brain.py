@@ -98,6 +98,7 @@ class InterviewBrain:
     candidate_memory: dict = field(default_factory=dict)
     brain_utilization: dict = field(default_factory=dict)  # per-layer live usage
     evidence_cursor: dict = field(default_factory=dict)    # typed-graph targeting cursor
+    evidence_reading: Optional[dict] = None                # semantic read of the raw answers (final step)
     conclusive_turns: int = 0                              # runs of decisive calibration turns
 
     # -- Evaluation ---------------------------------------------------------

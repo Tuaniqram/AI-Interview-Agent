@@ -221,3 +221,44 @@ def test_decision_review_without_reading_is_unchanged():
     assert final["decision"] == "hire"
     assert final.get("flag_review", False) is False
     assert final["confidence"] == 0.7
+
+
+# --- a hire must not rest on mostly-unverifiable claims ---------------------------------------------
+
+
+def _reading(verifiable_flags):
+    return {
+        "per_answer": {f"e{i}": {"claim_classification": "mentioned", "verifiable": v} for i, v in enumerate(verifiable_flags)},
+        "off_rubric": {"red_flags": [], "hidden_strengths": []},
+        "semantic_risks": [],
+    }
+
+
+def _final(decision, flags):
+    from app.agents.decision.decision_review import finalize_decision
+    from app.agents.reasoning.evidence_reading import evidence_reading_checks
+
+    return finalize_decision({"decision": decision, "confidence": 0.8}, evidence_reading_checks(_reading(flags)))
+
+
+def test_hire_is_lowered_when_most_claims_are_unverifiable():
+    for verdict in ("strong_hire", "hire", "lean_hire"):
+        final = _final(verdict, [True] * 3 + [False] * 8)
+        assert final["decision"] == "insufficient_evidence", verdict
+        assert final["flag_review"] is True and final["demoted_to_undecided"] is True
+        assert final["confidence"] <= 0.5
+
+
+def test_hire_stands_when_claims_are_mostly_verifiable():
+    final = _final("hire", [True] * 9 + [False] * 3)  # 3 unverified is flagged, but not a majority
+    assert final["decision"] == "hire"
+    assert final["flag_review"] is True
+
+
+def test_no_hire_is_never_touched_by_the_unverifiable_rule():
+    for verdict in ("lean_no_hire", "no_hire", "strong_no_hire"):
+        assert _final(verdict, [False] * 8)["decision"] == verdict
+
+
+def test_a_short_interview_cannot_trigger_the_majority_rule():
+    assert _final("hire", [False, False, False])["decision"] == "hire"  # under 4 answers read

@@ -15,6 +15,17 @@ from app.services.cache import get_cache
 
 logger = logging.getLogger(__name__)
 
+# gpt-oss style models spend part of ``max_tokens`` on hidden reasoning before the first visible
+# character. A caller asking for "400 tokens" means ~400 tokens of ANSWER, so the model is given that
+# plus this headroom; without it a small budget returns an empty reply (finish_reason=length).
+REASONING_HEADROOM_TOKENS = 1500
+MAX_COMPLETION_TOKENS = 8192
+
+
+def completion_budget(requested: int) -> int:
+    """The max_tokens actually sent to the model for a caller's requested answer length."""
+    return min(MAX_COMPLETION_TOKENS, max(1, int(requested)) + REASONING_HEADROOM_TOKENS)
+
 
 class LLMService:
     """
@@ -91,12 +102,13 @@ class LLMService:
                         messages.append({"role": "system", "content": system_prompt})
                     messages.append({"role": "user", "content": prompt})
 
-                    config = {"temperature": temperature}
-                    if max_tokens:
-                        config["max_tokens"] = max_tokens
-
+                    # temperature / max_tokens are MODEL parameters: they go as keyword arguments. They used
+                    # to be put in LangChain's ``config`` (tags, callbacks, ...), which ignores them, so
+                    # every call silently ran with the model's defaults (temperature 0.7, 2048 tokens).
                     response = await asyncio.wait_for(
-                        target_llm.ainvoke(messages, config),
+                        target_llm.ainvoke(
+                            messages, None, temperature=temperature, max_tokens=completion_budget(max_tokens)
+                        ),
                         timeout=180
                     )
 
@@ -163,12 +175,12 @@ class LLMService:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        config = {"temperature": temperature, "max_tokens": max_tokens}
-
         target_llm = get_llm(tier) if tier else llm
 
         async with self._rate_limiter:
-            async for token in target_llm.astream(messages, config):
+            async for token in target_llm.astream(
+                messages, None, temperature=temperature, max_tokens=completion_budget(max_tokens)
+            ):
                 yield token
     
     async def invoke_structured(

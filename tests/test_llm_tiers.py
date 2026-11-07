@@ -179,3 +179,43 @@ def test_paid_openrouter_is_tried_before_groq_in_both_tiers():
     # the model in front of each tier is the paid one, not openrouter/free
     assert get_llm("strong")._models[0].model_name != "openrouter/free"
     assert get_llm("cheap")._models[0].model_name != "openrouter/free"
+
+
+# --- temperature / max_tokens reach the model (they used to be dropped inside LangChain's config) ----
+
+
+class _RecordingChain:
+    def __init__(self):
+        self.calls = []
+
+    async def ainvoke(self, messages, config=None, **kwargs):
+        self.calls.append({"config": config, "kwargs": kwargs})
+
+        class _Reply:
+            content = "ok"
+
+        return _Reply()
+
+
+async def test_service_passes_temperature_and_max_tokens_as_model_arguments(monkeypatch):
+    from app.services.llm_service import LLMService, completion_budget
+
+    chain = _RecordingChain()
+    monkeypatch.setattr(llm_service_module, "get_llm", lambda tier=None: chain)
+    monkeypatch.setattr(llm_service_module, "llm", chain)
+    service = LLMService()
+    service._cache_enabled = False
+    await service.invoke(prompt="unique prompt for param test", temperature=0.1, max_tokens=300, tier="cheap")
+
+    call = chain.calls[0]
+    assert call["config"] is None  # nothing model-related hides inside the LangChain config
+    assert call["kwargs"]["temperature"] == 0.1
+    assert call["kwargs"]["max_tokens"] == completion_budget(300)
+
+
+def test_completion_budget_adds_reasoning_headroom_and_is_capped():
+    from app.services.llm_service import MAX_COMPLETION_TOKENS, REASONING_HEADROOM_TOKENS, completion_budget
+
+    assert completion_budget(200) == 200 + REASONING_HEADROOM_TOKENS
+    assert completion_budget(100_000) == MAX_COMPLETION_TOKENS
+    assert completion_budget(0) > 0

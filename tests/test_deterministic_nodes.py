@@ -323,7 +323,8 @@ def test_deterministic_question_templates_are_unique_per_followup():
 def test_fallback_question_mentions_competency_and_role():
     q = _fallback_question("tech_core", "Data Scientist", 2)
     assert "Data Scientist" in q
-    assert "tech core" in q
+    assert "core technical skills" in q  # a readable name, never the raw id
+    assert "tech_core" not in q and "tech core" not in q
 
 
 def test_count_competency_questions():

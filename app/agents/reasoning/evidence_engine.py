@@ -209,8 +209,13 @@ def annotate_evidence_quality(record: dict, competency_summary: dict) -> dict:
     confidence = float(record.get("confidence", 0.5))
     record["strength"] = compute_evidence_strength(score, confidence)
     record["impact"] = compute_evidence_impact(score, confidence)
-    record["ownership"] = ownership_signal(record.get("evidence_text", ""))
-    record["complexity"] = complexity_signal(record.get("evidence_text", ""))
+    # Ownership and depth describe the ANSWER, not one extracted sentence: a single claim sentence is
+    # rarely 200+ characters with a metric and technical terms, so judged alone even an excellent
+    # answer almost never reached "high" and nothing was ever "proven". ``answer_evidence_text`` is
+    # the full quoted evidence the claim came from (absent on older records: fall back to the claim).
+    signal_text = record.get("answer_evidence_text") or record.get("evidence_text", "")
+    record["ownership"] = ownership_signal(signal_text)
+    record["complexity"] = complexity_signal(signal_text)
     record["contradiction"] = detect_evidence_contradiction(record, competency_summary)
     return record
 
@@ -357,7 +362,8 @@ def build_candidate_evidence(
     confidence = float(top_data.get("confidence", 0.5))
 
     extracted: list[dict] = []
-    for claim in _extract_claims(top_data.get("evidence", "")):
+    answer_evidence = str(top_data.get("evidence", "") or "")
+    for claim in _extract_claims(answer_evidence):
         record = {
             "id": str(uuid4()),
             "session_id": session_id,
@@ -366,6 +372,7 @@ def build_candidate_evidence(
             "score": float(top_data.get("score", 0.0)),
             "confidence": confidence,
             "evidence_text": claim,
+            "answer_evidence_text": answer_evidence,
             "source_question": question,
             "question_number": question_number,
             "strengths": top_data.get("strengths", []) or [],

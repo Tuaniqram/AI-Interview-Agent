@@ -219,7 +219,16 @@ async def run_one(name: str, persona: dict, role: tuple, questions: int, out_dir
 
         error = "".join(traceback.format_exception(exc))[-2000:]
 
+    evidence_store, evidence_reading = [], None
+    try:
+        final = engine.get_brain(session_id)
+        evidence_store = list(getattr(final, "evidence_store", None) or [])
+        evidence_reading = getattr(final, "evidence_reading", None)
+    except Exception:  # noqa: BLE001 - diagnostics only
+        pass
+
     result = {
+        "evidence_store": evidence_store, "evidence_reading": evidence_reading,
         "persona": name, "label": persona["label"], "role": role_name,
         "seconds": round(time.perf_counter() - started, 1), "start_seconds": start_seconds, "turns": turns,
         "report": report, "error": error,

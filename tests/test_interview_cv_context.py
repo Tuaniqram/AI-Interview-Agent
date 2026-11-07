@@ -92,3 +92,73 @@ def test_real_past_work_claims_are_still_challenged():
 def test_a_hedge_next_to_a_real_claim_still_counts():
     risk = _risk("I would do it differently now, but I designed the original scaling approach")
     assert risk["ownership_claims"] == 1
+
+
+# --- evidence quality is judged on the whole answer, not one sentence ------------------------------
+
+STRONG_ANSWER_EVIDENCE = (
+    "We split the ledger into three services and I added row-level locking on the balance table. "
+    "That cut settlement from 4 hours to 35 min and the p99 latency stayed under 10 ms per transaction. "
+    "The trade-off was lower write throughput, so I batched the audit export through a queue."
+)
+
+
+def test_one_extracted_sentence_alone_rarely_looks_deep():
+    from app.agents.reasoning.evidence_engine import complexity_signal
+
+    assert complexity_signal("I added row-level locking on the balance table.") != "high"
+
+
+def test_evidence_records_carry_the_whole_answer_for_ownership_and_depth():
+    from app.agents.reasoning.evidence_engine import build_candidate_evidence
+
+    evaluation = {"technical": {"score": 8.0, "confidence": 0.8, "evidence": STRONG_ANSWER_EVIDENCE,
+                                "strengths": [], "weaknesses": []}}
+    records = build_candidate_evidence(
+        evaluation, question="Tell me about the ledger", question_number=1, session_id="s",
+        question_objective={"target_competency": "tech_core"},
+        competency_taxonomy=[{"id": "tech_core", "name": "Core", "evidence_dimensions": ["technical"]}],
+    )
+    assert records, "expected at least one evidence record"
+    assert all(r["answer_evidence_text"] == STRONG_ANSWER_EVIDENCE for r in records)
+    assert all(r["ownership"] == "first_person" for r in records)
+    assert all(r["complexity"] == "high" for r in records)
+
+
+def test_records_without_the_answer_text_still_use_their_own_claim():
+    from app.agents.reasoning.evidence_engine import annotate_evidence_quality
+
+    record = {"score": 7.0, "confidence": 0.7, "evidence_text": "I used Kafka."}
+    annotate_evidence_quality(record, {})
+    assert record["ownership"] == "first_person"
+    assert record["complexity"] == "low"
+
+
+# --- readable names in the last-resort fallback questions ------------------------------------------
+
+
+def test_fallback_labels_are_readable_not_raw_ids(monkeypatch):
+    from app.agents.generation import question_generator as qg
+
+    monkeypatch.setattr(qg, "_COMPETENCY_NAMES", {})
+    assert qg._label("tech_db") == "databases"
+    assert qg._label("behav_communication") == "communication"
+    assert qg._label("tech_system_design") == "system design"
+    assert qg._label("tech_api_design") == "API design"
+    assert qg._label("") == "this area"
+
+
+def test_catalog_names_win_over_prettified_ids(monkeypatch):
+    from app.agents.generation import question_generator as qg
+
+    monkeypatch.setattr(qg, "_COMPETENCY_NAMES", {})
+    qg._remember_competency_names([{"id": "tech_db", "name": "Database Design"}, {"id": "x"}, "junk"])
+    assert qg._label("tech_db") == "Database Design"
+    assert "tech_db" not in qg._fallback_question("tech_db", "Backend Developer", 2)
+    assert "Database Design" in qg._fallback_question("tech_db", "Backend Developer", 2)
+
+
+def test_a_rejected_duplicate_is_retried_twice_before_falling_back():
+    from app.agents.generation.question_generator import MAX_DUPLICATE_RETRIES
+
+    assert MAX_DUPLICATE_RETRIES == 2

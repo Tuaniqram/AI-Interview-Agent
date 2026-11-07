@@ -42,7 +42,8 @@ def test_deterministic_conductor_turn_composes_message():
     assert turn["acknowledgement"]
     assert turn["bridge"]
     assert turn["question"]
-    assert "tech core" in turn["bridge"]
+    assert "core technical skills" in turn["bridge"]  # a readable name, never the raw id
+    assert "tech_core" not in turn["bridge"]
 
 
 async def test_question_generator_sets_conversation_turn_for_conductor(monkeypatch):

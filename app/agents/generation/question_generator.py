@@ -29,14 +29,45 @@ HISTORY_TURNS = 10
 HISTORY_CHARS = 600
 
 
+# Competency ids are global (the catalog's ``tech_db`` is always the same competency), so the display
+# names the interviews see can be remembered process-wide and used by the last-resort fallback questions.
+_COMPETENCY_NAMES: dict[str, str] = {}
+_ID_PREFIXES = ("tech_", "behav_", "exp_", "soft_", "dim_")
+_ID_WORDS = {"db": "database", "api": "API", "ci": "CI", "cd": "CD", "ui": "UI", "ml": "ML"}
+# Single generic words read badly on their own ("your experience with core").
+_ID_PHRASES = {"core": "core technical skills", "db": "databases", "framework": "frameworks"}
+
+
+def _remember_competency_names(taxonomy) -> None:
+    for comp in taxonomy or []:
+        if isinstance(comp, dict) and comp.get("id") and comp.get("name"):
+            _COMPETENCY_NAMES.setdefault(str(comp["id"]), str(comp["name"]).strip())
+
+
+def _label(competency: str) -> str:
+    """Readable competency name for a question: the catalog name, else the id without its category."""
+    competency = str(competency or "")
+    name = _COMPETENCY_NAMES.get(competency)
+    if name:
+        return name
+    for prefix in _ID_PREFIXES:
+        if competency.startswith(prefix):
+            competency = competency[len(prefix):]
+            break
+    if competency in _ID_PHRASES:
+        return _ID_PHRASES[competency]
+    return " ".join(_ID_WORDS.get(word, word) for word in competency.split("_")) or "this area"
+
+
 def _question_tier() -> str:
     tier = os.getenv(QUESTION_TIER_ENV, "strong").strip().lower()
     return tier if tier in ("strong", "cheap") else "strong"
 
-# One retry only: the cheap LLM tier repeats the rejected topic even when
-# told about it, so a second retry costs another 5-20s (429 backoff) for the
-# same outcome. The deterministic fallback guarantees a fresh question.
-MAX_DUPLICATE_RETRIES = 1
+# Two retries: the duplicate guard also rejects a question that shares two topics with ANY earlier one,
+# which is easy to hit over a 14-question interview on one role. A fresh model question reads far better
+# than the boilerplate fallback, and a retry is a fast, cheap call. The deterministic fallback still
+# guarantees a fresh question when every attempt is rejected.
+MAX_DUPLICATE_RETRIES = 2
 
 # F2: fallback bank — the deterministic last resort must not regenerate a
 # rejected question verbatim. Variants are tried in order until one passes
@@ -268,6 +299,7 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
     job_role = state.get("job_role", "Unknown")
     previous_questions = state.get("questions_asked", [])
     candidate_profile = state.get("candidate_profile", {})
+    _remember_competency_names(state.get("competency_taxonomy"))
     last_question = (
         str(previous_questions[-1].get("text", "")).strip()
         if previous_questions and isinstance(previous_questions[-1], dict)
@@ -814,7 +846,7 @@ def _generate_deterministic_conductor_turn(
 
     return {
         "acknowledgement": acknowledgement,
-        "bridge": f"Now, about {target_competency.replace('_', ' ')}...",
+        "bridge": f"Now, about {_label(target_competency)}...",
         "question": question,
     }
 
@@ -917,17 +949,17 @@ def _generate_deterministic_question(
         if direction == "positive" and followup_number > 0:
             question = (
                 f"You mentioned you have strength in this area. Can you walk me through a specific "
-                f"challenging project where you applied advanced {target_competency.replace('_', ' ')} concepts? "
+                f"challenging project where you applied advanced {_label(target_competency)} concepts? "
                 f"What was the hardest problem you had to solve?"
             )
         elif direction == "positive":
             question = (
-                f"Based on your background, I'd like to explore your {target_competency.replace('_', ' ')} skills. "
+                f"Based on your background, I'd like to explore your {_label(target_competency)} skills. "
                 f"Can you describe a complex problem you solved in this area? What was your approach and why?"
             )
         else:
             question = (
-                f"I'd like to understand your experience with {target_competency.replace('_', ' ')}. "
+                f"I'd like to understand your experience with {_label(target_competency)}. "
                 f"Tell me about a time when you faced a significant challenge in this area. "
                 f"How did you approach it and what was the outcome?"
             )
@@ -950,7 +982,7 @@ def _apply_mode_flavor(
     claims: list | None = None,
 ) -> str:
     """Attach the interviewer depth strategy to a deterministic question."""
-    comp_name = target_competency.replace("_", " ")
+    comp_name = _label(target_competency)
     if interview_mode == "CHALLENGER":
         return (
             f"{question} Now, challenge yourself: what were the trade-offs, what would you do "
@@ -1028,7 +1060,7 @@ def _get_template_for_competency(competency: str, job_role: str, difficulty: int
                 for q in base_templates
             ]
         return base_templates
-    comp_name = competency.replace("_", " ").title()
+    comp_name = _label(competency)
     if difficulty >= 5:
         return [
             f"Tell me about your strongest {comp_name} skills in your {job_role} role. Provide a specific example and describe senior-level trade-offs.",
@@ -1058,7 +1090,7 @@ def _distinct_from_last_question(
 
 
 def _fallback_question(competency: str, job_role: str, difficulty: int, variant: int | None = None) -> str:
-    comp = competency.replace("_", " ")
+    comp = _label(competency)
     if variant is not None:
         template = _FALLBACK_BANK[variant % len(_FALLBACK_BANK)]
         return template.format(comp=comp, role=job_role or "your role")

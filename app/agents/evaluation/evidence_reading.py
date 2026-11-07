@@ -20,6 +20,15 @@ from app.agents.reasoning.evidence_reading import (
 logger = logging.getLogger(__name__)
 
 
+def _reading_token_budget(answers: int) -> int:
+    """Reply budget for the semantic read: about 150 tokens per answer plus headroom for the risk lists.
+
+    A flat 1,500 fitted ~8 answers; a full 14-question interview has ~20 evidence records, so the JSON
+    was cut off mid-way, failed to parse and the whole reading was silently dropped.
+    """
+    return min(8000, 600 + 180 * max(1, int(answers)))
+
+
 async def evidence_reading_node(state: dict) -> dict:
     """Read the raw answers semantically and attach ``state["evidence_reading"]``."""
     evidence = state.get("evidence_store") or []
@@ -40,7 +49,7 @@ async def evidence_reading_node(state: dict) -> dict:
             evidence_transcript=json.dumps(payload, ensure_ascii=False, indent=2),
         )
         response = await llm_service.invoke(
-            prompt=prompt, temperature=0.1, max_tokens=1500, tier="strong"
+            prompt=prompt, temperature=0.1, max_tokens=_reading_token_budget(len(payload)), tier="strong"
         )
 
         from app.intelligence._helpers import parse_json

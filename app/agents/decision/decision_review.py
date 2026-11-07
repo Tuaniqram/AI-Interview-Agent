@@ -29,6 +29,7 @@ MIN_COVERAGE_FOR_DECISION = 0.5
 OVERCONFIDENCE_CONFIDENCE_FLOOR = 0.75
 SUFFICIENCY_GAP_THRESHOLD = 0.3
 REVIEW_SEVERITIES = ("low", "medium", "high")
+HIRE_SIDE_DECISIONS = {"strong_hire", "hire", "lean_hire"}
 
 __all__ = [
     "MIN_EVIDENCE_FOR_HIGH_CONFIDENCE",
@@ -212,6 +213,18 @@ def finalize_decision(draft: dict, checks: list[dict]) -> dict:
     if semantic_issues:
         decision["flag_review"] = True
         confidence = max(0.0, confidence - 0.05 * min(len(semantic_issues), 2))
+
+    # ...with one exception, in the safe direction only: when most of the candidate's claims could not be
+    # verified, a hire-side verdict is lowered to "needs a probe round". Hiring on unverifiable claims is
+    # the costly mistake; a no-hire verdict is never touched by this rule.
+    if decision.get("decision") in HIRE_SIDE_DECISIONS and any(
+        c.get("issue") == "unverifiable_claims" and c.get("majority") for c in checks
+    ):
+        decision["decision"] = "insufficient_evidence"
+        decision["flag_review"] = True
+        decision["demotion_reason"] = "most claims could not be verified; probe the unverified claims before hiring"
+        confidence = min(confidence, 0.5)
+        demoted = True
 
     decision["confidence"] = round(confidence, 2)
     decision["demoted_to_undecided"] = demoted

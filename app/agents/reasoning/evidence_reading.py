@@ -173,10 +173,14 @@ def evidence_reading_checks(reading: dict) -> list[dict]:
     per = reading.get("per_answer", {}) or {}
     unverified = sum(1 for e in per.values() if not e.get("verifiable"))
     if unverified >= 3:
+        # ``majority``: most of what the candidate said cannot be checked. That alone never makes a
+        # no-hire, but a hire-side verdict must not rest on it (see ``finalize_decision``).
+        majority = len(per) >= 4 and unverified / len(per) >= 0.5
         checks.append({
             "issue": "unverifiable_claims",
             "severity": MAX_SEMANTIC_SEVERITY,
-            "detail": f"{unverified} answer(s) claimed skills without verifiable specifics.",
+            "majority": majority,
+            "detail": f"{unverified} of {len(per)} answer(s) claimed skills without verifiable specifics.",
         })
 
     return checks
