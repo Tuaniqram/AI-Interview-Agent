@@ -159,6 +159,7 @@ def evidence_reading_checks(reading: dict) -> list[dict]:
         checks.append({
             "issue": "off_rubric_flag",
             "severity": MAX_SEMANTIC_SEVERITY,
+            "count": len(red_flags),
             "detail": f"{len(red_flags)} off-rubric flag(s): {'; '.join(red_flags[:2])}",
         })
 

@@ -205,14 +205,19 @@ def finalize_decision(draft: dict, checks: list[dict]) -> dict:
     # Semantic (evidence-reading) findings: flag for human review and trim a
     # little confidence, but they are capped at medium severity so they can
     # never demote a decisive verdict on their own.
+    # A lone soft red flag appears in almost every interview, so it trims confidence but does not by
+    # itself ask for a human; it takes three of them, or a real contradiction / unverifiable claims.
     semantic_issues = [
         c
         for c in checks
         if c.get("issue") in ("off_rubric_flag", "cross_answer_risk", "unverifiable_claims")
     ]
     if semantic_issues:
-        decision["flag_review"] = True
         confidence = max(0.0, confidence - 0.05 * min(len(semantic_issues), 2))
+    if any(
+        c["issue"] != "off_rubric_flag" or int(c.get("count", 0)) >= 3 for c in semantic_issues
+    ):
+        decision["flag_review"] = True
 
     # ...with one exception, in the safe direction only: when most of the candidate's claims could not be
     # verified, or their answers contradict each other more than once, a hire-side verdict is lowered to
