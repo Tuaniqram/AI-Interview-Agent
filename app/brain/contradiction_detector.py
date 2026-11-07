@@ -8,6 +8,7 @@ Deterministic; consumes the runtime contradiction list, the typed evidence
 graph and the role's seniority floor.
 """
 import logging
+import re
 
 from app.brain.evidence_reasoner import classify_claim
 
@@ -28,6 +29,28 @@ _OWNERSHIP_CLAIMS = (
     "reliab",
     "availability",
 )
+
+# "I'd think about scalability" or "I haven't done that before" is not a claim of seniority - a
+# candidate who admits a gap must not be pressure-tested as if they had boasted ownership.
+_HEDGE_RE = re.compile(
+    r"\b(i'?d|i would|would|i might|maybe|probably|perhaps|i think|i guess|haven'?t|have not|never|"
+    r"not sure|don'?t know|no experience|not really)\b",
+    re.IGNORECASE,
+)
+_EXPERIENCE_RE = re.compile(
+    r"\b(i|we)\s+(?:\w+\s+)?(built|designed|architected|led|owned|scaled|migrated|implemented|introduced|"
+    r"reduced|moved|wrote|ran|used|had|shipped|deployed|maintained|managed|created|developed)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_ownership_claim(text: str) -> bool:
+    """Ownership vocabulary in an assertion of past work, not in a hypothetical or a disclaimer."""
+    text = (text or "").lower().replace("\u2019", "'")
+    if not any(kw in text for kw in _OWNERSHIP_CLAIMS):
+        return False
+    return not _HEDGE_RE.search(text) or bool(_EXPERIENCE_RE.search(text))
+
 
 _SENIORITY_PROBES = [
     "What tradeoff did you make and what did you give up?",
@@ -51,8 +74,7 @@ def seniority_claim_risk(
     records = evidence_records or []
     claims = []
     for ev in records:
-        text = (ev.get("evidence_text") or "").lower()
-        if any(kw in text for kw in _OWNERSHIP_CLAIMS) and classify_claim(ev) in ("mentioned", "demonstrated"):
+        if _is_ownership_claim(ev.get("evidence_text") or "") and classify_claim(ev) in ("mentioned", "demonstrated"):
             claims.append(ev)
     ownership_claims = len(claims)
     proven = sum(1 for ev in records if classify_claim(ev) == "proven")

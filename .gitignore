@@ -78,3 +78,6 @@ docs/
 # Prompt templates are source code, keep them tracked despite the *.md rule above
 !prompts/
 !prompts/**/*.md
+
+# interview harness transcripts
+tools/interview_sim/out/

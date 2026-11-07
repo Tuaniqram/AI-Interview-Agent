@@ -159,17 +159,54 @@ def _get_v5_persister() -> Optional[V5BrainPersister]:
     return _v5_persister_instance
 
 
+async def _load_cv_and_fit(db_session: InterviewSession, candidate_id) -> tuple[str, dict]:
+    """The CV text the candidate uploaded and the application's suggested probes (best-effort).
+
+    The CV is the one attached to this session's application, else the candidate's latest. Only
+    ``recommended_probes`` of the fit evaluation is passed on: the interviewer needs ideas of what to
+    verify, not the fit score or the risk list.
+    """
+    try:
+        from app.candidates.resume_service import latest_resume_document
+        from app.models.db import CandidateDocument, PublicInterviewSubmission
+
+        async with get_session_factory()() as db:
+            submission = (
+                await db.execute(
+                    select(PublicInterviewSubmission)
+                    .where(PublicInterviewSubmission.session_id == db_session.id)
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+            document = None
+            if submission is not None and submission.resume_document_id:
+                document = await db.get(CandidateDocument, submission.resume_document_id)
+            if document is None:
+                document = await latest_resume_document(candidate_id, db)
+            text = ((document.extracted_text if document else "") or "").strip()
+            fit: dict = {}
+            if submission is not None and submission.fit_status == "completed":
+                probes = (submission.fit_breakdown or {}).get("recommended_probes")
+                if probes:
+                    fit = {"recommended_probes": probes}
+            return text, fit
+    except Exception as exc:  # noqa: BLE001 - the CV only sharpens the questions; never block a start
+        logger.warning(f"Failed to load the candidate's CV for the interview: {exc}")
+        return "", {}
+
+
 async def _load_candidate_profile_data(
     db_session: InterviewSession,
-) -> tuple[dict, Optional[str]]:
-    """Best-effort candidate profile dict + resume-ish text for intelligence.
+) -> tuple[dict, Optional[str], dict]:
+    """Best-effort candidate profile dict, resume text and CV fit probes for intelligence.
 
-    Falls back to a neutral stub when there is no profile or the lookup fails,
-    so a session can always start.
+    The resume text starts with the uploaded CV itself (when there is one) so the interview can
+    ask about the candidate's real projects. Falls back to a neutral stub when there is no profile
+    or the lookup fails, so a session can always start.
     """
     stub = {"full_name": "Candidate", "headline": "", "strengths": [], "weaknesses": []}
     if not db_session.candidate_profile_id:
-        return stub, None
+        return stub, None, {}
     try:
         async with get_session_factory()() as db:
             result = await db.execute(
@@ -182,7 +219,7 @@ async def _load_candidate_profile_data(
         logger.warning(f"Failed to load candidate profile: {exc}")
         profile = None
     if profile is None:
-        return stub, None
+        return stub, None, {}
 
     data = dict(profile.profile_data or {})
     data.setdefault("full_name", profile.name)
@@ -197,7 +234,10 @@ async def _load_candidate_profile_data(
         elif isinstance(value, list):
             parts.append(", ".join(str(v) for v in value if v))
     resume_text = "\n".join(p for p in parts if p.strip()) or None
-    return data, resume_text
+    cv_text, cv_fit = await _load_cv_and_fit(db_session, profile.id)
+    if cv_text:
+        resume_text = cv_text if not resume_text else f"{cv_text}\n{resume_text}"
+    return data, resume_text, cv_fit
 
 
 async def _start_v4_engine(session_id: str, notify=None) -> dict:
@@ -270,7 +310,7 @@ async def _start_v4_engine(session_id: str, notify=None) -> dict:
     # The three pre-start inputs do not depend on each other (competency taxonomy, the candidate's
     # resume, the organization's company brain), so gather them instead of waiting for each in turn.
     # Each of them is dominated by network time (LLM / remote database / vector search).
-    taxonomy, (candidate_profile, resume_text), company_brain = await asyncio.gather(
+    taxonomy, (candidate_profile, resume_text, cv_fit), company_brain = await asyncio.gather(
         _resolve_taxonomy(),
         _load_candidate_profile_data(db_session),
         get_or_build_company_brain(org_id=org_id_str, job_role=job_role),
@@ -293,6 +333,7 @@ async def _start_v4_engine(session_id: str, notify=None) -> dict:
         ),
         "candidate_profile": candidate_profile,
         "resume_text": resume_text,
+        "cv_fit": cv_fit,
         "scorecard_competencies": [
             {"id": c.get("id", ""), "name": c.get("name", c.get("id", "")), "weight": 1.0}
             for c in (competency_taxonomy or [])

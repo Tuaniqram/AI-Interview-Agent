@@ -321,6 +321,7 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
     avoid_topics = avoid_topics_summary(memory)
     strategy_guidance = _strategy_guidance(state)
     candidate_memory = _memory_context(state)
+    cv_brief = _cv_context(state, interview_mode)
 
     async def _emit(attempt: int = 0, last_rejected: str = "") -> tuple[dict | None, str]:
         """Generate one question, bumping the deterministic template slot on
@@ -343,6 +344,7 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 claims_to_verify=claims_to_verify,
                 strategy_guidance=strategy_guidance,
                 candidate_memory=candidate_memory,
+                cv_brief=cv_brief,
             )
             return conversation_turn, conversation_turn["question"]
         try:
@@ -368,6 +370,7 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 claims_to_verify=claims_to_verify,
                 strategy_guidance=strategy_guidance,
                 candidate_memory=candidate_memory,
+                cv_brief=cv_brief,
             )
         except Exception as e:
             logger.warning(f"LLM question generation failed ({e}), falling back to deterministic")
@@ -558,6 +561,22 @@ def _company_context(state: dict, interview_mode: str = "") -> str:
     return " | ".join(parts) if parts else "N/A"
 
 
+def _cv_context(state: dict, interview_mode: str = "") -> str:
+    """The candidate's CV brief for the question prompt ("None" when there is nothing to show).
+
+    Like the company context, only the questions that open or verify an area use it: follow-up
+    probes build on the conversation itself, and a shorter prompt keeps token use down.
+    """
+    if interview_mode and interview_mode not in ("EXPLORER", "VERIFIER"):
+        return "None"
+    from app.intelligence.cv_brief import build_cv_brief
+
+    brief = build_cv_brief(
+        state.get("candidate_brain"), state.get("resume_text"), state.get("cv_fit")
+    )
+    return brief or "None"
+
+
 def _memory_context(state: dict) -> str:
     """T2.5: fold the candidate-memory brain layer into the prompt as concrete
     follow-up fuel — \"you said / we previously saw X\" references.
@@ -607,6 +626,7 @@ def _question_prompt_vars(
     claims_to_verify: str = "None",
     strategy_guidance: str = "",
     candidate_memory: str = "None",
+    cv_brief: str = "None",
 ) -> dict:
     """Single source of truth for the question_generation prompt's variables."""
     history_lines = []
@@ -641,6 +661,7 @@ def _question_prompt_vars(
         "claims_to_verify": claims_to_verify or "None",
         "strategy_guidance": strategy_guidance,
         "candidate_memory": candidate_memory,
+        "cv_brief": cv_brief or "None",
     }
 
 
@@ -661,6 +682,7 @@ async def _generate_conductor_turn(
     claims_to_verify: str = "None",
     strategy_guidance: str = "",
     candidate_memory: str = "None",
+    cv_brief: str = "None",
 ) -> dict:
     """One LLM call producing {acknowledgement, bridge, question} (AURA conductor)."""
     from app.services.llm_service import get_llm_service
@@ -702,6 +724,7 @@ async def _generate_conductor_turn(
                 claims_to_verify=claims_to_verify,
                 strategy_guidance=strategy_guidance,
                 candidate_memory=candidate_memory,
+                cv_brief=cv_brief,
             ),
         )
 
@@ -799,6 +822,7 @@ async def _generate_llm_question(
     claims_to_verify: str = "None",
     strategy_guidance: str = "",
     candidate_memory: str = "None",
+    cv_brief: str = "None",
 ) -> str:
     """Generate the next question with the LLM using the question_generation prompt."""
     from app.services.llm_service import get_llm_service
@@ -832,6 +856,7 @@ async def _generate_llm_question(
             claims_to_verify=claims_to_verify,
             strategy_guidance=strategy_guidance,
             candidate_memory=candidate_memory,
+            cv_brief=cv_brief,
         ),
     )
 
