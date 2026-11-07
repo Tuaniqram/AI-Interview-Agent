@@ -406,10 +406,15 @@ Steps:
 3. Load candidate profile/resume.
 4. Build role context:
    - `app/intelligence/role_competency_profiler.py::build_role_context`
-5. Resolve competencies:
-   - `app/data/competency_resolver.py::resolve_competencies`
-6. Load or build company brain:
-   - `app/intelligence/company_intelligence_builder.py::build_company_brain`
+5. Resolve competencies (`app/data/competency_resolver.py::resolve_competencies`), first match wins:
+   1. the organization's scorecard, 2. the organization's template,
+   3. **the IT role's own catalog competencies** (`role_competencies` via `it_role_id`: six per role, no LLM call),
+   4. the AI role profiler, 5. the default IT taxonomy.
+   The engine taxonomy (`app/data/competency_taxonomy.py`) covers the whole IT catalog; the sales / marketing / HR / finance /
+   customer-success entries (`NON_IT_COMPETENCY_IDS`) are never offered and no skill maps to them.
+6. In parallel with steps 5 and 3: load or build the company brain
+   (`app/intelligence/company_intelligence_builder.py::build_company_brain`) and the candidate profile. While this runs the
+   server pushes `status` frames (`loading_context`, `planning_interview`) so the UI can show progress.
 7. Build initial state:
    - job role
    - `org_id`

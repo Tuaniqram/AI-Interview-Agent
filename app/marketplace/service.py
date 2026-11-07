@@ -291,6 +291,7 @@ async def start_public_interview(
         scorecard_template_id=str(sc_template_id) if sc_template_id else None,
         org_id=pi.org_id,
         role_context=role_context,
+        it_role_id=pi.it_role_id,
     )
     competency_taxonomy, required_competencies, domain_label = taxonomy_for_state(
         taxonomy, priority_map=style.get("base_competency_priority")

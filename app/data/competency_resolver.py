@@ -25,7 +25,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
+from app.data.competency_taxonomy import COMPETENCY_TAXONOMY, NON_IT_COMPETENCY_IDS
 from app.intelligence.role_competency_profiler import (
     build_role_context,
     is_thin_scorecard,
@@ -87,7 +87,7 @@ _FALLBACK_WEIGHTS = {
 
 
 def default_taxonomy() -> list[dict]:
-    """Default engine taxonomy with reflection weights applied."""
+    """Default engine taxonomy with reflection weights applied (IT competencies only)."""
     return [
         {
             **dict(c),
@@ -95,6 +95,7 @@ def default_taxonomy() -> list[dict]:
             "max_score": 10.0,
         }
         for c in COMPETENCY_TAXONOMY
+        if c["id"] not in NON_IT_COMPETENCY_IDS
     ]
 
 
@@ -361,6 +362,39 @@ async def _ai_pass(
     return entries
 
 
+async def _resolve_catalog_defs(db: AsyncSession, it_role_id) -> list[dict]:
+    """The IT role's own competencies from the catalog (``role_competencies``).
+
+    Curated and deterministic, so it ranks above the AI profiler: a catalog role never needs an
+    LLM call to decide what to interview on. Core competencies come first, heaviest first.
+    """
+    if not it_role_id:
+        return []
+    from app.models.db import Competency, RoleCompetency
+
+    rows = (
+        await db.execute(
+            select(RoleCompetency, Competency)
+            .join(Competency, Competency.id == RoleCompetency.competency_id)
+            .where(RoleCompetency.role_id == it_role_id, Competency.is_active.is_(True))
+            .order_by(RoleCompetency.is_core.desc(), RoleCompetency.weight.desc(), Competency.id)
+        )
+    ).all()
+    return _normalize(
+        [
+            {
+                "id": comp.id,
+                "name": comp.name,
+                "category": comp.category,
+                "weight": float(rc.weight) if rc.weight is not None else 1.0,
+                "evidence_dimensions": list(comp.evidence_dimensions or []),
+                "default_min_evidence": comp.default_min_evidence,
+            }
+            for rc, comp in rows
+        ]
+    )
+
+
 async def resolve_competencies(
     db: AsyncSession,
     *,
@@ -368,8 +402,12 @@ async def resolve_competencies(
     org_id: int | None = None,
     role_context: dict | None = None,
     use_llm: bool = True,
+    it_role_id=None,
 ) -> list[dict]:
     """Resolve the competency taxonomy for a new interview session.
+
+    Order: scorecard -> org template -> IT role catalog (``it_role_id``) -> AI role profiler
+    -> default IT taxonomy.
 
     ``role_context`` (see ``role_competency_profiler.build_role_context``)
     activates the role-first AI pass: thin scorecards and empty templates are
@@ -383,6 +421,11 @@ async def resolve_competencies(
     template_defs, template_row = await _resolve_template_defs(db, org_id)
     if template_defs and not is_thin_scorecard(template_defs):
         return template_defs
+
+    # Order: scorecard -> org template -> IT role catalog -> AI profiler -> default taxonomy.
+    catalog_defs = await _resolve_catalog_defs(db, it_role_id)
+    if catalog_defs:
+        return catalog_defs
 
     # Thin declarations are hints for the AI pass, not the final answer.
     existing = (scorecard_defs or template_defs or []) if role_context else None

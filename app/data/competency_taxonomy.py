@@ -467,6 +467,155 @@ COMPETENCY_TAXONOMY = [
         "evidence_dimensions": ["domain", "communication"],
         "default_min_evidence": 2,
     },
+    # IT catalog competencies (docs/it-scope/seed-it-catalog.sql) the original taxonomy did not carry.
+    {
+        "id": "tech_networking",
+        "category": "technical",
+        "name": "Networking & Protocols",
+        "evidence_dimensions": ["technical", "reasoning"],
+        "default_min_evidence": 1,
+    },
+    {
+        "id": "tech_cloud",
+        "category": "technical",
+        "name": "Cloud Platforms & Services",
+        "evidence_dimensions": ["technical", "completeness"],
+        "default_min_evidence": 1,
+    },
+    {
+        "id": "tech_automation",
+        "category": "technical",
+        "name": "Automation & Scripting",
+        "evidence_dimensions": ["technical", "completeness"],
+        "default_min_evidence": 1,
+    },
+    {
+        "id": "tech_monitoring",
+        "category": "technical",
+        "name": "Monitoring & Observability",
+        "evidence_dimensions": ["technical", "completeness"],
+        "default_min_evidence": 1,
+    },
+    {
+        "id": "tech_incident_response",
+        "category": "technical",
+        "name": "Incident Response",
+        "evidence_dimensions": ["technical", "reasoning"],
+        "default_min_evidence": 1,
+    },
+    {
+        "id": "tech_virtualization",
+        "category": "technical",
+        "name": "Virtualization & Containers",
+        "evidence_dimensions": ["technical", "completeness"],
+        "default_min_evidence": 1,
+    },
+    {
+        "id": "tech_embedded",
+        "category": "technical",
+        "name": "Embedded & Firmware",
+        "evidence_dimensions": ["technical", "reasoning"],
+        "default_min_evidence": 2,
+    },
+    {
+        "id": "tech_game",
+        "category": "technical",
+        "name": "Game Development",
+        "evidence_dimensions": ["technical", "reasoning"],
+        "default_min_evidence": 2,
+    },
+    {
+        "id": "tech_mobile",
+        "category": "technical",
+        "name": "Mobile Development",
+        "evidence_dimensions": ["technical", "completeness"],
+        "default_min_evidence": 2,
+    },
+    {
+        "id": "tech_accessibility",
+        "category": "technical",
+        "name": "Accessibility & Inclusive Design",
+        "evidence_dimensions": ["technical", "communication"],
+        "default_min_evidence": 1,
+    },
+    {
+        "id": "tech_ui_implementation",
+        "category": "technical",
+        "name": "UI Implementation",
+        "evidence_dimensions": ["technical", "completeness"],
+        "default_min_evidence": 1,
+    },
+    {
+        "id": "tech_data_pipelines",
+        "category": "technical",
+        "name": "Data Pipelines & ETL",
+        "evidence_dimensions": ["technical", "completeness"],
+        "default_min_evidence": 2,
+    },
+    {
+        "id": "tech_ml",
+        "category": "technical",
+        "name": "Machine Learning Engineering",
+        "evidence_dimensions": ["technical", "reasoning"],
+        "default_min_evidence": 2,
+    },
+    {
+        "id": "tech_llm",
+        "category": "technical",
+        "name": "LLM & Prompt Engineering",
+        "evidence_dimensions": ["technical", "reasoning"],
+        "default_min_evidence": 2,
+    },
+    {
+        "id": "tech_iac",
+        "category": "technical",
+        "name": "Infrastructure as Code",
+        "evidence_dimensions": ["technical", "completeness"],
+        "default_min_evidence": 1,
+    },
+    {
+        "id": "tech_ci_cd",
+        "category": "technical",
+        "name": "CI/CD Pipeline Engineering",
+        "evidence_dimensions": ["technical", "completeness"],
+        "default_min_evidence": 1,
+    },
+    {
+        "id": "tech_release",
+        "category": "technical",
+        "name": "Release & Change Management",
+        "evidence_dimensions": ["technical", "communication"],
+        "default_min_evidence": 1,
+    },
+    {
+        "id": "tech_service_mgmt",
+        "category": "technical",
+        "name": "IT Service Management",
+        "evidence_dimensions": ["technical", "communication"],
+        "default_min_evidence": 1,
+    },
+    {
+        "id": "tech_asset_mgmt",
+        "category": "technical",
+        "name": "IT Asset Management",
+        "evidence_dimensions": ["technical", "completeness"],
+        "default_min_evidence": 1,
+    },
+    {
+        "id": "tech_erp_crm",
+        "category": "technical",
+        "name": "ERP/CRM Systems",
+        "evidence_dimensions": ["technical", "completeness"],
+        "default_min_evidence": 2,
+    },
+    {
+        "id": "tech_technical_writing",
+        "category": "technical",
+        "name": "Technical Writing",
+        "evidence_dimensions": ["communication", "completeness"],
+        "default_min_evidence": 1,
+    },
+
 ]
 
 COMPETENCY_CATEGORIES = [
@@ -686,6 +835,53 @@ SKILL_TO_COMPETENCY = {
     "csat": "cs_support_excellence",
     "escalation": "cs_support_excellence",
 }
+
+
+# --------------------------------------------------------------------------- #
+# IT-only scope
+# --------------------------------------------------------------------------- #
+# The product only interviews for IT roles. These taxonomy entries (sales, marketing, HR, finance,
+# supply chain, customer success) predate that decision and remain only because the taxonomy
+# graph/family tests describe them; they are never offered for an interview (see
+# ``competency_resolver.default_taxonomy``) and no skill maps to them.
+NON_IT_COMPETENCY_IDS = frozenset({
+    "com_sales_strategy", "com_negotiation", "com_customer_acumen", "com_revenue_growth", "com_crm_expertise",
+    "mkt_brand_strategy", "mkt_content_creation", "mkt_campaign_management", "mkt_analytics_growth", "mkt_seo_ppc",
+    "hr_talent_acquisition", "hr_employee_relations", "hr_compensation_benefits", "hr_learning_development", "hr_org_design",
+    "fin_financial_analysis", "fin_budgeting_forecasting", "fin_accounting_controls", "fin_financial_planning", "fin_compliance_risk",
+    "ops_supply_chain",
+    "cs_onboarding", "cs_account_management", "cs_churn_retention", "cs_relationship_management", "cs_support_excellence",
+})
+
+# Skills of the IT catalog competencies added above (never overrides an existing mapping).
+_IT_CATALOG_SKILLS = {
+    "aws": "tech_cloud", "azure": "tech_cloud", "gcp": "tech_cloud", "google cloud": "tech_cloud", "ec2": "tech_cloud",
+    "ci/cd": "tech_ci_cd", "jenkins": "tech_ci_cd", "github actions": "tech_ci_cd", "gitlab ci": "tech_ci_cd", "circleci": "tech_ci_cd",
+    "terraform": "tech_iac", "ansible": "tech_iac", "pulumi": "tech_iac", "cloudformation": "tech_iac",
+    "machine learning": "tech_ml", "pytorch": "tech_ml", "tensorflow": "tech_ml", "scikit-learn": "tech_ml", "keras": "tech_ml", "xgboost": "tech_ml",
+    "llm": "tech_llm", "langchain": "tech_llm", "prompt engineering": "tech_llm", "rag": "tech_llm", "openai": "tech_llm",
+    "ios": "tech_mobile", "android": "tech_mobile", "swift": "tech_mobile", "kotlin": "tech_mobile", "flutter": "tech_mobile", "react native": "tech_mobile",
+    "prometheus": "tech_monitoring", "grafana": "tech_monitoring", "datadog": "tech_monitoring", "opentelemetry": "tech_monitoring", "new relic": "tech_monitoring",
+    "tcp/ip": "tech_networking", "dns": "tech_networking", "vpn": "tech_networking", "bgp": "tech_networking", "load balancing": "tech_networking",
+    "airflow": "tech_data_pipelines", "spark": "tech_data_pipelines", "dbt": "tech_data_pipelines", "etl": "tech_data_pipelines",
+    "vmware": "tech_virtualization", "hyper-v": "tech_virtualization", "kvm": "tech_virtualization", "proxmox": "tech_virtualization", "virtualbox": "tech_virtualization",
+    "embedded": "tech_embedded", "firmware": "tech_embedded", "rtos": "tech_embedded", "arduino": "tech_embedded", "stm32": "tech_embedded",
+    "unity": "tech_game", "unreal engine": "tech_game", "godot": "tech_game", "game development": "tech_game",
+    "salesforce": "tech_erp_crm", "sap": "tech_erp_crm", "hubspot": "tech_erp_crm", "netsuite": "tech_erp_crm", "odoo": "tech_erp_crm", "dynamics 365": "tech_erp_crm",
+    "incident response": "tech_incident_response", "pagerduty": "tech_incident_response", "on-call": "tech_incident_response", "postmortem": "tech_incident_response",
+    "release management": "tech_release", "feature flags": "tech_release", "semantic versioning": "tech_release",
+    "itil": "tech_service_mgmt", "servicenow": "tech_service_mgmt", "service desk": "tech_service_mgmt",
+    "technical writing": "tech_technical_writing", "api documentation": "tech_technical_writing", "documentation": "tech_technical_writing",
+    "tailwind": "tech_ui_implementation", "css": "tech_ui_implementation", "html": "tech_ui_implementation", "sass": "tech_ui_implementation",
+    "accessibility": "tech_accessibility", "wcag": "tech_accessibility", "aria": "tech_accessibility",
+    "asset management": "tech_asset_mgmt", "itam": "tech_asset_mgmt",
+}
+
+# Drop skills that pointed at non-IT competencies, then add the IT catalog skills.
+for _skill in [k for k, v in SKILL_TO_COMPETENCY.items() if v in NON_IT_COMPETENCY_IDS]:
+    del SKILL_TO_COMPETENCY[_skill]
+for _skill, _cid in _IT_CATALOG_SKILLS.items():
+    SKILL_TO_COMPETENCY.setdefault(_skill, _cid)
 
 
 def get_competency(competency_id: str) -> dict:

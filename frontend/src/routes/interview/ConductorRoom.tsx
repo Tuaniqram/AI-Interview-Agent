@@ -139,7 +139,11 @@ export function ConductorRoom() {
   };
 
   if (state.isLoading && !state.currentQuestion) {
-    return <LoadingScreen label="Waking AURA..." />;
+    const label =
+      state.wsPhase === 'loading_context' ? 'Reading the role and your background...'
+      : state.wsPhase === 'planning_interview' ? 'Planning your interview...'
+      : 'Waking AURA...';
+    return <LoadingScreen label={label} />;
   }
 
   if (state.error && !state.currentQuestion) {

@@ -54,7 +54,7 @@ All prompts are inherited from the pre-IT-only system. **None have been fully au
 
 | Prompt | Consumer | Purpose | Variables | Status |
 |---|---|---|---|---|
-| `brain_builder/company_brain.md` | Brain builder | Build organization/company context | none detected | NEEDS IT REVIEW |
+| `brain_builder/company_brain.md` | Brain builder | Build organization/company context | none detected | GENERIC |
 | `brain_builder/core_reasoning_agent.md` | Core reasoning | Core reasoning instructions | none detected | GENERIC |
 | `brain_builder/role_brain.md` | Role brain | Role-specific reasoning | none detected | NEEDS IT REVIEW |
 
@@ -83,23 +83,23 @@ All prompts are inherited from the pre-IT-only system. **None have been fully au
 
 | Prompt | Consumer | Purpose | Variables | Status |
 |---|---|---|---|---|
-| `intelligence/company_brain.md` | `app/intelligence/company_intelligence_builder.py` | Analyze organization documents | `department_id`, `documents`, `job_role` | NEEDS IT REVIEW |
+| `intelligence/company_brain.md` | `app/intelligence/company_intelligence_builder.py` | Analyze organization documents | `organization_id`, `documents`, `job_role` | GENERIC |
 | `intelligence/interview_blueprint.md` | `app/intelligence/interview_blueprint_builder.py` | Build interview plan | `competency_list`, `difficulty_max`, `difficulty_min`, `focus_areas`, `job_role`, `persona`, `style_name`, `tech_stack` | GENERIC |
 | `intelligence/resume_analysis.md` | `app/intelligence/resume_analyzer.py` | Extract resume facts | `job_role`, `resume_text` | GENERIC |
-| `intelligence/role_competency_profiler.md` | `app/intelligence/role_competency_profiler.py` | Map role to competencies | `department_name`, `description`, `existing_competencies`, `job_role`, `org_name`, `seniority`, `skills_required`, `tech_stack` | NEEDS IT REVIEW |
+| `intelligence/role_competency_profiler.md` | `app/intelligence/role_competency_profiler.py` | Map role to competencies | `description`, `existing_competencies`, `job_role`, `org_name`, `seniority`, `skills_required`, `tech_stack` | NEEDS IT REVIEW |
 
 ## 8. Interview Prompts
 
 | Prompt | Consumer | Purpose | Variables | Status |
 |---|---|---|---|---|
-| `interview/question_generation.md` | `app/agents/generation/question_generator.py` | Generate first/next question | `approach`, `avoid_topics`, `candidate_memory`, `candidate_profile`, `claims_to_verify`, `company_context`, `competency_info`, `conversation_history`, `department_context`, `difficulty`, `difficulty_level`, `followup_number`, `hypothesis`, `interview_mode`, `job_role`, `last_question`, `last_rejected`, `persona`, `phase`, `question_number`, `strategy_guidance`, `target_competency`, `total_questions` | NEEDS IT REVIEW |
+| `interview/question_generation.md` | `app/agents/generation/question_generator.py` | Generate first/next question | `approach`, `avoid_topics`, `candidate_memory`, `candidate_profile`, `claims_to_verify`, `company_context`, `competency_info`, `conversation_history`, `organization_context`, `difficulty`, `difficulty_level`, `followup_number`, `hypothesis`, `interview_mode`, `job_role`, `last_question`, `last_rejected`, `persona`, `phase`, `question_number`, `strategy_guidance`, `target_competency`, `total_questions` | NEEDS IT REVIEW |
 | `interview/strategy_brain.md` | `app/agents/planning/strategy_planner.py` | Plan interview strategy | `candidate_strengths`, `candidate_weaknesses`, `competency_list`, `difficulty_max`, `difficulty_min`, `job_role`, `max_questions`, `persona`, `style_name` | GENERIC |
 
 ## 9. Marketplace Prompts
 
 | Prompt | Consumer | Purpose | Variables | Status |
 |---|---|---|---|---|
-| `marketplace/job_description.md` | `app/services/marketplace_generator.py` | Generate rich listing description | `dept_name`, `interview_mode`, `org_name`, `skills`, `title` | NEEDS IT REVIEW |
+| `marketplace/job_description.md` | `app/services/marketplace_generator.py` | Generate rich listing description | `interview_mode`, `org_name`, `skills`, `title` | GENERIC |
 
 ## 10. Prompt-to-Agent Map
 
@@ -168,9 +168,7 @@ Before changing a prompt:
 ## 13. Known Prompt Gaps
 
 - `brain_builder/*` prompts are legacy and not fully audited.
-- `intelligence/company_brain.md` still uses `department_id` and `documents` from the old department model.
-- `intelligence/role_competency_profiler.md` still uses `department_name`.
-- `interview/question_generation.md` still uses `department_context`.
-- `marketplace/job_description.md` still uses `dept_name`.
+- Department wording and variables were removed (`organization_id`, `organization_context`; `department_name` / `dept_name` dropped).
+- `intelligence/role_competency_profiler.md` is IT-only: it may only propose `tech_`, `behav_`, `cog_`, `exp_`, `des_`, `prd_`, `ops_` ids and the validator drops the non-IT ones.
 - No prompt currently validates that the selected role exists in `it_roles`; validation is done outside the prompt.
 - No automated prompt-injection tests exist.

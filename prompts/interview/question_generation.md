@@ -116,7 +116,7 @@ For any other persona, return ONLY the question text, prefixed with "Question: "
 - **Competency Evidence**: {{competency_info}}
 - **Question Strategy**: {{approach}}
 - **Follow-Up Number**: {{followup_number}}
-- **Department Context**: {{department_context}}
+- **Organization Context**: {{organization_context}}
 - **Company Context**: {{company_context}}
 - **Candidate Profile**: {{candidate_profile}}
 - **Question Number**: {{question_number}}

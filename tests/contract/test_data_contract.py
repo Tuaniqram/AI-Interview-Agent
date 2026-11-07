@@ -12,6 +12,7 @@ from app.data.competency_resolver import default_taxonomy
 from app.data.competency_taxonomy import (
     COMPETENCY_IDS,
     COMPETENCY_TAXONOMY,
+    NON_IT_COMPETENCY_IDS,
     get_competency,
     map_skill_to_competency,
 )
@@ -21,7 +22,9 @@ pytestmark = pytest.mark.contract
 
 def test_default_taxonomy_applies_fallback_weights():
     taxonomy = default_taxonomy()
-    assert len(taxonomy) == len(COMPETENCY_TAXONOMY)
+    # IT-only product: the default taxonomy never offers a sales/marketing/HR/finance competency
+    assert {c["id"] for c in taxonomy} == set(COMPETENCY_IDS) - NON_IT_COMPETENCY_IDS
+    assert not NON_IT_COMPETENCY_IDS & {c["id"] for c in taxonomy}
     by_id = {c["id"]: c for c in taxonomy}
     assert by_id["tech_core"]["weight"] == 3.0
     for comp in taxonomy:

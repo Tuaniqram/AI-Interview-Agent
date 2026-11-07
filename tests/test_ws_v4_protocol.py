@@ -56,6 +56,17 @@ class FakeStore:
         return len(self.data)
 
 
+PROGRESS_PHASES = {"loading_context", "planning_interview"}
+
+
+def _receive_skipping_progress(ws):
+    """Preparing an interview pushes status frames before the question reply; skip those."""
+    while True:
+        msg = ws.receive_json()
+        if not (msg.get("type") == "status" and msg.get("phase") in PROGRESS_PHASES):
+            return msg
+
+
 def _ws_url(session_id: str) -> str:
     """The socket denies by default: connect with the per-session access token."""
     from app.auth.interview_access import create_interview_access_token
@@ -94,6 +105,23 @@ def ws_env(monkeypatch, fake_repos):
             return None
 
     monkeypatch.setattr("app.api.interview_ws._get_v5_persister", lambda: NoopPersister())
+
+    # Taxonomy resolution talks to the database (role catalog) and, failing that, the LLM profiler:
+    # stub it so these protocol tests stay offline and their scripted LLM replies line up.
+    class _NoDb:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+    async def fake_resolve(db, **kwargs):
+        from app.data.competency_resolver import default_taxonomy
+
+        return default_taxonomy()
+
+    monkeypatch.setattr("app.api.interview_ws.get_session_factory", lambda: (lambda: _NoDb()))
+    monkeypatch.setattr("app.api.interview_ws.resolve_competencies", fake_resolve)
     return store, row
 
 
@@ -113,7 +141,7 @@ def test_ws_full_cycle(ws_env, client, stub_llm, fake_evidence_repo, fake_repos,
 
             # ── start ──
             ws.send_json({"_id": "1", "type": "start_interview"})
-            question_msg = ws.receive_json()
+            question_msg = _receive_skipping_progress(ws)
             assert question_msg["_id"] == "1"
             assert question_msg["type"] == "question"
             assert question_msg["question"]["text"]
@@ -186,7 +214,7 @@ def test_ws_start_full_boot_when_store_preseeded(ws_env, client, stub_llm, fake_
     with client.websocket_connect(_ws_url(session_id)) as ws:
         ws.receive_json()  # connected
         ws.send_json({"_id": "1", "type": "start_interview"})
-        question_msg = ws.receive_json()
+        question_msg = _receive_skipping_progress(ws)
         assert question_msg["_id"] == "1"
         assert question_msg["type"] == "question"
         assert question_msg["question"]["text"]
@@ -217,7 +245,7 @@ def test_ws_start_resumes_started_session_without_llm(ws_env, client, stub_llm, 
     with client.websocket_connect(_ws_url(session_id)) as ws:
         ws.receive_json()  # connected
         ws.send_json({"_id": "1", "type": "start_interview"})
-        question_msg = ws.receive_json()
+        question_msg = _receive_skipping_progress(ws)
         assert question_msg["_id"] == "1"
         assert question_msg["type"] == "question"
         assert question_msg["question"]["text"] == "Resume point question?"

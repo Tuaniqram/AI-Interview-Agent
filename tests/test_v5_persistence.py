@@ -25,11 +25,9 @@ from app.core.interview_brain import InterviewBrain
 from app.core.interview_state import brain_to_dict, dict_to_brain
 from app.engine.engine import InterviewEngine
 from app.models.db import (
-    ConsistencyCheck as ConsistencyCheckRecord,
-    EvidenceGraph as EvidenceGraphRecord,
     InterviewBrain as InterviewBrainRecord,
+    InterviewIntelligence as IntelligenceRecord,
     InterviewTimeline as InterviewTimelineRecord,
-    Observation as ObservationRecord,
     ScorecardResult as ScorecardResultRecord,
 )
 from app.services.v4_session_store import MemoryV4SessionStore
@@ -143,6 +141,7 @@ async def test_save_snapshot_writes_brain_graph_and_timeline_rows():
     await persister.save_snapshot(brain)
 
     added = factory.session.added
+    # interview_brain + interview_intelligence (evidence graph lives there) + one timeline event
     assert len(added) == 3
 
     brain_rec = next(r for r in added if isinstance(r, InterviewBrainRecord))
@@ -165,10 +164,9 @@ async def test_save_snapshot_writes_brain_graph_and_timeline_rows():
     assert brain_rec.brain_metadata["calibration_state"] == brain.calibration_state
     assert brain_rec.brain_metadata["candidate_memory"] == brain.candidate_memory
 
-    graph_rec = next(r for r in added if isinstance(r, EvidenceGraphRecord))
-    assert graph_rec.session_id == UUID(brain.session_id)
-    assert graph_rec.nodes == brain.evidence_graph["nodes"]
-    assert graph_rec.edges == brain.evidence_graph["edges"]
+    intel_rec = next(r for r in added if isinstance(r, IntelligenceRecord))
+    assert intel_rec.session_id == UUID(brain.session_id)
+    assert intel_rec.evidence_graph == brain.evidence_graph
 
     tl_rec = next(r for r in added if isinstance(r, InterviewTimelineRecord))
     assert tl_rec.session_id == UUID(brain.session_id)
@@ -339,38 +337,28 @@ def _make_relational_brain() -> InterviewBrain:
     return brain
 
 
-async def test_save_relational_enriches_observations():
+async def test_save_relational_stores_observations_on_the_intelligence_row():
     factory = FakeSessionFactory()
     persister = V5BrainPersister(session_factory=lambda: factory)
+    brain = _make_relational_brain()
 
-    await persister.save_relational(_make_relational_brain(), finalize=False)
+    await persister.save_relational(brain, finalize=False)
 
-    obs = [r for r in factory.session.added if isinstance(r, ObservationRecord)]
-    assert len(obs) == 2
-    by_type = {r.type: r for r in obs}
-    assert by_type["hedging"].pattern == "hedging"
-    assert by_type["hedging"].risk_signal == {"signal": "hedging"}
-    assert by_type["hedging"].evidence == "hedging=0.70"
-    assert by_type["notable_patterns"].pattern == "notable_patterns"
-    assert by_type["notable_patterns"].risk_signal is None
-    assert by_type["notable_patterns"].evidence == "frequently says 'um'"
+    rows = [r for r in factory.session.added if isinstance(r, IntelligenceRecord)]
+    assert len(rows) == 1  # observations are columns of interview_intelligence, not their own table
+    assert rows[0].session_id == UUID(brain.session_id)
+    assert rows[0].observations == brain.observations
 
 
-async def test_save_relational_writes_mapped_consistency_check_columns():
+async def test_save_relational_stores_consistency_checks_on_the_intelligence_row():
     factory = FakeSessionFactory()
     persister = V5BrainPersister(session_factory=lambda: factory)
+    brain = _make_relational_brain()
 
-    await persister.save_relational(_make_relational_brain(), finalize=True)
+    await persister.save_relational(brain, finalize=True)
 
-    checks = [r for r in factory.session.added if isinstance(r, ConsistencyCheckRecord)]
-    assert len(checks) == 1
-    check = checks[0]
-    assert check.check_type == "cross_check"
-    assert check.assessment == "consistent"
-    assert check.score == 8.0
-    assert check.confidence == 0.9
-    assert check.evidence == "matches prior answer"
-    assert check.consistency_score == pytest.approx(0.72)
+    row = next(r for r in factory.session.added if isinstance(r, IntelligenceRecord))
+    assert row.consistency_checks == brain.consistency_checks
 
 
 async def test_save_relational_writes_scorecard_result_on_finalize():

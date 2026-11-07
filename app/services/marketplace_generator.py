@@ -31,13 +31,11 @@ async def generate_rich_description(interview_id: str) -> None:
             )
             org = org_result.scalar_one_or_none()
             org_name = org.name if org else "Our Company"
-            dept_name = org_name
 
             loader = get_prompt_loader()
             prompt = loader.load_by_path(
                 "marketplace/job_description.md",
                 org_name=org_name,
-                dept_name=dept_name,
                 title=pi.title,
                 interview_mode=pi.interview_mode,
                 skills=pi.skills_required or "Not specified",

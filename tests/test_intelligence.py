@@ -17,13 +17,6 @@ from app.intelligence.resume_analyzer import analyze_resume
 from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
 from app.intelligence.scorecard_resolver import resolve_evidence_requirements
 from app.intelligence.persist import persist_intelligence_bundle
-from app.models.db import (
-    CandidateBrain as CandidateBrainRecord,
-    CandidateEvidenceRequirement as RequirementRecord,
-    CompanyBrain as CompanyBrainRecord,
-    InterviewBlueprint as BlueprintRecord,
-    Scorecard as ScorecardRecord,
-)
 from app.services.v4_session_store import MemoryV4SessionStore
 from tests.conftest import STRATEGY_JSON, make_v4_state
 

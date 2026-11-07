@@ -243,7 +243,7 @@ def test_full_scorecard_wins():
 
 def test_thin_scorecard_triggers_ai_pass():
     ctx = build_role_context(job_role="Senior Backend Engineer", skills_required=["Python"])
-    entries = asyncio.run(_resolve(scorecard=THREE, template=None, role_context=ctx))
+    entries = asyncio.run(_resolve(scorecard=THREE, template=None, role_context=ctx, use_llm=False))
     # AI deterministic pass fires (LLM stubbed off) and outranks the thin rubric.
     assert len(entries) >= 4
     assert all(e["id"].startswith(("tech_", "behav_", "cog_", "exp_")) for e in entries)

@@ -228,41 +228,46 @@ FAMILY_SUGGESTIONS = {
 }
 
 
-def test_llm_validation_accepts_family_competencies():
+def test_llm_validation_accepts_only_it_competencies():
+    # IT-only product: design/product competencies are in scope, sales/marketing/finance/CS are not.
     entries, rationale = _validate_suggestions(FAMILY_SUGGESTIONS)
     ids = {e["id"] for e in entries}
-    assert ids == {
-        "mkt_brand_strategy",
-        "com_negotiation",
-        "fin_financial_analysis",
-        "cs_churn_retention",
-        "prd_product_strategy",
-        "des_visual_design",
-    }
+    assert ids == {"prd_product_strategy", "des_visual_design"}
     assert rationale
-    cats = {e["category"] for e in entries}
-    assert cats == {"marketing", "commerce", "finance", "customer_success", "product", "design"}
+    assert {e["category"] for e in entries} == {"product", "design"}
+
+
+@pytest.mark.parametrize("non_it_id", [
+    "mkt_brand_strategy", "com_negotiation", "fin_financial_analysis", "cs_churn_retention",
+    "hr_talent_acquisition", "ops_supply_chain",
+])
+def test_llm_validation_drops_non_it_competencies(non_it_id):
+    payload = dict(FAMILY_SUGGESTIONS)
+    payload["competencies"] = [
+        dict(FAMILY_SUGGESTIONS["competencies"][0], id=non_it_id),
+        *[c for c in FAMILY_SUGGESTIONS["competencies"] if c["id"].startswith(("prd_", "des_"))],
+    ]
+    entries, _ = _validate_suggestions(payload)
+    assert non_it_id not in {e["id"] for e in entries}
 
 
 def test_llm_validation_still_rejects_invalid_prefix():
     payload = dict(FAMILY_SUGGESTIONS)
+    it_entries = [c for c in FAMILY_SUGGESTIONS["competencies"] if c["id"].startswith(("prd_", "des_"))]
     payload["competencies"] = [
-        dict(FAMILY_SUGGESTIONS["competencies"][0], id="sales_strategy", name="No Prefix"),
-        FAMILY_SUGGESTIONS["competencies"][0],
-        *FAMILY_SUGGESTIONS["competencies"][1:],
+        dict(it_entries[0], id="sales_strategy", name="No Prefix"),
+        *it_entries,
     ]
     entries, _ = _validate_suggestions(payload)
     ids = {e["id"] for e in entries}
     assert "sales_strategy" not in ids  # invalid prefix dropped
-    assert "mkt_brand_strategy" in ids  # valid family id kept
+    assert "prd_product_strategy" in ids  # valid IT family id kept
 
 
 def test_llm_validation_coerces_unknown_category_to_general():
     payload = dict(FAMILY_SUGGESTIONS)
-    payload["competencies"] = [
-        dict(FAMILY_SUGGESTIONS["competencies"][0], category="madeup"),
-        *FAMILY_SUGGESTIONS["competencies"][1:],
-    ]
+    it_entries = [c for c in FAMILY_SUGGESTIONS["competencies"] if c["id"].startswith(("prd_", "des_"))]
+    payload["competencies"] = [dict(it_entries[0], category="madeup"), *it_entries[1:]]
     entries, _ = _validate_suggestions(payload)
     by_id = {e["id"]: e for e in entries}
-    assert by_id["mkt_brand_strategy"]["category"] == "general"
+    assert by_id[it_entries[0]["id"]]["category"] == "general"

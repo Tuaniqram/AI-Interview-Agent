@@ -37,7 +37,7 @@ from app.services.it_role_resolver import resolve_it_role
 from app.services.v4_session_store import get_v4_session_store
 from app.config.interview_styles import get_style
 from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
-from app.data.competency_resolver import default_taxonomy, taxonomy_for_state
+from app.data.competency_resolver import default_taxonomy, resolve_competencies, taxonomy_for_state
 from app.models.db import EvidenceStore
 
 
@@ -395,8 +395,13 @@ async def start_practice(
 
     # Seed v4 state with AURA (single conductor mode — style selection is gone)
     style = get_style("AURA")
+    try:
+        # The IT role's own catalog competencies; the generic IT taxonomy only if the role has none.
+        practice_taxonomy = await resolve_competencies(db, it_role_id=it_role.id, use_llm=False)
+    except Exception:  # noqa: BLE001 - never fail a practice start on taxonomy lookup
+        practice_taxonomy = default_taxonomy()
     competency_taxonomy, required_competencies, domain_label = taxonomy_for_state(
-        default_taxonomy(), priority_map=style.get("base_competency_priority")
+        practice_taxonomy, priority_map=style.get("base_competency_priority")
     )
     store = get_v4_session_store()
     state = {

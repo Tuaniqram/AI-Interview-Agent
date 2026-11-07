@@ -20,7 +20,11 @@ def test_tiers_resolve_to_distinct_chains():
     cheap = get_llm("cheap")
     strong = get_llm("strong")
     assert cheap.model_name != strong.model_name
-    assert cheap.model_name.startswith("llama-3.1-8b-instant")
+    from app.models.llm import _GROQ_CHEAP_MODEL, _GROQ_STRONG_MODEL
+
+    assert cheap.model_name.startswith(_GROQ_CHEAP_MODEL)
+    assert strong.model_name.startswith(_GROQ_STRONG_MODEL)
+    assert _GROQ_CHEAP_MODEL != _GROQ_STRONG_MODEL
 
 
 async def test_invoke_passes_tier_through(stub_llm):

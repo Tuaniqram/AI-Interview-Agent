@@ -15,7 +15,7 @@ from app.api.v1.candidate_ranking import (
 def _session(**overrides):
     base = {
         "id": "s-1",
-        "job_role": "Marketing Manager",
+        "job_role_snapshot": "Product Manager",  # sessions store the role as job_role_snapshot
         "final_score": 7.2,
         "started_at": None,
         "ended_at": None,
@@ -26,12 +26,12 @@ def _session(**overrides):
 
 def _candidate():
     return SimpleNamespace(
-        id="c-1", name="Ada", email="ada@x.com", resume_url="/r", skills=["seo"]
+        id="c-1", name="Ada", email="ada@x.com", resume_url="/r", skills=["python"]
     )
 
 
 def _dept():
-    return SimpleNamespace(id=3, name="Growth")
+    return SimpleNamespace(id=3, name="Platform")
 
 
 def test_build_ranking_row_detects_family_and_calibration():
@@ -46,7 +46,7 @@ def test_build_ranking_row_detects_family_and_calibration():
             "role_floor": 3,
         },
     )
-    assert row["family"] == "marketing"
+    assert row["family"] == "product"
     assert row["calibrated_score"] == 7.6
     assert row["difficulty_reached"] == 4
     assert row["role_floor"] == 3
@@ -57,7 +57,7 @@ def test_build_ranking_row_detects_family_and_calibration():
 
 
 def test_build_ranking_row_defaults_technical_when_role_unknown():
-    row = build_ranking_row(_session(job_role="Mystery Role"), _candidate(), _dept(), None, {})
+    row = build_ranking_row(_session(job_role_snapshot="Mystery Role"), _candidate(), _dept(), None, {})
     assert row["family"] == "technical"
     assert row["calibrated_score"] is None
     assert row["score_band"] is None

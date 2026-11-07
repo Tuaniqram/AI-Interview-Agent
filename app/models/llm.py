@@ -107,30 +107,46 @@ class FallbackLLM:
         return "+".join(m.model_name for m in self._models)
 
 
-_LLM_CONFIGS: list[dict[str, str | None]] = [
-    {"model": "llama-3.3-70b-versatile", "base_url": "https://api.groq.com/openai/v1", "api_key": os.getenv("GROQ_API_KEY")},
-    {"model": "one", "base_url": "http://localhost:20128/v1", "api_key": None},
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+
+# Groq's gpt-oss models are *reasoning* models: without a low reasoning effort the hidden reasoning
+# eats a small max_tokens budget and the reply comes back EMPTY (finish_reason=length, content="").
+# That was the "empty response" failure in resume analysis, evaluation and question generation.
+_GROQ_EXTRA_BODY = {"reasoning_effort": "low"}
+
+# Model ids are env-overridable: provider model lineups change (llama-3.x ids on this key now 404).
+_GROQ_STRONG_MODEL = os.getenv("GROQ_STRONG_MODEL", "openai/gpt-oss-120b")
+_GROQ_CHEAP_MODEL = os.getenv("GROQ_CHEAP_MODEL", "openai/gpt-oss-20b")
+
+_LLM_CONFIGS: list[dict[str, Any]] = [
+    {"model": _GROQ_STRONG_MODEL, "base_url": GROQ_BASE_URL, "api_key": os.getenv("GROQ_API_KEY"),
+     "extra_body": _GROQ_EXTRA_BODY},
     {"model": "openrouter/free", "base_url": "https://openrouter.ai/api/v1", "api_key": os.getenv("OPENROUTER_API_KEY")},
+    # Local gateway last: it is a developer convenience and is skipped by the circuit breaker when down.
+    {"model": "one", "base_url": "http://localhost:20128/v1", "api_key": None},
 ]
 
 # Cheap tier — small/fast models for extraction, formatting and classification.
-# Falls back to the local model and finally the strong chain so it never
-# fails outright when no cheap provider is configured.
-_CHEAP_LLM_CONFIGS: list[dict[str, str | None]] = [
-    {"model": "llama-3.1-8b-instant", "base_url": "https://api.groq.com/openai/v1", "api_key": os.getenv("GROQ_API_KEY")},
-    {"model": "one", "base_url": "http://localhost:20128/v1", "api_key": None},
+# Falls back to the strong chain so it never fails outright when no cheap provider is configured.
+_CHEAP_LLM_CONFIGS: list[dict[str, Any]] = [
+    {"model": _GROQ_CHEAP_MODEL, "base_url": GROQ_BASE_URL, "api_key": os.getenv("GROQ_API_KEY"),
+     "extra_body": _GROQ_EXTRA_BODY},
     *_LLM_CONFIGS,
 ]
 
 
-def _build_llm_instance(config: dict[str, str | None]) -> ChatOpenAI:
+def _build_llm_instance(config: dict[str, Any]) -> ChatOpenAI:
     api_key = config["api_key"] or "sk-no-key"
+    kwargs: dict[str, Any] = {}
+    if config.get("extra_body"):
+        kwargs["extra_body"] = config["extra_body"]
     return ChatOpenAI(
         model=str(config["model"]),
         temperature=0.7,
         max_tokens=2048,
         openai_api_key=api_key,
         openai_api_base=str(config["base_url"]),
+        **kwargs,
     )
 
 

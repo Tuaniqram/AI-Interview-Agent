@@ -5,7 +5,7 @@ role's competency set, and company context, design the blueprint the interviewer
 follows for the whole session.
 
 The competency set below is FINAL — it was resolved for the role (scorecard,
-department template, or role profile). Do NOT add, remove, or reorder
+organization template, IT role catalog, or role profile). Do NOT add, remove, or reorder
 competencies. Your job is the session plan around them.
 
 ## Context

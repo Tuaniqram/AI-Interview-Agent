@@ -1,3 +1,12 @@
+import os
+
+# Hermetic by default: the unit/contract suite must never read or write the real database (it used to
+# leave swallowed foreign-key warnings and take minutes against a remote one). `.env` is loaded without
+# overriding variables that already exist, so setting this empty before `app` is imported wins.
+# Run with PYTEST_USE_DB=1 for the opt-in integration/db tests.
+if os.environ.get("PYTEST_USE_DB") != "1":
+    os.environ["DATABASE_URL"] = ""
+
 import pytest
 
 from app.config.interview_styles import get_style

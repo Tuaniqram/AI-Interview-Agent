@@ -53,7 +53,8 @@ class _FakeDB:
 
 
 @pytest.fixture
-def client():
+def client(fake_db):
+    # Always run against the fake session: these tests must never reach a real database.
     return TestClient(app)
 
 

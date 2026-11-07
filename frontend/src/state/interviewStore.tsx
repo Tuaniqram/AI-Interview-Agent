@@ -40,7 +40,7 @@ export type InterviewState = {
   conversationTurn: string;
 
   // AURA engine phase pushed over WebSocket (drives AuraCore states)
-  wsPhase: 'idle' | 'evaluating' | 'question_ready' | 'reconnecting';
+  wsPhase: 'idle' | 'evaluating' | 'question_ready' | 'reconnecting' | 'loading_context' | 'planning_interview';
 
   // Anti-cheat integrity (contract: docs/anti-cheat-guard.md)
   integrityPolicy: IntegrityPolicy | null;
@@ -78,7 +78,7 @@ type InterviewAction =
   | { type: 'SET_INTEGRITY_POLICY'; payload: IntegrityPolicy | null }
   | { type: 'SET_FLAGGED_COUNT'; payload: number }
   | { type: 'SET_INTEGRITY_TERMINATED'; payload: { reason: string | null } }
-  | { type: 'SET_WS_PHASE'; payload: 'idle' | 'evaluating' | 'question_ready' | 'reconnecting' }
+  | { type: 'SET_WS_PHASE'; payload: 'idle' | 'evaluating' | 'question_ready' | 'reconnecting' | 'loading_context' | 'planning_interview' }
   | { type: 'SET_INTERVIEW_MODE'; payload: InterviewMode }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_EVALUATING'; payload: boolean }
@@ -393,14 +393,15 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
           sessionIdRef.current = sessionId;
           reconnectAttemptsRef.current = 0;
           clearReconnectTimer();
-          const result = await controller.initInterviewViaWS(sessionId);
-
+          // Listen BEFORE starting: preparing an interview pushes progress ("loading_context",
+          // "planning_interview") while the start request is still pending.
           wsOffRef.current?.();
           wsOffRef.current = interviewWebSocket.on('status', (data: any) => {
             if (data?.phase) {
               dispatch({ type: 'SET_WS_PHASE', payload: data.phase });
             }
           });
+          const result = await controller.initInterviewViaWS(sessionId);
           closeOffRef.current?.();
           closeOffRef.current = interviewWebSocket.on('close', () => {
             if (stateRef.current.session?.status === 'completed') return;

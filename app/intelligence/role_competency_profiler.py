@@ -24,7 +24,7 @@ import re
 from collections import OrderedDict
 from typing import Optional
 
-from app.data.competency_taxonomy import COMPETENCY_TAXONOMY, SKILL_TO_COMPETENCY
+from app.data.competency_taxonomy import COMPETENCY_TAXONOMY, NON_IT_COMPETENCY_IDS, SKILL_TO_COMPETENCY
 
 logger = logging.getLogger(__name__)
 
@@ -33,33 +33,24 @@ MIN_SUGGESTED_COMPETENCIES = 4
 MAX_SUGGESTED_COMPETENCIES = 6
 
 _ID_RE = re.compile(r"^[a-z][a-z0-9_]{2,31}$")
+# IT-only product: sales / marketing / HR / finance / customer-success families are not offered.
 _CATEGORY_PREFIXES = (
     "tech_",
     "behav_",
     "cog_",
     "exp_",
-    "com_",
-    "mkt_",
     "des_",
     "prd_",
-    "hr_",
-    "fin_",
     "ops_",
-    "cs_",
 )
 _CATEGORIES = {
     "technical",
     "behavioral",
     "cognitive",
     "experience",
-    "commerce",
-    "marketing",
     "design",
     "product",
-    "hr",
-    "finance",
     "operations",
-    "customer_success",
     "general",
 }
 _VALID_DIMENSIONS = {
@@ -217,8 +208,12 @@ def _normalize_entry(item: dict) -> Optional[dict]:
         return None
     comp_id = str(item.get("id") or "").strip().lower()
     name = str(item.get("name") or "").strip()
-    if not _ID_RE.match(comp_id) or not comp_id.startswith(_CATEGORY_PREFIXES):
-        logger.warning("Role profiler: dropped competency with invalid id %r", comp_id)
+    if (
+        not _ID_RE.match(comp_id)
+        or not comp_id.startswith(_CATEGORY_PREFIXES)
+        or comp_id in NON_IT_COMPETENCY_IDS
+    ):
+        logger.warning("Role profiler: dropped competency with invalid or non-IT id %r", comp_id)
         return None
     if not (3 <= len(name) <= 80):
         logger.warning("Role profiler: dropped competency with invalid name %r", name)
@@ -302,7 +297,9 @@ def _suggest_from_taxonomy(role_context: dict) -> list[dict]:
     counts: dict[str, int] = {}
     for token in corpus:
         for skill, cid in SKILL_TO_COMPETENCY.items():
-            if skill in token or token in skill:
+            # A skill phrase inside a token ("postgres" in "postgresql") is fine; a common word inside a
+            # multi-word skill is not ("engineer" is part of "prompt engineering" but says nothing about LLMs).
+            if skill in token or (token in skill and " " not in skill and len(token) >= 4):
                 counts[cid] = counts.get(cid, 0) + 1
 
     by_id = {c["id"]: c for c in COMPETENCY_TAXONOMY}
@@ -374,7 +371,6 @@ async def suggest_competencies(
             seniority="senior" if "senior" in role_context.get("job_role", "").lower() else "mid-level",
             skills_required=", ".join(role_context.get("skills_required") or []) or "not specified",
             description=role_context.get("description") or "not specified",
-            department_name=role_context.get("department_name") or "not specified",
             org_name=role_context.get("org_name") or "not specified",
             tech_stack=", ".join(role_context.get("tech_stack") or []) or "not specified",
             existing_competencies=(

@@ -628,7 +628,7 @@ def _question_prompt_vars(
         "competency_info": competency_info or "No evidence gathered yet",
         "approach": approach or "Explore the competency",
         "followup_number": followup_number,
-        "department_context": department_context,
+        "organization_context": department_context,
         "candidate_profile": profile_json[:2000] or "N/A",
         "question_number": question_number + 1,
         "total_questions": total_questions,

@@ -200,13 +200,23 @@ async def _load_candidate_profile_data(
     return data, resume_text
 
 
-async def _start_v4_engine(session_id: str) -> dict:
+async def _start_v4_engine(session_id: str, notify=None) -> dict:
     """Start (or resume) the v5 AURA engine for the given session.
 
     The session row in the DB is the source of truth for job_role / department_id;
     the engine state lives in the v4 session store under the same session_id.
     All orchestration is delegated to ``InterviewEngine``.
+
+    ``notify(phase)`` (optional, awaited) reports coarse progress to the client: preparing an
+    interview takes a while, and an unexplained spinner looks like a hang.
     """
+    async def _progress(phase: str) -> None:
+        if notify is not None:
+            try:
+                await notify(phase)
+            except Exception:  # noqa: BLE001 - progress is cosmetic; never fail a start on it
+                logger.debug("progress notification failed", exc_info=True)
+
     store = get_v4_session_store()
     existing = await store_get(store, session_id)
     if existing is not None and existing.get("nodes_executed"):
@@ -221,9 +231,10 @@ async def _start_v4_engine(session_id: str) -> dict:
 
     org_id_str = str(db_session.org_id) if db_session.org_id else None
     job_role = db_session.job_role_snapshot or "Software Engineer"
+    await _progress("loading_context")
 
     async def _resolve_taxonomy() -> list:
-        if not (db_session.org_id or db_session.scorecard_template_id):
+        if not (db_session.org_id or db_session.scorecard_template_id or db_session.it_role_id):
             return default_taxonomy()
         async with get_session_factory()() as db:
             role_context = None
@@ -232,12 +243,13 @@ async def _start_v4_engine(session_id: str) -> dict:
                 from app.models.db import Organization
 
                 org_name = ""
-                org_result = await db.execute(
-                    select(Organization).where(Organization.id == db_session.org_id)
-                )
-                org_row = org_result.scalar_one_or_none()
-                if org_row:
-                    org_name = org_row.name or ""
+                if db_session.org_id:  # practice sessions have no organization to look up
+                    org_result = await db.execute(
+                        select(Organization).where(Organization.id == db_session.org_id)
+                    )
+                    org_row = org_result.scalar_one_or_none()
+                    if org_row:
+                        org_name = org_row.name or ""
                 role_context = build_role_context(
                     job_role=db_session.job_role_snapshot or "",
                     department_id=None,
@@ -252,6 +264,7 @@ async def _start_v4_engine(session_id: str) -> dict:
                 if db_session.scorecard_template_id else None,
                 org_id=db_session.org_id,
                 role_context=role_context,
+                it_role_id=db_session.it_role_id,  # the role's catalog competencies drive the interview
             )
 
     # The three pre-start inputs do not depend on each other (competency taxonomy, the candidate's
@@ -265,6 +278,7 @@ async def _start_v4_engine(session_id: str) -> dict:
     competency_taxonomy, required, domain_label = taxonomy_for_state(
         taxonomy, priority_map=style.get("base_competency_priority")
     )
+    await _progress("planning_interview")
 
     state = {
         "session_id": session_id,
@@ -389,9 +403,15 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                     continue
                 conn_state["session_id"] = sid
                 _connections[sid] = conn_state
+                async def push_progress(phase: str) -> None:
+                    # No _id: it is a push, never the awaited reply (the "question" frame is).
+                    await websocket.send_json({"type": "status", "phase": phase})
+
                 try:
                     async with _session_locks.lock(sid):
-                        response = await asyncio.wait_for(_start_v4_engine(sid), timeout=START_TIMEOUT_S)
+                        response = await asyncio.wait_for(
+                            _start_v4_engine(sid, notify=push_progress), timeout=START_TIMEOUT_S
+                        )
                 except SessionNotFoundException:
                     await reply({"type": "error", "detail": "Session not found"}, data)
                     continue

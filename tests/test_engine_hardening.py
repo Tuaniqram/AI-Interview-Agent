@@ -191,8 +191,11 @@ def ws_env(monkeypatch):
 
     calls = SimpleNamespace(started=[], answers=[], fail_answer=None)
 
-    async def fake_start(sid):
+    async def fake_start(sid, notify=None):
         calls.started.append(sid)
+        if notify is not None:  # the real start reports progress while it prepares the interview
+            await notify("loading_context")
+            await notify("planning_interview")
         return {"session_id": sid, "question": "Tell me about yourself", "question_number": 1}
 
     class FakeEngine:
@@ -222,7 +225,11 @@ def _connect(env, sid=SID, access=None, token=None):
 
 def _send(ws, **msg):
     ws.send_text(json.dumps(msg))
-    return ws.receive_json()
+    while True:
+        reply = ws.receive_json()
+        # skip progress pushes sent while an interview is being prepared
+        if not (reply.get("type") == "status" and reply.get("phase") in ("loading_context", "planning_interview")):
+            return reply
 
 
 def test_connection_without_credentials_cannot_start_or_answer(ws_env):
@@ -403,3 +410,14 @@ async def test_store_errors_still_propagate_through_the_thread_hop():
 
     with pytest.raises(SessionNotFoundException):
         await store_get_or_raise(Store(), "missing")
+
+
+def test_start_pushes_progress_frames_before_the_question(ws_env):
+    with _connect(ws_env, access=create_interview_access_token(SID)) as ws:
+        ws.receive_json()
+        ws.send_text(json.dumps({"type": "start_interview", "_id": "7"}))
+        frames = [ws.receive_json() for _ in range(3)]
+    assert [f["type"] for f in frames] == ["status", "status", "question"]
+    assert [f.get("phase") for f in frames[:2]] == ["loading_context", "planning_interview"]
+    assert "_id" not in frames[0] and "_id" not in frames[1]  # pushes never look like the awaited reply
+    assert frames[2]["_id"] == "7"

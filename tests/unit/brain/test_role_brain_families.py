@@ -7,7 +7,7 @@ from app.brain.role_brain import (
     default_probe_for,
     detect_role_class,
 )
-from app.data.competency_resolver import default_taxonomy
+from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
 
 pytestmark = pytest.mark.unit
 
@@ -31,8 +31,10 @@ def test_detect_role_class_families(role, expected):
 
 
 def _family_taxonomy(category):
+    # The full static taxonomy, not default_taxonomy(): the product is IT-only so its default offers no
+    # sales/marketing/finance competencies, but the role-brain family knowledge is still unit-tested here.
     return [
-        c for c in default_taxonomy()
+        dict(c, weight=1.0, max_score=10.0) for c in COMPETENCY_TAXONOMY
         if c["category"] in (category, "behavioral", "cognitive", "experience")
     ]
 

@@ -114,7 +114,7 @@ async def _enrich_with_llm(brain: dict, documents: list[dict]) -> dict:
         "intelligence",
         "company_brain.md",
         job_role=brain.get("job_role", "Unknown"),
-        department_id=str(brain.get("org_id") or brain.get("department_id") or ""),
+        organization_id=str(brain.get("org_id") or brain.get("department_id") or ""),
         documents=doc_text,
     )
 

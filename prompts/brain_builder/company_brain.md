@@ -21,7 +21,7 @@ Not just the tech stack. The company brain must carry company DNA:
 ```
 
 Rules:
-- Derive philosophy from the department documents / tech stack, never invent.
+- Derive philosophy from the organization's documents / tech stack, never invent.
 - Failure patterns are conservative; only list what the company signals.
 - The deterministic layer `app/brain/company_brain.py` implements this;
   the LLM pass (when enabled) may only enrich with what the documents support.
