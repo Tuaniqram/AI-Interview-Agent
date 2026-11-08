@@ -120,6 +120,18 @@ def apply_calibration_verdict(state: dict) -> dict:
         if calibrated_score is not None:
             decision["decision_score"] = calibrated_score
         decision["calibration_source"] = "aura_v5_calibration"
+        # Plan step 3: the demotion is recorded with its reason like every other adjustment.
+        decision["adjustments"] = [
+            *(decision.get("adjustments") or []),
+            {
+                "rule": "calibration",
+                "from": draft,
+                "to": cal_label,
+                "reason": f"calibration layer verdict '{calibrated_verdict}'"
+                + (f" (score {calibrated_score})" if calibrated_score is not None else ""),
+            },
+        ]
+        decision.setdefault("demotion_reason", decision["adjustments"][0]["reason"])
 
     recommendation = dict(state.get("hiring_recommendation") or {})
     recommendation["calibrated_verdict"] = calibrated_verdict
@@ -131,6 +143,23 @@ def apply_calibration_verdict(state: dict) -> dict:
         "hiring_decision": decision,
         "hiring_recommendation": recommendation,
     }
+
+
+def finalize_verdict_outputs(state: dict) -> dict:
+    """Plan step 3 (P7): outputs that depend on the verdict are derived from the FINAL decision.
+
+    ``next_steps`` used to be set from the score-based draft, so a strong_hire demoted by review still said
+    "prepare offer discussion". ``draft`` is the score's label before any cap or review.
+    """
+    from app.agents.decision.decision_engine import decision_next_steps
+
+    decision = dict(state.get("hiring_decision") or {})
+    if not decision:
+        return state
+    final = decision.get("decision") or "insufficient_evidence"
+    decision["next_steps"] = decision_next_steps(final)
+    decision["draft"] = decision.get("draft_decision") or decision.get("draft") or final
+    return {**state, "hiring_decision": decision}
 
 
 async def finalize_session(engine, brain: InterviewBrain) -> dict:
@@ -208,6 +237,17 @@ async def finalize_session(engine, brain: InterviewBrain) -> dict:
         brain.hiring_recommendation = s.get("hiring_recommendation")
     except Exception as exc:  # noqa: BLE001 - calibration override is best-effort
         logger.warning(f"Calibration verdict override failed (non-fatal): {exc}")
+
+    # Plan step 3: next steps and the written explanation come from the FINAL decision (after review,
+    # calibration and every cap), so the report never explains or acts on a verdict it does not show.
+    s = finalize_verdict_outputs(s)
+    from app.agents.decision.hiring_decision import explain_final_decision
+
+    try:
+        s = await explain_final_decision(s)
+    except Exception as exc:  # noqa: BLE001 - the explanation is optional
+        logger.warning(f"Decision explanation failed (non-fatal): {exc}")
+    brain.hiring_decision = s.get("hiring_decision")
 
     brain.finalized = True
     await persist_answer_turn(session_id, brain)

@@ -180,6 +180,8 @@ def finalize_decision(draft: dict, checks: list[dict]) -> dict:
     trail to the returned decision.
     """
     decision = dict(draft)
+    # Plan step 3: every demotion is recorded with its reason, next to the decision engine's caps.
+    adjustments = [dict(a) for a in (draft.get("adjustments") or []) if isinstance(a, dict)]
     original_confidence = float(draft.get("confidence", 0.0))
     confidence = original_confidence
     demoted = False
@@ -187,9 +189,16 @@ def finalize_decision(draft: dict, checks: list[dict]) -> dict:
     high_issues = [c for c in checks if c["severity"] == "high"]
     if high_issues:
         confidence = min(confidence, 0.5)
-        if draft.get("decision") in DECISIVE_DECISIONS or draft.get("decision") in {"hire", "no_hire"}:
+        current = decision.get("decision")
+        if current in DECISIVE_DECISIONS or current in {"hire", "no_hire"}:
             demoted = True
             decision["decision"] = "insufficient_evidence"
+            adjustments.append({
+                "rule": f"review:{high_issues[0]['issue']}",
+                "from": current,
+                "to": "insufficient_evidence",
+                "reason": high_issues[0].get("detail") or high_issues[0]["issue"],
+            })
 
     if any(c["issue"] == "contradictions" and c["severity"] == "high" for c in checks):
         confidence = max(0.0, confidence - 0.2)
@@ -225,15 +234,27 @@ def finalize_decision(draft: dict, checks: list[dict]) -> dict:
     # verdict is never touched by this rule.
     demoting = [c for c in checks if c.get("demote_hire")]
     if decision.get("decision") in HIRE_SIDE_DECISIONS and demoting:
-        decision["decision"] = "insufficient_evidence"
-        decision["flag_review"] = True
-        decision["demotion_reason"] = (
+        reason = (
             "most claims could not be verified; probe them before hiring"
             if demoting[0].get("issue") == "unverifiable_claims"
             else "answers contradict each other; probe the inconsistencies before hiring"
         )
+        adjustments.append({
+            "rule": f"review:{demoting[0].get('issue')}",
+            "from": decision.get("decision"),
+            "to": "insufficient_evidence",
+            "reason": reason,
+        })
+        decision["decision"] = "insufficient_evidence"
+        decision["flag_review"] = True
+        decision["demotion_reason"] = reason
         confidence = min(confidence, 0.5)
         demoted = True
+
+    decision["adjustments"] = adjustments
+    # Compatibility: report builder and harness read ``demotion_reason`` — the first recorded adjustment.
+    if adjustments and not decision.get("demotion_reason"):
+        decision["demotion_reason"] = adjustments[0]["reason"]
 
     decision["confidence"] = round(confidence, 2)
     decision["demoted_to_undecided"] = demoted

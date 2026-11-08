@@ -1,25 +1,20 @@
-"""V5 decision engine — deterministic 7-point hiring decision (Fix 9).
+"""V5 decision engine — deterministic 7-point hiring decision (Fix 9, plan step 3).
 
-Replaces the coarse 3-way draft (hire / no_hire / undecided) with a
-seven-point scale that survives the evidence review. Pure capability: no LLM,
-no DB — the hiring-decision node overlays this on the LLM draft and the
-legacy ``hiring_recommendation.verdict`` stays untouched.
+One decision function: the score is the canonical score (the weighted competency average,
+``contradiction_engine.compute_canonical_score``) minus a contradiction penalty — nothing else.
+Coverage, difficulty, evidence volume and substantiation act only as **caps** on the label
+(``apply_decision_caps``), each recorded in ``adjustments`` with its reason, so a report can always
+say why a verdict is what it is. Before step 3 the score multiplied a difficulty credit and added
+coverage / confirmed-hypothesis terms on top of a composite that already contained them.
 
-Scale (by decision score, 0..10):
-    strong_hire        >= 8.5
-    hire               >= 7.5
-    lean_hire          >= 6.5
+Scale (by decision score, 0..10; calibrated at the step 3 gate):
+    strong_hire        >= 8.0
+    hire               >= 7.0
+    lean_hire          >= 6.2
     insufficient_evidence  >= 5.0  (borderline — probe round recommended)
     lean_no_hire       >= 4.0
     no_hire            >= 2.5
     strong_no_hire     < 2.5
-
-Signals:
-    coverage_ratio        — fraction of required competencies with evidence
-    confirmed_ratio       — confirmed / (confirmed + refuted + 1)
-    contradiction_count   — serious (high/medium) contradictions
-    difficulty_reached    — highest difficulty the candidate was pushed to
-    evidence_count        — total evidence items
 """
 from typing import Any
 
@@ -45,21 +40,40 @@ DECISIVE_DECISIONS = {
     "no_hire",
     "strong_no_hire",
 }
+HIRE_SIDE = {"strong_hire", "hire", "lean_hire"}
 
-# F4: verdict caps — coverage is the amount of the role actually tested. A
-# candidate who was never pushed across the competency set cannot earn the
-# top verdicts no matter how high the scores were: strong_hire needs >=85%
-# coverage, hire needs >=75%. Below the caps the verdict is demoted one notch.
+# Label thresholds on the decision score (plan step 3). Recalibrate only by the plan's rule: strong
+# clears hire by >= 0.3 and weak falls below 5.0 — never tuned to push a particular persona down.
+DECISION_THRESHOLDS = (
+    (8.0, "strong_hire"),
+    (7.0, "hire"),
+    (6.2, "lean_hire"),
+    (5.0, "insufficient_evidence"),
+    (4.0, "lean_no_hire"),
+    (2.5, "no_hire"),
+)
+
+# Caps (F4 / P4): coverage is the amount of the role actually tested.
 STRONG_HIRE_MIN_COVERAGE = 0.85
 HIRE_MIN_COVERAGE = 0.75
+HIRE_SIDE_MIN_COVERAGE = 0.5
+# A hire-side verdict needs the candidate tested at the role's level. This replaces the old
+# multiplicative difficulty credit: an un-escalated candidate is kept off the top labels, not scored down.
+MIN_HIRE_DIFFICULTY = 3
+# Plan step 4 cap 6: when at least half the answers were unsubstantiated, a hire-side verdict needs a probe.
+MAX_UNSUBSTANTIATED_SHARE_FOR_HIRE = 0.5
 
 __all__ = [
     "MIN_EVIDENCE_FOR_DECISION",
     "BORDERLINE_CONTRADICTION_CAP",
     "DECISION_SCALE",
     "DECISIVE_DECISIONS",
+    "HIRE_SIDE",
+    "DECISION_THRESHOLDS",
     "compute_decision_score",
     "map_decision",
+    "demote_to",
+    "apply_decision_caps",
     "decide_hiring_decision",
     "decision_next_steps",
 ]
@@ -82,30 +96,13 @@ def compute_decision_score(
     contradiction_count: int = 0,
     difficulty_reached: Any = None,
 ) -> float:
-    """A single 0..10 score from the interview signals.
+    """The 0..10 decision score: the canonical score minus a contradiction penalty.
 
-    The holistic score anchors the decision; coverage and confirmed hypotheses
-    pull it toward the extremes, contradictions pull it back to the middle.
-
-    Difficulty credibility (D2): evidence earned at the top of the scale is
-    fully credited; a candidate who was only ever pushed to difficulty 1 gets
-    a discounted credit — "difficulty 1 + high score" can no longer produce a
-    strong_hire. Credit: 0.55 + 0.09 * difficulty (d1=0.64, d3=0.82, d5=1.0).
+    ``coverage_ratio``, ``confirmed_ratio`` and ``difficulty_reached`` are accepted for compatibility but
+    are NOT scored — they gate the label through ``apply_decision_caps``. Counting them here again was the
+    double-count that pulled honest, un-escalated candidates 1-2 points below their own answers.
     """
-    holistic = _safe(holistic_score)
-    if not holistic:
-        coverage = _safe(coverage_ratio, 0.5)
-        holistic = 2.0 + coverage * 8.0
-
-    coverage = _safe(coverage_ratio, 0.5)
-    confirmed = _safe(confirmed_ratio, 0.5)
-    difficulty = _safe(difficulty_reached, 0)
-
-    difficulty_credit = min(1.0, 0.55 + 0.09 * difficulty)
-
-    score = holistic * difficulty_credit
-    score += (coverage - 0.5) * 2.0
-    score += (confirmed - 0.5) * 2.0
+    score = _safe(holistic_score)
     if int(contradiction_count or 0) >= BORDERLINE_CONTRADICTION_CAP:
         score -= 1.5 * min(int(contradiction_count), 3) / 3.0
     return round(max(0.0, min(10.0, score)), 2)
@@ -114,19 +111,73 @@ def compute_decision_score(
 def map_decision(score: float) -> str:
     """Map a decision score onto the 7-point scale."""
     score = _safe(score)
-    if score >= 8.5:
-        return "strong_hire"
-    if score >= 7.5:
-        return "hire"
-    if score >= 6.5:
-        return "lean_hire"
-    if score >= 5.0:
-        return "insufficient_evidence"
-    if score >= 4.0:
-        return "lean_no_hire"
-    if score >= 2.5:
-        return "no_hire"
+    for threshold, label in DECISION_THRESHOLDS:
+        if score >= threshold:
+            return label
     return "strong_no_hire"
+
+
+def _rank(label: str) -> int:
+    if label in DECISION_SCALE:
+        return DECISION_SCALE.index(label)
+    return DECISION_SCALE.index("insufficient_evidence")
+
+
+def demote_to(decision: str, ceiling: str) -> str:
+    """The worse of ``decision`` and ``ceiling`` — a cap never improves a verdict."""
+    return decision if _rank(decision) >= _rank(ceiling) else ceiling
+
+
+def apply_decision_caps(decision: str, signals: dict) -> tuple[str, list[dict]]:
+    """Apply the ordered caps to a score-based label.
+
+    Every cap that changes the label appends ``{rule, from, to, reason}``. Order (plan step 3):
+    1 evidence volume; 2-4 coverage; 5 difficulty at the role's level; 6 unsubstantiated share.
+    (Cap 7, claim conflicts, arrives with the claim ledger in step 5.)
+    """
+    adjustments: list[dict] = []
+
+    def cap(rule: str, ceiling: str, reason: str) -> None:
+        nonlocal decision
+        lowered = demote_to(decision, ceiling)
+        if lowered != decision:
+            adjustments.append({"rule": rule, "from": decision, "to": lowered, "reason": reason})
+            decision = lowered
+
+    evidence_count = int(signals.get("evidence_count") or 0)
+    coverage = _safe(signals.get("coverage_ratio"), 0.0)
+    difficulty = _safe(signals.get("difficulty_reached"), 0)
+    role_floor = int(_safe(signals.get("role_floor"), 1))
+    unsub = signals.get("unsubstantiated_share")
+
+    # 1. Too little evidence to decide anything, in either direction.
+    if evidence_count < MIN_EVIDENCE_FOR_DECISION and decision != "insufficient_evidence":
+        adjustments.append({
+            "rule": "evidence_count", "from": decision, "to": "insufficient_evidence",
+            "reason": f"only {evidence_count} evidence item(s); need {MIN_EVIDENCE_FOR_DECISION}",
+        })
+        decision = "insufficient_evidence"
+
+    if decision in HIRE_SIDE:
+        # 2-4. Coverage of the role.
+        if decision == "strong_hire" and coverage < STRONG_HIRE_MIN_COVERAGE:
+            cap("coverage", "hire", f"coverage {coverage:.0%} < {STRONG_HIRE_MIN_COVERAGE:.0%} for strong_hire")
+        if coverage < HIRE_SIDE_MIN_COVERAGE:
+            cap("coverage", "insufficient_evidence",
+                f"coverage {coverage:.0%} < {HIRE_SIDE_MIN_COVERAGE:.0%}: most of the role was not tested")
+        elif coverage < HIRE_MIN_COVERAGE:
+            cap("coverage", "lean_hire", f"coverage {coverage:.0%} < {HIRE_MIN_COVERAGE:.0%}")
+        # 5. Tested at the role's level.
+        needed = max(MIN_HIRE_DIFFICULTY, role_floor + 1)
+        if difficulty < needed:
+            cap("difficulty", "lean_hire",
+                f"not tested at the role's level: difficulty reached {difficulty:.0f} < {needed}")
+        # 6. Substantiation.
+        if unsub is not None and _safe(unsub) >= MAX_UNSUBSTANTIATED_SHARE_FOR_HIRE:
+            cap("unsubstantiated", "insufficient_evidence",
+                f"{_safe(unsub):.0%} of answers were unsubstantiated; probe the claims before hiring")
+
+    return decision, adjustments
 
 
 def decide_hiring_decision(
@@ -137,69 +188,47 @@ def decide_hiring_decision(
     contradiction_count: int = 0,
     difficulty_reached: Any = None,
     evidence_count: int = 0,
+    role_floor: int = 1,
+    unsubstantiated_share: Any = None,
 ) -> dict:
     """Deterministic 7-point hiring decision with full rationale.
 
-    Returns ``{decision, decision_score, signals, rationale, flag_review}``.
+    Returns ``{decision, draft_decision, decision_score, signals, adjustments, rationale, flag_review}``:
+    ``draft_decision`` is the score's label before any cap, ``decision`` the label after the caps.
     """
-    evidence_count = int(evidence_count or 0)
-    difficulty = _safe(difficulty_reached, 0)
-    difficulty_credit = min(1.0, 0.55 + 0.09 * difficulty)
-    score = compute_decision_score(
-        holistic_score=holistic_score,
-        coverage_ratio=coverage_ratio,
-        confirmed_ratio=confirmed_ratio,
-        contradiction_count=contradiction_count,
-        difficulty_reached=difficulty_reached,
-    )
-
-    if evidence_count < MIN_EVIDENCE_FOR_DECISION:
-        decision = "insufficient_evidence"
-    else:
-        decision = map_decision(score)
-
-    # F4: coverage caps — high scores on a half-tested role are not a
-    # strong_hire. Demote one notch when the tested coverage is too thin.
-    coverage = _safe(coverage_ratio, 0.0)
-    coverage_capped = ""
-    if decision == "strong_hire" and coverage < STRONG_HIRE_MIN_COVERAGE:
-        decision = "hire"
-        coverage_capped = (
-            f"strong_hire capped to hire: coverage {coverage:.0%} < "
-            f"{STRONG_HIRE_MIN_COVERAGE:.0%}"
-        )
-    elif decision == "hire" and coverage < HIRE_MIN_COVERAGE:
-        decision = "lean_hire"
-        coverage_capped = (
-            f"hire capped to lean_hire: coverage {coverage:.0%} < {HIRE_MIN_COVERAGE:.0%}"
-        )
-
+    score = compute_decision_score(holistic_score=holistic_score, contradiction_count=contradiction_count)
     signals = {
         "coverage_ratio": round(_safe(coverage_ratio, 0.0), 4),
         "confirmed_ratio": round(_safe(confirmed_ratio, 0.0), 4),
         "contradiction_count": int(contradiction_count or 0),
         "difficulty_reached": _safe(difficulty_reached, 0),
-        "evidence_count": evidence_count,
-        "coverage_capped": coverage_capped,
+        "evidence_count": int(evidence_count or 0),
+        "role_floor": int(_safe(role_floor, 1)),
+        "unsubstantiated_share": (
+            round(_safe(unsubstantiated_share), 3) if unsubstantiated_share is not None else None
+        ),
     }
+    draft = map_decision(score)
+    decision, adjustments = apply_decision_caps(draft, signals)
+    # Compatibility: report and harness readers know ``coverage_capped``.
+    signals["coverage_capped"] = next((a["reason"] for a in adjustments if a["rule"] == "coverage"), "")
 
     rationale = (
-        f"Deterministic 7-point decision: score {score}/10 "
-        f"(holistic {_safe(holistic_score):.1f} scaled by difficulty credit "
-        f"{difficulty_credit:.2f} at difficulty {signals['difficulty_reached']:.0f}, "
-        f"adjusted by coverage {signals['coverage_ratio']:.0%}, confirmed-ratio "
-        f"{signals['confirmed_ratio']:.0%}, {signals['contradiction_count']} "
-        f"serious contradiction(s))."
+        f"Deterministic 7-point decision: score {score}/10 (weighted competency average "
+        f"{_safe(holistic_score):.2f}, {signals['contradiction_count']} serious contradiction(s)); "
+        f"coverage {signals['coverage_ratio']:.0%}, difficulty reached {signals['difficulty_reached']:.0f}."
     )
-    if coverage_capped:
-        rationale = f"{rationale} {coverage_capped}."
+    if adjustments:
+        rationale += " " + " ".join(f"Capped {a['from']} -> {a['to']}: {a['reason']}." for a in adjustments)
 
     return {
         "decision": decision,
+        "draft_decision": draft,
         "decision_score": score,
         "decision_scale": "7_point",
         "signals": signals,
-        "flag_review": bool(coverage_capped) or evidence_count < MIN_EVIDENCE_FOR_DECISION,
+        "adjustments": adjustments,
+        "flag_review": any(a["rule"] in ("coverage", "evidence_count") for a in adjustments),
         "rationale": rationale,
     }
 

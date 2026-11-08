@@ -73,12 +73,25 @@ def test_compute_canonical_score_is_the_single_composite_formula():
         difficulty_reached=1,
     )
     details = sufficiency["details"]
-    total_weight = sum(d["weight"] for d in details.values())
-    competency_average = (
-        sum(d["average_score"] * d["weight"] for d in details.values()) / total_weight
-    )
+    with_evidence = [d for d in details.values() if d["evidence_count"] > 0]
+    total_weight = sum(d["weight"] for d in with_evidence)
+    competency_average = sum(d["average_score"] * d["weight"] for d in with_evidence) / total_weight
+    # Plan step 3: the canonical score IS the weighted competency average (no confidence/coverage blend).
     assert rec["composite_score"] == compute_canonical_score(competency_average, 2 / 11, 1.0)
-    assert rec["composite_score"] == 6.64
+    assert rec["composite_score"] == round(competency_average, 2) == 8.18
+
+
+def test_canonical_average_ignores_required_competencies_without_evidence():
+    from app.agents.reasoning.contradiction_engine import weighted_competency_average
+
+    summary = {
+        "a": {"evidence_count": 2, "average_score": 8.0},
+        "b": {"evidence_count": 0, "average_score": 0.0},
+    }
+    assert weighted_competency_average(summary, ["a", "b"], {"a": 1.0, "b": 1.0}) == 8.0
+    # nothing required has evidence -> any evidence counts; none at all -> 0.0
+    assert weighted_competency_average(summary, ["b"], {}) == 8.0
+    assert weighted_competency_average({}, ["a"], {}) == 0.0
 
 
 def test_canonical_score_from_state_reads_recommendation():
@@ -101,7 +114,7 @@ def test_canonical_score_from_state_recomputes_without_recommendation():
         "competency_taxonomy": [{"id": "a", "weight": 2.0}],
         "hypotheses": _hypotheses(confirmed=1, extra_open=0),
     }
-    assert canonical_score_from_state(state) == 9.0
+    assert canonical_score_from_state(state) == 8.0
 
 
 def test_synthesis_holistic_anchors_canonical_never_llm():
@@ -237,8 +250,11 @@ def test_hiring_decision_not_strong_hire_at_difficulty_one():
         },
     }
     decision = decide_hiring_decision(**_decision_signals(state))
-    assert decision["decision"] != "strong_hire"
-    assert decision["decision_score"] < 8.5
+    assert decision["decision"] == "lean_hire"
+    # Plan step 3: the score stays the evidence; difficulty and coverage cap the label, with reasons.
+    assert decision["decision_score"] == 8.55
+    # 73% coverage already holds it at lean_hire; the difficulty cap changes nothing, so it isn't recorded.
+    assert [a["rule"] for a in decision["adjustments"]] == ["coverage", "coverage"]
 
 
 async def test_hiring_decision_llm_explains_never_decides(stub_llm):
@@ -268,13 +284,34 @@ async def test_hiring_decision_llm_explains_never_decides(stub_llm):
         "rationale": "weaknesses prevent a strong_hire recommendation",
         "next_steps": ["reject"],
     }))
-    out = await hiring_decision_node(state)
+    from app.agents.decision.hiring_decision import explain_final_decision
+
+    out = await explain_final_decision(await hiring_decision_node(state))
     hd = out["hiring_decision"]
     assert hd["decision"] == "strong_hire"  # the engine wins
-    assert "decision" not in hd["llm_draft"]  # the LLM never offers one
-    assert "confidence" not in hd["llm_draft"]
+    assert set(hd["llm_draft"]) == {"rationale"}  # the LLM never offers a decision or next steps
     assert hd["confidence"] > 0.5  # deterministic confidence, not the LLM's 0.1
     assert "weaknesses prevent" not in hd["rationale"]
+    assert hd["next_steps"] == ["schedule follow-up with the hiring manager", "prepare offer discussion"]
+
+
+def test_next_steps_follow_the_final_decision_after_review():
+    """P7: a draft strong_hire demoted by review must end with probe-round next steps, not an offer."""
+    from app.agents.decision.decision_review import finalize_decision
+    from app.engine.decision import finalize_verdict_outputs
+
+    draft = decide_hiring_decision(
+        holistic_score=9.0, coverage_ratio=1.0, evidence_count=12, difficulty_reached=5,
+    )
+    draft["next_steps"] = ["prepare offer discussion"]
+    reviewed = finalize_decision(draft, [{"issue": "contradictions", "severity": "high", "detail": "2 conflicts"}])
+    out = finalize_verdict_outputs({"hiring_decision": reviewed})["hiring_decision"]
+    assert out["decision"] == "insufficient_evidence"
+    assert out["draft"] == "strong_hire"
+    assert out["next_steps"][0] == "schedule a short probe round"
+    assert not any("offer" in step for step in out["next_steps"])
+    assert out["adjustments"][-1]["rule"] == "review:contradictions"
+    assert out["demotion_reason"] == "2 conflicts"
 
 
 async def test_decision_confidence_tempered_by_weaknesses(stub_llm):
@@ -335,8 +372,8 @@ def test_recommendation_capped_at_difficulty_one():
         comp_weights=WEIGHTS,
         difficulty_reached=1,
     )
-    assert rec["verdict"] == "borderline"
-    assert rec["composite_score"] == 6.64  # composite stays canonical
+    assert rec["verdict"] == "borderline"  # strong_hire label, capped by the shared difficulty rule
+    assert rec["composite_score"] == 8.18  # composite stays canonical
 
 
 def test_recommendation_uncapped_at_top_difficulty():

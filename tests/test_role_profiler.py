@@ -326,8 +326,11 @@ def test_strong_hire_capped_on_low_coverage():
         holistic_score=9.6, coverage_ratio=0.73, confirmed_ratio=0.8,
         difficulty_reached=5, evidence_count=13,
     )
-    assert result["decision"] == "hire"  # capped from strong_hire
-    assert "strong_hire capped" in result["signals"]["coverage_capped"]
+    # Plan step 3 caps 2+3: < 85% blocks strong_hire, < 75% holds a hire-side verdict at lean_hire.
+    assert result["decision"] == "lean_hire"
+    assert result["draft_decision"] == "strong_hire"
+    assert "for strong_hire" in result["signals"]["coverage_capped"]
+    assert [a["to"] for a in result["adjustments"]] == ["hire", "lean_hire"]
     assert result["flag_review"] is True
 
 

@@ -84,6 +84,13 @@ def summarize(path: Path) -> dict:
         "unsubstantiated_share": unsub,
         "admitted_gaps": sum(1 for s in signals if s.get("admitted_gap")),
         "flag_review": hd.get("flag_review"),
+        "draft": hd.get("draft") or hd.get("draft_decision"),
+        "adjustments": [a.get("rule") for a in (hd.get("adjustments") or []) if isinstance(a, dict)],
+        # Step 3 gate: a verdict of insufficient_evidence or lower must never suggest an offer.
+        "offer_mismatch": (
+            rep.get("verdict") not in HIRE_SIDE
+            and any("offer" in str(step).lower() for step in (hd.get("next_steps") or []))
+        ),
         "demotion": hd.get("demotion_reason") or "",
         "difficulty_reached": (hd.get("signals") or {}).get("difficulty_reached"),
         "ownership": dict(Counter(e.get("ownership") for e in ev)),
@@ -111,6 +118,8 @@ def main():
         print(f"{'':<61} answers={r['answers']} unscored={r['unscored']} clarif={r['clarifications']} "
               f"avg={r['avg_score']} ev_minus_turn={r['ev_minus_turn']}")
         print(f"{'':<61} unsub_share={r['unsubstantiated_share']} admitted_gaps={r['admitted_gaps']}")
+        print(f"{'':<61} draft={r['draft']} adjustments={r['adjustments'] or '-'}"
+              f"{' OFFER-MISMATCH' if r['offer_mismatch'] else ''}")
         print(f"{'':<61} contradictions={r['serious_contradictions']} claim_conflicts={r['claim_conflicts']} "
               f"flag={r['flag_review']} demotion={r['demotion'][:60]!r}")
         print(f"{'':<61} challenge={r['challenge_share']} fallbackQ={r['fallback_questions']} "

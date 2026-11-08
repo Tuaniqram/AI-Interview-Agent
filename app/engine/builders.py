@@ -378,9 +378,9 @@ def build_report_response(state: StateLike) -> dict:
             "decision_score": hd.get("decision_score"),
             "coverage_ratio": rec.get("coverage_ratio"),
             "composite_score_note": (
-                "holistic fit score (competency average 50%, hypothesis "
-                "confidence 30%, coverage 20%) — not the per-answer average; "
-                "the final verdict is the deterministic hiring_decision"
+                "weighted competency average over the required competencies that have "
+                "evidence — not the per-answer average; coverage, difficulty and "
+                "substantiation act as caps on the verdict (see hiring_decision.adjustments)"
             ),
         },
         "interview_performance": {

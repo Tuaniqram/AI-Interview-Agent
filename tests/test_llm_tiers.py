@@ -83,14 +83,17 @@ async def test_synthesis_routes_to_strong_tier(stub_llm):
     assert stub.calls[0]["tier"] == "strong"
 
 
-async def test_hiring_decision_routes_to_strong_tier(stub_llm):
+async def test_hiring_decision_explanation_routes_to_strong_tier(stub_llm):
+    from app.agents.decision.hiring_decision import explain_final_decision
+
     stub = stub_llm(response=DECISION_JSON)
     state = make_v4_state(
         job_role="Backend Engineer",
         final_report={"holistic_score": 7.2, "fit_assessment": "Good Fit"},
         hiring_recommendation={"verdict": "hire", "confidence": 0.8, "coverage_ratio": 0.9},
     )
-    await hiring_decision_node(state)
+    state = await hiring_decision_node(state)
+    await explain_final_decision(state)
     assert stub.calls[0]["tier"] == "strong"
 
 

@@ -160,6 +160,12 @@ def _merge_lists(*lists: list, cap: int = _MAX_HIGHLIGHTS) -> list[str]:
     return merged
 
 
+def _peak_difficulty(state: InterviewState) -> int:
+    from app.agents.planning.difficulty_engine import max_difficulty_reached
+
+    return max_difficulty_reached(state)
+
+
 def build_final_report(
     state: InterviewState,
     canonical: float,
@@ -210,7 +216,7 @@ def build_final_report(
         "skills_tested": skills_tested,
         "skills_weak": skills_weak,
         "coverage_map": _coverage_map(state),
-        "max_difficulty_reached": state.get("difficulty_level", 1),
+        "max_difficulty_reached": _peak_difficulty(state),
         "score_timeline": timeline,
     }
 
@@ -223,8 +229,12 @@ async def synthesis_node(state: InterviewState) -> InterviewState:
     from app.services.llm_service import get_llm_service
     from app.services.prompt_loader import load_prompt
 
+    from app.agents.planning.difficulty_engine import max_difficulty_reached
+    from app.agents.reasoning.evidence_engine import unsubstantiated_share
+
     canonical = canonical_score_from_state(state) or 0.0
     job_role = state.get("job_role", "Unknown")
+    unsub = unsubstantiated_share(state.get("answer_signals"))
     timeline = _score_timeline(state)
     trend = _growth_trend(timeline)
     coverage_map = _coverage_map(state)
@@ -241,7 +251,7 @@ async def synthesis_node(state: InterviewState) -> InterviewState:
             score_timeline=json.dumps(timeline, indent=2),
             avg_score=f"{canonical:.1f}",
             growth_trend=trend,
-            max_difficulty=f"Level {state.get('difficulty_level', 1)}/3",
+            max_difficulty=f"Level {max_difficulty_reached(state)}/5",
             skills_tested=json.dumps(sorted((state.get("competency_summary") or {}).keys()), indent=2)
             if state.get("competency_summary")
             else "None recorded",
@@ -264,6 +274,9 @@ async def synthesis_node(state: InterviewState) -> InterviewState:
             or "[]",
             evidence_weaknesses=json.dumps(_evidence_weaknesses(state.get("competency_summary") or {}), indent=2)
             or "[]",
+            # Plan step 5 fills the claim ledger; until then nothing is tracked.
+            claim_conflicts="None",
+            unsubstantiated_share=f"{unsub:.0%} of scored answers" if unsub is not None else "N/A",
         )
 
         response = await llm_service.invoke(

@@ -89,10 +89,13 @@ async def test_unified_evaluator_prompt_renders_completely(stub_llm):
 
 async def test_synthesis_prompt_renders_completely(stub_llm):
     stub = stub_llm(response=SYNTHESIS_JSON)
-    await synthesis_node(make_v4_state(job_role="Software Engineer"))
+    await synthesis_node(make_v4_state(job_role="Software Engineer", difficulty_level=2, max_difficulty_reached=4))
     prompt = stub.calls[0]["prompt"]
     assert not _leftover(prompt), _leftover(prompt)
     assert "Score Timeline" in prompt
+    # Plan step 3 (P12): the 1-5 scale and the PEAK level, not the closing one.
+    assert "/3" not in prompt
+    assert "Level 4/5" in prompt
 
 
 async def test_difficulty_governor_prompt_renders_completely(stub_llm):
@@ -140,11 +143,14 @@ async def test_hiring_decision_prompt_renders_completely(stub_llm):
         hiring_recommendation={"verdict": "hire", "confidence": 0.8, "coverage_ratio": 0.9},
         evidence_store=[{"id": "e1"}, {"id": "e2"}],
     )
-    result = await hiring_decision_node(state)
+    from app.agents.decision.hiring_decision import explain_final_decision
+
+    result = await explain_final_decision(await hiring_decision_node(state))
     assert result["hiring_decision"]["decision"] == "insufficient_evidence"
     assert result["hiring_decision"]["decision_scale"] == "7_point"
-    assert "decision" not in result["hiring_decision"]["llm_draft"]
-    assert "confidence" not in result["hiring_decision"]["llm_draft"]
+    assert set(result["hiring_decision"]["llm_draft"]) == {"rationale"}
     prompt = stub.calls[0]["prompt"]
     assert not _leftover(prompt), _leftover(prompt)
     assert "Hiring Decision" in prompt
+    assert "evidence_count" in prompt  # the cap that set the decision is listed as an adjustment
+    assert "Next Steps (fixed)" in prompt

@@ -337,6 +337,14 @@ bluffer.
 - awkward isn't `no_hire` in either run
 - no report with a decision of `insufficient_evidence` or lower has "offer" in its next steps
 
+**Gate result (2026-11-08, `out/step3a`, `out/step3b`; run after step 4, strong tier on gpt-oss-120b): passed.** strong
+hire ×2 at 7.68 / 7.64 (clears hire by 0.64-0.68); weak lean_no_hire ×2 at 4.88 / 4.28; awkward lean_no_hire /
+insufficient_evidence; bluffer insufficient_evidence / no_hire; no offer on any non-hire report. Thresholds kept at their
+initial values (the calibration rule was met). Unsubstantiated share on 120b: awkward 7%, weak 7-21%, bluffer 36-43%, so
+cap 6 did not fire. **Watch (step 5):** in run B three `score_inconsistency` contradictions (two answers on one competency
+4+ points apart) took 1.5 off awkward's score (3.63 vs an answer average near 5), giving a no_hire draft. Only the review
+rule that moves any decisive verdict to insufficient_evidence on serious contradictions kept it off no_hire.
+
 The bluffer may still be hire-side; that's for steps 4 and 5. **Calibration rule:** set the `map_decision` thresholds so the
 strong runs clear hire with a margin of ≥ 0.3 and the weak runs fall below 5.0. Don't tune thresholds to push the bluffer down.
 That's the rubric's and the ledger's job.

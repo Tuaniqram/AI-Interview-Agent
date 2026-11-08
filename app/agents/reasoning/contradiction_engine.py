@@ -59,21 +59,23 @@ def resolved_hypothesis_confidence(confirmed: int, refuted: int, untested: int, 
         return int(confirmed or 0) / tested
     return float(fallback)
 
-# F5: the composite's bonus terms (hypothesis confidence, coverage) may lift a
-# candidate at most this far above the demonstrated competency average.
-COMPOSITE_CEILING_ABOVE_AVERAGE = 1.5
 
 # V5 role gate: an interview may only finish once it pushed the candidate
 # across most of the required set. 80% over the resolved blueprint is the
 # "senior hire needs breadth" floor — 5 required competencies need 8+ answers.
 FINISH_MIN_COVERAGE = 0.8
 
-# V5 difficulty caps: evidence earned without being pushed is discounted.
-# A session that never left the floor cannot produce the top verdicts —
-# same philosophy as the decision engine's difficulty credit, applied to the
-# recommendation scale so the two layers never disagree.
-_DIFFICULTY_VERDICT_CAPS = {1: "borderline", 2: "borderline", 3: "hire", 4: "hire"}
-_DIFFICULTY_VERDICT_ORDER = ("reject", "weak", "borderline", "hire", "strong_hire")
+# Plan step 3: the legacy 5-way recommendation verdict is DERIVED from the 7-point decision label, so the
+# two scales can never disagree (this replaces a second, separate threshold table).
+_SEVEN_POINT_TO_LEGACY = {
+    "strong_hire": "strong_hire",
+    "hire": "hire",
+    "lean_hire": "borderline",
+    "insufficient_evidence": "weak",
+    "lean_no_hire": "reject",
+    "no_hire": "reject",
+    "strong_no_hire": "reject",
+}
 
 # Fix 6: fallback required set mirrors the session default — the HIGH/MEDIUM
 # subset capped at 6 — so coverage/sufficiency never targets the whole
@@ -190,33 +192,42 @@ def detect_contradictions(
 
 def compute_canonical_score(
     competency_average_score: float,
-    hypothesis_confidence: float,
-    coverage_ratio: float,
+    hypothesis_confidence: float | None = None,
+    coverage_ratio: float | None = None,
 ) -> float:
-    """The single canonical 0..10 composite every downstream component must use.
+    """The single canonical 0..10 score every downstream component must use.
 
-    Blends the evidence-weighted competency average (0.5), hypothesis
-    resolution confidence scaled to 0..10 (0.3) and coverage scaled to 0..10
-    (0.2). This is THE canonical score: the recommendation's ``composite_score``,
-    the persisted session ``final_score``, the synthesis ``holistic_score`` and
-    the hiring-decision anchor all read from this one formula so the report can
-    never show competing truths.
-
-    F5 ceiling: the composite may never exceed the demonstrated competency
-    average by more than ``COMPOSITE_CEILING_ABOVE_AVERAGE``. Confidence and
-    coverage are refinements — they can push a strong performer to the top of
-    their demonstrated band, but they can never rescue a candidate whose raw
-    evidence sits below the bar. Without the cap, a candidate averaging 6.5
-    but claiming 100% hypothesis confirmation and 100% coverage would score
-    8.25 and be "hired" on bonuses alone.
+    Plan step 3: it IS the weighted competency average over the required competencies that have
+    evidence. ``hypothesis_confidence`` and ``coverage_ratio`` are not scored — they are used as gates
+    (the decision engine's caps). Blending them in, and then adding them again in the decision score,
+    double-counted them. The recommendation's ``composite_score``, the persisted ``final_score``, the
+    synthesis ``holistic_score`` and the hiring-decision anchor all read this one number.
     """
-    composite = (
-        float(competency_average_score) * 0.5
-        + (float(hypothesis_confidence) * 10.0) * 0.3
-        + (float(coverage_ratio) * 10.0) * 0.2
-    )
-    ceiling = float(competency_average_score) + COMPOSITE_CEILING_ABOVE_AVERAGE
-    return round(min(composite, ceiling), 2)
+    return round(float(competency_average_score or 0.0), 2)
+
+
+def weighted_competency_average(summary: dict, required: list, weights: dict) -> float:
+    """Weighted average score over the ``required`` competencies that have evidence.
+
+    A required competency without evidence is NOT counted as a zero (coverage is enforced by the decision
+    caps instead, so a short interview is not penalised twice). With no evidence on any required
+    competency, every competency with evidence counts; with none at all, 0.0.
+    """
+    def _avg(comps):
+        total = weighted = 0.0
+        for comp in comps:
+            s = summary.get(comp) or {}
+            if int(s.get("evidence_count", 0) or 0) <= 0:
+                continue
+            w = float(weights.get(comp, 1.0) or 1.0)
+            total += w
+            weighted += float(s.get("average_score", 0.0) or 0.0) * w
+        return (weighted / total) if total > 0 else None
+
+    value = _avg(required or [])
+    if value is None:
+        value = _avg(list(summary.keys()))
+    return value or 0.0
 
 
 def canonical_score_from_state(state: dict) -> float | None:
@@ -236,15 +247,7 @@ def canonical_score_from_state(state: dict) -> float | None:
     hypotheses = state.get("hypotheses") or []
     weights = competency_weights(state)
     required = state.get("required_competencies") or list(weights.keys())
-    total_weight = 0.0
-    weighted_sum = 0.0
-    for comp in required:
-        weight = weights.get(comp, 1.0)
-        total_weight += weight
-        weighted_sum += (
-            float(summary.get(comp, {}).get("average_score", 0.0) or 0.0) * weight
-        )
-    competency_average = weighted_sum / total_weight if total_weight > 0 else 0.0
+    competency_average = weighted_competency_average(summary, required, weights)
 
     confirmed = sum(1 for h in hypotheses if h.get("status") == "confirmed")
     refuted = sum(1 for h in hypotheses if h.get("status") == "refuted")
@@ -393,11 +396,9 @@ def evaluate_sufficiency(
     resolved = confirmed + refuted
     resolved_ratio = (resolved / total_hypotheses) if total_hypotheses > 0 else 0.0
 
-    # Competency average score (weighted) on 0..10 scale
-    competency_average_score = (
-        sum(d["average_score"] * d["weight"] for d in comp_details.values()) / total_weight
-        if total_weight > 0
-        else 0.0
+    # Competency average score (weighted) on 0..10 scale — required competencies WITH evidence only.
+    competency_average_score = weighted_competency_average(
+        competency_summary, filtered_required, comp_weights
     )
 
     # hypothesis_confidence in 0..1 — diluted by untested hypotheses so an
@@ -421,26 +422,18 @@ def evaluate_sufficiency(
         coverage_ratio=coverage_ratio,
     )
 
-    # Verdict mapping based on final_score thresholds
-    if final_score >= 8.5:
-        verdict = "strong_hire"
-    elif 7.5 <= final_score < 8.5:
-        verdict = "hire"
-    elif 6.5 <= final_score < 7.5:
-        verdict = "borderline"
-    elif 5.0 <= final_score < 6.5:
-        verdict = "weak"
-    else:
-        verdict = "reject"
+    # Verdict: the 7-point label of the same score (one threshold table, in the decision engine), with the
+    # shared difficulty cap, translated to the legacy 5-way scale.
+    from app.agents.decision.decision_engine import apply_decision_caps, map_decision
 
-    # Difficulty cap: un-stress-tested evidence is discounted. A session stuck
-    # at difficulty 1-2 can never recommend hire — the decision engine applies
-    # the same restriction via its difficulty credit, so recommendation and
-    # decision cannot contradict each other.
+    label = map_decision(final_score)
     if difficulty_reached is not None:
-        cap = _DIFFICULTY_VERDICT_CAPS.get(int(difficulty_reached))
-        if cap and _DIFFICULTY_VERDICT_ORDER.index(verdict) > _DIFFICULTY_VERDICT_ORDER.index(cap):
-            verdict = cap
+        label, _ = apply_decision_caps(
+            label,
+            {"evidence_count": MIN_QUESTIONS_BEFORE_FINISH, "coverage_ratio": 1.0,
+             "difficulty_reached": difficulty_reached, "role_floor": 1},
+        )
+    verdict = _SEVEN_POINT_TO_LEGACY.get(label, "weak")
 
     # Legacy confidence computation (preserved for backward compatibility/tests):
     legacy_confidence = 0.0
