@@ -39,6 +39,7 @@ __all__ = [
     "SUFFICIENCY_GAP_THRESHOLD",
     "review_decision",
     "finalize_decision",
+    "compute_flag_review",
     "decision_review_node",
 ]
 
@@ -172,7 +173,46 @@ def _semantic_checks(state: dict) -> list[dict]:
     return evidence_reading_checks(state.get("evidence_reading"))
 
 
-def finalize_decision(draft: dict, checks: list[dict]) -> dict:
+# Rules whose adjustments are about coverage of the role (a short or unbalanced interview), which on their own
+# don't call for a human reviewer.
+_COVERAGE_RULES = {"coverage", "review:missing_competency"}
+FLAG_UNSUBSTANTIATED_SHARE = 0.3
+FLAG_OFF_RUBRIC_COUNT = 3
+
+
+def compute_flag_review(decision: dict, checks: list[dict] | None = None, state: dict | None = None) -> bool:
+    """Plan step 7 (P11): ask for a human only on real findings. True when any of:
+
+    * a demotion or cap other than coverage was applied (``decision["adjustments"]``)
+    * >= 3 off-rubric red flags
+    * any cross-answer risk from the final read
+    * unsubstantiated share >= 0.3 (from the evaluator's answer signals)
+    * any claim conflict that is not ``explained``
+    """
+    from app.agents.reasoning.evidence_engine import unsubstantiated_share
+
+    checks = checks or []
+    state = state or {}
+    if any(
+        isinstance(a, dict) and a.get("rule") not in _COVERAGE_RULES
+        for a in decision.get("adjustments") or []
+    ):
+        return True
+    for c in checks:
+        if c.get("issue") == "off_rubric_flag" and int(c.get("count", 0) or 0) >= FLAG_OFF_RUBRIC_COUNT:
+            return True
+        if c.get("issue") == "cross_answer_risk":
+            return True
+    share = unsubstantiated_share(state.get("answer_signals"))
+    if share is not None and share >= FLAG_UNSUBSTANTIATED_SHARE:
+        return True
+    return any(
+        isinstance(c, dict) and c.get("status", "open") != "explained"
+        for c in state.get("claim_conflicts") or []
+    )
+
+
+def finalize_decision(draft: dict, checks: list[dict], state: dict | None = None) -> dict:
     """Apply review findings to the draft, producing the final decision.
 
     Downgrades confidence for any finding, demotes a decisive verdict to
@@ -202,54 +242,15 @@ def finalize_decision(draft: dict, checks: list[dict]) -> dict:
 
     if any(c["issue"] == "contradictions" and c["severity"] == "high" for c in checks):
         confidence = max(0.0, confidence - 0.2)
-        decision["flag_review"] = True
 
     if any(c["issue"] == "overconfidence" for c in checks):
         confidence = max(0.0, confidence - 0.1)
-        decision["flag_review"] = True
 
-    if any(c["issue"] == "missing_competency" and c["severity"] == "high" for c in checks):
-        decision["flag_review"] = True
-
-    # Semantic (evidence-reading) findings: flag for human review and trim a
-    # little confidence, but they are capped at medium severity so they can
-    # never demote a decisive verdict on their own.
-    # A lone soft red flag appears in almost every interview, so it trims confidence but does not by
-    # itself ask for a human; it takes three of them, or a real contradiction / unverifiable claims.
-    semantic_issues = [
-        c
-        for c in checks
-        if c.get("issue") in ("off_rubric_flag", "cross_answer_risk", "unverifiable_claims")
-    ]
+    # Semantic (evidence-reading) findings trim a little confidence. Plan step 7: they never demote — the
+    # reading is a secondary signal; changed figures are demoted by the claim ledger's deterministic caps.
+    semantic_issues = [c for c in checks if c.get("issue") in ("off_rubric_flag", "cross_answer_risk")]
     if semantic_issues:
         confidence = max(0.0, confidence - 0.05 * min(len(semantic_issues), 2))
-    if any(
-        c["issue"] != "off_rubric_flag" or int(c.get("count", 0)) >= 3 for c in semantic_issues
-    ):
-        decision["flag_review"] = True
-
-    # ...with one exception, in the safe direction only: when most of the candidate's claims could not be
-    # verified, or their answers contradict each other more than once, a hire-side verdict is lowered to
-    # "needs a probe round". Hiring on unverifiable or inconsistent claims is the costly mistake; a no-hire
-    # verdict is never touched by this rule.
-    demoting = [c for c in checks if c.get("demote_hire")]
-    if decision.get("decision") in HIRE_SIDE_DECISIONS and demoting:
-        reason = (
-            "most claims could not be verified; probe them before hiring"
-            if demoting[0].get("issue") == "unverifiable_claims"
-            else "answers contradict each other; probe the inconsistencies before hiring"
-        )
-        adjustments.append({
-            "rule": f"review:{demoting[0].get('issue')}",
-            "from": decision.get("decision"),
-            "to": "insufficient_evidence",
-            "reason": reason,
-        })
-        decision["decision"] = "insufficient_evidence"
-        decision["flag_review"] = True
-        decision["demotion_reason"] = reason
-        confidence = min(confidence, 0.5)
-        demoted = True
 
     decision["adjustments"] = adjustments
     # Compatibility: report builder and harness read ``demotion_reason`` — the first recorded adjustment.
@@ -258,6 +259,7 @@ def finalize_decision(draft: dict, checks: list[dict]) -> dict:
 
     decision["confidence"] = round(confidence, 2)
     decision["demoted_to_undecided"] = demoted
+    decision["flag_review"] = compute_flag_review(decision, checks, state)
     decision["review"] = {
         "checks": checks,
         "confidence_before": original_confidence,
@@ -275,5 +277,5 @@ async def decision_review_node(state: dict) -> dict:
         return state
 
     checks = review_decision(draft, state)
-    final = finalize_decision(draft, checks)
+    final = finalize_decision(draft, checks, state)
     return {**state, "hiring_decision": final, "decision_review": final.get("review")}

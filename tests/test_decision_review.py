@@ -104,7 +104,8 @@ def test_finalize_downgrades_confidence_without_demoting():
     final = finalize_decision(DRAFT_HIRE, checks)
     assert final["decision"] == "hire"
     assert final["confidence"] < 0.85
-    assert final["flag_review"] is True
+    # Plan step 7: overconfidence trims confidence; it is not on the flag_review truth table.
+    assert final["flag_review"] is False
 
 
 def test_finalize_untouched_when_clean():

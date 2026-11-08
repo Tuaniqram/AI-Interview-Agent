@@ -14,19 +14,17 @@ import logging
 
 from app.agents.reasoning.evidence_reading import (
     map_evidence_reading,
-    transcript_payload,
+    transcript_by_question,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def _reading_token_budget(answers: int) -> int:
-    """Reply budget for the semantic read: about 150 tokens per answer plus headroom for the risk lists.
-
-    A flat 1,500 fitted ~8 answers; a full 14-question interview has ~20 evidence records, so the JSON
-    was cut off mid-way, failed to parse and the whole reading was silently dropped.
-    """
-    return min(8000, 600 + 180 * max(1, int(answers)))
+def _reading_token_budget(questions: int) -> int:
+    """Reply budget for the semantic read: one entry per QUESTION (plan step 7), about 180 tokens each,
+    plus headroom for the flag and risk lists. A flat 1,500 cut the JSON off mid-way and the whole reading
+    was silently dropped."""
+    return min(8000, 800 + 180 * max(1, int(questions)))
 
 
 async def evidence_reading_node(state: dict) -> dict:
@@ -40,7 +38,7 @@ async def evidence_reading_node(state: dict) -> dict:
         from app.services.llm_service import get_llm_service
         from app.services.prompt_loader import load_prompt
 
-        payload = transcript_payload(evidence)
+        payload = transcript_by_question(state)
         llm_service = get_llm_service()
         prompt = load_prompt(
             "evaluation",
@@ -49,7 +47,7 @@ async def evidence_reading_node(state: dict) -> dict:
             evidence_transcript=json.dumps(payload, ensure_ascii=False, indent=2),
         )
         response = await llm_service.invoke(
-            prompt=prompt, temperature=0.1, max_tokens=_reading_token_budget(len(payload)), tier="strong"
+            prompt=prompt, temperature=0.0, max_tokens=_reading_token_budget(len(payload)), tier="strong"
         )
 
         from app.intelligence._helpers import parse_json

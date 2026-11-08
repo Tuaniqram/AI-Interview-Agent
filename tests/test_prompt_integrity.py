@@ -127,7 +127,7 @@ async def test_evidence_reading_prompt_renders_completely(stub_llm):
     assert result["evidence_reading"]["per_answer"]["e1"]["claim_classification"] == "mentioned"
     prompt = stub.calls[0]["prompt"]
     assert not _leftover(prompt), _leftover(prompt)
-    assert "Candidate Answers" in prompt
+    assert "<transcript>" in prompt and '"question_number": 2' in prompt
 
 
 async def test_hiring_decision_prompt_renders_completely(stub_llm):

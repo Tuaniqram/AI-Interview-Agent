@@ -159,6 +159,12 @@ def finalize_verdict_outputs(state: dict) -> dict:
     final = decision.get("decision") or "insufficient_evidence"
     decision["next_steps"] = decision_next_steps(final)
     decision["draft"] = decision.get("draft_decision") or decision.get("draft") or final
+    # Plan step 7: the review flag is decided on the FINAL adjustments (calibration may add one after review).
+    from app.agents.decision.decision_review import compute_flag_review
+
+    decision["flag_review"] = compute_flag_review(
+        decision, (decision.get("review") or {}).get("checks") or [], state
+    )
     return {**state, "hiring_decision": decision}
 
 

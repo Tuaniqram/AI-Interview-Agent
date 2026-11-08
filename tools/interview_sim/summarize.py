@@ -94,6 +94,8 @@ def summarize(path: Path) -> dict:
         "conflict_statuses": dict(statuses),
         "admitted_gaps": sum(1 for s in signals if s.get("admitted_gap")),
         "flag_review": hd.get("flag_review"),
+        "read_questions": len(((d.get("evidence_reading") or {}).get("per_question")) or {}),
+        "read_risks": len(((d.get("evidence_reading") or {}).get("semantic_risks")) or []),
         "draft": hd.get("draft") or hd.get("draft_decision"),
         "adjustments": [a.get("rule") for a in (hd.get("adjustments") or []) if isinstance(a, dict)],
         # Step 3 gate: a verdict of insufficient_evidence or lower must never suggest an offer.
@@ -127,7 +129,8 @@ def main():
               f"cov={r['coverage']} diff={r['difficulty_reached']}{' CRASH' if r['error'] else ''}")
         print(f"{'':<61} answers={r['answers']} unscored={r['unscored']} clarif={r['clarifications']} "
               f"avg={r['avg_score']} ev_minus_turn={r['ev_minus_turn']}")
-        print(f"{'':<61} unsub_share={r['unsubstantiated_share']} admitted_gaps={r['admitted_gaps']}")
+        print(f"{'':<61} unsub_share={r['unsubstantiated_share']} admitted_gaps={r['admitted_gaps']} "
+              f"read_q={r['read_questions']} read_risks={r['read_risks']}")
         print(f"{'':<61} reconcile_q={r['reconcile_questions']} repeats={r['reconcile_repeats']} "
               f"accusing={r['reconcile_accusing']} conflict_status={r['conflict_statuses'] or '-'}")
         print(f"{'':<61} draft={r['draft']} adjustments={r['adjustments'] or '-'}"

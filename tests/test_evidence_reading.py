@@ -11,7 +11,7 @@ from app.agents.reasoning.evidence_reading import (
     evidence_reading_checks,
     evidence_reading_risk_flags,
     map_evidence_reading,
-    transcript_payload,
+    transcript_by_question,
 )
 from app.brain.evidence_reasoner import classify_claim, evidence_summary_stats
 from app.agents.decision.decision_review import finalize_decision, review_decision
@@ -20,9 +20,8 @@ from tests.conftest import make_v4_state
 EVIDENCE_READING_JSON = json.dumps({
     "per_answer": [
         {
-            "evidence_id": "e1",
+            "question_number": 1,
             "claim_classification": "proven",
-            "verifiable": True,
             "specificity": "high",
             "ownership": "first_person",
             "supporting_metric": "cut p99 latency 800ms -> 120ms across 40k req/s",
@@ -118,37 +117,84 @@ def test_map_evidence_reading_normalizes_and_drops_unknown_ids():
 def test_map_evidence_reading_defaults_invalid_enum():
     out = map_evidence_reading([{"id": "e1", "evidence_text": "a"}], {
         "per_answer": [{"evidence_id": "e1", "claim_classification": "legendary",
-                        "verifiable": "yes", "specificity": "max", "ownership": "god"}],
+                        "specificity": "max", "ownership": "god"}],
     })
     entry = out["per_answer"]["e1"]
     assert entry["claim_classification"] == "mentioned"
-    assert entry["verifiable"] is True  # truthy string coerced to bool
+    assert "verifiable" not in entry  # plan step 7: verifiability comes from the evaluator
     assert entry["specificity"] == "low"
     assert entry["ownership"] == "vague"
+
+
+def test_per_question_entries_fan_out_and_invented_questions_are_dropped():
+    store = [
+        {"id": "e1", "question_number": 3}, {"id": "e2", "question_number": 3}, {"id": "e3", "question_number": 4},
+    ]
+    out = map_evidence_reading(store, {"per_answer": [
+        {"question_number": 3, "claim_classification": "demonstrated", "specificity": "medium"},
+        {"question_number": 16, "claim_classification": "proven"},  # the reader cited "Q16" in a 14-question run
+    ]})
+    assert set(out["per_answer"]) == {"e1", "e2"}
+    assert out["per_answer"]["e2"]["claim_classification"] == "demonstrated"
+    assert list(out["per_question"]) == [3]
 
 
 def test_risk_flags_and_checks_capped_at_medium():
     reading = {
         "off_rubric": {"red_flags": ["overstated ownership"], "hidden_strengths": []},
         "semantic_risks": ["Q3 vs Q8 mismatch"],
-        "per_answer": {f"e{i}": {"verifiable": False} for i in range(4)},
+        "per_answer": {},
     }
     flags = evidence_reading_risk_flags(reading)
     assert any("off-rubric flag" in f for f in flags)
     assert any("cross-answer risk" in f for f in flags)
-    assert any("not backed by specifics" in f for f in flags)
 
     checks = evidence_reading_checks(reading)
     assert checks
     assert all(c["severity"] == "medium" for c in checks), checks
-    assert not any(c["severity"] == "high" for c in checks)
+    assert not any(c.get("demote_hire") for c in checks)
+    assert not any(c["issue"] == "unverifiable_claims" for c in checks)
 
 
-def test_transcript_payload_is_capped_and_deterministic():
-    store = [{"id": f"e{i}", "evidence_text": "x" * 5000} for i in range(30)]
-    payload = transcript_payload(store)
-    assert len(payload) == 20
-    assert all(len(item["evidence_text"]) <= 2000 for item in payload)
+def _long_interview(n=14, answer_len=5000):
+    questions = [{"text": f"Question {i} about topic {i}?"} for i in range(1, n + 1)]
+    history = []
+    for i, q in enumerate(questions, 1):
+        history += [{"role": "assistant", "content": q["text"]},
+                    {"role": "user", "content": f"A{i}-start " + "x" * answer_len + f" A{i}-end"}]
+    evidence = [{"id": f"e{i}", "question_number": i, "evidence_text": f"quote {i}"} for i in range(1, n + 1)]
+    return {"questions_asked": questions, "conversation_history": history, "evidence_store": evidence}
+
+
+def test_transcript_by_question_keeps_every_question_within_the_cap():
+    items = transcript_by_question(_long_interview())
+    assert [i["question_number"] for i in items] == list(range(1, 15))
+    total = sum(len(i["answer"]) + len(i["question"]) for i in items)
+    assert total <= 24_000
+    for i in items:
+        n = i["question_number"]
+        # trimmed in the middle: both ends survive
+        assert i["answer"].startswith(f"A{n}-start") and i["answer"].endswith(f"A{n}-end")
+        assert i["evidence_ids"] == [f"e{n}"]
+
+
+def test_transcript_by_question_uses_raw_answers_and_keeps_short_ones_whole():
+    state = _long_interview(n=3, answer_len=50)
+    items = transcript_by_question(state)
+    assert all("…" not in i["answer"] for i in items)
+    assert items[0]["question"] == "Question 1 about topic 1?"
+    # a clarification exchange stays inside its question
+    state["conversation_history"][2:2] = [
+        {"role": "user", "content": "Do you mean the cache?"},
+        {"role": "assistant", "content": "Yes, the read cache."},
+    ]
+    items = transcript_by_question(state)
+    assert "Do you mean the cache?" in items[0]["answer"] and items[1]["question_number"] == 2
+
+
+def test_transcript_falls_back_to_the_evidence_quote_without_history():
+    items = transcript_by_question({"evidence_store": [{"id": "e1", "question_number": 2, "evidence_text": "q2"}]})
+    assert items == [{"question_number": 2, "question": "", "answer": "q2", "evidence_ids": ["e1"]}]
 
 
 async def test_evidence_reading_node_populates_state(stub_llm):
@@ -157,12 +203,17 @@ async def test_evidence_reading_node_populates_state(stub_llm):
 
     state = make_v4_state(
         job_role="Backend Engineer",
-        evidence_store=[{"id": "e1", "evidence_text": "I owned the event pipeline."}],
+        evidence_store=[{"id": "e1", "question_number": 1, "evidence_text": "I owned the event pipeline."}],
+        questions_asked=[{"text": "What did you own?"}],
+        conversation_history=[{"role": "assistant", "content": "What did you own?"},
+                              {"role": "user", "content": "I owned the event pipeline end to end."}],
     )
     out = await evidence_reading_node(state)
     assert out["evidence_reading"]["per_answer"]["e1"]["claim_classification"] == "proven"
     assert stub.calls[0]["tier"] == "strong"
-    assert "Evidence Reading" in stub.calls[0]["prompt"]
+    assert stub.calls[0]["temperature"] == 0.0
+    prompt = stub.calls[0]["prompt"]
+    assert "Evidence Reading" in prompt and "I owned the event pipeline end to end." in prompt
 
 
 async def test_evidence_reading_node_falls_back_on_llm_failure(stub_llm):
@@ -188,24 +239,23 @@ def test_decision_review_semantic_checks_flag_but_never_demote():
     state = make_v4_state(
         hiring_decision={"decision": "hire", "decision_score": 8.0, "confidence": 0.7},
         hiring_recommendation={"verdict": "hire", "coverage_ratio": 0.9},
-        evidence_store=[
-            {"strength": 0.8} for _ in range(4)
-        ],
+        evidence_store=[{"strength": 0.8} for _ in range(4)],
         evidence_reading={
             "off_rubric": {"red_flags": ["overstated ownership"], "hidden_strengths": []},
-            "semantic_risks": ["Q3 vs Q8 mismatch"],
+            "semantic_risks": ["Q3 vs Q8 mismatch", "zero writes vs 0.5% anomalies"],
             "per_answer": {},
         },
     )
     draft = state["hiring_decision"]
     checks = review_decision(draft, state)
-    assert any(c["issue"] in ("off_rubric_flag", "cross_answer_risk") for c in checks)
+    assert any(c["issue"] == "cross_answer_risk" for c in checks)
 
-    final = finalize_decision(draft, checks)
-    # Medium-only semantic checks: flag for review + trim confidence, never demote.
+    final = finalize_decision(draft, checks, state)
+    # Plan step 7: two cross-answer risks flag for review and trim confidence, never demote.
     assert final["decision"] == "hire"
     assert final["flag_review"] is True
     assert final["confidence"] < 0.7
+    assert final.get("adjustments", []) == []
 
 
 def test_decision_review_without_reading_is_unchanged():
@@ -216,76 +266,45 @@ def test_decision_review_without_reading_is_unchanged():
     )
     draft = state["hiring_decision"]
     checks = review_decision(draft, state)
-    assert not any(c["issue"] in ("off_rubric_flag", "cross_answer_risk", "unverifiable_claims") for c in checks)
-    final = finalize_decision(draft, checks)
+    assert not any(c["issue"] in ("off_rubric_flag", "cross_answer_risk") for c in checks)
+    final = finalize_decision(draft, checks, state)
     assert final["decision"] == "hire"
-    assert final.get("flag_review", False) is False
+    assert final["flag_review"] is False
     assert final["confidence"] == 0.7
 
 
-# --- a hire must not rest on mostly-unverifiable claims ---------------------------------------------
+# --- flag_review truth table (plan step 7, P11) ------------------------------------------------------
 
 
-def _reading(verifiable_flags):
-    return {
-        "per_answer": {f"e{i}": {"claim_classification": "mentioned", "verifiable": v} for i, v in enumerate(verifiable_flags)},
-        "off_rubric": {"red_flags": [], "hidden_strengths": []},
-        "semantic_risks": [],
-    }
+def _flag(adjustments=(), checks=(), **state):
+    from app.agents.decision.decision_review import compute_flag_review
+
+    return compute_flag_review({"adjustments": list(adjustments)}, list(checks), state)
 
 
-def _final(decision, flags):
-    from app.agents.decision.decision_review import finalize_decision
+def test_flag_review_truth_table():
+    assert _flag() is False
+    # coverage caps alone don't need a human
+    assert _flag(adjustments=[{"rule": "coverage"}, {"rule": "review:missing_competency"}]) is False
+    # any other cap or demotion does
+    for rule in ("difficulty", "claim_conflict", "claim_pattern", "unsubstantiated", "calibration",
+                 "review:contradictions", "evidence_count"):
+        assert _flag(adjustments=[{"rule": rule}]) is True, rule
+    assert _flag(checks=[{"issue": "off_rubric_flag", "count": 2}]) is False
+    assert _flag(checks=[{"issue": "off_rubric_flag", "count": 3}]) is True
+    assert _flag(checks=[{"issue": "cross_answer_risk", "count": 1}]) is True
+    signals = [{"verifiable": False}] + [{"verifiable": True}] * 3
+    assert _flag(answer_signals=signals) is False  # 25%
+    assert _flag(answer_signals=signals + [{"verifiable": False}]) is True  # 40%
+    assert _flag(claim_conflicts=[{"status": "explained"}]) is False
+    for status in ("open", "asked", "unexplained"):
+        assert _flag(claim_conflicts=[{"status": status}]) is True, status
+
+
+def test_cross_answer_risk_never_demotes_any_verdict():
     from app.agents.reasoning.evidence_reading import evidence_reading_checks
 
-    return finalize_decision({"decision": decision, "confidence": 0.8}, evidence_reading_checks(_reading(flags)))
-
-
-def test_hire_is_lowered_when_most_claims_are_unverifiable():
-    for verdict in ("strong_hire", "hire", "lean_hire"):
-        final = _final(verdict, [True] * 3 + [False] * 8)
-        assert final["decision"] == "insufficient_evidence", verdict
-        assert final["flag_review"] is True and final["demoted_to_undecided"] is True
-        assert final["confidence"] <= 0.5
-
-
-def test_hire_stands_when_claims_are_mostly_verifiable():
-    final = _final("hire", [True] * 9 + [False] * 3)  # 3 unverified is flagged, but not a majority
-    assert final["decision"] == "hire"
-    assert final["flag_review"] is True
-
-
-def test_no_hire_is_never_touched_by_the_unverifiable_rule():
-    for verdict in ("lean_no_hire", "no_hire", "strong_no_hire"):
-        assert _final(verdict, [False] * 8)["decision"] == verdict
-
-
-def test_a_short_interview_cannot_trigger_the_majority_rule():
-    assert _final("hire", [False, False, False])["decision"] == "hire"  # under 4 answers read
-
-
-def _final_with_risks(decision, risks):
-    from app.agents.decision.decision_review import finalize_decision
-    from app.agents.reasoning.evidence_reading import evidence_reading_checks
-
-    reading = _reading([True] * 8)  # everything verifiable: only the contradictions are in play
-    reading["semantic_risks"] = risks
-    return finalize_decision({"decision": decision, "confidence": 0.8}, evidence_reading_checks(reading))
-
-
-def test_hire_is_lowered_when_answers_contradict_each_other_more_than_once():
-    for verdict in ("strong_hire", "hire", "lean_hire"):
-        final = _final_with_risks(verdict, ["metric changes between Q3 and Q9", "zero writes vs a 0.5% anomaly rate"])
-        assert final["decision"] == "insufficient_evidence", verdict
-        assert "contradict each other" in final["demotion_reason"]
-        assert final["flag_review"] is True
-
-
-def test_a_single_contradiction_is_only_flagged():
-    final = _final_with_risks("hire", ["ownership wording shifts between answers"])
-    assert final["decision"] == "hire" and final["flag_review"] is True
-
-
-def test_contradictions_never_touch_a_no_hire_verdict():
-    for verdict in ("lean_no_hire", "no_hire", "strong_no_hire"):
-        assert _final_with_risks(verdict, ["a", "b", "c"])["decision"] == verdict
+    checks = evidence_reading_checks({"semantic_risks": ["a", "b", "c"], "per_answer": {}})
+    for verdict in ("strong_hire", "hire", "lean_hire", "lean_no_hire", "no_hire"):
+        final = finalize_decision({"decision": verdict, "confidence": 0.8}, checks)
+        assert final["decision"] == verdict

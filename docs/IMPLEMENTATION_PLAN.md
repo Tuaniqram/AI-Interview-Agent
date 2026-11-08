@@ -557,6 +557,13 @@ makes that review secondary.
 - bluffer is flagged 2/2
 - verdict tallies are no worse than step 6
 
+**Gate result (2026-11-08, `out/step7a`, `out/step7b`):** strong hire ×2, not flagged in either run, never demoted; bluffer
+insufficient_evidence ×2, flagged ×2; weak lean_no_hire ×2; the reader covered every question (14/14). **Not met:** awkward run B
+no_hire (competency average 3.68, no adjustments, nothing from the reading). Cause (step 8, P6): awkward got 13 CHALLENGER questions
+in a row at difficulty 1 and 5 admitted gaps with no fundamentals follow-up, so concrete answers scored against "stress-test the
+trade-offs" (2.0-2.7). In step 3 the same profile was only kept off no_hire by an unrelated contradiction demotion. Step 7 was
+committed and step 8 is next; its gate re-checks awkward.
+
 ---
 
 ### Step 8: Interview modes: challenge only after real depth, a fundamentals step after a gap, better fallback questions (P6, P8, user decision 4)
