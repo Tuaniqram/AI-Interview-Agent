@@ -217,3 +217,29 @@ def test_names_both_figures():
     assert _names_both_figures("Earlier 87%, later 92% — how do they relate?", c)
     assert not _names_both_figures("Earlier 87%, later 18% — how do they relate?", c)
     assert not _names_both_figures("How do those two figures relate?", c)
+
+
+def test_three_changed_figures_hold_a_hire_even_when_explained():
+    """User decision after step 6: 1-2 explained conflicts never count; 3+ changed figures need a probe round."""
+    from app.agents.decision.decision_engine import decide_hiring_decision
+    from app.agents.decision.hiring_decision import _decision_signals
+
+    explained = [{**_conflict(cid=f"c{i}", status="explained"), "severity": "low"} for i in range(3)]
+    signals = _decision_signals({"claim_conflicts": explained})
+    assert signals["unexplained_claim_conflicts"] == 0 and signals["claim_conflicts_total"] == 3
+    base = dict(holistic_score=6.4, coverage_ratio=1.0, evidence_count=12, difficulty_reached=5)
+    held = decide_hiring_decision(**base, claim_conflicts_total=3)
+    assert held["draft_decision"] == "lean_hire" and held["decision"] == "insufficient_evidence"
+    assert held["adjustments"][-1]["rule"] == "claim_pattern"
+    two = decide_hiring_decision(**base, claim_conflicts_total=2)
+    assert two["decision"] == "lean_hire" and two["adjustments"] == []
+    # never touches a no-hire-side label
+    low = decide_hiring_decision(**{**base, "holistic_score": 4.5}, claim_conflicts_total=5)
+    assert low["decision"] == "lean_no_hire" and low["adjustments"] == []
+
+
+def test_admitted_inflation_is_not_counted_in_the_pattern():
+    from app.agents.decision.hiring_decision import _decision_signals
+
+    conflicts = [{**_conflict(cid="a", status="explained")}, {**_conflict(cid="b"), "kind": "inflation_admitted"}]
+    assert _decision_signals({"claim_conflicts": conflicts})["claim_conflicts_total"] == 1

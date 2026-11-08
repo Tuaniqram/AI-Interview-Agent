@@ -66,6 +66,8 @@ def _decision_signals(state: InterviewState) -> dict:
         "unsubstantiated_share": unsubstantiated_share(state.get("answer_signals")),
         "unexplained_claim_conflicts": len(open_conflicts),
         "inflation_admitted": any(c.get("kind") == "inflation_admitted" for c in open_conflicts),
+        # Cap 7b counts the changed figures themselves, explained or not; an admitted inflation is its own cap.
+        "claim_conflicts_total": sum(1 for c in claim_conflicts if c.get("kind") != "inflation_admitted"),
     }
 
 

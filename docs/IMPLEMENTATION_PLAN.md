@@ -306,6 +306,10 @@ bluffer.
     6. (step 4) unsubstantiated share ≥ 0.5 and hire-side → insufficient_evidence
     7. (step 5) unexplained claim conflict and hire-side → insufficient_evidence; 2+ unexplained or any `inflation_admitted` →
        at most lean_no_hire
+    7b. (added after step 6, user decision "pattern cap at 3+") 3 or more changed figures in one interview, explained or not
+       (admitted inflations excluded, they have cap 7), and hire-side → insufficient_evidence. One or two explained conflicts never
+       count. Replayed on the step 5/6 runs: it holds the bluffer run that only the evidence-reading review had held; strong (0-1
+       changed figures) is unaffected.
   - `decide_hiring_decision` returns `draft_decision` (label before caps), `decision`, `adjustments` and `flag_review`.
 - `app/agents/decision/hiring_decision.py`:
   - `hiring_decision_node` becomes deterministic only, with no LLM call.

@@ -62,6 +62,8 @@ HIRE_SIDE_MIN_COVERAGE = 0.5
 MIN_HIRE_DIFFICULTY = 3
 # Plan step 4 cap 6: when at least half the answers were unsubstantiated, a hire-side verdict needs a probe.
 MAX_UNSUBSTANTIATED_SHARE_FOR_HIRE = 0.5
+# Cap 7b: this many changed figures in one interview (any status) hold a hire-side verdict for a probe round.
+MAX_CHANGED_FIGURES_FOR_HIRE = 3
 
 __all__ = [
     "MIN_EVIDENCE_FOR_DECISION",
@@ -189,6 +191,14 @@ def apply_decision_caps(decision: str, signals: dict) -> tuple[str, list[dict]]:
         cap("claim_conflict", "insufficient_evidence",
             "a figure changed during the interview and was not explained; reconcile it before hiring")
 
+    # 7b. The pattern (user decision after step 6): one or two changed figures, once explained, never count —
+    # but 3+ changed figures in one interview, explained or not, need a probe round before a hire. In the step 6
+    # gate the bluffer changed 3-4 figures per interview and explained each fluently; strong changed 0-1.
+    total = int(signals.get("claim_conflicts_total") or 0)
+    if total >= MAX_CHANGED_FIGURES_FOR_HIRE and decision in HIRE_SIDE:
+        cap("claim_pattern", "insufficient_evidence",
+            f"{total} figures changed during the interview; even explained, probe them before hiring")
+
     return decision, adjustments
 
 
@@ -204,6 +214,7 @@ def decide_hiring_decision(
     unsubstantiated_share: Any = None,
     unexplained_claim_conflicts: int = 0,
     inflation_admitted: bool = False,
+    claim_conflicts_total: int = 0,
 ) -> dict:
     """Deterministic 7-point hiring decision with full rationale.
 
@@ -223,6 +234,7 @@ def decide_hiring_decision(
         ),
         "unexplained_claim_conflicts": int(unexplained_claim_conflicts or 0),
         "inflation_admitted": bool(inflation_admitted),
+        "claim_conflicts_total": int(claim_conflicts_total or 0),
     }
     draft = map_decision(score)
     decision, adjustments = apply_decision_caps(draft, signals)
