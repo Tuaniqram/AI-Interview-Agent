@@ -54,6 +54,7 @@ def test_reconcile_beats_the_seniority_challenge_and_the_strategy_mode():
     decision = director_controller(state)
     assert decision["probe_mode"] == "reconcile_claim"
     mode = _resolve_interview_mode({
+        "question_number": 6,
         "director": decision, "claim_conflicts": [_conflict()],
         "question_strategy": {"question_strategy": {"mode": "challenge"}},
     }, claims=["cut latency by 92%"], followup_number=2)

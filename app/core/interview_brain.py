@@ -111,6 +111,8 @@ class InterviewBrain:
     answer_signals: list = field(default_factory=list)  # step 4: one entry per scored answer (plan D1)
     claim_ledger: list = field(default_factory=list)     # step 5: every measurable claim (claim_ledger.py)
     claim_conflicts: list = field(default_factory=list)  # step 5: detected conflicts, mirrored into contradictions
+    scaffolded_competencies: list = field(default_factory=list)  # step 8: got a fundamentals question after a gap
+    challenged_competencies: list = field(default_factory=list)  # step 8: already asked one CHALLENGER question
     evaluator_mode: str = "unified"
     evaluation_score: Optional[float] = None
     extracted_evidence: list = field(default_factory=list)

@@ -460,6 +460,7 @@ async def test_question_generator_guard_is_mode_aware(stub_llm, monkeypatch):
     captured.clear()
     stub_llm(response="Question: Another fresh angle.")
     await qg.question_generator_node(make_v4_state(
+        question_number=2,  # question 1 is always EXPLORER (plan step 8)
         hypothesis_target={"id": "h1", "competency": "tech_core"},
         competency_summary={"tech_core": {"evidence_count": 1}},
         questions_asked=[

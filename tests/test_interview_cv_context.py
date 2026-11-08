@@ -84,9 +84,16 @@ def test_curly_apostrophes_are_treated_like_straight_ones():
 
 
 def test_real_past_work_claims_are_still_challenged():
-    risk = _risk("I used Kafka in the architecture", "We had microservices with event-driven design")
+    risk = _risk("I designed the ledger service", "I led the move to event-driven design")
     assert risk["ownership_claims"] == 2
     assert risk["action"] == "challenge"
+
+
+def test_topic_words_and_we_are_not_ownership_claims():
+    """Plan step 8 (P6): "we used Kafka for reliability" is not a claim of seniority."""
+    risk = _risk("We used Kafka for reliability", "I used Kafka in the architecture",
+                 "We had microservices with event-driven design")
+    assert risk["ownership_claims"] == 0
 
 
 def test_a_hedge_next_to_a_real_claim_still_counts():
@@ -158,7 +165,7 @@ def test_catalog_names_win_over_prettified_ids(monkeypatch):
     assert "Database Design" in qg._fallback_question("tech_db", "Backend Developer", 2)
 
 
-def test_a_rejected_duplicate_is_retried_twice_before_falling_back():
+def test_a_rejected_duplicate_is_retried_three_times_before_falling_back():
     from app.agents.generation.question_generator import MAX_DUPLICATE_RETRIES
 
-    assert MAX_DUPLICATE_RETRIES == 2
+    assert MAX_DUPLICATE_RETRIES == 3  # plan step 8: 2 retries left too many template openers

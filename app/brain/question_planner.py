@@ -72,8 +72,14 @@ def generate_question_strategy(
     contradiction_state: dict,
     hypothesis_brain: list[dict],
     competency_summary: dict | None = None,
+    target_competency: str | None = None,
 ) -> dict:
-    """Select the next competency and question mode (max-information rule)."""
+    """Select the next competency and question mode (max-information rule).
+
+    Plan step 8: the MODE is computed for the competency the session is actually asking about
+    (``target_competency``, from the hypothesis target) — computing it for the ranked top competency
+    produced a "challenge" mode meant for one topic on every question. ``planned_competency`` keeps the
+    ranked choice."""
     competency_summary = competency_summary or {}
     ranked = sorted(
         uncertainty_map.items(),
@@ -90,7 +96,10 @@ def generate_question_strategy(
         }
 
     comp_id, entry = ranked[0]
-    mode = _decide_comp_mode(comp_id, entry, contradiction_state, hypothesis_brain)
+    mode_comp, mode_entry = comp_id, entry
+    if target_competency and target_competency in uncertainty_map:
+        mode_comp, mode_entry = target_competency, uncertainty_map[target_competency]
+    mode = _decide_comp_mode(mode_comp, mode_entry, contradiction_state, hypothesis_brain)
     note = _mode_note(mode)
     action = "ask" if mode not in ("validate", "none") else ("validate" if mode == "validate" else "conclude")
 
@@ -99,8 +108,8 @@ def generate_question_strategy(
             "action": action,
             "mode": mode,
             "note": note,
-            "target_competency": comp_id,
-            "uncertainty": entry.get("uncertainty", 0.0),
+            "target_competency": mode_comp,
+            "uncertainty": mode_entry.get("uncertainty", 0.0),
         },
         "planned_competency": comp_id if mode != "conclude" else None,
         "next_question_strategy": {

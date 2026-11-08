@@ -110,9 +110,20 @@ def test_mode_flavor_unchanged_for_explorer():
     assert _apply_mode_flavor(base, "EXPLORER", "tech_core") == base
 
 
-def test_mode_flavor_adds_tradeoffs_for_challenger():
-    flavored = _apply_mode_flavor("Design a scalable system.", "CHALLENGER", "tech_core")
-    assert "trade-offs" in flavored
+def test_mode_flavor_leaves_challenger_templates_plain():
+    """Plan step 8: the generic "Now, challenge yourself…" suffix is gone."""
+    assert _apply_mode_flavor("Design a scalable system.", "CHALLENGER", "tech_core") == "Design a scalable system."
+
+
+def _deep(**overrides):
+    """A mid-interview state where tech_core has shown real depth (CHALLENGER allowed, plan step 8)."""
+    base = dict(
+        question_number=5,
+        hypothesis_target={"id": "h1", "competency": "tech_core", "status": "testing"},
+        competency_summary={"tech_core": {"evidence_count": 2, "average_score": 7.2}},
+    )
+    base.update(overrides)
+    return make_v4_state(**base)
 
 
 def test_mode_flavor_asks_for_measurement_for_verifier():
@@ -121,10 +132,47 @@ def test_mode_flavor_asks_for_measurement_for_verifier():
 
 
 def test_resolve_interview_mode_from_director_probe_mode():
-    state = make_v4_state(director={"probe_mode": "deep_probe"})
-    assert _resolve_interview_mode(state) == "PROBER"
-    state = make_v4_state(director={"probe_mode": "challenge_candidate"})
-    assert _resolve_interview_mode(state) == "CHALLENGER"
+    assert _resolve_interview_mode(_deep(director={"probe_mode": "deep_probe"})) == "PROBER"
+    assert _resolve_interview_mode(_deep(director={"probe_mode": "challenge_candidate"})) == "CHALLENGER"
+
+
+def test_question_one_is_always_explorer():
+    state = _deep(question_number=0, director={"probe_mode": "challenge_candidate"},
+                  question_strategy={"question_strategy": {"mode": "challenge"}})
+    assert _resolve_interview_mode(state) == "EXPLORER"
+
+
+def test_challenger_needs_real_depth_first():
+    no_evidence = _deep(director={"probe_mode": "challenge_candidate"}, competency_summary={})
+    assert _resolve_interview_mode(no_evidence) == "PROBER"
+    shallow = _deep(director={"probe_mode": "challenge_candidate"},
+                    competency_summary={"tech_core": {"evidence_count": 3, "average_score": 6.4}})
+    assert _resolve_interview_mode(shallow) == "PROBER"
+    # depth is judged on the competency being asked about
+    assert _resolve_interview_mode(
+        _deep(director={"probe_mode": "challenge_candidate"}), target_competency="tech_db"
+    ) == "PROBER"
+
+
+def test_mode_order_table():
+    conflict = {"id": "c1", "status": "open", "kind": "changed_value", "metric_key": "x",
+                "first": {"question_number": 2, "value_text": "1%"}, "second": {"question_number": 4, "value_text": "5%"}}
+    gap = [{"question_number": 5, "competency": "tech_core", "admitted_gap": True}]
+    strategy = {"question_strategy": {"mode": "explore"}}
+    # 1 RECONCILER beats everything
+    assert _resolve_interview_mode(_deep(director={"probe_mode": "reconcile_claim"}, claim_conflicts=[conflict],
+                                         answer_signals=gap, question_strategy=strategy), claims=["9x"],
+                                   followup_number=2) == "RECONCILER"
+    # 2 SCAFFOLD beats the claim override and the strategy
+    assert _resolve_interview_mode(_deep(director={"probe_mode": "step_down"}, answer_signals=gap,
+                                         question_strategy=strategy), claims=["9x"], followup_number=2) == "SCAFFOLD"
+    # 3 VERIFIER on a follow-up with a claim beats the director mode
+    assert _resolve_interview_mode(_deep(director={"probe_mode": "deep_probe"}), claims=["9x"],
+                                   followup_number=2) == "VERIFIER"
+    # 4 the director's mode beats the strategy mode
+    assert _resolve_interview_mode(_deep(director={"probe_mode": "deep_probe"}, question_strategy=strategy)) == "PROBER"
+    # a step_down / reconcile with nothing left to do is an ordinary follow-up
+    assert _resolve_interview_mode(_deep(director={"probe_mode": "step_down"})) == "PROBER"
 
 
 def test_resolve_interview_mode_from_v5_brain_strategy():
@@ -139,24 +187,25 @@ def test_resolve_interview_mode_from_v5_brain_strategy():
         ("validate", "CLOSER"),
         ("conclude", "CLOSER"),
     ]:
-        state = make_v4_state(
+        # plan step 8: the strategy mode applies when the director gave no probe mode
+        state = _deep(
             question_strategy={
                 "question_strategy": {"mode": strategy_mode, "note": ""},
                 "planned_competency": "tech_core",
             },
-            director={"probe_mode": "deep_probe"},
         )
         assert (
             _resolve_interview_mode(state) == expected
         ), f"strategy mode {strategy_mode} should map to {expected}"
 
 
-def test_resolve_interview_mode_prefers_strategy_over_director():
-    state = make_v4_state(
+def test_resolve_interview_mode_prefers_director_over_strategy():
+    """Plan step 8: one topic's "challenge" strategy no longer drives every question."""
+    state = _deep(
         question_strategy={"question_strategy": {"mode": "challenge", "note": ""}},
         director={"probe_mode": "deep_probe"},
     )
-    assert _resolve_interview_mode(state) == "CHALLENGER"
+    assert _resolve_interview_mode(state) == "PROBER"
 
 
 def test_strategy_guidance_builds_intent_line():
@@ -181,8 +230,9 @@ def test_strategy_guidance_builds_intent_line():
 
 
 def test_resolve_interview_mode_fallback_by_difficulty():
-    assert _resolve_interview_mode(make_v4_state(difficulty_level=4)) == "CHALLENGER"
-    assert _resolve_interview_mode(make_v4_state(difficulty_level=1)) == "EXPLORER"
+    assert _resolve_interview_mode(_deep(difficulty_level=4)) == "CHALLENGER"
+    assert _resolve_interview_mode(_deep(difficulty_level=4, competency_summary={})) == "PROBER"  # no depth yet
+    assert _resolve_interview_mode(_deep(difficulty_level=1)) == "PROBER"
 
 
 def test_claim_targets_extracts_quantified_results():
@@ -206,11 +256,11 @@ def test_claim_targets_skips_questions_and_dedups():
 
 
 def test_resolve_interview_mode_claim_override_requires_followup():
-    state = make_v4_state(director={"probe_mode": "challenge_candidate"})
+    state = _deep(director={"probe_mode": "challenge_candidate"})
     assert _resolve_interview_mode(state, claims=["30% reduction"], followup_number=0) == "CHALLENGER"
     assert _resolve_interview_mode(state, claims=["30% reduction"], followup_number=1) == "VERIFIER"
     assert (
-        _resolve_interview_mode(make_v4_state(director={"probe_mode": "deep_probe"}), claims=["9x"], followup_number=2)
+        _resolve_interview_mode(_deep(director={"probe_mode": "deep_probe"}), claims=["9x"], followup_number=2)
         == "VERIFIER"
     )
     assert _resolve_interview_mode(state, followup_number=2) == "CHALLENGER"
@@ -320,10 +370,10 @@ async def test_node_exhausts_retries_then_uses_deterministic_fallback(stub_llm):
 
 async def test_node_deterministic_fallback_respects_challenger_mode(stub_llm):
     stub_llm(fail=True)
-    state = await question_generator_node(make_v4_state(
+    state = await question_generator_node(_deep(
         difficulty_level=5,
         director={"probe_mode": "challenge_candidate"},
-        question_number=0,
     ))
-    assert "trade-offs" in state["current_question"]
     assert state["question_objective"]["mode"] == "CHALLENGER"
+    assert state["questions_asked"][-1]["question_source"] == "template"
+    assert state["challenged_competencies"] == ["tech_core"]

@@ -67,7 +67,7 @@ def _question_tier() -> str:
 # which is easy to hit over a 14-question interview on one role. A fresh model question reads far better
 # than the boilerplate fallback, and a retry is a fast, cheap call. The deterministic fallback still
 # guarantees a fresh question when every attempt is rejected.
-MAX_DUPLICATE_RETRIES = 2
+MAX_DUPLICATE_RETRIES = 3  # plan step 8: was 2; in the step 8 gate every template opener followed 3 rejected drafts
 
 # F2: fallback bank — the deterministic last resort must not regenerate a
 # rejected question verbatim. Variants are tried in order until one passes
@@ -142,6 +142,7 @@ _MODE_BY_PROBE_MODE = {
     "verify_claim": "VERIFIER",
     "finish_competency": "CLOSER",
     "reconcile_claim": "RECONCILER",  # plan step 6
+    "step_down": "SCAFFOLD",  # plan step 8
 }
 
 # V5 brain strategy mode → conductor interviewer mode. The planner translates
@@ -173,62 +174,84 @@ _MODE_DESCRIPTIONS = {
     "CHALLENGER": "Stress-test a senior candidate: trade-offs, alternatives, edge cases",
     "VERIFIER": "Verify a claim: ask how it was measured or demonstrated",
     "RECONCILER": "Two different figures for the same thing: ask neutrally how they fit together",
+    "SCAFFOLD": "The candidate has not done this: one easier, fundamentals-level question on the same competency",
     "CLOSER": "Wrap up: confirm overall picture with one final question",
 }
+
+
+# Plan step 8 (P6): a CHALLENGER question needs real depth first — evidence on the competency averaging at
+# least this (the hire bar on the competency-score scale). Below it the question is an ordinary PROBER follow-up.
+CHALLENGE_MIN_AVERAGE = 6.5
 
 
 def _resolve_interview_mode(
     state: InterviewState,
     claims: list | None = None,
     followup_number: int = 0,
+    target_competency: str = "",
 ) -> str:
-    """The interviewer depth mode for the next question (Fix 2/4, P3).
+    """The interviewer depth mode for the next question (Fix 2/4, P3; order from plan step 8).
 
-    Primary source is the director's ``probe_mode``; falls back to
-    difficulty/evidence heuristics when the director did not run.
-
-    Claim override (P3): a measurable claim in the candidate's last answer is
-    the strongest evidence need — a follow-up on the current competency must
-    pin it down before any other agenda, so VERIFIER wins over every mode.
+    1. RECONCILER — the director chose to reconcile a claim conflict (step 6)
+    2. SCAFFOLD — the candidate just admitted a gap (step 8, "fundamentals, same topic")
+    3. VERIFIER — a measurable claim in the last answer, on a follow-up
+    4. the director's probe mode
+    5. the brain strategy mode
+    6. heuristics
+    Then CHALLENGER is downgraded to PROBER until the competency has shown real depth, and question 1 is
+    always EXPLORER. (Before step 8 the strategy mode came first and one topic's "challenge" mode drove a
+    whole interview: awkward got 13 CHALLENGER questions in a row at difficulty 1.)
     """
-    # Plan step 6: a claim conflict the director chose to reconcile wins over every other agenda,
-    # including the brain strategy and the claim-verification override.
-    director = state.get("director") or {}
-    if director.get("probe_mode") == "reconcile_claim" and _conflict_to_reconcile(state):
-        return "RECONCILER"
-
-    # V5 brain strategy is the first-class signal: the planner already ranks
-    # competencies by uncertainty and picks the mode that reduces risk most.
-    strategy = state.get("question_strategy") or {}
-    strategy_mode = ""
-    if isinstance(strategy, dict):
-        qs = strategy.get("question_strategy") or {}
-        strategy_mode = qs.get("mode") or ""
-        if strategy_mode in _MODE_BY_STRATEGY:
-            return _MODE_BY_STRATEGY[strategy_mode]
-
     director = state.get("director") or {}
     probe_mode = director.get("probe_mode")
-    if probe_mode == "reconcile_claim":
-        mode = "PROBER"  # nothing left to reconcile (already asked): an ordinary follow-up
+    if int(state.get("question_number", 0) or 0) == 0:
+        return "EXPLORER"
+    if probe_mode == "reconcile_claim" and _conflict_to_reconcile(state):
+        return "RECONCILER"
+    if probe_mode == "step_down" and _gap_to_scaffold(state):
+        return "SCAFFOLD"
+
+    if claims and followup_number > 0:
+        mode = "VERIFIER"
+    elif probe_mode in ("reconcile_claim", "step_down"):
+        mode = "PROBER"  # nothing left to reconcile / scaffold: an ordinary follow-up
     elif probe_mode in _MODE_BY_PROBE_MODE:
         mode = _MODE_BY_PROBE_MODE[probe_mode]
     else:
-        difficulty = int(state.get("difficulty_level", 1) or 1)
-        summary = state.get("competency_summary") or {}
-        target = state.get("hypothesis_target") or {}
-        competency = target.get("competency", "")
-        collected = int(summary.get(competency, {}).get("evidence_count", 0) or 0)
-        if difficulty >= 4:
-            mode = "CHALLENGER"
-        elif collected > 0:
-            mode = "PROBER"
+        strategy = state.get("question_strategy") or {}
+        qs = (strategy.get("question_strategy") or {}) if isinstance(strategy, dict) else {}
+        strategy_mode = qs.get("mode") or ""
+        if strategy_mode in _MODE_BY_STRATEGY:
+            mode = _MODE_BY_STRATEGY[strategy_mode]
         else:
-            mode = "EXPLORER"
+            difficulty = int(state.get("difficulty_level", 1) or 1)
+            summary = state.get("competency_summary") or {}
+            competency = target_competency or (state.get("hypothesis_target") or {}).get("competency", "")
+            collected = int(summary.get(competency, {}).get("evidence_count", 0) or 0)
+            if difficulty >= 4:
+                mode = "CHALLENGER"
+            elif collected > 0:
+                mode = "PROBER"
+            else:
+                mode = "EXPLORER"
 
-    if claims and followup_number > 0:
-        return "VERIFIER"
+    if mode == "CHALLENGER" and not _shown_depth(state, target_competency):
+        mode = "PROBER"
     return mode
+
+
+def _shown_depth(state: dict, competency: str = "") -> bool:
+    competency = competency or (state.get("hypothesis_target") or {}).get("competency", "")
+    summary = (state.get("competency_summary") or {}).get(competency) or {}
+    if int(summary.get("evidence_count", 0) or 0) <= 0:
+        return False
+    return float(summary.get("average_score", 0.0) or 0.0) >= CHALLENGE_MIN_AVERAGE
+
+
+def _gap_to_scaffold(state: dict) -> str | None:
+    from app.agents.decision.director import gap_to_scaffold
+
+    return gap_to_scaffold(state)
 
 
 def _conflict_to_reconcile(state: dict) -> dict | None:
@@ -429,7 +452,15 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
     last_answer = _last_user_message(state.get("conversation_history", []))
     claims = _claim_targets(last_answer)
     followup_number = _count_competency_questions(previous_questions, target_competency)
-    interview_mode = _resolve_interview_mode(state, claims, followup_number)
+    interview_mode = _resolve_interview_mode(state, claims, followup_number, target_competency)
+    # Plan step 8: a SCAFFOLD turn stays on the competency the candidate just said they have not done, one
+    # question at difficulty <= 2 (this question only; the difficulty level is unchanged).
+    scaffold_competency = _gap_to_scaffold(state) if interview_mode == "SCAFFOLD" else None
+    gap_admitted = "yes" if scaffold_competency else "no"
+    if scaffold_competency:
+        target_competency = scaffold_competency
+        followup_number = _count_competency_questions(previous_questions, target_competency)
+        difficulty = min(int(difficulty or 1), 2)
     # Plan step 6: a RECONCILER turn targets the conflict's competency, so the answer's evidence lands where
     # the claim was made.
     reconcile = _conflict_to_reconcile(state) if interview_mode == "RECONCILER" else None
@@ -444,10 +475,17 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
     strategy_guidance = _strategy_guidance(state)
     candidate_memory = _memory_context(state)
     cv_brief = _cv_context(state, interview_mode)
+    cv_anchor = _cv_anchor(state, target_competency)
+    from app.agents.planning.difficulty_engine import role_difficulty_floor
+
+    role_floor = role_difficulty_floor(job_role)
+    # Plan step 8: where each question came from (llm / template / fallback_bank), for the harness and P8.
+    source = {"value": "llm"}
 
     async def _emit(attempt: int = 0, last_rejected: str = "") -> tuple[dict | None, str]:
         """Generate one question, bumping the deterministic template slot on
         retries so a rejected duplicate is not regenerated verbatim."""
+        source["value"] = "llm"
         if persona == "conductor":
             conversation_turn = await _generate_conductor_turn(
                 state=state,
@@ -469,7 +507,11 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 cv_brief=cv_brief,
                 conflict_to_reconcile=conflict_to_reconcile,
                 reconcile_text=reconcile_text,
+                gap_admitted=gap_admitted,
+                cv_anchor=cv_anchor,
+                role_floor=role_floor,
             )
+            source["value"] = conversation_turn.pop("_source", "llm")
             return conversation_turn, conversation_turn["question"]
         try:
             question_text = await _generate_llm_question(
@@ -496,9 +538,11 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 candidate_memory=candidate_memory,
                 cv_brief=cv_brief,
                 conflict_to_reconcile=conflict_to_reconcile,
+                gap_admitted=gap_admitted,
             )
         except Exception as e:
             logger.warning(f"LLM question generation failed ({e}), falling back to deterministic")
+            source["value"] = "template"
             question_text = _generate_deterministic_question(
                 target_competency=target_competency or "general",
                 job_role=job_role,
@@ -513,6 +557,8 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 attempt_offset=attempt,
                 claims=claims,
                 reconcile_text=reconcile_text,
+                cv_anchor=cv_anchor,
+                role_floor=role_floor,
             )
         return None, question_text
 
@@ -545,7 +591,7 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
         duplicate, detail = guard.is_duplicate(question_text, guard_memory)
         if not duplicate:
             break
-        logger.info(
+        logger.warning(
             f"Rejected duplicate question (attempt {attempt + 1}): "
             f"{detail.get('kind')} against {detail.get('against', '')[:80]!r} "
             f"(score={guard.similarity_score}, embedding={guard.used_embedding})"
@@ -573,14 +619,18 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 attempt_offset=offset,
                 claims=claims,
                 reconcile_text=reconcile_text,
+                cv_anchor=cv_anchor,
+                role_floor=role_floor,
             )
             if candidate in rejected_texts:
                 continue
             is_dup, _ = guard.is_duplicate(candidate, guard_memory)
             if not is_dup:
                 question_text = candidate
+                source["value"] = "template"
                 break
         if not question_text:
+            source["value"] = "fallback_bank"
             # F2: rotate the fallback bank — never emit a question the guard
             # already rejected (Q6 == Q8 was exactly this path).
             for variant in range(len(_FALLBACK_BANK)):
@@ -613,12 +663,14 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
             f"{question_text[:60]!r} for {replacement[:60]!r}"
         )
         question_text = replacement
+        source["value"] = "template"
 
     # Plan step 6: the reconcile question must name both figures; the model sometimes wrote "those two figures"
     # without numbers, quoted a wrong figure, or drifted to another topic — use the neutral template instead.
     if reconcile and reconcile_text and not _names_both_figures(question_text, reconcile):
         logger.info(f"Reconcile question did not name both figures, using the template: {question_text[:80]!r}")
         question_text = reconcile_text
+        source["value"] = "template"
         if conversation_turn:
             conversation_turn = {**conversation_turn, "question": reconcile_text}
 
@@ -644,6 +696,7 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
         "competency": target_competency,
         "difficulty": difficulty,
         "mode": interview_mode,
+        "question_source": source["value"],
         "timestamp": datetime.now(timezone.utc).isoformat(),
     })
 
@@ -655,9 +708,21 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
         questions_asked[-1]["conflict_id"] = reconcile.get("id")
         conflict_updates = mark_asked(state, reconcile.get("id"), question_number + 1)
 
+    # Plan step 8: each competency gets ONE fundamentals step and ONE challenge; record them so neither repeats.
+    mode_updates = {}
+    if interview_mode == "SCAFFOLD" and target_competency:
+        mode_updates["scaffolded_competencies"] = sorted(
+            set(state.get("scaffolded_competencies") or []) | {target_competency}
+        )
+    if interview_mode == "CHALLENGER" and target_competency:
+        mode_updates["challenged_competencies"] = sorted(
+            set(state.get("challenged_competencies") or []) | {target_competency}
+        )
+
     return {
         **state,
         **conflict_updates,
+        **mode_updates,
         "current_question": question_text,
         "conversation_turn": conversation_turn,
         "question_objective": question_objective,
@@ -667,6 +732,33 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
         # F3: the phase the emitted question belongs to (advances with budget).
         "current_phase": phase,
     }
+
+
+# Plan step 8: CV skills that make a natural opening for a competency (deterministic fallback only).
+_CV_SKILL_HINTS = {
+    "tech_db": ("postgres", "mysql", "sql", "mongo", "database", "dynamo", "oracle"),
+    "tech_caching": ("redis", "memcached", "cache"),
+    "tech_framework": ("fastapi", "django", "flask", "spring", "express", "react", "angular", "vue", "node", "rails"),
+    "tech_devops": ("docker", "kubernetes", "terraform", "jenkins", "github actions", "ci/cd", "aws", "gcp", "azure"),
+    "tech_security": ("oauth", "jwt", "owasp", "security", "keycloak", "auth"),
+    "tech_testing": ("pytest", "jest", "junit", "selenium", "cypress", "testing"),
+    "tech_system_design": ("kafka", "rabbitmq", "microservice", "celery", "grpc", "distributed"),
+    "tech_data": ("spark", "airflow", "pandas", "etl", "dbt", "kafka"),
+    "tech_core": ("python", "java", "go", "typescript", "javascript", "c#", "rust", "kotlin"),
+}
+
+
+def _cv_anchor(state: dict, competency: str) -> str:
+    """A skill from the candidate's CV that relates to ``competency`` (as written on the CV), or ""."""
+    hints = _CV_SKILL_HINTS.get(competency or "")
+    skills = ((state.get("candidate_brain") or {}).get("skills")) or []
+    if not hints or not isinstance(skills, list):
+        return ""
+    for skill in skills:
+        text = str(skill.get("name") if isinstance(skill, dict) else skill or "").strip()
+        if text and len(text) <= 40 and any(h in text.lower() for h in hints):
+            return text
+    return ""
 
 
 def _last_user_message(conversation_history: list) -> str:
@@ -833,6 +925,9 @@ async def _generate_conductor_turn(
     cv_brief: str = "None",
     conflict_to_reconcile: str = "None",
     reconcile_text: str = "",
+    gap_admitted: str = "no",
+    cv_anchor: str = "",
+    role_floor: int = 1,
 ) -> dict:
     """One LLM call producing {acknowledgement, bridge, question} (AURA conductor)."""
     from app.services.llm_service import get_llm_service
@@ -876,6 +971,7 @@ async def _generate_conductor_turn(
                 candidate_memory=candidate_memory,
                 cv_brief=cv_brief,
                 conflict_to_reconcile=conflict_to_reconcile,
+                gap_admitted=gap_admitted,
             ),
         )
 
@@ -893,6 +989,8 @@ async def _generate_conductor_turn(
             interview_mode=interview_mode,
             attempt_offset=0,
             reconcile_text=reconcile_text,
+            cv_anchor=cv_anchor,
+            role_floor=role_floor,
         )
 
 
@@ -925,6 +1023,8 @@ def _generate_deterministic_conductor_turn(
     interview_mode: str = "EXPLORER",
     attempt_offset: int = 0,
     reconcile_text: str = "",
+    cv_anchor: str = "",
+    role_floor: int = 1,
 ) -> dict:
     question = _generate_deterministic_question(
         target_competency=target_competency,
@@ -940,6 +1040,8 @@ def _generate_deterministic_conductor_turn(
         attempt_offset=attempt_offset,
         claims=_claim_targets(last_answer),
         reconcile_text=reconcile_text,
+        cv_anchor=cv_anchor,
+        role_floor=role_floor,
     )
 
     if last_answer:
@@ -951,6 +1053,7 @@ def _generate_deterministic_conductor_turn(
         "acknowledgement": acknowledgement,
         "bridge": f"Now, about {_label(target_competency)}...",
         "question": question,
+        "_source": "template",  # popped by question_generator_node into questions_asked.question_source
     }
 
 
@@ -978,6 +1081,7 @@ async def _generate_llm_question(
     candidate_memory: str = "None",
     cv_brief: str = "None",
     conflict_to_reconcile: str = "None",
+    gap_admitted: str = "no",
 ) -> str:
     """Generate the next question with the LLM using the question_generation prompt."""
     from app.services.llm_service import get_llm_service
@@ -1013,6 +1117,7 @@ async def _generate_llm_question(
             candidate_memory=candidate_memory,
             cv_brief=cv_brief,
             conflict_to_reconcile=conflict_to_reconcile,
+            gap_admitted=gap_admitted,
         ),
     )
 
@@ -1044,14 +1149,33 @@ def _generate_deterministic_question(
     attempt_offset: int = 0,
     claims: list | None = None,
     reconcile_text: str = "",
+    cv_anchor: str = "",
+    role_floor: int = 1,
 ) -> str:
     """Deterministic fallback question, shaped by the interview depth mode.
 
     ``attempt_offset`` shifts the template slot on duplicate retries so a
     rejected question is never regenerated verbatim. A RECONCILER turn uses ``reconcile_text`` (plan step 6).
+    Plan step 8: a SCAFFOLD turn asks one fundamentals question; an opening question starts from a CV skill
+    related to the competency when there is one (``cv_anchor``); a floor-1 role is never asked about a
+    "significant challenge".
     """
     if interview_mode == "RECONCILER" and reconcile_text:
         return reconcile_text
+    comp_name = _label(target_competency)
+    if interview_mode == "SCAFFOLD":
+        variants = [
+            f"No problem — let's take a simpler angle. If you were starting on {comp_name} tomorrow, "
+            f"what would you look at or check first, and why?",
+            f"That's fine. In your own words, what are the basics of {comp_name} you'd want any "
+            f"{job_role or 'engineer'} to know?",
+        ]
+        return variants[attempt_offset % len(variants)]
+    if cv_anchor and interview_mode == "EXPLORER" and attempt_offset == 0:
+        return (
+            f"You list {cv_anchor} on your CV. Walk me through how you used it in your work, "
+            f"and what you would do differently now."
+        )
     if hypothesis_text:
         direction = "positive" if "strong" in hypothesis_text.lower() else "negative"
         if direction == "positive" and followup_number > 0:
@@ -1064,6 +1188,11 @@ def _generate_deterministic_question(
             question = (
                 f"Based on your background, I'd like to explore your {_label(target_competency)} skills. "
                 f"Can you describe a complex problem you solved in this area? What was your approach and why?"
+            )
+        elif int(role_floor or 1) <= 1:
+            question = (
+                f"I'd like to understand your experience with {_label(target_competency)}. "
+                f"Tell me about some work you did in this area. What did you do, and what did you learn?"
             )
         else:
             question = (
@@ -1091,11 +1220,8 @@ def _apply_mode_flavor(
 ) -> str:
     """Attach the interviewer depth strategy to a deterministic question."""
     comp_name = _label(target_competency)
-    if interview_mode == "CHALLENGER":
-        return (
-            f"{question} Now, challenge yourself: what were the trade-offs, what would you do "
-            f"differently at twice the scale, and how would you defend that choice?"
-        )
+    # (Plan step 8: the generic "Now, challenge yourself…" CHALLENGER suffix is gone; a template question
+    # stays a plain question.)
     if interview_mode == "VERIFIER":
         if claims:
             claim_text = "; ".join(claims[:2])

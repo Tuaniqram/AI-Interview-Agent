@@ -59,9 +59,9 @@ STRONG_EVIDENCE = [
 
 WEAK_SENIORITY_CLAIMS = [
     {"id": "w1", "competency": "tech_system_design", "score": 8.0, "confidence": 0.6,
-     "evidence_text": "I used Kafka in the architecture", "question_number": 1},
+     "evidence_text": "I designed the event architecture", "question_number": 1},
     {"id": "w2", "competency": "tech_system_design", "score": 8.5, "confidence": 0.6,
-     "evidence_text": "We had microservices with event-driven design", "question_number": 2},
+     "evidence_text": "I led the move to microservices", "question_number": 2},
 ]
 
 
@@ -208,6 +208,12 @@ def test_seniority_risk_flags_thin_claims():
     assert risk["level"] in ("high", "medium")
     assert risk["action"] == "challenge"
     assert risk["probe_questions"]
+
+
+def test_seniority_risk_ignores_already_challenged_competencies():
+    """Plan step 8: a competency is challenged once; its claims stop counting afterwards."""
+    risk = seniority_claim_risk(WEAK_SENIORITY_CLAIMS, None, None, challenged_competencies=["tech_system_design"])
+    assert risk["ownership_claims"] == 0 and risk["action"] == "validate"
 
 
 def test_seniority_risk_low_when_proven():

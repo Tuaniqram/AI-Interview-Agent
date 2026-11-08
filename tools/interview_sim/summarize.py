@@ -107,12 +107,45 @@ def summarize(path: Path) -> dict:
         "difficulty_reached": (hd.get("signals") or {}).get("difficulty_reached"),
         "ownership": dict(Counter(e.get("ownership") for e in ev)),
         "complexity": dict(Counter(e.get("complexity") for e in ev)),
-        "challenge_share": round(modes.get("challenge", 0) / max(1, sum(modes.values())), 2),
+        # Plan step 8: the mode each question was ASKED in (the strategy mode is only one input to it).
+        "challenge_share": round(
+            sum(1 for q in asked if q.get("mode") == "CHALLENGER") / max(1, len(asked)), 2
+        ) if asked else round(modes.get("challenge", 0) / max(1, sum(modes.values())), 2),
+        "q1_mode": asked[0].get("mode") if asked else None,
+        "scaffold_misses": _scaffold_misses(signals, asked),
+        # Generic fallbacks (P8). A RECONCILER template is deliberate (step 6: it names both figures) and counted apart.
+        "template_questions": sum(
+            1 for q in asked
+            if q.get("question_source") in ("template", "fallback_bank") and q.get("mode") != "RECONCILER"
+        ),
+        "reconcile_templates": sum(
+            1 for q in asked if q.get("question_source") == "template" and q.get("mode") == "RECONCILER"
+        ),
         "fallback_questions": sum(1 for q in questions if any(m in q for m in FALLBACK_MARKERS)),
         "question_sources": dict(sources),
         "max_turn_s": max((s for s in seconds if s is not None), default=None),
         "p95_turn_s": _p95(seconds),
     }
+
+
+def _scaffold_misses(signals: list, asked: list) -> int:
+    """Step 8 gate: each admitted gap must be followed by exactly one SCAFFOLD question on that competency,
+    then a different competency. Counts the gaps where that did not happen (the last answer is exempt)."""
+    misses = 0
+    for sig in signals:
+        if not sig.get("admitted_gap"):
+            continue
+        n = int(sig.get("question_number") or 0)  # the gap answer; the next question is asked[n]
+        if n >= len(asked):
+            continue
+        nxt = asked[n]
+        if nxt.get("mode") != "SCAFFOLD" and sig.get("competency") not in {
+            q.get("competency") for q in asked[:n] if q.get("mode") == "SCAFFOLD"
+        }:
+            misses += 1
+        elif nxt.get("mode") == "SCAFFOLD" and n + 1 < len(asked) and asked[n + 1].get("mode") == "SCAFFOLD"                 and asked[n + 1].get("competency") == nxt.get("competency"):
+            misses += 1
+    return misses
 
 
 def _files(arg: str) -> list[Path]:
@@ -131,6 +164,8 @@ def main():
               f"avg={r['avg_score']} ev_minus_turn={r['ev_minus_turn']}")
         print(f"{'':<61} unsub_share={r['unsubstantiated_share']} admitted_gaps={r['admitted_gaps']} "
               f"read_q={r['read_questions']} read_risks={r['read_risks']}")
+        print(f"{'':<61} q1={r['q1_mode']} scaffold_misses={r['scaffold_misses']} "
+              f"template_q={r['template_questions']} reconcile_templates={r['reconcile_templates']}")
         print(f"{'':<61} reconcile_q={r['reconcile_questions']} repeats={r['reconcile_repeats']} "
               f"accusing={r['reconcile_accusing']} conflict_status={r['conflict_statuses'] or '-'}")
         print(f"{'':<61} draft={r['draft']} adjustments={r['adjustments'] or '-'}"

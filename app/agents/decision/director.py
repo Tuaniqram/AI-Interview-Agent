@@ -42,6 +42,7 @@ PROBE_MODES = (
     "verify_claim",
     "finish_competency",
     "reconcile_claim",  # plan step 6: ask how two figures for the same thing fit together
+    "step_down",  # plan step 8: one fundamentals question after "I haven't done X"
 )
 
 __all__ = [
@@ -78,6 +79,9 @@ def _probe_mode_for(action: str, state: dict) -> str:
     # Plan step 6: an unasked claim conflict is reconciled first (the director returned PROBE for it).
     if action == "PROBE" and _conflict_to_reconcile(state):
         return "reconcile_claim"
+    # Plan step 8: then a fundamentals step after an admitted gap.
+    if action == "PROBE" and gap_to_scaffold(state):
+        return "step_down"
 
     # T1.2: deterministic seniority-risk flag wins over every mode.
     _, needs_challenge = _contradiction_signal(state)
@@ -120,6 +124,28 @@ def _conflict_to_reconcile(state: dict) -> dict | None:
     from app.agents.reasoning.claim_ledger import next_conflict_to_reconcile
 
     return next_conflict_to_reconcile(state.get("claim_conflicts"))
+
+
+def gap_to_scaffold(state: dict) -> str | None:
+    """Plan step 8 (user decision "fundamentals, same topic"): the competency of the answer just given when
+    the candidate admitted they have not done it and that competency has not had its fundamentals question."""
+    signals = [s for s in state.get("answer_signals") or [] if isinstance(s, dict)]
+    if not signals:
+        return None
+    last = signals[-1]
+    if int(last.get("question_number", -1) or -1) != int(state.get("question_number", 0) or 0):
+        return None  # the latest answer produced no signal (not scored)
+    competency = last.get("competency")
+    if not last.get("admitted_gap") or not competency:
+        return None
+    if competency in (state.get("scaffolded_competencies") or []):
+        return None
+    return competency
+
+
+def _last_question_was_scaffold(state: dict) -> bool:
+    asked = [q for q in state.get("questions_asked") or [] if isinstance(q, dict)]
+    return bool(asked) and asked[-1].get("mode") == "SCAFFOLD"
 
 
 def _cursor_marks_target(state: dict, kind: str) -> bool:
@@ -217,6 +243,19 @@ def _director_decision(state: dict) -> tuple[str, str, str]:
             f"candidate gave two figures for {conflict.get('metric_key', 'a metric')}; ask how they fit",
             target_id,
         )
+
+    # Plan step 8 (user decision "fundamentals, same topic"): after "I haven't done X", ask ONE easier,
+    # fundamentals-level question on the same competency so the candidate can show what they do know ...
+    gap = gap_to_scaffold(state)
+    if gap:
+        return (
+            "PROBE",
+            f"candidate said they have not done {gap}; ask one fundamentals question on it",
+            target_id,
+        )
+    # ... then move on to another competency.
+    if _last_question_was_scaffold(state):
+        return ("CHANGE_COMPETENCY", "fundamentals question answered; move to another competency", target_id)
 
     # AURA V5: the live calibration gate — evidence too shallow to decide means
     # FINISH is never allowed, whatever the reflection signals. Fix 11

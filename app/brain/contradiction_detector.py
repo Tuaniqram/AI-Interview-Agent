@@ -44,12 +44,15 @@ _EXPERIENCE_RE = re.compile(
 )
 
 
+# Plan step 8 (P6): an ownership claim is a first-person, past-tense statement of having owned the work.
+# Topic words ("we used Kafka for reliability") and the "we" form made almost every answer a "claim of
+# seniority", which sent hesitant candidates into challenge mode for a whole interview.
+_OWNERSHIP_RE = re.compile(r"\bI\s+(?:\w+\s+)?(designed|architected|led|owned|built|drove)\b", re.IGNORECASE)
+
+
 def _is_ownership_claim(text: str) -> bool:
-    """Ownership vocabulary in an assertion of past work, not in a hypothetical or a disclaimer."""
-    text = (text or "").lower().replace("\u2019", "'")
-    if not any(kw in text for kw in _OWNERSHIP_CLAIMS):
-        return False
-    return not _HEDGE_RE.search(text) or bool(_EXPERIENCE_RE.search(text))
+    """A first-person past-tense ownership statement ("I designed the ledger service")."""
+    return bool(_OWNERSHIP_RE.search((text or "").replace("\u2019", "'")))
 
 
 _SENIORITY_PROBES = [
@@ -64,14 +67,16 @@ def seniority_claim_risk(
     evidence_records: list[dict],
     role_brain: dict | None = None,
     contradictions: list | None = None,
+    challenged_competencies: list | None = None,
 ) -> dict:
     """Risk that claimed seniority is not backed by proof.
 
-    Claims ownership language + design/scale vocabulary in first person while
-    the proof ratio stays low (or contradictions exist) => high risk => the
-    planner must challenge.
+    Claims ownership in first person while the proof ratio stays low (or contradictions exist) => high
+    risk => the planner must challenge. A competency already challenged once is not challenged again
+    (plan step 8): its claims stop counting.
     """
-    records = evidence_records or []
+    challenged = set(challenged_competencies or [])
+    records = [ev for ev in (evidence_records or []) if ev.get("competency") not in challenged]
     claims = []
     for ev in records:
         if _is_ownership_claim(ev.get("evidence_text") or "") and classify_claim(ev) in ("mentioned", "demonstrated"):
@@ -110,9 +115,10 @@ def build_contradiction_state(
     contradictions: list | None,
     evidence_records: list[dict],
     role_brain: dict | None = None,
+    challenged_competencies: list | None = None,
 ) -> dict:
     """Assemble the contradiction brain section."""
-    seniority_risk = seniority_claim_risk(evidence_records, role_brain, contradictions)
+    seniority_risk = seniority_claim_risk(evidence_records, role_brain, contradictions, challenged_competencies)
     return {
         "contradictions": [
             {

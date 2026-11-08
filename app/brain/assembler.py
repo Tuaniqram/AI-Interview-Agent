@@ -66,6 +66,8 @@ def assemble_aura_brain(
     hiring_decision: dict | None = None,
     prior_candidate_memory: dict | None = None,
     evidence_reading: dict | None = None,
+    target_competency: str | None = None,
+    challenged_competencies: list | None = None,
 ) -> dict:
     """Assemble the complete V5 brain dict (used at build, start and report)."""
     taxonomy = list(taxonomy or [])
@@ -100,6 +102,7 @@ def assemble_aura_brain(
         contradictions,
         evidence_store,
         role_brain,
+        challenged_competencies,
     )
 
     evidence_stats = evidence_summary_stats(evidence_store, evidence_reading=evidence_reading)
@@ -115,6 +118,7 @@ def assemble_aura_brain(
         contradiction_state=contradiction_state,
         hypothesis_brain=hypothesis_brain,
         competency_summary=competency_summary,
+        target_competency=target_competency,
     )
 
     difficulty_state = {
@@ -232,6 +236,8 @@ def build_aura_from_state(state: dict) -> dict:
         hiring_decision=state.get("hiring_decision"),
         prior_candidate_memory=(state.get("candidate_brain") or {}).get("candidate_memory"),
         evidence_reading=state.get("evidence_reading"),
+        target_competency=(state.get("hypothesis_target") or {}).get("competency"),
+        challenged_competencies=state.get("challenged_competencies"),
     )
 
 

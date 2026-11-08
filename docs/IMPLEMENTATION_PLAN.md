@@ -575,6 +575,8 @@ prompt for 5 minutes, including high-temperature creative calls. When the questi
 with an identical prompt, the cache can hand back the same duplicate, so retries are wasted and the deterministic fallback
 fires (a suspected part of P8). Check it first: count cache hits on the retry path in a gate log. If confirmed, bypass the
 cache for retries (or for any call above temperature 0.5) and re-measure `fallbackQ`.
+*Checked during step 8: not a problem.* Each retry renders the rejected question into the prompt (`{{last_rejected}}`), and the
+cache key is the prompt, so a retry can never get a cached reply. No cache change made.
 
 **Files**
 - `app/brain/contradiction_detector.py`:
@@ -625,6 +627,15 @@ cache for retries (or for any call above temperature 0.5) and re-measure `fallba
   different competency
 - at most 1 `template`/`fallback_bank` question per interview
 - verdict tallies are no worse than step 7
+
+**Gate result (2026-11-08, `out/step8a`, `out/step8b`): passed on the second round.** Challenge share 0-0.07 (awkward was 0.93);
+question 1 always EXPLORER; 0 admitted gaps without their fundamentals question (awkward had 4); at most 1 generic template per
+interview; awkward lean_no_hire / insufficient_evidence (was no_hire), weak lean_no_hire ×2, bluffer insufficient_evidence ×2
+(one held by cap 7b), strong hire ×2 (7.58 / 7.86). Round 1 had 2-3 templates in five interviews: three were deliberate RECONCILER
+templates (now counted apart, they name both figures) and the rest followed three drafts rejected by the duplicate guard, almost
+all as `topic_repeat`. Fixed with one more retry (`MAX_DUPLICATE_RETRIES` 3) and warning-level logging of rejected drafts.
+Deviation: a competency counts as "challenged" when its CHALLENGER question is emitted, not after it is answered (same effect,
+the answer always follows).
 
 ---
 
