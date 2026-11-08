@@ -250,3 +250,31 @@ async def test_evaluator_prompt_lists_earlier_claims(stub_llm):
         claim_ledger=ledger,
     ))
     assert "settlement_time_reduction: 87% (Q2)" in stub.calls[0]["prompt"]
+
+
+def test_absolute_claims_conflict_however_close():
+    """Step 10 gate: the bluffer said zero downtime then a 2-minute window, and 100% availability next to 99.99%."""
+    s = _answer({}, 2, [_claim("uptime", "100% availability"), _claim("downtime", "0")])
+    s = _answer(s, 4, [_claim("uptime", "99.99% availability")])
+    s = _answer(s, 9, [_claim("downtime", "2 minutes maintenance window")])
+    assert sorted(c["metric_key"] for c in s["claim_conflicts"]) == ["downtime", "uptime"]
+    assert parse_value("zero evictions").number == 0.0 and parse_value("none").number == 0.0
+
+
+def test_absolute_rule_keeps_ordinary_numbers_ordinary():
+    s = _answer({}, 1, [_claim("hit_rate", "99.9%"), _claim("errors", "3 errors")])
+    s = _answer(s, 3, [_claim("hit_rate", "99.95%"), _claim("errors", "3 errors")])
+    assert s["claim_conflicts"] == []
+    # a bound to 100% is not an absolute claim
+    s = _answer({}, 1, [_claim("coverage", "up to 100%")])
+    s = _answer(s, 3, [_claim("coverage", "97%")])
+    assert s["claim_conflicts"] == []
+
+
+def test_negated_lower_bound_is_an_upper_bound():
+    assert parse_value("no spikes above 5 ms").bound == "upper"
+    assert parse_value("never more than 2%").bound == "upper"
+    assert parse_value("over 1M rps").bound == "lower"
+    s = _answer({}, 6, [_claim("token_check_latency_ms", "under 3 ms")])
+    s = _answer(s, 7, [_claim("token_check_latency_ms", "no spikes above 5 ms")])
+    assert s["claim_conflicts"] == []

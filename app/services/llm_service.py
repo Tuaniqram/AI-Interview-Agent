@@ -4,6 +4,7 @@ Handles all LLM operations with proper error handling.
 """
 import asyncio
 import logging
+import os
 from typing import Any, AsyncGenerator, Optional
 from functools import wraps
 import time
@@ -29,9 +30,34 @@ MIN_REQUEST_TIMEOUT_S = 35
 MAX_REQUEST_TIMEOUT_S = 90
 
 
-def request_timeout(requested: int) -> float:
-    """Per-request timeout in seconds for a call that asks for ``requested`` tokens of answer."""
-    return float(min(MAX_REQUEST_TIMEOUT_S, max(MIN_REQUEST_TIMEOUT_S, 20 + (max(1, int(requested)) + 400) / 40)))
+# Plan step 10 (P10): question writing gives up on a stalled provider sooner, so the chain moves to the next
+# model while the candidate is still waiting for the question.
+# 15 s, not the plan's 30: in the step 10 gate a stalled question call took 34.8 s (30 s + the backup model);
+# normal question calls take 1-3 s.
+QUESTION_REQUEST_TIMEOUT_S = float(os.getenv("QUESTION_REQUEST_TIMEOUT_S", "15"))
+# The per-answer evaluation (normally 1-7 s) may wait this long for one provider before the next is tried;
+# without a cap its 2,200-token budget allowed ~85 s (a 40.5 s stall in the step 10 gate).
+EVALUATOR_REQUEST_TIMEOUT_S = float(os.getenv("EVALUATOR_REQUEST_TIMEOUT_S", "25"))
+# Plan step 10 (N9): calls allowed in flight at once across the whole process. 3 meant that with several live
+# interviews every call queued behind the others.
+LLM_MAX_CONCURRENCY = 16
+
+
+def max_concurrency() -> int:
+    """``LLM_MAX_CONCURRENCY`` (default 16), read when the service is created."""
+    try:
+        return max(1, int(os.getenv("LLM_MAX_CONCURRENCY", str(LLM_MAX_CONCURRENCY))))
+    except ValueError:
+        return LLM_MAX_CONCURRENCY
+# Whole-chain attempts for calls made while the candidate waits (question, evaluation, clarification).
+TURN_ATTEMPTS = 2
+
+
+def request_timeout(requested: int, cap: float | None = None) -> float:
+    """Per-request timeout in seconds for a call that asks for ``requested`` tokens of answer (``cap``: an
+    upper bound for latency-sensitive calls, never below 5 s)."""
+    timeout = float(min(MAX_REQUEST_TIMEOUT_S, max(MIN_REQUEST_TIMEOUT_S, 20 + (max(1, int(requested)) + 400) / 40)))
+    return min(timeout, max(5.0, float(cap))) if cap else timeout
 
 
 def completion_budget(requested: int) -> int:
@@ -49,7 +75,7 @@ class LLMService:
         self._cache = {}
         self._cache_ttl = 300  # 5 minutes
         self._cache_enabled = True
-        self._rate_limiter = asyncio.Semaphore(3)
+        self._rate_limiter = asyncio.Semaphore(max_concurrency())
     
     async def invoke(
         self,
@@ -57,7 +83,9 @@ class LLMService:
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
         system_prompt: Optional[str] = None,
-        tier: Optional[str] = None
+        tier: Optional[str] = None,
+        attempts: int = 3,
+        timeout_cap: Optional[float] = None,
     ) -> str:
         """
         Invoke LLM with caching support and retry logic.
@@ -106,7 +134,8 @@ class LLMService:
                 logger.debug(f"Memory cache hit for prompt: {prompt[:50]}...")
                 return cached_result['content']
         
-        max_retries = 3
+        # ``attempts``: whole-chain retries (plan step 10: 2 for calls made during an interview turn).
+        max_retries = max(1, int(attempts or 3))
 
         async with self._rate_limiter:
             for attempt in range(max_retries):
@@ -122,7 +151,7 @@ class LLMService:
                     response = await asyncio.wait_for(
                         target_llm.ainvoke(
                             messages, None, temperature=temperature, max_tokens=completion_budget(max_tokens),
-                            timeout=request_timeout(max_tokens),
+                            timeout=request_timeout(max_tokens, timeout_cap),
                         ),
                         timeout=180
                     )

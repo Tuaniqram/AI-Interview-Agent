@@ -85,7 +85,9 @@ async def _write_reply(question: str, message: str) -> str:
         from app.services.prompt_loader import load_prompt
 
         prompt = load_prompt("interview", "clarification.md", question=question, candidate_message=message)
-        reply = await get_llm_service().invoke(prompt=prompt, temperature=0.3, max_tokens=250, tier="cheap")
+        reply = await get_llm_service().invoke(
+            prompt=prompt, temperature=0.3, max_tokens=250, tier="cheap", attempts=2  # plan step 10
+        )
         reply = (reply or "").strip().strip('"').strip()
         if reply:
             return reply[:900]

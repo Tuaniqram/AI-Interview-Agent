@@ -311,3 +311,51 @@ def test_request_timeout_scales_with_the_requested_answer_length():
     assert MIN_REQUEST_TIMEOUT_S < request_timeout(1500) < MAX_REQUEST_TIMEOUT_S
     assert request_timeout(5000) == MAX_REQUEST_TIMEOUT_S  # the long final read keeps its room
     assert request_timeout(0) >= MIN_REQUEST_TIMEOUT_S
+
+
+# --- plan step 10: latency and concurrency -------------------------------------------------------------------
+
+
+def test_question_calls_give_up_on_a_stalled_provider_within_30s():
+    from app.services.llm_service import QUESTION_REQUEST_TIMEOUT_S, request_timeout
+
+    assert QUESTION_REQUEST_TIMEOUT_S <= 30
+    assert request_timeout(400, QUESTION_REQUEST_TIMEOUT_S) <= 30
+    assert request_timeout(400) > 30  # other calls keep their longer limit
+    assert request_timeout(5000, 1) == 5.0  # a cap never goes below 5 s
+
+
+async def test_question_writer_uses_two_attempts_and_the_short_timeout(stub_llm):
+    from app.agents.generation.question_generator import _generate_llm_question
+    from app.services.llm_service import QUESTION_REQUEST_TIMEOUT_S
+
+    stub = stub_llm(response="Question: How did you test it?")
+    await _generate_llm_question(
+        phase="technical", target_competency="tech_core", job_role="Backend Developer", difficulty=2,
+        approach="", hypothesis_text="", competency_info="", candidate_profile={}, persona="friendly",
+        followup_number=0, question_number=0, total_questions=8, conversation_history=[],
+    )
+    assert stub.calls[0]["attempts"] == 2
+    assert stub.calls[0]["timeout_cap"] == QUESTION_REQUEST_TIMEOUT_S
+
+
+async def test_attempts_limit_whole_chain_retries(monkeypatch):
+    from app.services.llm_service import LLMService
+
+    class FailingChain:
+        def __init__(self):
+            self.calls = 0
+
+        async def ainvoke(self, messages, config=None, **kwargs):
+            self.calls += 1
+            raise RuntimeError("All models failed")
+
+    chain = FailingChain()
+    monkeypatch.setattr(llm_service_module, "get_llm", lambda tier=None: chain)
+    service = LLMService()
+    service._cache_enabled = False
+    import pytest
+
+    with pytest.raises(Exception):
+        await service.invoke(prompt="p", tier="cheap", attempts=2)
+    assert chain.calls == 2

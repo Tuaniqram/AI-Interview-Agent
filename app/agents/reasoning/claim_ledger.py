@@ -73,17 +73,26 @@ _NUMBER_RE = re.compile(
 )
 
 
+# "no …" is deliberately absent: "no number here" is not a zero.
+_ZERO_WORDS_RE = re.compile(r"^\s*(zero|none|nil|never)\b", re.IGNORECASE)
+
+
 def parse_value(text: str) -> ParsedValue:
     """Number and unit of a claim value. Ranges ("from 120 ms to 12 ms") keep the last number and are
-    marked ``is_range`` so they are never compared."""
+    marked ``is_range`` so they are never compared. "zero" / "none" / "no …" read as 0."""
     text = str(text or "").strip()
     matches = list(_NUMBER_RE.finditer(text))
     if not matches:
+        if _ZERO_WORDS_RE.search(text):
+            return ParsedValue(0.0, "", False)
         return ParsedValue(None, "", False)
     is_range = len(matches) >= 2 and bool(_RANGE_RE.search(text))
     m = matches[-1] if is_range else matches[0]
     prefix = text[max(0, m.start() - 16):m.start()]
     bound = "upper" if _UPPER_RE.search(prefix) else "lower" if _LOWER_RE.search(prefix) else None
+    # "no spikes above 5 ms" / "never more than 2%": a negated lower-bound word is an upper bound.
+    if bound == "lower" and re.search(r"\b(no|never|not)\b", text[max(0, m.start() - 40):m.start()], re.IGNORECASE):
+        bound = "upper"
     if bound is None and text[m.end():m.end() + 1] == "+":
         bound = "lower"  # "10k+ users"
     number = float(m.group("num").replace(",", ""))
@@ -145,11 +154,12 @@ def fold_claims(
 
 
 def _comparable(a: dict, b: dict) -> bool:
-    return (
-        a.get("number") is not None and b.get("number") is not None
-        and not a.get("range") and not b.get("range")
-        and a.get("unit") == b.get("unit")
-    )
+    if a.get("number") is None or b.get("number") is None or a.get("range") or b.get("range"):
+        return False
+    if a.get("unit") == b.get("unit"):
+        return True
+    # A bare zero ("0", "zero", "none") compares with any unit: "zero downtime" vs "2 minutes" is a changed story.
+    return any(float(x["number"]) == 0 and not x.get("unit") for x in (a, b))
 
 
 def _differs(x: float, y: float, unit: str) -> bool:
@@ -166,9 +176,15 @@ def _changed(a: dict, b: dict) -> bool:
     ("sub-50 ms" then "45 ms" agree; "under 50 ms" then "80 ms" do not); two bounds in the same direction
     never conflict ("<12 ms" then "<10 ms")."""
     x, y = float(a["number"]), float(b["number"])
-    unit = a.get("unit") or ""
+    unit = a.get("unit") or b.get("unit") or ""
     ba, bb = a.get("bound"), b.get("bound")
     if not ba and not bb:
+        # Absolute claims (step 10 gate): "0" next to a non-zero figure, or 100% next to anything less, is a
+        # different story however close the numbers are ("100% availability" vs "99.99%").
+        if (x == 0) != (y == 0):
+            return True
+        if unit == "%" and (x == 100) != (y == 100):
+            return True
         return _differs(x, y, unit)
     if ba and bb:
         if ba == bb:

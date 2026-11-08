@@ -133,7 +133,7 @@ BRAIN_EXTRA_KEYS = (
     "difficulty_level", "clarification_counts",
 )
 
-USAGE = {"calls": 0, "chars": 0, "cheap_chars": 0, "strong_chars": 0, "sim": False}
+USAGE = {"calls": 0, "chars": 0, "cheap_chars": 0, "strong_chars": 0, "sim": False, "log": []}
 
 
 def _install_usage_counter():
@@ -143,11 +143,28 @@ def _install_usage_counter():
     original = LLMService.invoke
 
     async def counted(self, prompt, *a, **kw):
-        if not USAGE["sim"]:
-            USAGE["calls"] += 1
-            USAGE["chars"] += len(prompt or "")
-            USAGE["cheap_chars" if kw.get("tier") == "cheap" else "strong_chars"] += len(prompt or "")
-        return await original(self, prompt, *a, **kw)
+        if USAGE["sim"]:
+            return await original(self, prompt, *a, **kw)
+        USAGE["calls"] += 1
+        USAGE["chars"] += len(prompt or "")
+        USAGE["cheap_chars" if kw.get("tier") == "cheap" else "strong_chars"] += len(prompt or "")
+        # Plan step 10: per-call latency and the model that answered, so a slow turn traces to a provider.
+        from app.models.llm import get_llm
+
+        t0 = time.perf_counter()
+        ok = True
+        try:
+            return await original(self, prompt, *a, **kw)
+        except Exception:
+            ok = False
+            raise
+        finally:
+            tier = kw.get("tier") or "strong"
+            USAGE["log"].append({
+                "tier": tier, "seconds": round(time.perf_counter() - t0, 2), "ok": ok,
+                "model": getattr(get_llm(tier), "last_model", None),
+                "prompt_head": (prompt or "").strip().splitlines()[0][:60] if prompt else "",
+            })
 
     LLMService.invoke = counted
 
@@ -200,7 +217,7 @@ async def run_one(name: str, persona: dict, role: tuple, questions: int, out_dir
             transcript.append(("Interviewer", question))
             answer = await candidate_reply(persona, role_name, transcript)
             transcript.append(("Candidate", answer))
-            calls0, chars0 = USAGE["calls"], USAGE["chars"]
+            calls0, chars0, log0 = USAGE["calls"], USAGE["chars"], len(USAGE["log"])
             cheap0, strong0 = USAGE["cheap_chars"], USAGE["strong_chars"]
             t0 = time.perf_counter()
             resp = await engine.process_answer(session_id, answer)
@@ -212,6 +229,7 @@ async def run_one(name: str, persona: dict, role: tuple, questions: int, out_dir
                 "llm_calls": USAGE["calls"] - calls0, "approx_tokens": (USAGE["chars"] - chars0) // 4,
                 "cheap_tokens": (USAGE["cheap_chars"] - cheap0) // 4,
                 "strong_tokens": (USAGE["strong_chars"] - strong0) // 4,
+                "llm_call_log": USAGE["log"][log0:],
                 "score": ev.get("composite"), "scored": ev.get("scored"),
                 "clarification": bool(resp.get("clarification")),
                 "next_competency": (resp.get("next_question") or {}).get("target_competency"),
@@ -304,6 +322,14 @@ async def main():
     from app.services.llm_service import get_llm_service
 
     get_llm_service()._cache_enabled = False
+    # The server loads the embedding model at startup (app/main.py lifespan); the harness starts cold, so warm
+    # it here or the first interview's first turn pays the 20-40 s model load (step 10 gate: 23-26 s turn 1).
+    try:
+        from app.rag.pinecone_store import get_embedding
+
+        await asyncio.to_thread(lambda: get_embedding().embed_query("warmup"))
+    except Exception as exc:  # noqa: BLE001
+        print(f"embedding warm-up skipped: {exc}")
     role = await load_role(args.role)
     print(f"role={role[1]} competencies={len(role[2])} -> {run_dir}")
     for k in range(1, args.repeat + 1):

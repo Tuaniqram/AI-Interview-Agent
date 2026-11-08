@@ -68,6 +68,7 @@ class FallbackLLM:
 
     def _record_success(self, model) -> None:
         self._skip_until.pop(id(model), None)
+        self.last_model = model.model_name  # diagnostics: which model answered (the harness logs it per call)
 
     async def ainvoke(self, messages: list, config: dict | None = None, **kwargs: Any) -> Any:
         last_error = None

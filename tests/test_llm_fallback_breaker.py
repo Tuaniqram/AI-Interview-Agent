@@ -163,3 +163,15 @@ async def test_cooling_models_are_ordered_soonest_recovery_first():
         await chain.ainvoke([])
     # flaky recovers in 30s, retired only in 15 min: when all are cooling, probe flaky first
     assert [m.model_name for m in chain._candidates()] == ["flaky", "retired"]
+
+
+def test_concurrency_limit_comes_from_the_env(monkeypatch):
+    """Plan step 10 (N9): the process-wide limit was 3, so live interviews queued behind each other."""
+    from app.services.llm_service import LLMService
+
+    monkeypatch.delenv("LLM_MAX_CONCURRENCY", raising=False)
+    assert LLMService()._rate_limiter._value == 16
+    monkeypatch.setenv("LLM_MAX_CONCURRENCY", "5")
+    assert LLMService()._rate_limiter._value == 5
+    monkeypatch.setenv("LLM_MAX_CONCURRENCY", "nonsense")
+    assert LLMService()._rate_limiter._value == 16

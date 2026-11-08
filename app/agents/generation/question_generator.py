@@ -59,6 +59,9 @@ def _label(competency: str) -> str:
     return " ".join(_ID_WORDS.get(word, word) for word in competency.split("_")) or "this area"
 
 
+from app.services.llm_service import QUESTION_REQUEST_TIMEOUT_S, TURN_ATTEMPTS  # noqa: E402  (plan step 10)
+
+
 def _question_tier() -> str:
     tier = os.getenv(QUESTION_TIER_ENV, "strong").strip().lower()
     return tier if tier in ("strong", "cheap") else "strong"
@@ -975,7 +978,9 @@ async def _generate_conductor_turn(
             ),
         )
 
-        response = await llm_service.invoke(prompt=prompt, temperature=0.7, max_tokens=400, tier=_question_tier())
+        response = await llm_service.invoke(prompt=prompt, temperature=0.7, max_tokens=400, tier=_question_tier(),
+            attempts=TURN_ATTEMPTS, timeout_cap=QUESTION_REQUEST_TIMEOUT_S,
+        )
         return _parse_conductor_turn(response)
     except Exception as e:
         logger.warning(f"Conductor turn generation failed ({e}), using deterministic fallback")
@@ -1121,7 +1126,9 @@ async def _generate_llm_question(
         ),
     )
 
-    response = await llm_service.invoke(prompt=prompt, temperature=0.8, max_tokens=200, tier=_question_tier())
+    response = await llm_service.invoke(prompt=prompt, temperature=0.8, max_tokens=200, tier=_question_tier(),
+        attempts=TURN_ATTEMPTS, timeout_cap=QUESTION_REQUEST_TIMEOUT_S,
+    )
     from app.intelligence._helpers import unwrap_turn_json
 
     question = (response or "").strip()

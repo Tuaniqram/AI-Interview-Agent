@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 _DIMENSION_KEYS = {"technical", "domain", "communication", "reasoning", "behavioral", "confidence", "completeness"}
 
+from app.services.llm_service import EVALUATOR_REQUEST_TIMEOUT_S  # noqa: E402  (plan step 10)
+
 # Plan step 4: the evaluator runs on the strong tier; EVALUATOR_LLM_TIER=cheap reverts it.
 EVALUATOR_TIER_ENV = "EVALUATOR_LLM_TIER"
 MAX_ANSWER_CHARS = 6000  # N3: long, detailed answers were cut at 3000 chars before scoring
@@ -158,6 +160,8 @@ async def _unified_evaluator(
             temperature=0.3,
             max_tokens=2200,
             tier=_evaluator_tier(),
+            attempts=2,  # plan step 10: the candidate is waiting
+            timeout_cap=EVALUATOR_REQUEST_TIMEOUT_S,
         )
 
         from app.intelligence._helpers import parse_json

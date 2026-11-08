@@ -693,6 +693,19 @@ passed; the thresholds were not lowered to force a clarification.
 **Gate** `step10`: strong, bluffer, weak and awkward ×2. Pass: p95 turn time < 20 s and maximum < 45 s across all 8 runs
 (round8 maximum: 93.4 s), with verdict tallies unchanged from step 9.
 
+**Gate result (2026-11-08, `out/step10a`, `out/step10b`, round 2):** verdicts all correct (strong hire ×2, bluffer
+insufficient_evidence / lean_no_hire, weak lean_no_hire ×2, awkward insufficient_evidence / lean_no_hire). With the paid model
+healthy, strong ran at p95 5.5-5.9 s and max 8-9 s (round 1: max 49.1 s). The OpenRouter credit ran out during the run (402s),
+so later calls fell to Groq and the free router: awkward max 40.7 s (an evaluator call on `openrouter/free`, 38.7 s) and the
+bluffer's final turn 36.5 s (the report build; its evidence reading took 27.5 s). Not re-run: the user stopped engine work here.
+Round 1 findings fixed in this step: the harness now warms the embedding model like the server does (turn 1 was 23-26 s); the
+question timeout is 15 s instead of 30 (a 34.8 s stall) and the evaluator is capped at 25 s (a 40.5 s stall); the claim ledger
+reads absolute claims (zero vs non-zero, 100% vs less) and negated bounds ("no spikes above 5 ms"), after a consistent bluffer
+run reached lean_hire with its "zero downtime" vs "2-minute window" and "100%" vs "99.99%" availability uncaught.
+
+**Engine work paused here (2026-11-08, user decision):** step 11 and the final acceptance run are not done. The user moved to the
+UI and features for the final-year evaluation.
+
 ---
 
 ### Step 11: Remaining problems not seen in tests (N1, N8, N6)
