@@ -11,6 +11,45 @@
 >
 > Any other change to what the candidate sees or hears needs the user's approval first.
 
+## Status: engine work ON HOLD (2026-11-08)
+
+The user paused engine work after step 10 to focus on the UI and features for the final-year evaluation. **The engine plan is
+not finished.** Steps 0–10 are committed on `dev` (last engine commit `28bb197`); everything below is still open. Resume from
+the top of this list.
+
+**Done** (each step's gate result is recorded under the step): 0 baseline · 1 last answer scored · 2 competency score, neutral
+hypotheses, difficulty hold band · 4 evaluator v2 (run before step 3) · 3 one decision function · 5 claim ledger · 6 neutral
+reconcile questions · cap 7b "3+ changed figures" (user decision after step 6) · 7 secondary evidence reading, `flag_review`
+truth table · 8 challenge only after depth, fundamentals step after a gap · 9 clarification at the end of a short answer ·
+10 latency and concurrency.
+
+### Not finished
+
+| # | Open task | Why it is open | What finishing means |
+|---|---|---|---|
+| H1 | **Step 10 gate re-run** | The OpenRouter credit ran out mid-gate (402s); only strong was measured on a healthy model (p95 5.5–5.9 s, max 8–9 s). Awkward hit 40.7 s and the bluffer's final turn 36.5 s on fallback models. | Top up credit, re-run strong, bluffer, weak, awkward ×2: p95 < 20 s and max < 45 s in all 8 runs, verdicts unchanged. |
+| H2 | **Step 11: N1 code blocks** | Not started. `sanitize_user_input` still replaces fenced code with `[CODE BLOCK REMOVED]`, so code answers lose their content. | Keep the code, strip only control characters; tests per step 11. |
+| H3 | **Step 11: N2 injection signal** | Not started. A prompt-injection attempt is fenced but not recorded. | `answer_signals.injection_attempt` plus an off-rubric red flag (flag for review, no demotion). |
+| H4 | **Step 11: N8 unmapped evidence** | Not started. Evidence whose competency doesn't resolve is still filed under `taxonomy[0]`. | Skip the record and log a warning. |
+| H5 | **Step 11: N6 other roles** | Not started. Every gate so far used Backend Developer only. | Run the step 10 gate on two more `it_roles` (for example a frontend and a data role) with personas written for them; log any new bug in `PROBLEMS_AND_SOLUTIONS.md` first. |
+| H6 | **Final acceptance** | Not started. | All four personas ×3 on Backend Developer and ×2 on the two step 11 roles, every row of the "Final acceptance" table met. |
+| H7 | **Merge `dev` into `main`** | Waits for H6. | Merge, then update the `interview-harness` memory note with the new baseline. |
+
+### Watch items found during steps 2–10 (not bugs yet, but re-check at final acceptance)
+
+| # | Item | Seen in |
+|---|---|---|
+| W1 | The bluffer's fluent explanations clear its claim conflicts in reconcile questions, so its score alone reaches lean_hire (6.2–6.6). It is held by caps 7 / 7b; a run with few changed figures relies on the score staying under 6.2. | steps 6, 8, 10 |
+| W2 | One consistent bluffer run reached lean_hire before the "absolute claims" ledger fix (zero vs non-zero, 100% vs less). The fix was replayed on saved runs but not yet re-gated. | step 10 round 1 |
+| W3 | Awkward and weak never rise above difficulty 1 (the hold band needs a 7.0 window), so they are never tested at a harder level. | steps 2–10 |
+| W4 | `score_inconsistency` contradictions (two answers on one competency 4+ points apart) cost up to 1.5 points and can push a nervous candidate to no_hire. | step 3 |
+| W5 | Claim-conflict detection depends on the evaluator reusing metric keys consistently; two prompt revisions were needed (step 5) and a strong run can still pick up a false conflict when one key covers two different measurements. | step 5 |
+| W6 | Step 9's "a clarification in every run" was met in one of two runs; the simulated candidate in the other never asked for one. | step 9 |
+| W7 | The final turn (report build) takes 25–37 s, mostly the evidence reading; question turns are 2–10 s. | step 10 |
+| W8 | Every test needs paid OpenRouter credit (about $0.1–0.3 per 8-interview gate). The free Groq-only mode (`LLM_FREE_ONLY=1`) fits only about 2 interviews a day. | steps 4–10 |
+
+**Not part of this plan:** N5 (company documents at interview time) is a separate project.
+
 ## How to use this plan
 
 - Do the steps in order and commit each one separately (`fix:` / `feat:` prefix, as in the git log). Don't start a step until the
