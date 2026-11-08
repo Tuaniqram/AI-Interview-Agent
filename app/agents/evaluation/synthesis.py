@@ -160,6 +160,16 @@ def _merge_lists(*lists: list, cap: int = _MAX_HIGHLIGHTS) -> list[str]:
     return merged
 
 
+def _claim_conflict_lines(state: InterviewState) -> str:
+    """Plan step 5: one bullet per changed figure, with its reconcile status, or "None"."""
+    lines = [
+        f"- {c.get('statement', '')} [{c.get('status', 'open')}]"
+        for c in state.get("claim_conflicts") or []
+        if isinstance(c, dict) and c.get("statement")
+    ]
+    return "\n".join(lines) or "None"
+
+
 def _peak_difficulty(state: InterviewState) -> int:
     from app.agents.planning.difficulty_engine import max_difficulty_reached
 
@@ -274,8 +284,7 @@ async def synthesis_node(state: InterviewState) -> InterviewState:
             or "[]",
             evidence_weaknesses=json.dumps(_evidence_weaknesses(state.get("competency_summary") or {}), indent=2)
             or "[]",
-            # Plan step 5 fills the claim ledger; until then nothing is tracked.
-            claim_conflicts="None",
+            claim_conflicts=_claim_conflict_lines(state),
             unsubstantiated_share=f"{unsub:.0%} of scored answers" if unsub is not None else "N/A",
         )
 

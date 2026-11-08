@@ -40,10 +40,16 @@ def _decision_signals(state: InterviewState) -> dict:
         average_evidence_confidence(state.get("competency_summary") or {}) or 0.5,
     )
 
+    # Plan step 5: the score penalty counts serious NON-claim contradictions (score inconsistencies);
+    # claim conflicts act through cap 7 only, so they are never counted twice.
     contradictions = sum(
         1 for c in (state.get("contradictions") or [])
-        if c.get("severity") in ("high", "medium")
+        if c.get("severity") in ("high", "medium") and c.get("type") != "claim_conflict"
     )
+    from app.agents.reasoning.claim_ledger import unresolved_conflicts
+
+    claim_conflicts = state.get("claim_conflicts") or []
+    open_conflicts = unresolved_conflicts(claim_conflicts)
 
     holistic = report.get("holistic_score")
     if holistic is None:
@@ -58,6 +64,8 @@ def _decision_signals(state: InterviewState) -> dict:
         "evidence_count": len(state.get("evidence_store") or []),
         "role_floor": role_difficulty_floor(state.get("job_role", "")),
         "unsubstantiated_share": unsubstantiated_share(state.get("answer_signals")),
+        "unexplained_claim_conflicts": len(open_conflicts),
+        "inflation_admitted": any(c.get("kind") == "inflation_admitted" for c in open_conflicts),
     }
 
 

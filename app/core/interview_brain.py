@@ -109,6 +109,8 @@ class InterviewBrain:
     unified_evaluation: Optional[dict] = None
     unified_evaluation_extras: dict = field(default_factory=dict)  # step 4: substantiation, claims, gap flags
     answer_signals: list = field(default_factory=list)  # step 4: one entry per scored answer (plan D1)
+    claim_ledger: list = field(default_factory=list)     # step 5: every measurable claim (claim_ledger.py)
+    claim_conflicts: list = field(default_factory=list)  # step 5: detected conflicts, mirrored into contradictions
     evaluator_mode: str = "unified"
     evaluation_score: Optional[float] = None
     extracted_evidence: list = field(default_factory=list)

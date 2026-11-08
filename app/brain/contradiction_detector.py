@@ -119,7 +119,9 @@ def build_contradiction_state(
                 "id": c.get("id") or str(i),
                 "severity": c.get("severity", "low"),
                 "type": c.get("type", "evidence_conflict"),
-                "summary": c.get("summary") or c.get("description") or "",
+                "summary": c.get("summary") or c.get("description") or c.get("statement") or "",
+                "statement": c.get("statement") or c.get("summary") or c.get("description") or "",
+                "status": c.get("status", "open"),
             }
             for i, c in enumerate(contradictions or [])
         ],

@@ -337,6 +337,12 @@ def _integrity_summary(s: dict) -> dict | None:
     }
 
 
+def _unsubstantiated_share(s: dict):
+    from app.agents.reasoning.evidence_engine import unsubstantiated_share
+
+    return unsubstantiated_share(s.get("answer_signals"))
+
+
 def build_report_response(state: StateLike) -> dict:
     """Build the final ``{type: report}`` payload on interview completion."""
     s = _as_dict(state)
@@ -409,6 +415,25 @@ def build_report_response(state: StateLike) -> dict:
             for comp, s_ in cs.items()
         },
         "evidence_collected": len(s.get("evidence_store", [])),
+        # Plan step 5: figures the candidate changed, and how many answers were unsubstantiated.
+        "claim_conflicts": [
+            {
+                "statement": c.get("statement", ""),
+                "metric_key": c.get("metric_key", ""),
+                "questions": [
+                    q for q in (
+                        (c.get("first") or {}).get("question_number"),
+                        (c.get("second") or {}).get("question_number"),
+                    ) if q
+                ],
+                "kind": c.get("kind", ""),
+                "status": c.get("status", "open"),
+                "severity": c.get("severity", ""),
+            }
+            for c in (s.get("claim_conflicts") or [])
+            if isinstance(c, dict)
+        ],
+        "unsubstantiated_share": _unsubstantiated_share(s),
         "questions_asked": answered,
         "hypothesis_outcomes": {
             "confirmed": sum(1 for h in (s.get("hypotheses") or []) if h.get("status") == "confirmed"),

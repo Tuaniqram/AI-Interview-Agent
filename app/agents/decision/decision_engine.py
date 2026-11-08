@@ -132,8 +132,9 @@ def apply_decision_caps(decision: str, signals: dict) -> tuple[str, list[dict]]:
     """Apply the ordered caps to a score-based label.
 
     Every cap that changes the label appends ``{rule, from, to, reason}``. Order (plan step 3):
-    1 evidence volume; 2-4 coverage; 5 difficulty at the role's level; 6 unsubstantiated share.
-    (Cap 7, claim conflicts, arrives with the claim ledger in step 5.)
+    1 evidence volume; 2-4 coverage; 5 difficulty at the role's level; 6 unsubstantiated share;
+    7 claim conflicts (one unexplained: hire-side -> insufficient_evidence; two or an admitted
+    inflation: at most lean_no_hire, whatever the score).
     """
     adjustments: list[dict] = []
 
@@ -177,6 +178,17 @@ def apply_decision_caps(decision: str, signals: dict) -> tuple[str, list[dict]]:
             cap("unsubstantiated", "insufficient_evidence",
                 f"{_safe(unsub):.0%} of answers were unsubstantiated; probe the claims before hiring")
 
+    # 7. Claim conflicts (plan step 5): figures the candidate changed and never explained. Only
+    # open / asked / unexplained conflicts count; explained ones never block a hire.
+    conflicts = int(signals.get("unexplained_claim_conflicts") or 0)
+    if signals.get("inflation_admitted") or conflicts >= 2:
+        cap("claim_conflict", "lean_no_hire",
+            "the candidate admitted a figure was inflated" if signals.get("inflation_admitted")
+            else f"{conflicts} figures changed during the interview and were not explained")
+    elif conflicts == 1 and decision in HIRE_SIDE:
+        cap("claim_conflict", "insufficient_evidence",
+            "a figure changed during the interview and was not explained; reconcile it before hiring")
+
     return decision, adjustments
 
 
@@ -190,6 +202,8 @@ def decide_hiring_decision(
     evidence_count: int = 0,
     role_floor: int = 1,
     unsubstantiated_share: Any = None,
+    unexplained_claim_conflicts: int = 0,
+    inflation_admitted: bool = False,
 ) -> dict:
     """Deterministic 7-point hiring decision with full rationale.
 
@@ -207,6 +221,8 @@ def decide_hiring_decision(
         "unsubstantiated_share": (
             round(_safe(unsubstantiated_share), 3) if unsubstantiated_share is not None else None
         ),
+        "unexplained_claim_conflicts": int(unexplained_claim_conflicts or 0),
+        "inflation_admitted": bool(inflation_admitted),
     }
     draft = map_decision(score)
     decision, adjustments = apply_decision_caps(draft, signals)

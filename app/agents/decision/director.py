@@ -271,6 +271,8 @@ def _director_decision(state: dict) -> tuple[str, str, str]:
             "seniority signal: claimed ownership lacks proof — challenge it",
             target_id,
         )
+    # Plan step 5: claim conflicts are excluded — rotating away would defeat reconciling them (step 6).
+    serious = [c for c in serious if c.get("type") != "claim_conflict"]
     if len(serious) >= 2:
         return (
             "CHANGE_COMPETENCY",

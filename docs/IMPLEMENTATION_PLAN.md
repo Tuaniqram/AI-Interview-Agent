@@ -129,8 +129,10 @@ New file `app/agents/reasoning/claim_ledger.py`, pure and deterministic:
   and "from A to B" keep the last number and are marked as `range`, so they are never compared.
 - `fold_claims(ledger, claims, question_number, competency, evidence_ids) -> ledger`
 - `detect_conflicts(ledger, new_entries, corrections, inflation_admitted, question_number) -> list[conflict]`:
-  - **changed_value:** same `metric_key`, same unit, both numeric, a relative difference above 10% and an absolute difference above
-    1 unit (so 0.02% versus 0.04% only counts if the unit is a percentage of a *result*). Severity medium.
+  - **changed_value:** same `metric_key`, same unit, both numeric. Percentages: a difference above 1 point (0.02% versus 0.04% is
+    noise). Other units (time normalized to seconds): a relative difference above 10%. Severity medium. *(Changed during step 5:
+    the original "relative above 10% **and** absolute above 1 unit" missed 87% → 92% (5% relative), the plan's own test case, and
+    the bluffer's 93% → 85%.)*
   - **explicit_correction:** an evaluator `corrects_earlier_claim` item whose `metric_key` exists in the ledger. Severity medium.
   - **inflation_admitted:** severity high, recorded even without an earlier claim.
   - A second unresolved conflict on any metric raises all open conflicts to high.
@@ -448,6 +450,19 @@ user chose OpenRouter gpt-oss-120b for the strong tier (no dearer than 20b there
 If strong picks up false conflicts, the cause is usually two different metrics sharing a key: tighten the evaluator's
 `metric_key` instruction (PROMPTS.md §1, "Claims and gaps"), not the ledger thresholds.
 
+**Gate result (2026-11-08, `out/step5b`, `out/step5s`): passed on the fourth round.** bluffer lean_no_hire ×3 with 3 / 8 / 2
+claim conflicts (run 1's score alone gave lean_hire; cap 7 stopped it); strong hire ×2 (7.72 / 7.83) with no conflicts. How it got
+there:
+1. Round 1 was invalid: `--repeat` replayed r1 from the LLM response cache (`LLMService._cache_enabled` was never read). The flag
+   now works and the harness turns the cache off.
+2. Round 2: strong got 3 false conflicts (two caches' TTLs; two different optimisations under one key). The claims rule now
+   excludes configuration values and targets.
+3. Round 3: a rule asking for system-specific keys everywhere splintered the bluffer's figures (one throughput under 5 keys),
+   hiding its conflicts. Key reuse now comes first, and the evaluator sees 30 earlier keys instead of 12.
+4. Round 4 fixes in the ledger's reading of values, not its thresholds: bounds ("sub-50 ms", "<12 ms") conflict only when
+   broken; a correction needs two numbers in one unit that differ; one changed figure reported as both a new value and a
+   correction counts once. RPO/RTO and SLAs joined the excluded targets.
+
 ---
 
 ### Step 6: Ask the candidate to reconcile a conflict (P2, user decision 1)
@@ -530,6 +545,12 @@ If strong picks up false conflicts, the cause is usually two different metrics s
 ### Step 8: Interview modes: challenge only after real depth, a fundamentals step after a gap, better fallback questions (P6, P8, user decision 4)
 
 **Candidate-facing:** yes (approved: "fundamentals, same topic"; P6 makes challenge questions rarer).
+
+**Added 2026-11-08 (found in the step 5 gate, user agreed to handle it here):** `LLMService.invoke` caches every reply by
+prompt for 5 minutes, including high-temperature creative calls. When the question writer retries after a duplicate question
+with an identical prompt, the cache can hand back the same duplicate, so retries are wasted and the deterministic fallback
+fires (a suspected part of P8). Check it first: count cache hits on the retry path in a gate log. If confirmed, bypass the
+cache for retries (or for any call above temperature 0.5) and re-measure `fallbackQ`.
 
 **Files**
 - `app/brain/contradiction_detector.py`:

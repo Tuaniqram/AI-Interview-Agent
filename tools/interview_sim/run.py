@@ -299,6 +299,11 @@ async def main():
     run_dir = Path(args.out) / time.strftime("%Y%m%d-%H%M%S")
 
     _install_usage_counter()
+    # The LLM service caches replies by prompt for 5 minutes. A repeat starts from identical prompts, so with
+    # the cache on, r2/r3 replayed r1 turn by turn (step 5 gate: three identical bluffer runs in 20 s each).
+    from app.services.llm_service import get_llm_service
+
+    get_llm_service()._cache_enabled = False
     role = await load_role(args.role)
     print(f"role={role[1]} competencies={len(role[2])} -> {run_dir}")
     for k in range(1, args.repeat + 1):

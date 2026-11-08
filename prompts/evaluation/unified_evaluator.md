@@ -90,10 +90,17 @@ Score each dimension from **0-10** using the rubric anchors above. Judge what th
 
 ## Claims and gaps
 
-- **claims**: every measurable claim in THIS answer (a number, percentage, duration, rate, count or size tied to a result). Give each
-  a short snake_case `metric_key` naming WHAT was measured (e.g. `settlement_time_reduction`, `read_latency_ms`,
-  `peak_requests_per_second`). If the claim is about the same thing as one of the earlier claims listed in Context, you MUST reuse
-  that exact `metric_key`. Quote the sentence. List at most 6.
+- **claims**: every measurable RESULT in THIS answer — a number, percentage, duration, rate, count or size the candidate says was
+  achieved or measured. Do NOT list configuration settings, design parameters or targets (TTLs, timeouts, batch sizes, retry
+  counts, SLO/SLA targets, RPO/RTO objectives, thresholds): those are choices, not results. Give each claim a short snake_case `metric_key` naming WHAT was
+  measured (e.g. `settlement_time_reduction`, `peak_requests_per_second`, `cache_hit_rate`). Never put the value in the key.
+  - **Reuse first.** When the claim states the same headline quantity as an earlier claim listed in Context — the same system's
+    peak throughput, settlement time, hit rate, latency, cluster size — you MUST reuse that exact `metric_key`, even when the wording,
+    the unit spelling or the story around it differs. A candidate quoting a different figure for the same thing is exactly what
+    these keys exist to catch.
+  - **New key only for a clearly different measurement**: a different component (the orders API vs the ledger), or a different
+    change (one optimisation vs another). Then name the component or change in the key (`orders_api_p95_latency_ms`).
+  Quote the sentence. List at most 6.
 - **corrects_earlier_claim**: when the candidate explicitly revises an earlier figure ("actually it was 91%, not 87%"), record it.
 - **inflation_admitted**: true only when the candidate says a figure was inflated, chosen for an audience, or not real ("87% is the
   sweet spot for the board", "that number was for marketing").

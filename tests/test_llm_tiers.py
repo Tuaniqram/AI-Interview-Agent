@@ -268,6 +268,24 @@ async def test_service_passes_temperature_and_max_tokens_as_model_arguments(monk
     assert call["kwargs"]["timeout"] == request_timeout(300)
 
 
+async def test_disabled_cache_calls_the_model_every_time(monkeypatch):
+    """The harness turns the cache off; before, the flag was ignored and repeats replayed the first run."""
+    from app.services.llm_service import LLMService
+
+    chain = _RecordingChain()
+    monkeypatch.setattr(llm_service_module, "get_llm", lambda tier=None: chain)
+    monkeypatch.setattr(llm_service_module, "llm", chain)
+    service = LLMService()
+    await service.invoke(prompt="same prompt for cache test", tier="cheap")
+    await service.invoke(prompt="same prompt for cache test", tier="cheap")
+    assert len(chain.calls) == 1  # cached by default
+
+    service._cache_enabled = False
+    await service.invoke(prompt="same prompt for cache test", tier="cheap")
+    await service.invoke(prompt="same prompt for cache test", tier="cheap")
+    assert len(chain.calls) == 3
+
+
 def test_completion_budget_adds_reasoning_headroom_and_is_capped():
     from app.services.llm_service import MAX_COMPLETION_TOKENS, REASONING_HEADROOM_TOKENS, completion_budget
 

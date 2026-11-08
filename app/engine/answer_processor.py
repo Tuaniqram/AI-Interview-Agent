@@ -117,6 +117,13 @@ async def process_answer(
     s = await unified_evaluator_node(s)
     s = await evidence_extractor_node(s)
     s = explainable_scoring_node(s)
+    # Plan step 5: measurable claims across answers; changed figures become claim_conflict contradictions.
+    from app.agents.reasoning.claim_ledger import apply_claim_ledger
+
+    try:
+        s = apply_claim_ledger(s)
+    except Exception as exc:  # noqa: BLE001 - the ledger must never break a turn
+        logger.warning(f"Claim ledger failed (non-fatal): {exc}")
     await persist_evidence(session_id, s)
 
     # Diagnostic log after evaluation & evidence extraction

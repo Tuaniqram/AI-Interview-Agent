@@ -86,9 +86,11 @@ class LLMService:
         target_llm = get_llm(tier) if tier else llm
         cache_key = self._generate_cache_key(prompt, temperature, system_prompt, tier)
 
-        # Check Redis first
+        # Check Redis first. ``_cache_enabled = False`` turns BOTH caches off (the interview harness does this:
+        # a repeat interview starts from identical prompts and would otherwise replay the first run).
         redis_cache = get_cache()
-        if redis_cache.is_enabled:
+        use_cache = self._cache_enabled
+        if use_cache and redis_cache.is_enabled:
             try:
                 redis_val = await redis_cache.get(cache_key)
                 if redis_val is not None:
@@ -98,7 +100,7 @@ class LLMService:
                 pass
 
         # Fallback to in-memory cache
-        if cache_key in self._cache:
+        if use_cache and cache_key in self._cache:
             cached_result = self._cache[cache_key]
             if time.time() - cached_result['timestamp'] < self._cache_ttl:
                 logger.debug(f"Memory cache hit for prompt: {prompt[:50]}...")
@@ -127,13 +129,14 @@ class LLMService:
 
                     result_content = response.content
 
-                    self._cache[cache_key] = {
-                        'content': result_content,
-                        'timestamp': time.time()
-                    }
+                    if use_cache:
+                        self._cache[cache_key] = {
+                            'content': result_content,
+                            'timestamp': time.time()
+                        }
 
                     # Write to Redis cache (async, best-effort)
-                    if redis_cache.is_enabled:
+                    if use_cache and redis_cache.is_enabled:
                         try:
                             await redis_cache.set(cache_key, result_content, self._cache_ttl)
                         except Exception:

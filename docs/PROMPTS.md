@@ -29,6 +29,8 @@
 claims, reusing known metric keys so the claim ledger can match them), P5 (verifiability judged per answer, with one answer in
 view), P6 (`admitted_gap`), N2 (answer fenced as data), P12 (`/5`).
 
+**Revised in step 5 (2026-11-08):** the "claims" rule excludes configuration values and targets (two caches' TTLs, 5 s vs 600 s, gave the strong persona false conflicts) and puts key reuse first, with a new key only for a clearly different component or change. A first revision that asked for system-specific keys everywhere splintered the bluffer's one peak-throughput figure into five keys (2M, 2.1M, 2.3M, 2.3M, 2.5M) and hid every conflict.
+
 **Variables:** `job_role`, `difficulty`, `competency`, `persona`, `domain_label`, `candidate_memory`, `rubric`, `question`,
 `answer`, `primary_dimension`, **new:** `known_claims` (from `claim_ledger.known_claims_brief(brain)`, or "None").
 
@@ -125,10 +127,17 @@ Score each dimension from **0-10** using the rubric anchors above. Judge what th
 
 ## Claims and gaps
 
-- **claims**: every measurable claim in THIS answer (a number, percentage, duration, rate, count or size tied to a result). Give each
-  a short snake_case `metric_key` naming WHAT was measured (e.g. `settlement_time_reduction`, `read_latency_ms`,
-  `peak_requests_per_second`). If the claim is about the same thing as one of the earlier claims listed in Context, you MUST reuse
-  that exact `metric_key`. Quote the sentence. List at most 6.
+- **claims**: every measurable RESULT in THIS answer — a number, percentage, duration, rate, count or size the candidate says was
+  achieved or measured. Do NOT list configuration settings, design parameters or targets (TTLs, timeouts, batch sizes, retry
+  counts, SLO/SLA targets, RPO/RTO objectives, thresholds): those are choices, not results. Give each claim a short snake_case `metric_key` naming WHAT was
+  measured (e.g. `settlement_time_reduction`, `peak_requests_per_second`, `cache_hit_rate`). Never put the value in the key.
+  - **Reuse first.** When the claim states the same headline quantity as an earlier claim listed in Context — the same system's
+    peak throughput, settlement time, hit rate, latency, cluster size — you MUST reuse that exact `metric_key`, even when the wording,
+    the unit spelling or the story around it differs. A candidate quoting a different figure for the same thing is exactly what
+    these keys exist to catch.
+  - **New key only for a clearly different measurement**: a different component (the orders API vs the ledger), or a different
+    change (one optimisation vs another). Then name the component or change in the key (`orders_api_p95_latency_ms`).
+  Quote the sentence. List at most 6.
 - **corrects_earlier_claim**: when the candidate explicitly revises an earlier figure ("actually it was 91%, not 87%"), record it.
 - **inflation_admitted**: true only when the candidate says a figure was inflated, chosen for an audience, or not real ("87% is the
   sweet spot for the board", "that number was for marketing").
