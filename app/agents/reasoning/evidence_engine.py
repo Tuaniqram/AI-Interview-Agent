@@ -303,6 +303,7 @@ def build_candidate_evidence(
     question_objective: dict | None = None,
     competency_taxonomy: list[dict] | None = None,
     answer_text: str | None = None,
+    extras: dict | None = None,
 ) -> list[dict]:
     """Turn a scored evaluation into 1–2 evidence records (V5, plan step 2).
 
@@ -312,7 +313,8 @@ def build_candidate_evidence(
     target, else the dimension's taxonomy competency — bare ``dim_*`` attributions are never produced).
     Claim sentences come from the primary dimension's quote. An answer with nothing quotable still
     yields one record, built from ``answer_text`` and marked ``quote_missing``, so its score counts.
-    Returns ``[]`` only when nothing was scored.
+    Returns ``[]`` only when nothing was scored. ``extras`` (evaluator v2, plan step 4) caps an
+    unsubstantiated answer's score (``scoring.is_unsubstantiated``).
     """
     question_objective = question_objective or {}
     raw_target = str(question_objective.get("target_competency", "") or "")
@@ -371,7 +373,7 @@ def build_candidate_evidence(
     from app.data.rubrics import category_from_taxonomy
 
     category = category_from_taxonomy(competency_taxonomy, competency)
-    score = competency_score(evaluation, category)
+    score = competency_score(evaluation, category, extras)
     if score is None:
         score = float(top_data.get("score", 0.0))
     primary_dim = primary_competency_dimension(evaluation, category) or top_dim
@@ -612,7 +614,9 @@ async def evidence_extractor_node(state: dict) -> dict:
         question_objective=state.get("question_objective", {}) or {},
         competency_taxonomy=state.get("competency_taxonomy"),
         answer_text=state.get("candidate_answer", ""),
+        extras=state.get("unified_evaluation_extras") or {},
     )
+    answer_signals = _append_answer_signal(state, extracted)
     top_dim = max(scored, key=lambda pair: pair[1].get("score", 0.0) or 0.0)[0]
     dimension_metrics.append(
         build_dimension_metrics(
@@ -622,7 +626,7 @@ async def evidence_extractor_node(state: dict) -> dict:
 
     if not extracted:
         logger.info("No claims extracted from the top-scoring dimension")
-        return {**state, "dimension_metrics": dimension_metrics}
+        return {**state, "dimension_metrics": dimension_metrics, "answer_signals": answer_signals}
 
     # Annotate contradiction against the pre-fold summary so the delta measures
     # a genuine conflict with established evidence, then fold the records in.
@@ -657,4 +661,38 @@ async def evidence_extractor_node(state: dict) -> dict:
         "hypotheses": state.get("hypotheses", []),
         "evidence_graph": evidence_graph,
         "dimension_metrics": dimension_metrics,
+        "answer_signals": answer_signals,
     }
+
+
+def _append_answer_signal(state: dict, extracted: list[dict]) -> list[dict]:
+    """Plan step 4 (D1): one ``answer_signals`` entry per scored answer, replacing an earlier entry for
+    the same question (a re-run never double-counts). Without evidence the list is returned unchanged."""
+    signals = list(state.get("answer_signals") or [])
+    if not extracted:
+        return signals
+    extras = state.get("unified_evaluation_extras") or {}
+    sub = extras.get("substantiation") or {}
+    question_number = int(state.get("question_number", 0) or 0)
+    entry = {
+        "question_number": question_number,
+        "competency": extracted[0].get("competency"),
+        "competency_score": extracted[0].get("score"),
+        "verifiable": sub.get("verifiable") is not False,
+        "specifics": list(sub.get("specifics") or []),
+        "unsupported_claims": list(sub.get("unsupported_claims") or []),
+        "admitted_gap": bool(extras.get("admitted_gap")),
+        "asked_interviewer": bool(extras.get("asked_interviewer")),
+        "inflation_admitted": bool(extras.get("inflation_admitted")),
+    }
+    signals = [s for s in signals if int(s.get("question_number", -1) or -1) != question_number]
+    signals.append(entry)
+    return signals
+
+
+def unsubstantiated_share(answer_signals: list | None) -> float | None:
+    """Share of scored answers the evaluator judged unverifiable (plan step 4), ``None`` with no answers."""
+    signals = [s for s in (answer_signals or []) if isinstance(s, dict)]
+    if not signals:
+        return None
+    return round(sum(1 for s in signals if s.get("verifiable") is False) / len(signals), 3)

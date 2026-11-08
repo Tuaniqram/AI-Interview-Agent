@@ -64,6 +64,10 @@ def summarize(path: Path) -> dict:
     seconds = [t.get("seconds") for t in turns]
     turn_mean = _mean(scores)
     ev_mean = _mean(e.get("score") for e in ev)
+    signals = [s for s in (brain.get("answer_signals") or []) if isinstance(s, dict)]
+    unsub = (
+        round(sum(1 for s in signals if s.get("verifiable") is False) / len(signals), 2) if signals else None
+    )
     return {
         "run": path.parent.name if path.parent.name.startswith("r") and path.parent.name[1:].isdigit()
         else path.parent.name,
@@ -77,6 +81,8 @@ def summarize(path: Path) -> dict:
         "unscored": unscored,
         "serious_contradictions": len(serious),
         "claim_conflicts": len(claim_conflicts),
+        "unsubstantiated_share": unsub,
+        "admitted_gaps": sum(1 for s in signals if s.get("admitted_gap")),
         "flag_review": hd.get("flag_review"),
         "demotion": hd.get("demotion_reason") or "",
         "difficulty_reached": (hd.get("signals") or {}).get("difficulty_reached"),
@@ -104,6 +110,7 @@ def main():
               f"cov={r['coverage']} diff={r['difficulty_reached']}{' CRASH' if r['error'] else ''}")
         print(f"{'':<61} answers={r['answers']} unscored={r['unscored']} clarif={r['clarifications']} "
               f"avg={r['avg_score']} ev_minus_turn={r['ev_minus_turn']}")
+        print(f"{'':<61} unsub_share={r['unsubstantiated_share']} admitted_gaps={r['admitted_gaps']}")
         print(f"{'':<61} contradictions={r['serious_contradictions']} claim_conflicts={r['claim_conflicts']} "
               f"flag={r['flag_review']} demotion={r['demotion'][:60]!r}")
         print(f"{'':<61} challenge={r['challenge_share']} fallbackQ={r['fallback_questions']} "

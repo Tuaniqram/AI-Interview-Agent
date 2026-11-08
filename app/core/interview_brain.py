@@ -107,6 +107,8 @@ class InterviewBrain:
 
     # -- Evaluation ---------------------------------------------------------
     unified_evaluation: Optional[dict] = None
+    unified_evaluation_extras: dict = field(default_factory=dict)  # step 4: substantiation, claims, gap flags
+    answer_signals: list = field(default_factory=list)  # step 4: one entry per scored answer (plan D1)
     evaluator_mode: str = "unified"
     evaluation_score: Optional[float] = None
     extracted_evidence: list = field(default_factory=list)

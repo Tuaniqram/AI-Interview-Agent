@@ -386,6 +386,18 @@ That's the rubric's and the ledger's job.
 
 Then re-check the step 3 thresholds against these runs (same calibration rule) and adjust them if strong lost its margin.
 
+**Gate result (2026-11-08, `out/step4a`, `out/step4b`; done before step 3 by user decision; run with gpt-oss-20b on both
+tiers):** strong hire + lean_hire with unsubstantiated share 0%; bluffer **no_hire ×2** (was hired 2/2) with 50% / 57%; weak
+no_hire ×2. **Not met:** awkward no_hire ×2. Its answers average 4.3 / 5.5 but its decision scores are 3.4 / 3.7: the
+`confirmed_ratio` term and the difficulty credit (awkward stays at level 1) pull it down. Step 3 removes both, and its gate
+re-checks awkward. Also seen: 20b lists plain knowledge statements ("UUID gives global uniqueness") as `unsupported_claims`,
+which inflates the unsubstantiated share of honest candidates (awkward 33% / 71%, weak 36% / 86%). Re-check this on 120b
+before step 3's cap 6 uses the share.
+Deviations, all user-approved: cap 6 and the synthesis `unsubstantiated_share` move to step 3 (they need
+`apply_decision_caps` and the step 3 synthesis template); `known_claims` is "None" until step 5. Added here: competency ids
+missing from the session taxonomy resolve their family by id prefix (`behav_*` was scored as technical). After the gate the
+user chose OpenRouter gpt-oss-120b for the strong tier (no dearer than 20b there) and 20b for cheap.
+
 ---
 
 ### Step 5: Claim ledger: contradictions in the candidate's words reach the decision (P2)

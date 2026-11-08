@@ -33,13 +33,13 @@ ANCHORS: dict[str, list[str]] = {
     "technical": [
         "9-10: mastery — correct, deep, tradeoff-aware, production-grounded",
         "7-8: strong — correct with minor gaps or shallow tradeoffs",
-        "5-6: adequate — correct basics, some inaccuracy, little depth",
+        "5-6: adequate — correct basics, some inaccuracy, little depth; large results stated without method or mechanism cap here",
         "0-4: weak — incorrect or superficial",
     ],
     "domain": [
         "9-10: master of the field — current, decisive, grounded in real outcomes",
         "7-8: solid — clear working knowledge with a couple of soft spots",
-        "5-6: partial — understands basics, struggles with nuance or current practice",
+        "5-6: partial — understands basics, struggles with nuance or current practice; large results stated without method or mechanism cap here",
         "0-4: weak — confused or no real field knowledge",
     ],
     "communication": [
@@ -61,10 +61,10 @@ ANCHORS: dict[str, list[str]] = {
         "0-4: vague or no behavioral evidence",
     ],
     "confidence": [
-        "9-10: calibrated certainty, honest about unknowns, pushes back well",
+        "9-10: calibrated certainty: sure only where backed, honest about unknowns",
         "7-8: appropriately sure, some over- or under-confidence",
         "5-6: hesitant or overconfident without backing",
-        "0-4: bluffing or constant hedging",
+        "0-4: bluffing, false expertise, or claims far beyond what is explained",
     ],
     "completeness": [
         "9-10: fully answers every part of the question",
@@ -322,12 +322,29 @@ def active_dimensions(category: str | None) -> list[str]:
 
 
 def category_from_taxonomy(taxonomy: list | None, target: str | None) -> str | None:
-    """Category of a competency id within a session taxonomy, or ``None``."""
+    """Category of a competency id within a session taxonomy, or ``None``.
+
+    When the session taxonomy does not list the id (or lists it without a category), the standard id
+    prefixes decide (``behav_*`` → behavioral, ...). Without this a ``behav_communication`` question
+    in a technical session was scored as a technical competency.
+    """
     if target and isinstance(taxonomy, list):
         for comp in taxonomy:
-            if isinstance(comp, dict) and comp.get("id") == target:
+            if isinstance(comp, dict) and comp.get("id") == target and comp.get("category"):
                 return comp.get("category")
+    if target:
+        for prefix, category in _ID_PREFIX_CATEGORIES:
+            if str(target).startswith(prefix):
+                return category
     return None
+
+
+_ID_PREFIX_CATEGORIES = (
+    ("tech_", "technical"),
+    ("behav_", "behavioral"),
+    ("cog_", "cognitive"),
+    ("exp_", "experience"),
+)
 
 
 def evidence_keywords(category: str | None) -> tuple[str, ...]:

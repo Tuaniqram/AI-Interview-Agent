@@ -19,8 +19,21 @@ EVALUATOR_JSON = {
     "behavioral": {"score": None, "evidence": "n/a", "confidence": 0.0, "strengths": [], "weaknesses": []},
     "confidence": {"score": 7.5, "evidence": "sure", "confidence": 0.8, "strengths": [], "weaknesses": []},
     "completeness": {"score": 8.5, "evidence": "full", "confidence": 0.85, "strengths": [], "weaknesses": []},
+    "substantiation": {"verifiable": True, "specifics": ["row-level locking"], "unsupported_claims": []},
+    "claims": [{"metric_key": "settlement_time", "value": "30 minutes", "quote": "settlement went to 30 minutes"}],
+    "corrects_earlier_claim": [],
+    "inflation_admitted": False,
+    "admitted_gap": False,
+    "asked_interviewer": False,
     "observations": {"verbosity": 0.3, "hedging": 0.1},
     "composite_score": 7.6,
+}
+
+# The pre-step-4 evaluator reply (no substantiation/claims/gap keys): must still parse, never capped.
+EVALUATOR_JSON_V1 = {
+    k: v for k, v in EVALUATOR_JSON.items()
+    if k not in ("substantiation", "claims", "corrects_earlier_claim", "inflation_admitted",
+                 "admitted_gap", "asked_interviewer")
 }
 
 STRATEGY_JSON = (

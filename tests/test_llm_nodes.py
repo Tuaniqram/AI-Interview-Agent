@@ -44,7 +44,53 @@ async def test_unified_evaluator_parses_six_dimensions(stub_llm):
     }
     assert state["unified_evaluation"]["behavioral"]["score"] is None
     assert state["evaluation_score"] == 7.6
-    assert stub.calls[0]["max_tokens"] == 1500
+    assert stub.calls[0]["max_tokens"] == 2200
+    extras = state["unified_evaluation_extras"]
+    assert extras["substantiation"]["verifiable"] is True
+    assert extras["claims"][0]["metric_key"] == "settlement_time"
+    assert extras["admitted_gap"] is False
+
+
+async def test_unified_evaluator_old_reply_shape_still_parses_uncapped(stub_llm):
+    from tests.conftest import EVALUATOR_JSON_V1
+
+    stub_llm(response=json.dumps(EVALUATOR_JSON_V1))
+    state = await unified_evaluator_node(make_v4_state(
+        current_question="Q",
+        candidate_answer="A",
+        question_objective={"target_competency": "tech_core"},
+    ))
+    assert state["unified_evaluation"]["technical"]["score"] == 8.0
+    extras = state["unified_evaluation_extras"]
+    assert extras["substantiation"] == {"verifiable": True, "specifics": [], "unsupported_claims": []}
+    assert extras["claims"] == [] and extras["admitted_gap"] is False
+
+
+async def test_unified_evaluator_malformed_extras_degrade_to_defaults(stub_llm):
+    bad = dict(EVALUATOR_JSON)
+    bad.update({
+        "substantiation": "not a dict", "claims": [{"value": "no key"}, "junk"],
+        "admitted_gap": "yes", "corrects_earlier_claim": {"x": 1},
+    })
+    stub_llm(response=json.dumps(bad))
+    state = await unified_evaluator_node(make_v4_state(
+        current_question="Q", candidate_answer="A", question_objective={"target_competency": "tech_core"},
+    ))
+    extras = state["unified_evaluation_extras"]
+    assert extras["substantiation"]["verifiable"] is True
+    assert extras["claims"] == [] and extras["corrects_earlier_claim"] == []
+    assert extras["admitted_gap"] is False  # only a real boolean true counts
+
+
+async def test_unified_evaluator_sees_long_answers_up_to_6000_chars(stub_llm):
+    stub = stub_llm(response=json.dumps(EVALUATOR_JSON))
+    answer = "a" * 5000 + "TAILMARK" + "b" * 2000
+    await unified_evaluator_node(make_v4_state(
+        current_question="Q", candidate_answer=answer, question_objective={"target_competency": "tech_core"},
+    ))
+    prompt = stub.calls[0]["prompt"]
+    assert "TAILMARK" in prompt
+    assert "b" * 1500 not in prompt  # cut at 6000
 
 
 async def test_unified_evaluator_empty_answer_skips_llm(stub_llm):

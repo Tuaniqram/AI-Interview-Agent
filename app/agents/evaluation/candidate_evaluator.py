@@ -1,4 +1,5 @@
 import logging
+import os
 from uuid import uuid4
 from datetime import datetime, timezone
 
@@ -14,6 +15,63 @@ from app.data.rubrics import (
 logger = logging.getLogger(__name__)
 
 _DIMENSION_KEYS = {"technical", "domain", "communication", "reasoning", "behavioral", "confidence", "completeness"}
+
+# Plan step 4: the evaluator runs on the strong tier; EVALUATOR_LLM_TIER=cheap reverts it.
+EVALUATOR_TIER_ENV = "EVALUATOR_LLM_TIER"
+MAX_ANSWER_CHARS = 6000  # N3: long, detailed answers were cut at 3000 chars before scoring
+
+
+def _evaluator_tier() -> str:
+    tier = os.getenv(EVALUATOR_TIER_ENV, "strong").strip().lower()
+    return tier if tier in ("strong", "cheap") else "strong"
+
+
+def _known_claims(state: dict) -> str:
+    """Earlier measurable claims for metric-key reuse. The claim ledger arrives in plan step 5; until then "None"."""
+    try:
+        from app.agents.reasoning.claim_ledger import known_claims_brief  # type: ignore[import-not-found]
+    except ImportError:
+        return "None"
+    return known_claims_brief(state.get("claim_ledger") or [])
+
+
+def _str_list(value, limit: int = 10) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(v).strip() for v in value if isinstance(v, (str, int, float)) and str(v).strip()][:limit]
+
+
+def parse_evaluation_extras(data: dict) -> dict:
+    """Step 4 top-level keys, parsed defensively. A missing or malformed key becomes an empty value and
+    ``verifiable`` defaults to True, so a parse gap never caps a score."""
+    data = data if isinstance(data, dict) else {}
+    sub = data.get("substantiation")
+    sub = sub if isinstance(sub, dict) else {}
+    verifiable = sub.get("verifiable")
+    claims = []
+    for c in data.get("claims") if isinstance(data.get("claims"), list) else []:
+        if isinstance(c, dict) and str(c.get("metric_key") or "").strip():
+            claims.append({
+                "metric_key": str(c["metric_key"]).strip(),
+                "value": str(c.get("value") or "").strip(),
+                "quote": str(c.get("quote") or "").strip(),
+            })
+    corrections = []
+    for c in data.get("corrects_earlier_claim") if isinstance(data.get("corrects_earlier_claim"), list) else []:
+        if isinstance(c, dict) and str(c.get("metric_key") or "").strip():
+            corrections.append({k: str(c.get(k) or "").strip() for k in ("metric_key", "from", "to", "quote")})
+    return {
+        "substantiation": {
+            "verifiable": verifiable if isinstance(verifiable, bool) else True,
+            "specifics": _str_list(sub.get("specifics")),
+            "unsupported_claims": _str_list(sub.get("unsupported_claims")),
+        },
+        "claims": claims[:6],
+        "corrects_earlier_claim": corrections,
+        "inflation_admitted": data.get("inflation_admitted") is True,
+        "admitted_gap": data.get("admitted_gap") is True,
+        "asked_interviewer": data.get("asked_interviewer") is True,
+    }
 
 
 def _memory_context(state: dict) -> str:
@@ -83,7 +141,7 @@ async def _unified_evaluator(
             "evaluation",
             "unified_evaluator.md",
             question=question,
-            answer=answer[:3000] if answer else "",
+            answer=answer[:MAX_ANSWER_CHARS] if answer else "",
             job_role=job_role,
             difficulty=str(difficulty),
             persona=persona,
@@ -92,13 +150,14 @@ async def _unified_evaluator(
             candidate_memory=_memory_context(state),
             rubric=render_rubric(category),
             primary_dimension=dimensions[0] if dimensions else "technical",
+            known_claims=_known_claims(state),
         )
 
         response = await llm_service.invoke(
             prompt=prompt,
             temperature=0.3,
-            max_tokens=1500,
-            tier="cheap",
+            max_tokens=2200,
+            tier=_evaluator_tier(),
         )
 
         from app.intelligence._helpers import parse_json
@@ -151,6 +210,7 @@ async def _unified_evaluator(
     return {
         **state,
         "unified_evaluation": evaluation,
+        "unified_evaluation_extras": parse_evaluation_extras(data),
         "evaluation_score": composite,
         "evaluation_failed": False,
         "observations": obs_list,
@@ -179,6 +239,7 @@ def _empty_evaluation(state: InterviewState, reason: str, dimensions: list[str])
     return {
         **state,
         "unified_evaluation": empty,
+        "unified_evaluation_extras": parse_evaluation_extras({}),
         "evaluation_score": None,
         # The answer was NOT scored (model unavailable / unreadable reply). Surfaced to the client so
         # it can say "not scored" instead of presenting the missing score as 0.0.

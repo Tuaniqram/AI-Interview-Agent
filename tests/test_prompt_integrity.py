@@ -81,6 +81,10 @@ async def test_unified_evaluator_prompt_renders_completely(stub_llm):
     await unified_evaluator_node(state)
     prompt = stub.calls[0]["prompt"]
     assert not _leftover(prompt), _leftover(prompt)
+    # Plan step 4: the answer is fenced as data, earlier claims are listed, the scale is 1-5.
+    assert "<candidate_answer>\nI worked on X.\n</candidate_answer>" in prompt
+    assert "Measurable claims the candidate made earlier" in prompt
+    assert "/3" not in prompt
 
 
 async def test_synthesis_prompt_renders_completely(stub_llm):

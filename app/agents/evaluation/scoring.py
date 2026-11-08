@@ -56,6 +56,8 @@ __all__ = [
     "COMPETENCY_SCORE_WEIGHTS",
     "competency_score",
     "competency_score_weights",
+    "is_unsubstantiated",
+    "UNSUBSTANTIATED_SCORE_CAP",
     "primary_competency_dimension",
     "score_band",
     "reconcile_composite",
@@ -83,13 +85,34 @@ def competency_score_weights(category: str | None) -> dict[str, float]:
     return dict(COMPETENCY_SCORE_WEIGHTS.get(key) or COMPETENCY_SCORE_WEIGHTS["_domain"])
 
 
-def competency_score(evaluation: dict, category: str | None = None) -> float | None:
+# Plan step 4 (P1 link 5): an answer whose main claims are unverifiable and unsupported cannot
+# score above this, whatever the model gave it (deterministic twin of the evaluator prompt rule).
+UNSUBSTANTIATED_SCORE_CAP = 5.5
+
+
+def is_unsubstantiated(extras: dict | None) -> bool:
+    """True when the evaluator judged the answer unverifiable AND listed unsupported claims."""
+    sub = (extras or {}).get("substantiation") or {}
+    return sub.get("verifiable") is False and bool(sub.get("unsupported_claims"))
+
+
+def competency_score(
+    evaluation: dict, category: str | None = None, extras: dict | None = None
+) -> float | None:
     """The answer's competency score: weighted mean of the competence dimensions that were scored.
 
     Weights are renormalized over the dimensions actually scored. When none of them was scored the
     answer still counts, at the mean of whatever was scored (never the maximum). ``None`` only when
-    nothing at all was scored.
+    nothing at all was scored. With evaluator ``extras`` marking the answer unsubstantiated, the
+    score is capped at ``UNSUBSTANTIATED_SCORE_CAP``.
     """
+    score = _competency_score_raw(evaluation, category)
+    if score is not None and is_unsubstantiated(extras):
+        score = min(score, UNSUBSTANTIATED_SCORE_CAP)
+    return score
+
+
+def _competency_score_raw(evaluation: dict, category: str | None) -> float | None:
     evaluation = evaluation or {}
 
     def _score(dim: str):
