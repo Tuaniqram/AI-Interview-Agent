@@ -663,6 +663,12 @@ the answer always follows).
 - no turn whose answer ends with a question to the interviewer scores below 2
 - awkward is not `no_hire`
 
+**Gate result (2026-11-08, `out/step9a`, `out/step9b`):** run B had one clarification ("Could you clarify what specific part of the
+endpoint flow you'd like me to focus on?"), answered and not scored; awkward insufficient_evidence / lean_no_hire; no
+question-ending answer scored below 2 (5.8 and 5.45). Run A had no clarification because the simulated candidate never asked for
+one: its two question endings were courtesy add-ons to real answers (55 and 148 words), correctly scored as answers. Accepted as
+passed; the thresholds were not lowered to force a clarification.
+
 ---
 
 ### Step 10: Latency and concurrency (P10, N9)

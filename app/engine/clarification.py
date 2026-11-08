@@ -34,16 +34,41 @@ _ASK_PATTERNS = (
     r"\bi('m| am)? ?(not sure|unsure) what you('re| are) asking\b",
     r"\b(could|can) you (please )?(clarify|rephrase)\b",
     r"\bplease (repeat|rephrase|clarify)\b",
+    # Plan step 9 (P9): a partial answer that asks what the interviewer wants to hear.
+    r"\bremind me\b",
+    r"\bwhat (do |would )?you('d| would)? (like|want) (me )?to (hear|cover|focus on|know|see)\b",
+    r"\bwhat are you looking for\b",
+    r"\bis that what you (meant|wanted|were asking|were looking for)\b",
 )
 _ASK_RE = re.compile("|".join(f"(?:{p})" for p in _ASK_PATTERNS), re.IGNORECASE)
 
 
+# Plan step 9 (user decision "clarify, then let them answer"): a short partial answer that ENDS by asking the
+# interviewer what they want ("...Could you remind me what you'd like to hear?") is a request, not an answer.
+MAX_PARTIAL_ANSWER_WORDS = 80   # the whole message
+MAX_WORDS_BEFORE_QUESTION = 40  # the partial answer before the closing question
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?…])\s+")
+
+
 def is_clarification_request(answer: str) -> bool:
-    """True when a short message asks the interviewer to repeat or clarify the question."""
+    """True when a message asks the interviewer to repeat or clarify the question.
+
+    Either a short message with an ask anywhere in it, or a short partial answer whose LAST sentence is an
+    ask ending in "?". A long answer that ends with a courtesy question ("does that make sense?") stays an
+    answer, and so does a statement about clarifying with someone else ("I'd clarify with the PM first.").
+    """
     text = (answer or "").strip().replace("’", "'")
-    if not text or len(text) > MAX_CLARIFICATION_CHARS or len(text.split()) > MAX_CLARIFICATION_WORDS:
+    if not text:
         return False
-    return bool(_ASK_RE.search(text))
+    words = len(text.split())
+    if len(text) <= MAX_CLARIFICATION_CHARS and words <= MAX_CLARIFICATION_WORDS and _ASK_RE.search(text):
+        return True
+    if words > MAX_PARTIAL_ANSWER_WORDS or not text.endswith("?"):
+        return False
+    sentences = [x for x in _SENTENCE_SPLIT.split(text) if x.strip()]
+    last = sentences[-1] if sentences else text
+    before = text[: len(text) - len(last)]
+    return bool(_ASK_RE.search(last)) and len(before.split()) <= MAX_WORDS_BEFORE_QUESTION
 
 
 def _fallback_reply(question: str, message: str) -> str:

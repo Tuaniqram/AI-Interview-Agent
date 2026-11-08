@@ -98,3 +98,43 @@ async def test_a_real_answer_after_a_clarification_is_scored_normally(engine, st
     reply = await engine.process_answer("clar-1", "I would start with an append-only ledger table in PostgreSQL.")
     assert "clarification" not in reply
     assert reply["evaluation"]["scored"] is True
+
+
+# --- plan step 9: a short partial answer that ends by asking what the interviewer wants --------------------
+
+from app.engine.clarification import is_clarification_request as _is_clar  # noqa: E402
+
+ROUND8_AWKWARD_TURN7 = (
+    "I'm not sure I remember if we added a cache at all... Maybe we cached some lookup tables in Redis, but I "
+    "can't recall the invalidation strategy. Could you remind me what you'd like to hear?"
+)
+
+
+def test_round8_awkward_turn7_is_a_clarification():
+    assert _is_clar(ROUND8_AWKWARD_TURN7)
+    assert _is_clar(ROUND8_AWKWARD_TURN7.replace("'", "’"))  # curly apostrophes
+
+
+def test_new_phrasings_are_clarifications():
+    for text in (
+        "What are you looking for here?",
+        "Sorry, what would you like me to focus on?",
+        "We used Postgres for it. Is that what you meant?",
+        "Could you remind me of the question?",
+    ):
+        assert _is_clar(text), text
+
+
+def test_long_answer_ending_with_a_courtesy_question_stays_an_answer():
+    body = " ".join(["We split the ledger into services and added row level locking on the balance table."] * 8)
+    text = body + " Does that make sense?"
+    assert len(text.split()) > 100
+    assert not _is_clar(text)
+    # a long partial answer before the closing ask is still an answer
+    long_lead = " ".join(["I worked on the cache layer and measured the hit rate each week."] * 4)
+    assert not _is_clar(long_lead + " What are you looking for?")
+
+
+def test_statements_about_clarifying_are_answers():
+    assert not _is_clar("I'd clarify with the PM first.")
+    assert not _is_clar("I would ask the team to clarify the requirements before building anything.")
