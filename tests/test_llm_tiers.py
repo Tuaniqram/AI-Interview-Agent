@@ -22,9 +22,21 @@ def test_tiers_resolve_to_distinct_chains():
     assert cheap.model_name != strong.model_name
     from app.models.llm import _GROQ_CHEAP_MODEL, _GROQ_STRONG_MODEL
 
-    assert cheap.model_name.startswith(_GROQ_CHEAP_MODEL)
-    assert strong.model_name.startswith(_GROQ_STRONG_MODEL)
+    # Both tiers may share the main OpenRouter model (gpt-oss-20b); each keeps its own Groq backup.
+    assert _names(strong)[1] == _GROQ_STRONG_MODEL
+    assert _names(cheap)[1] == _GROQ_CHEAP_MODEL
     assert _GROQ_CHEAP_MODEL != _GROQ_STRONG_MODEL
+
+
+def test_openrouter_defaults_are_120b_strong_and_20b_cheap():
+    import os
+
+    from app.models import llm as llm_module
+
+    if "OPENROUTER_CHEAP_MODEL" not in os.environ:
+        assert llm_module._OPENROUTER_CHEAP_MODEL == "openai/gpt-oss-20b"
+    if "OPENROUTER_STRONG_MODEL" not in os.environ:
+        assert llm_module._OPENROUTER_STRONG_MODEL == "openai/gpt-oss-120b"
 
 
 async def test_invoke_passes_tier_through(stub_llm):
@@ -43,7 +55,9 @@ def test_cache_key_differs_by_tier():
     assert k_none == k_strong
 
 
-async def test_evaluator_routes_to_cheap_tier(stub_llm):
+async def test_evaluator_routes_to_strong_tier_by_default(stub_llm, monkeypatch):
+    """Plan step 4: scoring runs on the strong model; EVALUATOR_LLM_TIER=cheap reverts it."""
+    monkeypatch.delenv("EVALUATOR_LLM_TIER", raising=False)
     stub = stub_llm(response=json.dumps(EVALUATOR_JSON))
     state = make_v4_state(
         current_question="Q",
@@ -51,6 +65,15 @@ async def test_evaluator_routes_to_cheap_tier(stub_llm):
         question_objective={"target_competency": "tech_core"},
     )
     await unified_evaluator_node(state)
+    assert stub.calls[0]["tier"] == "strong"
+
+
+async def test_evaluator_tier_can_be_switched_back_to_cheap(stub_llm, monkeypatch):
+    monkeypatch.setenv("EVALUATOR_LLM_TIER", "cheap")
+    stub = stub_llm(response=json.dumps(EVALUATOR_JSON))
+    await unified_evaluator_node(make_v4_state(
+        current_question="Q", candidate_answer="A", question_objective={"target_competency": "tech_core"},
+    ))
     assert stub.calls[0]["tier"] == "cheap"
 
 
@@ -154,6 +177,33 @@ def test_cheap_chain_tries_both_cheap_models_before_the_strong_chain():
     names = _names(get_llm("cheap"))
     assert names[:2] == [_OPENROUTER_CHEAP_MODEL, _GROQ_CHEAP_MODEL]
     assert names[2:] == _names(get_llm("strong"))
+
+
+def test_free_only_chain_has_no_paid_model_and_puts_groq_first():
+    from app.models.llm import (
+        _GROQ_CHEAP_MODEL,
+        _GROQ_STRONG_MODEL,
+        _OPENROUTER_CHEAP_MODEL,
+        _OPENROUTER_FREE_MODEL,
+        _OPENROUTER_STRONG_MODEL,
+        _chain_configs,
+    )
+
+    strong, cheap = _chain_configs(free=True)
+    names = [c["model"] for c in strong]
+    assert names == [_GROQ_STRONG_MODEL, _OPENROUTER_FREE_MODEL, "openrouter/free", "one"]
+    assert [c["model"] for c in cheap] == [_GROQ_CHEAP_MODEL, *names]
+    paid = {_OPENROUTER_STRONG_MODEL, _OPENROUTER_CHEAP_MODEL}
+    assert not any(c["model"] in paid and "openrouter" in c["base_url"] for c in strong + cheap)
+
+
+def test_free_only_switch_reads_env(monkeypatch):
+    from app.models.llm import free_only
+
+    monkeypatch.setenv("LLM_FREE_ONLY", "1")
+    assert free_only() is True
+    monkeypatch.delenv("LLM_FREE_ONLY")
+    assert free_only() is False
 
 
 def test_openrouter_models_use_openrouters_reasoning_setting_not_groqs():

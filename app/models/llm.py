@@ -124,6 +124,8 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 # with no free-tier daily cap (200k tokens/day per Groq model) and at a fraction of a cent per interview.
 # Groq is the backup: when the OpenRouter balance runs out (HTTP 402, skipped for 15 min) or OpenRouter is
 # down, the chain falls through to it. OpenRouter spells the reasoning setting differently from Groq.
+# Strong tier (evaluator, question writing) on gpt-oss-120b: on OpenRouter it costs no more than 20b
+# ($0.029/$0.107 vs $0.03/$0.13 per M tokens, 2026-11-08) and reads hesitant answers more fairly.
 _OPENROUTER_STRONG_MODEL = os.getenv("OPENROUTER_STRONG_MODEL", "openai/gpt-oss-120b")
 _OPENROUTER_CHEAP_MODEL = os.getenv("OPENROUTER_CHEAP_MODEL", "openai/gpt-oss-20b")
 # ``provider.sort = throughput``: OpenRouter serves each model from several providers whose speed varies a lot
@@ -132,25 +134,56 @@ _OPENROUTER_CHEAP_MODEL = os.getenv("OPENROUTER_CHEAP_MODEL", "openai/gpt-oss-20
 # It only changes routing: fallbacks stay allowed and these models cost a fraction of a cent per interview.
 _OPENROUTER_EXTRA_BODY = {"reasoning": {"effort": "low"}, "provider": {"sort": "throughput"}}
 
-_LLM_CONFIGS: list[dict[str, Any]] = [
-    {"model": _OPENROUTER_STRONG_MODEL, "base_url": OPENROUTER_BASE_URL,
-     "api_key": os.getenv("OPENROUTER_API_KEY"), "extra_body": _OPENROUTER_EXTRA_BODY},
-    {"model": _GROQ_STRONG_MODEL, "base_url": GROQ_BASE_URL, "api_key": os.getenv("GROQ_API_KEY"),
-     "extra_body": _GROQ_EXTRA_BODY},
-    {"model": "openrouter/free", "base_url": OPENROUTER_BASE_URL, "api_key": os.getenv("OPENROUTER_API_KEY")},
-    # Local gateway last: it is a developer convenience and is skipped by the circuit breaker when down.
-    {"model": "one", "base_url": "http://localhost:20128/v1", "api_key": None},
-]
+# ``LLM_FREE_ONLY=1``: no paid model at all (e.g. the OpenRouter balance is empty). Groq's free gpt-oss
+# models go first, so scoring stays comparable with the paid chain (same model family), then a named free
+# OpenRouter model (``OPENROUTER_FREE_MODEL``; the gpt-oss ``:free`` slugs were withdrawn), then the
+# ``openrouter/free`` router and the local gateway.
+_OPENROUTER_FREE_MODEL = os.getenv("OPENROUTER_FREE_MODEL", "nvidia/nemotron-3.5-super-vl:free")
 
-# Cheap tier — small/fast models for extraction, formatting and classification.
-# Falls back to the strong chain so it never fails outright when no cheap provider is configured.
-_CHEAP_LLM_CONFIGS: list[dict[str, Any]] = [
-    {"model": _OPENROUTER_CHEAP_MODEL, "base_url": OPENROUTER_BASE_URL,
-     "api_key": os.getenv("OPENROUTER_API_KEY"), "extra_body": _OPENROUTER_EXTRA_BODY},
-    {"model": _GROQ_CHEAP_MODEL, "base_url": GROQ_BASE_URL, "api_key": os.getenv("GROQ_API_KEY"),
-     "extra_body": _GROQ_EXTRA_BODY},
-    *_LLM_CONFIGS,
-]
+
+def free_only() -> bool:
+    return os.getenv("LLM_FREE_ONLY", "").strip().lower() in ("1", "true", "yes")
+
+
+def _chain_configs(free: bool) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """``(strong, cheap)`` model configs. The cheap chain falls back to the strong chain."""
+    openrouter_key = os.getenv("OPENROUTER_API_KEY")
+    groq_key = os.getenv("GROQ_API_KEY")
+    groq_strong = {"model": _GROQ_STRONG_MODEL, "base_url": GROQ_BASE_URL, "api_key": groq_key,
+                   "extra_body": _GROQ_EXTRA_BODY}
+    groq_cheap = {"model": _GROQ_CHEAP_MODEL, "base_url": GROQ_BASE_URL, "api_key": groq_key,
+                  "extra_body": _GROQ_EXTRA_BODY}
+    tail = [
+        {"model": "openrouter/free", "base_url": OPENROUTER_BASE_URL, "api_key": openrouter_key},
+        # Local gateway last: it is a developer convenience and is skipped by the circuit breaker when down.
+        {"model": "one", "base_url": "http://localhost:20128/v1", "api_key": None},
+    ]
+    if free:
+        # ``OPENROUTER_FREE_MODEL=none`` keeps the chain on Groq's gpt-oss (comparable scores, no slow free
+        # reasoning model in between).
+        named_free = (
+            [{"model": _OPENROUTER_FREE_MODEL, "base_url": OPENROUTER_BASE_URL, "api_key": openrouter_key}]
+            if _OPENROUTER_FREE_MODEL.strip().lower() not in ("", "none") else []
+        )
+        strong = [groq_strong, *named_free, *tail]
+        return strong, [groq_cheap, *strong]
+    strong = [
+        {"model": _OPENROUTER_STRONG_MODEL, "base_url": OPENROUTER_BASE_URL,
+         "api_key": openrouter_key, "extra_body": _OPENROUTER_EXTRA_BODY},
+        groq_strong,
+        *tail,
+    ]
+    # Cheap tier — small/fast models for extraction, formatting and classification.
+    cheap = [
+        {"model": _OPENROUTER_CHEAP_MODEL, "base_url": OPENROUTER_BASE_URL,
+         "api_key": openrouter_key, "extra_body": _OPENROUTER_EXTRA_BODY},
+        groq_cheap,
+        *strong,
+    ]
+    return strong, cheap
+
+
+_LLM_CONFIGS, _CHEAP_LLM_CONFIGS = _chain_configs(free_only())
 
 
 # Per-request limit for one model call. The longest call (the final semantic read, ~3k tokens out) takes

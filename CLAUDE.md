@@ -29,7 +29,9 @@ FastAPI backend + React frontend (`frontend/`) for an AI interviewer. A candidat
 - `app/core/interview_brain.py` — the single state object. Stored as JSON (no DB migration for new fields), but **a new field must
   be declared on the dataclass** or `sync_from_dict` silently drops it.
 - `prompts/` — Markdown templates with `{{var}}` placeholders, rendered by `app/services/prompt_loader.load_prompt`.
-- `app/models/llm.py` — model chains: strong (OpenRouter gpt-oss-120b → Groq → free → local) and cheap (gpt-oss-20b first).
+- `app/models/llm.py` — model chains: strong = OpenRouter gpt-oss-120b → Groq 120b → free → local; cheap = OpenRouter
+  gpt-oss-20b → Groq 20b → strong chain. On OpenRouter 120b costs no more than 20b. `LLM_FREE_ONLY=1` drops every paid model
+  (`OPENROUTER_FREE_MODEL=none` keeps it Groq-only).
 
 ## Conventions
 - **Deterministic code decides; the LLM reads and writes text.** Verdicts, scores, caps and next steps are computed in Python.
