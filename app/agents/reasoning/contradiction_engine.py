@@ -647,7 +647,11 @@ def decide_next_action(
     if any_covered and uncovered_exists:
         return "change_competency"
 
-    serious = [c for c in contradictions if c.get("severity") in ("high", "medium")]
+    # Plan step 6: claim conflicts are reconciled on the same topic (director), never a reason to rotate away.
+    serious = [
+        c for c in contradictions
+        if c.get("severity") in ("high", "medium") and c.get("type") != "claim_conflict"
+    ]
     if len(serious) >= 2:
         return "change_competency"
 

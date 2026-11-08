@@ -32,6 +32,7 @@ __all__ = [
     "next_conflict_to_reconcile",
     "settle_after_reconcile",
     "unresolved_conflicts",
+    "mark_asked",
     "apply_claim_ledger",
 ]
 
@@ -316,21 +317,45 @@ def known_claims_brief(ledger: list | None, limit: int = 30) -> str:
 
 
 def next_conflict_to_reconcile(conflicts: list | None) -> dict | None:
-    """The oldest ``open`` conflict (step 6 asks about it)."""
-    open_ = [c for c in conflicts or [] if c.get("status", "open") == "open"]
+    """The oldest ``open`` conflict between two figures (step 6 asks about it).
+
+    An admitted inflation is not a pair of figures to reconcile — the candidate already said the number was not
+    real — so it is never asked about and keeps its cap (step 6 gate: one was "explained" by a fluent story)."""
+    open_ = [
+        c for c in conflicts or []
+        if c.get("status", "open") == "open" and c.get("kind") != "inflation_admitted"
+    ]
     return min(open_, key=lambda c: int((c.get("second") or {}).get("question_number") or 0)) if open_ else None
 
 
 def settle_after_reconcile(conflict: dict, answer_signal: dict | None, created_new_conflict: bool = False) -> dict:
-    """After the reconcile question is answered: ``explained`` when that answer was substantiated and created
-    no new conflict (severity drops to low and it never blocks a hire), else ``unexplained``."""
+    """After the reconcile question is answered: ``explained`` when that answer was substantiated — judged
+    verifiable AND carrying no unsupported claims — and created no new conflict (severity drops to low and it
+    never blocks a hire); else ``unexplained``. In the step 6 gate a fluent bluffer "explained" every conflict
+    with a new, unbacked measurement story ("200,000 unit tests"); the unsupported claims are what give it away."""
     settled = dict(conflict)
-    if (answer_signal or {}).get("verifiable") is not False and not created_new_conflict:
+    signal = answer_signal or {}
+    substantiated = signal.get("verifiable") is True and not signal.get("unsupported_claims")
+    if conflict.get("kind") != "inflation_admitted" and substantiated and not created_new_conflict:
         settled["status"] = "explained"
         settled["severity"] = "low"
     else:
         settled["status"] = "unexplained"
     return settled
+
+
+def mark_asked(state: dict, conflict_id: str | None, question_number: int) -> dict:
+    """Plan step 6: the conflict was put to the candidate in ``question_number`` (asked once, never again).
+    Returns the updated ``claim_conflicts`` and ``contradictions`` for the caller to merge into its state."""
+    conflicts = []
+    for c in state.get("claim_conflicts") or []:
+        c = dict(c)
+        if conflict_id and c.get("id") == conflict_id and c.get("status", "open") == "open":
+            c["status"] = "asked"
+            c["asked_in_question"] = int(question_number)
+        conflicts.append(c)
+    others = [c for c in state.get("contradictions") or [] if c.get("type") != "claim_conflict"]
+    return {"claim_conflicts": conflicts, "contradictions": others + [_mirror(c) for c in conflicts]}
 
 
 def _mirror(conflict: dict) -> dict:
@@ -360,10 +385,26 @@ def apply_claim_ledger(state: dict) -> dict:
         [e.get("id") for e in extracted if e.get("id")],
     )
     conflicts = [dict(c) for c in state.get("claim_conflicts") or []]
-    conflicts.extend(detect_conflicts(
+    # Plan step 6: was this answer the reply to a reconcile question?
+    asked = next(
+        (c for c in conflicts if c.get("status") == "asked" and int(c.get("asked_in_question") or -1) == question_number),
+        None,
+    )
+    new_conflicts = detect_conflicts(
         ledger, new_entries, extras.get("corrects_earlier_claim") or [],
         bool(extras.get("inflation_admitted")), question_number, existing=conflicts,
-    ))
+    )
+    if asked is not None:
+        # The reply is ABOUT the two figures: restating them under the same key (e.g. "the 87% was p50, the 93%
+        # p95") is the explanation, not a new conflict. Anything on another metric still counts.
+        new_conflicts = [c for c in new_conflicts if c.get("metric_key") != asked.get("metric_key")]
+        signal = next(
+            (s for s in state.get("answer_signals") or [] if int(s.get("question_number", -1)) == question_number),
+            None,
+        )
+        settled = settle_after_reconcile(asked, signal, created_new_conflict=bool(new_conflicts))
+        conflicts = [settled if c.get("id") == asked.get("id") else c for c in conflicts]
+    conflicts.extend(new_conflicts)
     conflicts = _escalate(conflicts)
 
     # Mirrors are rebuilt from the conflicts every turn, so an escalation or a settled status is reflected.

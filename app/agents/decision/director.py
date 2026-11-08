@@ -41,6 +41,7 @@ PROBE_MODES = (
     "challenge_candidate",
     "verify_claim",
     "finish_competency",
+    "reconcile_claim",  # plan step 6: ask how two figures for the same thing fit together
 )
 
 __all__ = [
@@ -73,6 +74,10 @@ def _probe_mode_for(action: str, state: dict) -> str:
     """
     if action == "FINISH":
         return "finish_competency"
+
+    # Plan step 6: an unasked claim conflict is reconciled first (the director returned PROBE for it).
+    if action == "PROBE" and _conflict_to_reconcile(state):
+        return "reconcile_claim"
 
     # T1.2: deterministic seniority-risk flag wins over every mode.
     _, needs_challenge = _contradiction_signal(state)
@@ -109,6 +114,12 @@ def _probe_mode_for(action: str, state: dict) -> str:
     if status == "testing" and score >= VERIFY_SCORE_FLOOR and confidence < VERIFY_CONFIDENCE_CEIL:
         return "verify_claim"
     return "explore_new_competency"
+
+
+def _conflict_to_reconcile(state: dict) -> dict | None:
+    from app.agents.reasoning.claim_ledger import next_conflict_to_reconcile
+
+    return next_conflict_to_reconcile(state.get("claim_conflicts"))
 
 
 def _cursor_marks_target(state: dict, kind: str) -> bool:
@@ -191,6 +202,19 @@ def _director_decision(state: dict) -> tuple[str, str, str]:
         return (
             "FINISH",
             f"question budget exhausted (max {max_questions})",
+            target_id,
+        )
+
+    # Plan step 6 (user decision "ask about it neutrally"): the candidate gave two figures for the same
+    # thing and has not been asked about it yet — ask how they fit before anything else except the
+    # question budget. It has to come before the reflection's rotate/finish signals: in the step 6 gate the
+    # reflection asked to rotate on nearly every turn and no conflict was ever put to the candidate. Each
+    # conflict is asked once (its status becomes "asked"), so this can never loop.
+    conflict = _conflict_to_reconcile(state)
+    if conflict:
+        return (
+            "PROBE",
+            f"candidate gave two figures for {conflict.get('metric_key', 'a metric')}; ask how they fit",
             target_id,
         )
 

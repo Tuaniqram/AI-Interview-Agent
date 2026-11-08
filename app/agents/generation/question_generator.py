@@ -141,6 +141,7 @@ _MODE_BY_PROBE_MODE = {
     "challenge_candidate": "CHALLENGER",
     "verify_claim": "VERIFIER",
     "finish_competency": "CLOSER",
+    "reconcile_claim": "RECONCILER",  # plan step 6
 }
 
 # V5 brain strategy mode → conductor interviewer mode. The planner translates
@@ -171,6 +172,7 @@ _MODE_DESCRIPTIONS = {
     "PROBER": "Follow up on a strong answer: drill into specifics (data, invalidation, failure behavior)",
     "CHALLENGER": "Stress-test a senior candidate: trade-offs, alternatives, edge cases",
     "VERIFIER": "Verify a claim: ask how it was measured or demonstrated",
+    "RECONCILER": "Two different figures for the same thing: ask neutrally how they fit together",
     "CLOSER": "Wrap up: confirm overall picture with one final question",
 }
 
@@ -189,6 +191,12 @@ def _resolve_interview_mode(
     the strongest evidence need — a follow-up on the current competency must
     pin it down before any other agenda, so VERIFIER wins over every mode.
     """
+    # Plan step 6: a claim conflict the director chose to reconcile wins over every other agenda,
+    # including the brain strategy and the claim-verification override.
+    director = state.get("director") or {}
+    if director.get("probe_mode") == "reconcile_claim" and _conflict_to_reconcile(state):
+        return "RECONCILER"
+
     # V5 brain strategy is the first-class signal: the planner already ranks
     # competencies by uncertainty and picks the mode that reduces risk most.
     strategy = state.get("question_strategy") or {}
@@ -201,7 +209,9 @@ def _resolve_interview_mode(
 
     director = state.get("director") or {}
     probe_mode = director.get("probe_mode")
-    if probe_mode in _MODE_BY_PROBE_MODE:
+    if probe_mode == "reconcile_claim":
+        mode = "PROBER"  # nothing left to reconcile (already asked): an ordinary follow-up
+    elif probe_mode in _MODE_BY_PROBE_MODE:
         mode = _MODE_BY_PROBE_MODE[probe_mode]
     else:
         difficulty = int(state.get("difficulty_level", 1) or 1)
@@ -219,6 +229,59 @@ def _resolve_interview_mode(
     if claims and followup_number > 0:
         return "VERIFIER"
     return mode
+
+
+def _conflict_to_reconcile(state: dict) -> dict | None:
+    from app.agents.reasoning.claim_ledger import next_conflict_to_reconcile
+
+    return next_conflict_to_reconcile(state.get("claim_conflicts"))
+
+
+def _conflict_text(conflict: dict | None) -> str:
+    """``<metric>: <first> (question n) vs <second> (question m)`` for the prompt, or "None"."""
+    if not conflict:
+        return "None"
+    first, second = conflict.get("first") or {}, conflict.get("second") or {}
+    return (
+        f"{conflict.get('metric_key', 'a figure')}: {first.get('value_text') or '?'} "
+        f"(question {first.get('question_number') or '?'}) vs {second.get('value_text') or '?'} "
+        f"(question {second.get('question_number') or '?'})"
+    )
+
+
+_FIGURE_RE = re.compile(r"\d+(?:[.,]\d+)?")
+
+
+def _names_both_figures(question: str, conflict: dict | None) -> bool:
+    """Plan step 6: a reconcile question must name both figures. Checks each value's first number appears in
+    the question (a value without a number is not checked)."""
+    if not conflict:
+        return True
+    text = str(question or "").replace(",", "")
+    for side in ("first", "second"):
+        value = str((conflict.get(side) or {}).get("value_text") or "")
+        m = _FIGURE_RE.search(value.replace(",", ""))
+        if m and not re.search(rf"(?<![\d.]){re.escape(m.group(0))}(?![\d])", text):
+            return False
+    return True
+
+
+def _reconcile_fallback(conflict: dict | None) -> str:
+    """Deterministic RECONCILER question (LLM-failure path): names both figures, neutral wording."""
+    if not conflict:
+        return ""
+    first, second = conflict.get("first") or {}, conflict.get("second") or {}
+    metric = _label(str(conflict.get("metric_key") or "that figure").replace("_", " "))
+    a, b = first.get("value_text"), second.get("value_text")
+    if not a or not b:
+        return (
+            f"I'd like to come back to the figure you gave for {metric}. "
+            f"Can you walk me through how it was measured and what it covered?"
+        )
+    return (
+        f"Earlier you mentioned {a}, and later {b} for {metric}. "
+        f"How do those two figures relate — were they measured differently, or at different times?"
+    )
 
 
 def _strategy_guidance(state: InterviewState) -> str:
@@ -367,6 +430,14 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
     claims = _claim_targets(last_answer)
     followup_number = _count_competency_questions(previous_questions, target_competency)
     interview_mode = _resolve_interview_mode(state, claims, followup_number)
+    # Plan step 6: a RECONCILER turn targets the conflict's competency, so the answer's evidence lands where
+    # the claim was made.
+    reconcile = _conflict_to_reconcile(state) if interview_mode == "RECONCILER" else None
+    if reconcile and reconcile.get("competency"):
+        target_competency = reconcile["competency"]
+        followup_number = _count_competency_questions(previous_questions, target_competency)
+    conflict_to_reconcile = _conflict_text(reconcile)
+    reconcile_text = _reconcile_fallback(reconcile)
     claims_to_verify = ", ".join(claims) if claims else "None"
     company_context = _company_context(state, interview_mode)
     avoid_topics = avoid_topics_summary(memory)
@@ -396,6 +467,8 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 strategy_guidance=strategy_guidance,
                 candidate_memory=candidate_memory,
                 cv_brief=cv_brief,
+                conflict_to_reconcile=conflict_to_reconcile,
+                reconcile_text=reconcile_text,
             )
             return conversation_turn, conversation_turn["question"]
         try:
@@ -422,6 +495,7 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 strategy_guidance=strategy_guidance,
                 candidate_memory=candidate_memory,
                 cv_brief=cv_brief,
+                conflict_to_reconcile=conflict_to_reconcile,
             )
         except Exception as e:
             logger.warning(f"LLM question generation failed ({e}), falling back to deterministic")
@@ -438,6 +512,7 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 interview_mode=interview_mode,
                 attempt_offset=attempt,
                 claims=claims,
+                reconcile_text=reconcile_text,
             )
         return None, question_text
 
@@ -497,6 +572,7 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
                 interview_mode=interview_mode,
                 attempt_offset=offset,
                 claims=claims,
+                reconcile_text=reconcile_text,
             )
             if candidate in rejected_texts:
                 continue
@@ -538,6 +614,14 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
         )
         question_text = replacement
 
+    # Plan step 6: the reconcile question must name both figures; the model sometimes wrote "those two figures"
+    # without numbers, quoted a wrong figure, or drifted to another topic — use the neutral template instead.
+    if reconcile and reconcile_text and not _names_both_figures(question_text, reconcile):
+        logger.info(f"Reconcile question did not name both figures, using the template: {question_text[:80]!r}")
+        question_text = reconcile_text
+        if conversation_turn:
+            conversation_turn = {**conversation_turn, "question": reconcile_text}
+
     question_id = str(uuid4())
 
     probe_mode = next(
@@ -563,8 +647,17 @@ async def question_generator_node(state: InterviewState) -> InterviewState:
         "timestamp": datetime.now(timezone.utc).isoformat(),
     })
 
+    conflict_updates = {}
+    if reconcile:
+        from app.agents.reasoning.claim_ledger import mark_asked
+
+        question_objective["conflict_id"] = reconcile.get("id")
+        questions_asked[-1]["conflict_id"] = reconcile.get("id")
+        conflict_updates = mark_asked(state, reconcile.get("id"), question_number + 1)
+
     return {
         **state,
+        **conflict_updates,
         "current_question": question_text,
         "conversation_turn": conversation_turn,
         "question_objective": question_objective,
@@ -678,6 +771,8 @@ def _question_prompt_vars(
     strategy_guidance: str = "",
     candidate_memory: str = "None",
     cv_brief: str = "None",
+    conflict_to_reconcile: str = "None",
+    gap_admitted: str = "no",
 ) -> dict:
     """Single source of truth for the question_generation prompt's variables."""
     history_lines = []
@@ -713,6 +808,8 @@ def _question_prompt_vars(
         "strategy_guidance": strategy_guidance,
         "candidate_memory": candidate_memory,
         "cv_brief": cv_brief or "None",
+        "conflict_to_reconcile": conflict_to_reconcile or "None",
+        "gap_admitted": gap_admitted or "no",  # step 8 wires SCAFFOLD
     }
 
 
@@ -734,6 +831,8 @@ async def _generate_conductor_turn(
     strategy_guidance: str = "",
     candidate_memory: str = "None",
     cv_brief: str = "None",
+    conflict_to_reconcile: str = "None",
+    reconcile_text: str = "",
 ) -> dict:
     """One LLM call producing {acknowledgement, bridge, question} (AURA conductor)."""
     from app.services.llm_service import get_llm_service
@@ -776,6 +875,7 @@ async def _generate_conductor_turn(
                 strategy_guidance=strategy_guidance,
                 candidate_memory=candidate_memory,
                 cv_brief=cv_brief,
+                conflict_to_reconcile=conflict_to_reconcile,
             ),
         )
 
@@ -792,6 +892,7 @@ async def _generate_conductor_turn(
             last_answer=last_answer,
             interview_mode=interview_mode,
             attempt_offset=0,
+            reconcile_text=reconcile_text,
         )
 
 
@@ -823,6 +924,7 @@ def _generate_deterministic_conductor_turn(
     last_answer: str,
     interview_mode: str = "EXPLORER",
     attempt_offset: int = 0,
+    reconcile_text: str = "",
 ) -> dict:
     question = _generate_deterministic_question(
         target_competency=target_competency,
@@ -837,6 +939,7 @@ def _generate_deterministic_conductor_turn(
         interview_mode=interview_mode,
         attempt_offset=attempt_offset,
         claims=_claim_targets(last_answer),
+        reconcile_text=reconcile_text,
     )
 
     if last_answer:
@@ -874,6 +977,7 @@ async def _generate_llm_question(
     strategy_guidance: str = "",
     candidate_memory: str = "None",
     cv_brief: str = "None",
+    conflict_to_reconcile: str = "None",
 ) -> str:
     """Generate the next question with the LLM using the question_generation prompt."""
     from app.services.llm_service import get_llm_service
@@ -908,6 +1012,7 @@ async def _generate_llm_question(
             strategy_guidance=strategy_guidance,
             candidate_memory=candidate_memory,
             cv_brief=cv_brief,
+            conflict_to_reconcile=conflict_to_reconcile,
         ),
     )
 
@@ -938,12 +1043,15 @@ def _generate_deterministic_question(
     interview_mode: str = "EXPLORER",
     attempt_offset: int = 0,
     claims: list | None = None,
+    reconcile_text: str = "",
 ) -> str:
     """Deterministic fallback question, shaped by the interview depth mode.
 
     ``attempt_offset`` shifts the template slot on duplicate retries so a
-    rejected question is never regenerated verbatim.
+    rejected question is never regenerated verbatim. A RECONCILER turn uses ``reconcile_text`` (plan step 6).
     """
+    if interview_mode == "RECONCILER" and reconcile_text:
+        return reconcile_text
     if hypothesis_text:
         direction = "positive" if "strong" in hypothesis_text.lower() else "negative"
         if direction == "positive" and followup_number > 0:

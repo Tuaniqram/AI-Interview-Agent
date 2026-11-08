@@ -139,8 +139,10 @@ New file `app/agents/reasoning/claim_ledger.py`, pure and deterministic:
 - `known_claims_brief(ledger, limit=12) -> str`: the `metric_key: value (Qn)` list for the evaluator prompt, so it reuses keys.
 - `next_conflict_to_reconcile(conflicts) -> conflict | None`: the oldest `open` one.
 - `settle_after_reconcile(conflict, answer_signal)`: after the RECONCILER question is answered, the status becomes `explained` when
-  that answer is substantiated (`verifiable`) and created no new conflict; otherwise `unexplained`. Explained conflicts are severity
-  low and never block a hire.
+  that answer is substantiated (`verifiable` **and no `unsupported_claims`**) and created no new conflict; otherwise `unexplained`.
+  Explained conflicts are severity low and never block a hire. *(Tightened during step 6: with `verifiable` alone, the bluffer
+  "explained" every conflict with a new, unbacked measurement story.)* An `inflation_admitted` conflict is never asked about and
+  never explained.
 
 Engine wiring: `answer_processor.process_answer` calls `apply_claim_ledger(s)` right after `explainable_scoring_node`. It folds
 `s["unified_evaluation_extras"]` (step 4) into `claim_ledger`, appends conflicts to `claim_conflicts` and mirrors them into
@@ -471,7 +473,9 @@ there:
 
 **Files**
 - `app/agents/decision/director.py`:
-  - A new rule before the loop guard: when `claim_ledger.next_conflict_to_reconcile(state["claim_conflicts"])` exists, return
+  - A new rule right after the question-budget check (moved from "before the loop guard" during step 6: the reflection asked
+    to rotate on nearly every turn, so in the first gate run no conflict was ever asked): when
+    `claim_ledger.next_conflict_to_reconcile(state["claim_conflicts"])` exists, return
     `("PROBE", "candidate gave two figures for <metric>; ask how they fit", target_id)` with
     `probe_mode = "reconcile_claim"`.
   - Add `"reconcile_claim"` to `PROBE_MODES`, and to `_probe_mode_for` (PROBE + an open conflict → reconcile_claim).
@@ -500,6 +504,15 @@ there:
 - no conflict is asked about twice
 - strong runs have 0 RECONCILER questions, or only explained ones
 - verdicts are no worse than step 5
+
+**Gate result (2026-11-08, `out/step6b`, `out/step6s`): passed on the third round.** bluffer: 3 reconcile questions per run, all
+naming both figures, none accusing, none repeated; verdicts lean_no_hire / insufficient_evidence. strong: hire ×2, one reconcile
+question (run 2), explained. Round 1 asked nothing (the reflection's rotate signal returned first: the rule moved up). Round 2 let
+the bluffer "explain" every conflict, including admitted inflations, and some questions did not name the figures (fixed: "explained"
+needs no unsupported claims; inflations are never reconciled; a question missing a figure is replaced by the neutral template).
+**Watch (before step 7):** the bluffer's fluent explanations are accepted, so its drafts reached lean_hire (6.21 / 6.40). Run 1 was
+held by the open admitted inflation (cap 7), run 2 only by the evidence-reading review (`cross_answer_risk` demotion). Step 7
+makes that review secondary.
 
 ---
 

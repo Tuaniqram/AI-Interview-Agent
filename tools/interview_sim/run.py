@@ -234,7 +234,7 @@ async def run_one(name: str, persona: dict, role: tuple, questions: int, out_dir
         # Fields the implementation-plan gates read (absent on older code: saved as empty).
         brain_extras = {key: getattr(final, key, None) for key in BRAIN_EXTRA_KEYS}
         brain_extras["questions_asked"] = [
-            {k: q.get(k) for k in ("competency", "difficulty", "mode", "question_source")}
+            {k: q.get(k) for k in ("competency", "difficulty", "mode", "question_source", "conflict_id", "text")}
             for q in (getattr(final, "questions_asked", None) or [])
             if isinstance(q, dict)
         ]

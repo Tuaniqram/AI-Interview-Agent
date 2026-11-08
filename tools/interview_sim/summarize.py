@@ -22,6 +22,8 @@ FALLBACK_MARKERS = (
 )
 
 HIRE_SIDE = {"strong_hire", "hire", "lean_hire"}
+# Step 6 gate: a reconcile question must stay neutral.
+ACCUSING = ("contradict", "inconsistent", "you said something different")
 
 
 def _mean(values):
@@ -65,6 +67,10 @@ def summarize(path: Path) -> dict:
     turn_mean = _mean(scores)
     ev_mean = _mean(e.get("score") for e in ev)
     signals = [s for s in (brain.get("answer_signals") or []) if isinstance(s, dict)]
+    asked = [q for q in (brain.get("questions_asked") or []) if isinstance(q, dict)]
+    reconcilers = [q for q in asked if q.get("mode") == "RECONCILER"]
+    reconcile_ids = [q.get("conflict_id") for q in reconcilers if q.get("conflict_id")]
+    statuses = Counter(c.get("status") for c in claim_conflicts if isinstance(c, dict))
     unsub = (
         round(sum(1 for s in signals if s.get("verifiable") is False) / len(signals), 2) if signals else None
     )
@@ -82,6 +88,10 @@ def summarize(path: Path) -> dict:
         "serious_contradictions": len(serious),
         "claim_conflicts": len(claim_conflicts),
         "unsubstantiated_share": unsub,
+        "reconcile_questions": len(reconcilers),
+        "reconcile_repeats": len(reconcile_ids) - len(set(reconcile_ids)),
+        "reconcile_accusing": sum(1 for q in reconcilers if any(w in str(q.get("text", "")).lower() for w in ACCUSING)),
+        "conflict_statuses": dict(statuses),
         "admitted_gaps": sum(1 for s in signals if s.get("admitted_gap")),
         "flag_review": hd.get("flag_review"),
         "draft": hd.get("draft") or hd.get("draft_decision"),
@@ -118,6 +128,8 @@ def main():
         print(f"{'':<61} answers={r['answers']} unscored={r['unscored']} clarif={r['clarifications']} "
               f"avg={r['avg_score']} ev_minus_turn={r['ev_minus_turn']}")
         print(f"{'':<61} unsub_share={r['unsubstantiated_share']} admitted_gaps={r['admitted_gaps']}")
+        print(f"{'':<61} reconcile_q={r['reconcile_questions']} repeats={r['reconcile_repeats']} "
+              f"accusing={r['reconcile_accusing']} conflict_status={r['conflict_statuses'] or '-'}")
         print(f"{'':<61} draft={r['draft']} adjustments={r['adjustments'] or '-'}"
               f"{' OFFER-MISMATCH' if r['offer_mismatch'] else ''}")
         print(f"{'':<61} contradictions={r['serious_contradictions']} claim_conflicts={r['claim_conflicts']} "
