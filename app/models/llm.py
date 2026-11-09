@@ -129,11 +129,21 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 # ($0.029/$0.107 vs $0.03/$0.13 per M tokens, 2026-11-08) and reads hesitant answers more fairly.
 _OPENROUTER_STRONG_MODEL = os.getenv("OPENROUTER_STRONG_MODEL", "openai/gpt-oss-120b")
 _OPENROUTER_CHEAP_MODEL = os.getenv("OPENROUTER_CHEAP_MODEL", "openai/gpt-oss-20b")
-# ``provider.sort = throughput``: OpenRouter serves each model from several providers whose speed varies a lot
-# from minute to minute (a trivial call took 0.7-6.8 s); asking for the highest-throughput one halved the
-# median for gpt-oss-20b and cut the worst case for gpt-oss-120b from 6.8 s to 2.4 s in a small test.
-# It only changes routing: fallbacks stay allowed and these models cost a fraction of a cent per interview.
-_OPENROUTER_EXTRA_BODY = {"reasoning": {"effort": "low"}, "provider": {"sort": "throughput"}}
+# ``OPENROUTER_ROUTING`` picks which host OpenRouter uses for each model:
+#   cheapest (default): ``provider.sort = price``. gpt-oss-120b is about $0.055/$0.25 per M tokens (in/out) there.
+#   fastest: ``provider.sort = throughput``. A small test halved the median latency of gpt-oss-20b and cut the
+#            worst case for gpt-oss-120b from 6.8 s to 2.4 s, but it sends requests to the fastest hosts, which are
+#            also the priciest (Cerebras $0.35/$0.75, SambaNova $0.14/$0.95): roughly 3-10x the cost per call.
+# It only changes routing: fallbacks stay allowed.
+_OPENROUTER_SORT = {"fastest": "throughput", "throughput": "throughput", "cheapest": "price", "price": "price"}
+
+
+def openrouter_provider_sort() -> str:
+    """The ``provider.sort`` value for ``OPENROUTER_ROUTING`` (anything unknown means cheapest)."""
+    return _OPENROUTER_SORT.get(os.getenv("OPENROUTER_ROUTING", "cheapest").strip().lower(), "price")
+
+
+_OPENROUTER_EXTRA_BODY = {"reasoning": {"effort": "low"}, "provider": {"sort": openrouter_provider_sort()}}
 
 # ``LLM_FREE_ONLY=1``: no paid model at all (e.g. the OpenRouter balance is empty). Groq's free gpt-oss
 # models go first, so scoring stays comparable with the paid chain (same model family), then a named free
