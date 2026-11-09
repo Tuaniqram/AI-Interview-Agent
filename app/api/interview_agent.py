@@ -196,6 +196,34 @@ async def _get_legacy_summary(session_id: str) -> dict:
     }
 
 
+def build_final_decision(hd: Optional[dict], contradictions: Optional[list] = None) -> Optional[dict]:
+    """The engine's final seven-point decision, in the shape the recruiter's report shows.
+
+    ``hd`` is ``decision_state.hiring_decision`` (computed in Python at the end of the interview and already
+    persisted). Nothing is recomputed here: the verdict, the draft it started from, and each rule that lowered it
+    (with its reason) come straight from that record. ``None`` when the interview never reached a decision.
+    """
+    if not isinstance(hd, dict) or not hd.get("decision"):
+        return None
+    adjustments = [
+        {"rule": a.get("rule"), "from": a.get("from"), "to": a.get("to"), "reason": a.get("reason")}
+        for a in (hd.get("adjustments") or [])
+        if isinstance(a, dict) and a.get("reason")
+    ]
+    rationale = (hd.get("llm_draft") or {}).get("rationale") or hd.get("rationale")
+    return {
+        "verdict": hd.get("decision"),
+        "draft_verdict": hd.get("draft_decision"),
+        "score": hd.get("decision_score"),
+        "confidence": hd.get("confidence"),
+        "flag_review": bool(hd.get("flag_review")),
+        "rationale": rationale if isinstance(rationale, str) else None,
+        "adjustments": adjustments,
+        "next_steps": [str(x) for x in (hd.get("next_steps") or []) if x],
+        "contradiction_count": len(contradictions or []),
+    }
+
+
 async def _get_engine_summary(session_id: str) -> dict:
     """V4/V5 extras from the durable ``interview_brain`` snapshot (DB).
 
@@ -233,6 +261,7 @@ async def _get_engine_summary(session_id: str) -> dict:
 
     engine_data = {
         "session_id": session_id,
+        "final_decision": build_final_decision(decision.get("hiring_decision"), decision.get("contradictions")),
         "v4_verdict": rec.get("verdict", "insufficient_evidence"),
         "v4_confidence": rec.get("confidence", 0),
         "v4_composite_score": rec.get("composite_score"),

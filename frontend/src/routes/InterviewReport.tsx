@@ -5,6 +5,8 @@ import { apiClient } from '../services/apiClient';
 import { Card } from '../components/shared/Card';
 import { StatusBadge } from '../components/shared/StatusBadge';
 import { CardSkeleton } from '../components/shared/Skeleton';
+import { VerdictCard } from '../components/interview/VerdictCard';
+import { CompetencyTable } from '../components/interview/CompetencyTable';
 import type { InterviewReport as InterviewReportType } from '../types/interview';
 
 interface Message {
@@ -114,6 +116,11 @@ export function InterviewReportPage() {
         </div>
       </div>
 
+      {/* The recommendation and why: first, because it is what the reader came for. */}
+      {report.final_decision && (
+        <VerdictCard decision={report.final_decision} evidenceCount={report.v4_evidence_count} />
+      )}
+
       {/* Score Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <Card>
@@ -161,6 +168,8 @@ export function InterviewReportPage() {
           <p className="text-lg font-semibold text-primary">{report.interview_complete ? 'Complete' : 'Incomplete'}</p>
         </Card>
       </div>
+
+      {report.v4_competency_summary && <CompetencyTable summary={report.v4_competency_summary} />}
 
       {/* Strengths & Weaknesses */}
       {(report.strengths?.length || report.weaknesses?.length) ? (

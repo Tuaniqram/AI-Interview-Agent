@@ -292,3 +292,31 @@ def test_top_feedback_items_rank_by_frequency_and_cap():
 def test_top_feedback_items_ignore_blanks_and_keep_a_stable_order():
     assert top_feedback_items(["", " ", "b", "a"]) == ["b", "a"]
     assert top_feedback_items([]) == []
+
+
+from app.api.interview_agent import build_final_decision
+
+
+def test_final_decision_carries_the_verdict_and_why_it_was_lowered():
+    hd = {
+        "decision": "lean_no_hire", "draft_decision": "hire", "decision_score": 5.4, "confidence": 0.61,
+        "flag_review": True, "rationale": "deterministic text",
+        "llm_draft": {"rationale": "Answers contradicted each other."},
+        "adjustments": [
+            {"rule": "claim_conflict", "from": "hire", "to": "lean_no_hire", "reason": "2 figures changed", "extra": 1},
+            {"rule": "noise", "reason": None},  # no reason: not shown
+        ],
+        "next_steps": ["archive candidate profile"],
+    }
+    out = build_final_decision(hd, [{"a": 1}, {"b": 2}])
+    assert out["verdict"] == "lean_no_hire" and out["draft_verdict"] == "hire" and out["score"] == 5.4
+    assert out["rationale"] == "Answers contradicted each other."  # the readable draft wins over the fallback text
+    assert out["adjustments"] == [{"rule": "claim_conflict", "from": "hire", "to": "lean_no_hire", "reason": "2 figures changed"}]
+    assert out["flag_review"] is True and out["contradiction_count"] == 2
+    assert out["next_steps"] == ["archive candidate profile"]
+
+
+def test_final_decision_is_none_without_a_decision():
+    assert build_final_decision(None) is None
+    assert build_final_decision({}) is None
+    assert build_final_decision({"decision": ""}) is None

@@ -230,4 +230,25 @@ export interface InterviewReport {
   /** True when the session was terminated for reaching the flag limit */
   integrity_terminated?: boolean;
   integrity_termination_reason?: string;
+  /** The engine's final seven-point decision and why (absent for interviews that never reached one). */
+  final_decision?: FinalDecision | null;
+  v4_evidence_count?: number;
+  v4_competency_summary?: Record<string, { average_score: number; evidence_count: number; gap: number }>;
+}
+
+export type DecisionVerdict =
+  | 'strong_hire' | 'hire' | 'lean_hire' | 'insufficient_evidence' | 'lean_no_hire' | 'no_hire' | 'strong_no_hire';
+
+export interface FinalDecision {
+  verdict: DecisionVerdict | string;
+  /** The label before any caps lowered it. */
+  draft_verdict?: DecisionVerdict | string | null;
+  score?: number | null;
+  confidence?: number | null;
+  /** True when a person should look at this result before acting on it. */
+  flag_review: boolean;
+  rationale?: string | null;
+  adjustments: Array<{ rule?: string | null; from?: string | null; to?: string | null; reason: string }>;
+  next_steps: string[];
+  contradiction_count: number;
 }
