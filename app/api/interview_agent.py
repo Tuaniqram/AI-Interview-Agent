@@ -255,6 +255,40 @@ def build_final_decision(hd: Optional[dict], contradictions: Optional[list] = No
     }
 
 
+def build_evidence_items(rows: list[dict]) -> list[dict]:
+    """Evidence rows -> what the report page needs: which answer, which competency, the score and the words.
+
+    ``quote`` is the stored evidence text. The page highlights it only where it appears word for word in the
+    candidate's answer, so a paraphrase is never shown as if it were a quotation.
+    """
+    items: list[dict] = []
+    for row in rows or []:
+        number = row.get("question_number")
+        quote = " ".join(str(row.get("evidence_text") or "").split())
+        if not number or not quote:
+            continue
+        score = row.get("score")
+        items.append({
+            "question_number": int(number),
+            "competency": row.get("competency_id") or row.get("competency"),
+            "dimension": row.get("dimension"),
+            "score": round(float(score), 1) if score is not None else None,
+            "quote": quote[:400],
+        })
+    return items
+
+
+async def _load_evidence_items(session_id: str) -> list[dict]:
+    """The session's evidence rows for the report; an unreadable table degrades to no highlights."""
+    try:
+        from app.repositories.evidence_repository import EvidenceRepository
+
+        return build_evidence_items(await EvidenceRepository().get_by_session(session_id))
+    except Exception as exc:  # noqa: BLE001 - highlights are an extra, never a reason to fail the report
+        logger.warning(f"Evidence rows read failed (non-fatal): {exc}")
+        return []
+
+
 async def _get_engine_summary(session_id: str) -> dict:
     """V4/V5 extras from the durable ``interview_brain`` snapshot (DB).
 
@@ -293,6 +327,7 @@ async def _get_engine_summary(session_id: str) -> dict:
     engine_data = {
         "session_id": session_id,
         "final_decision": build_final_decision(decision.get("hiring_decision"), decision.get("contradictions")),
+        "evidence_items": await _load_evidence_items(session_id),
         "v4_verdict": rec.get("verdict", "insufficient_evidence"),
         "v4_confidence": rec.get("confidence", 0),
         "v4_composite_score": rec.get("composite_score"),

@@ -7,6 +7,8 @@ import { StatusBadge } from '../components/shared/StatusBadge';
 import { CardSkeleton } from '../components/shared/Skeleton';
 import { VerdictCard } from '../components/interview/VerdictCard';
 import { CompetencyTable } from '../components/interview/CompetencyTable';
+import { EvidenceText, countHighlights } from '../components/shared/EvidenceText';
+import { humanizePhase } from './interview/shared';
 import type { InterviewReport as InterviewReportType } from '../types/interview';
 
 interface Message {
@@ -32,6 +34,19 @@ interface Evaluation {
   weaknesses_items?: string[];
   feedback: string | null;
   overall_score: number | null;
+}
+
+/** "Core technical 7.0 · Problem solving 6.5": the competencies an answer was scored on, with the average score. */
+function scoredOn(items: Array<{ competency: string | null; score: number | null }> | undefined): string {
+  if (!items?.length) return '';
+  const byCompetency = new Map<string, number[]>();
+  for (const item of items) {
+    if (!item.competency || item.score == null) continue;
+    byCompetency.set(item.competency, [...(byCompetency.get(item.competency) ?? []), item.score]);
+  }
+  return Array.from(byCompetency.entries())
+    .map(([id, scores]) => `${humanizePhase(id)} ${(scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)}`)
+    .join(' · ');
 }
 
 export function InterviewReportPage() {
@@ -91,6 +106,16 @@ export function InterviewReportPage() {
   // Pair questions with answers
   const questions = messages.filter(m => m.role === 'assistant' || m.role === 'interviewer' || m.message_type.endsWith('question'));
   const answers = messages.filter(m => m.role === 'user' || m.role === 'candidate' || m.message_type.endsWith('answer'));
+
+  // What each score rests on, grouped by question number.
+  const evidenceByQuestion = new Map<number, NonNullable<InterviewReportType['evidence_items']>>();
+  for (const item of report.evidence_items ?? []) {
+    evidenceByQuestion.set(item.question_number, [...(evidenceByQuestion.get(item.question_number) ?? []), item]);
+  }
+  const highlightedAnswers = questions.filter(q => {
+    const answer = answers.find(a => a.question_number === q.question_number);
+    return answer && countHighlights(answer.content, (evidenceByQuestion.get(q.question_number) ?? []).map(e => e.quote)) > 0;
+  }).length;
 
   const scoreColor = (score: number | null) => {
     if (score === null || score === undefined) return 'text-muted';
@@ -206,7 +231,13 @@ export function InterviewReportPage() {
 
       {/* Conversation Timeline */}
       <Card>
-        <h3 className="text-sm font-medium text-primary mb-4">Conversation</h3>
+        <h3 className="text-sm font-medium text-primary mb-1">Conversation</h3>
+        {highlightedAnswers > 0 && (
+          <p className="text-[11px] text-muted mb-4">
+            <mark className="evidence-mark">Highlighted words</mark> are the parts of an answer a score is based on.
+          </p>
+        )}
+        {highlightedAnswers === 0 && <div className="mb-3" />}
         {questions.length === 0 ? (
           <p className="text-xs text-muted py-4 text-center">No conversation data available.</p>
         ) : (
@@ -223,7 +254,9 @@ export function InterviewReportPage() {
                   {matchingAnswer && (
                     <div className="mb-2 ml-2">
                       <span className="text-[10px] font-medium text-muted uppercase">Answer</span>
-                      <p className="text-xs text-secondary mt-0.5">{matchingAnswer.content}</p>
+                      <p className="text-xs text-secondary mt-0.5">
+                        <EvidenceText text={matchingAnswer.content} quotes={(evidenceByQuestion.get(q.question_number) ?? []).map(e => e.quote)} />
+                      </p>
                     </div>
                   )}
                   {evalData && (
@@ -238,6 +271,11 @@ export function InterviewReportPage() {
                         <span>Comm: {evalData.communication_score}</span>
                       )}
                     </div>
+                  )}
+                  {scoredOn(evidenceByQuestion.get(q.question_number)) && (
+                    <p className="mt-1 font-mono text-[11px] text-muted" data-testid="scored-on">
+                      Scored on: {scoredOn(evidenceByQuestion.get(q.question_number))}
+                    </p>
                   )}
                   {evalData?.feedback && (
                     <p className="text-[10px] text-muted mt-1 italic">{evalData.feedback}</p>

@@ -233,7 +233,18 @@ export interface InterviewReport {
   /** The engine's final seven-point decision and why (absent for interviews that never reached one). */
   final_decision?: FinalDecision | null;
   v4_evidence_count?: number;
+  /** What each score rests on, per answer: competency, score and the supporting words. */
+  evidence_items?: EvidenceItem[];
   v4_competency_summary?: Record<string, { average_score: number; evidence_count: number; gap: number }>;
+}
+
+export interface EvidenceItem {
+  question_number: number;
+  competency: string | null;
+  dimension: string | null;
+  score: number | null;
+  /** The supporting words; highlighted in the answer only where they appear word for word. */
+  quote: string;
 }
 
 export type DecisionVerdict =

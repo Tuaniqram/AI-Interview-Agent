@@ -357,3 +357,19 @@ def test_llm_provider_list_follows_the_live_chain():
         {"name": "Groq (openai/gpt-oss-120b)", "configured": False},  # no key: not usable
         {"name": "Local router (one)", "configured": True},          # a local router needs none
     ]
+
+
+from app.api.interview_agent import build_evidence_items
+
+
+def test_evidence_items_keep_what_the_report_needs_and_drop_unusable_rows():
+    rows = [
+        {"question_number": 2, "competency_id": "tech_core", "dimension": "technical", "score": 7.04, "evidence_text": "  p95 fell   from 900ms\nto 180ms "},
+        {"question_number": None, "competency_id": "tech_core", "evidence_text": "no question"},   # not tied to an answer
+        {"question_number": 3, "competency_id": "tech_core", "evidence_text": ""},                    # nothing to show
+        {"question_number": 4, "competency_id": "tech_db", "dimension": "x", "score": None, "evidence_text": "q" * 500},
+    ]
+    out = build_evidence_items(rows)
+    assert out[0] == {"question_number": 2, "competency": "tech_core", "dimension": "technical", "score": 7.0, "quote": "p95 fell from 900ms to 180ms"}
+    assert len(out) == 2 and out[1]["score"] is None and len(out[1]["quote"]) == 400
+    assert build_evidence_items([]) == [] and build_evidence_items(None) == []
