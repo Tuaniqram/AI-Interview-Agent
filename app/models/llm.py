@@ -142,11 +142,22 @@ _OPENROUTER_EXTRA_BODY = {"reasoning": {"effort": "low"}, "provider": {"sort": "
 _OPENROUTER_FREE_MODEL = os.getenv("OPENROUTER_FREE_MODEL", "nvidia/nemotron-3.5-super-vl:free")
 
 
+# Local OpenAI-compatible router (9router): ``LLM_ROUTER_MODEL`` names one of its combos. It is the last
+# fallback by default; ``LLM_ROUTER_FIRST=1`` puts it at the front of both chains (no OpenRouter or Groq call
+# unless the router fails), e.g. when the paid balance is empty. The circuit breaker skips it while it is down.
+_ROUTER_URL = os.getenv("LLM_ROUTER_URL", "http://localhost:20128/v1")
+_ROUTER_MODEL = os.getenv("LLM_ROUTER_MODEL", "one")
+
+
+def router_first() -> bool:
+    return os.getenv("LLM_ROUTER_FIRST", "").strip().lower() in ("1", "true", "yes")
+
+
 def free_only() -> bool:
     return os.getenv("LLM_FREE_ONLY", "").strip().lower() in ("1", "true", "yes")
 
 
-def _chain_configs(free: bool) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _base_chain_configs(free: bool) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """``(strong, cheap)`` model configs. The cheap chain falls back to the strong chain."""
     openrouter_key = os.getenv("OPENROUTER_API_KEY")
     groq_key = os.getenv("GROQ_API_KEY")
@@ -157,7 +168,7 @@ def _chain_configs(free: bool) -> tuple[list[dict[str, Any]], list[dict[str, Any
     tail = [
         {"model": "openrouter/free", "base_url": OPENROUTER_BASE_URL, "api_key": openrouter_key},
         # Local gateway last: it is a developer convenience and is skipped by the circuit breaker when down.
-        {"model": "one", "base_url": "http://localhost:20128/v1", "api_key": None},
+        {"model": _ROUTER_MODEL, "base_url": _ROUTER_URL, "api_key": None},
     ]
     if free:
         # ``OPENROUTER_FREE_MODEL=none`` keeps the chain on Groq's gpt-oss (comparable scores, no slow free
@@ -181,6 +192,14 @@ def _chain_configs(free: bool) -> tuple[list[dict[str, Any]], list[dict[str, Any
         groq_cheap,
         *strong,
     ]
+    return strong, cheap
+
+
+def _chain_configs(free: bool) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    strong, cheap = _base_chain_configs(free)
+    if router_first():
+        router = {"model": _ROUTER_MODEL, "base_url": _ROUTER_URL, "api_key": None}
+        return [router, *strong], [router, *cheap]
     return strong, cheap
 
 
