@@ -210,12 +210,13 @@ def test_free_only_switch_reads_env(monkeypatch):
 
 
 def test_openrouter_models_use_openrouters_reasoning_setting_not_groqs():
-    from app.models.llm import OPENROUTER_BASE_URL
+    from app.models.llm import OPENROUTER_BASE_URL, openrouter_provider_sort
 
     paid = [m for m in get_llm("strong")._models if str(m.openai_api_base) == OPENROUTER_BASE_URL and m.model_name != "openrouter/free"]
     assert len(paid) == 1
     assert paid[0].extra_body["reasoning"] == {"effort": "low"}
-    assert paid[0].extra_body["provider"] == {"sort": "throughput"}  # fastest provider, not the cheapest or default
+    # The host choice follows OPENROUTER_ROUTING: cheapest (price) by default, fastest (throughput) on request.
+    assert paid[0].extra_body["provider"] == {"sort": openrouter_provider_sort()}
 
 
 def _providers(chain):
