@@ -14,11 +14,15 @@ const stateInterval: Record<AuraState, [number, number]> = {
 export function EnergyPulse({ state }: Props) {
   const [pulseKey, setPulseKey] = useState(0);
 
+  // One burst each time the orb starts responding. This effect must not depend on pulseKey: it
+  // sets pulseKey, so depending on it re-ran the effect forever ("Maximum update depth exceeded").
   useEffect(() => {
-    if (state === 'responding') {
-      setPulseKey(k => k + 1);
-      return;
-    }
+    if (state === 'responding') setPulseKey(k => k + 1);
+  }, [state]);
+
+  // Idle, listening and thinking pulse on a random timer, re-armed after each burst.
+  useEffect(() => {
+    if (state === 'responding') return;
 
     const [min, max] = stateInterval[state];
     if (min === 0) return;

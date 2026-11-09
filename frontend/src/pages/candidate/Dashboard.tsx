@@ -110,7 +110,8 @@ export default function CandidateDashboard() {
         )}
       </div>
 
-      {competencyScores.length > 0 && (
+      {/* A radar needs at least three axes; with fewer it collapses to a line, and the cards above already show them. */}
+      {competencyScores.length >= 3 && (
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-1">
             <CompetencyRadar scores={competencyScores} />

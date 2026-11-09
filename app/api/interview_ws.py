@@ -78,6 +78,21 @@ def start_cleanup_task():
         _cleanup_task = asyncio.create_task(_cleanup_loop())
     return _cleanup_task
 
+
+def _question_cap(db_session, style: dict) -> int:
+    """The interview's question budget.
+
+    A practice candidate picks the length themselves (stored on the session), so honour it, never
+    exceeding the engine's own cap. Organization interviews keep the style's cap: their length is
+    what the engine is tuned and tested for.
+    """
+    cap = int(style.get("max_questions", 20) or 20)
+    if getattr(db_session, "session_type", None) == "practice":
+        chosen = int(getattr(db_session, "total_questions", 0) or 0)
+        if chosen > 0:
+            return max(3, min(chosen, cap))
+    return cap
+
 async def _cleanup_loop():
     while True:
         await asyncio.sleep(60)
@@ -364,7 +379,7 @@ async def _start_v4_engine(session_id: str, notify=None) -> dict:
         "contradictions": [],
         "consistency_checks": [],
         "extracted_evidence": [],
-        "max_questions": style.get("max_questions", 20),
+        "max_questions": _question_cap(db_session, style),
         "questions_asked": [],
         "question_objective": {},
         "skip_evaluation": False,
