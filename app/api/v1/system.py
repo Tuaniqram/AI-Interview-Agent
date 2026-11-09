@@ -33,25 +33,30 @@ async def health_check():
 async def llm_status(
     _: User = Depends(require_org_role_path(["owner"])),
 ):
-    from app.models.llm import llm
+    from app.models.llm import _LLM_CONFIGS, llm
 
     return {
         "model_chain": llm.model_name,
-        "providers": [
-            {
-                "name": "Groq (llama-3.3-70b)",
-                "configured": bool(os.getenv("GROQ_API_KEY")),
-            },
-            {
-                "name": "Local (one)",
-                "configured": True,
-            },
-            {
-                "name": "OpenRouter",
-                "configured": bool(os.getenv("OPENROUTER_API_KEY")),
-            },
-        ],
+        "providers": llm_provider_status(_LLM_CONFIGS),
     }
+
+
+_HOSTS = (("openrouter.ai", "OpenRouter"), ("api.groq.com", "Groq"), ("localhost", "Local router"), ("127.0.0.1", "Local router"))
+
+
+def llm_provider_status(configs: list[dict]) -> list[dict]:
+    """The providers the app really calls, in chain order, from the live model chain (not a fixed list)."""
+    out: list[dict] = []
+    for cfg in configs:
+        url = str(cfg.get("base_url") or "")
+        host = next((name for needle, name in _HOSTS if needle in url), url or "Unknown")
+        local = host == "Local router"
+        out.append({
+            "name": f"{host} ({cfg.get('model')})",
+            # A local router needs no key; a hosted provider is usable only with one.
+            "configured": True if local else bool(cfg.get("api_key")),
+        })
+    return out
 
 
 @router.get("/api/v1/orgs/{org_id}/llm-usage")
@@ -69,7 +74,8 @@ async def llm_usage(
     row = result.one()
     return {
         "total_interviews": row.total_sessions,
-        "estimated_llm_calls": row.total_sessions * 20 if row.total_sessions else 0,
+        # About 36 model calls per 14-question interview (27-45 across the four test personas).
+        "estimated_llm_calls": row.total_sessions * 36 if row.total_sessions else 0,
         "estimated_input_tokens": (row.total_eval_chars or 0) // 4,
     }
 

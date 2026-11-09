@@ -8,8 +8,9 @@ import { EmptyState } from '../../components/shared/EmptyState';
 import { Button } from '../../components/shared/Button';
 import { useToast } from '../../components/shared/Toast';
 import {
-  AlertTriangle, Briefcase, CheckCircle, ChevronDown, ChevronUp, FileText, Loader2, Mail, RefreshCw, XCircle,
+  AlertTriangle, Briefcase, CheckCircle, ChevronDown, ChevronUp, ClipboardList, FileText, Loader2, Mail, RefreshCw, XCircle,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { Application, FitStatus } from '../../types/marketplace';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -316,6 +317,14 @@ export default function OrgApplications() {
                     )}
                     {application.outcome === 'rejected' && (
                       <span className="text-sm text-secondary">Rejected</span>
+                    )}
+                    {application.session_id && application.status === 'interview_accepted' && (
+                      <Link
+                        to={`/interview/${application.session_id}/report`}
+                        className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-primary hover:bg-hover"
+                      >
+                        <ClipboardList className="w-4 h-4" /> View report
+                      </Link>
                     )}
                     {!closed && application.status === 'interview_accepted' && (
                       <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleOutcome(application, 'hired')}>

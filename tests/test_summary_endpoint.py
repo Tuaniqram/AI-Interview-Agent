@@ -341,3 +341,19 @@ def test_evaluation_gets_clean_per_answer_lists():
     assert ev["strengths_items"] == ["Clear steps."]
     assert ev["weaknesses_items"] == ["No rollback plan."]
     assert ev["strengths"] == "Clear steps\nsources"  # the stored text is left untouched
+
+
+from app.api.v1.system import llm_provider_status
+
+
+def test_llm_provider_list_follows_the_live_chain():
+    configs = [
+        {"model": "openai/gpt-oss-120b", "base_url": "https://openrouter.ai/api/v1", "api_key": "k"},
+        {"model": "openai/gpt-oss-120b", "base_url": "https://api.groq.com/openai/v1", "api_key": None},
+        {"model": "one", "base_url": "http://localhost:20128/v1", "api_key": None},
+    ]
+    assert llm_provider_status(configs) == [
+        {"name": "OpenRouter (openai/gpt-oss-120b)", "configured": True},
+        {"name": "Groq (openai/gpt-oss-120b)", "configured": False},  # no key: not usable
+        {"name": "Local router (one)", "configured": True},          # a local router needs none
+    ]

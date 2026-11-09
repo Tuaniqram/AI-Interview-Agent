@@ -21,6 +21,15 @@ interface DashboardShellProps {
   onLogout?: () => void;
 }
 
+const ACRONYMS: Record<string, string> = { llm: 'LLM', it: 'IT', api: 'API' };
+const UUID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A readable breadcrumb label for one URL segment: ids become "#1234abcd", known acronyms stay capitalised. */
+function crumbLabel(segment: string): string {
+  if (UUID_SEGMENT.test(segment)) return '#' + segment.slice(0, 8);
+  return ACRONYMS[segment.toLowerCase()] ?? segment.replace(/-/g, ' ');
+}
+
 export function DashboardShell({
   navItems, orgNavItems, brand, showMarketplace, showAdmin,
   useOrgSelector, activeRole, user, orgs, activeOrg, onSwitchOrg, onLogout,
@@ -61,7 +70,7 @@ export function DashboardShell({
                   to={'/' + segments.slice(0, i + 1).join('/')}
                   className="hover:text-primary transition-colors truncate whitespace-nowrap capitalize"
                 >
-                  {seg.replace(/-/g, ' ')}
+                  {crumbLabel(seg)}
                 </Link>
               </Fragment>
             ))}

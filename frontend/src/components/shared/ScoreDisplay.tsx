@@ -45,16 +45,18 @@ export function ScoreDisplay({ score, max = 10, size = 'md', showLabel = true }:
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <svg width={outer} height={outer} className="transform -rotate-90">
-        <circle cx={center} cy={center} r={radius} fill="none" stroke="currentColor" strokeWidth={stroke}
-          className="text-hover" />
-        <circle cx={center} cy={center} r={radius} fill="none" strokeWidth={stroke}
-          strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
-          className={scoreBg(score)} />
-      </svg>
-      <span className={`font-semibold ${text} ${scoreColor(score)}`} style={{ marginTop: -outer }}>
-        {score.toFixed(1)}
-      </span>
+      <div className="relative" style={{ width: outer, height: outer }}>
+        <svg width={outer} height={outer} className="transform -rotate-90">
+          <circle cx={center} cy={center} r={radius} fill="none" stroke="currentColor" strokeWidth={stroke}
+            className="text-hover" />
+          <circle cx={center} cy={center} r={radius} fill="none" strokeWidth={stroke}
+            strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
+            className={scoreBg(score)} />
+        </svg>
+        <span className={`absolute inset-0 flex items-center justify-center font-semibold ${text} ${scoreColor(score)}`}>
+          {score.toFixed(1)}
+        </span>
+      </div>
       {showLabel && <span className="text-xs text-muted">/ {max}</span>}
     </div>
   );

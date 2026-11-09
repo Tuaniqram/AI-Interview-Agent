@@ -116,10 +116,10 @@ export function Analytics() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
-        <MetricCard label="Total Sessions" value={overview?.total_sessions ?? 0} icon={<ListChecks className="w-4 h-4" />} trend="up" trendLabel="+12%" />
-        <MetricCard label="Avg Score" value={overview?.average_score != null ? overview.average_score.toFixed(1) : '—'} icon={<TrendingUp className="w-4 h-4" />} trend="up" trendLabel="+5%" />
-        <MetricCard label="Completion Rate" value={`${overview?.completion_rate ?? 0}%`} icon={<Target className="w-4 h-4" />} trend="neutral" trendLabel="−1%" />
-        <MetricCard label="Departments" value={overview?.total_departments ?? 0} icon={<Building2 className="w-4 h-4" />} trend="up" trendLabel="+8%" />
+        <MetricCard label="Total Sessions" value={overview?.total_sessions ?? 0} icon={<ListChecks className="w-4 h-4" />} />
+        <MetricCard label="Avg Score" value={overview?.average_score != null ? overview.average_score.toFixed(1) : '—'} icon={<TrendingUp className="w-4 h-4" />} />
+        <MetricCard label="Completion Rate" value={`${overview?.completion_rate ?? 0}%`} icon={<Target className="w-4 h-4" />} />
+        <MetricCard label="Departments" value={overview?.total_departments ?? 0} icon={<Building2 className="w-4 h-4" />} />
       </div>
 
       {/* Charts Row */}
