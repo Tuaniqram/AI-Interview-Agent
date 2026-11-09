@@ -30,7 +30,10 @@ export default function CandidateDashboard() {
       setRecent(i.slice(0, 5));
       setCompetencyScores(c);
       setSavedListings(sl as SavedListing[]);
-    }).catch(() => toast.error('Failed to load dashboard'))
+    }).catch((err) => {
+      // 403 = email not verified: the verify banner above already explains it, so no error toast.
+      if (err?.response?.status !== 403) toast.error('Failed to load dashboard');
+    })
     .finally(() => setLoading(false));
   }, []);
 
@@ -87,76 +90,24 @@ export default function CandidateDashboard() {
         <MetricCard label="Avg Score" value={stats?.average_score != null ? `${stats.average_score.toFixed(1)}/10` : '-'} />
       </div>
 
-      {/* Skill Progression */}
+      {/* Skill Progression: real scores only; a new candidate sees how to get started */}
       <div>
         <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Skill Progression</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {competencyScores.length > 0 ? (
-            competencyScores.slice(0, 4).map(skill => {
-              const pct = Math.round((skill.average_score / 10) * 100);
-              const level = pct < 40 ? 'Beginner' : pct < 65 ? 'Intermediate' : pct < 85 ? 'Advanced' : 'Expert';
-              const levelColor = pct < 40 ? 'text-red-400' : pct < 65 ? 'text-amber-400' : pct < 85 ? 'text-blue-400' : 'text-emerald-400';
-              return (
-                <div key={skill.name} className="p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-color)]">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="relative w-10 h-10">
-                      <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
-                        <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--border-color)" strokeWidth="3" />
-                        <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--action-primary)" strokeWidth="3"
-                          strokeDasharray={`${pct}, 100`} strokeLinecap="round" />
-                      </svg>
-                      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-primary">{pct}%</span>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-primary truncate">{skill.name}</p>
-                      <p className={`text-[10px] font-medium ${levelColor}`}>{level}</p>
-                    </div>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-[var(--bg-page)] overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-action-primary to-action-primary-hover transition-all duration-500"
-                      style={{ width: `${pct}%` }} />
-                  </div>
-                  <p className="text-[10px] text-muted mt-1.5">{skill.average_score.toFixed(1)}/10 — {pct < 100 ? `${100 - pct}% to next level` : 'Mastered'}</p>
-                </div>
-              );
-            })
-          ) : (
-            // Show fake/placeholder skill cards when no real data
-            [
-              { name: 'Communication', score: 7.2 },
-              { name: 'Technical', score: 5.8 },
-              { name: 'Problem Solving', score: 8.1 },
-              { name: 'Leadership', score: 4.5 },
-            ].map(skill => {
-              const pct = Math.round((skill.score / 10) * 100);
-              const level = pct < 40 ? 'Beginner' : pct < 65 ? 'Intermediate' : pct < 85 ? 'Advanced' : 'Expert';
-              const levelColor = pct < 40 ? 'text-red-400' : pct < 65 ? 'text-amber-400' : pct < 85 ? 'text-blue-400' : 'text-emerald-400';
-              return (
-                <div key={skill.name} className="p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-color)]">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="relative w-10 h-10">
-                      <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
-                        <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--border-color)" strokeWidth="3" />
-                        <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--action-primary)" strokeWidth="3"
-                          strokeDasharray={`${pct}, 100`} strokeLinecap="round" />
-                      </svg>
-                      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-primary">{pct}%</span>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-primary truncate">{skill.name}</p>
-                      <p className={`text-[10px] font-medium ${levelColor}`}>{level}</p>
-                    </div>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-[var(--bg-page)] overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-action-primary to-action-primary-hover transition-all duration-500"
-                      style={{ width: `${pct}%` }} />
-                  </div>
-                  <p className="text-[10px] text-muted mt-1.5">{skill.score.toFixed(1)}/10 — {pct < 100 ? `${100 - pct}% to next level` : 'Mastered'}</p>
-                </div>
-              );
-            })
-          )}
-        </div>
+        {competencyScores.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {competencyScores.slice(0, 4).map(skill => <SkillCard key={skill.name} name={skill.name} score={skill.average_score} />)}
+          </div>
+        ) : (
+          <div className="p-6 rounded-xl bg-[var(--bg-section)] border border-dashed border-[var(--border-color)] text-center">
+            <p className="text-sm font-medium text-[var(--text-primary)]">No scores yet</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-1">
+              {candidate && !candidate.is_verified
+                ? 'Verify your email, then complete an interview to see your skills here.'
+                : 'Complete a practice or real interview and your skills will show up here.'}
+            </p>
+            <Link to="/candidate/practice" className="inline-block mt-3 text-xs font-medium text-[var(--action-primary)] hover:underline">Start a practice interview</Link>
+          </div>
+        )}
       </div>
 
       {competencyScores.length > 0 && (
@@ -237,6 +188,36 @@ export default function CandidateDashboard() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+
+function SkillCard({ name, score }: { name: string; score: number }) {
+  const pct = Math.max(0, Math.min(100, Math.round((score / 10) * 100)));
+  const level = pct < 40 ? 'Beginner' : pct < 65 ? 'Intermediate' : pct < 85 ? 'Advanced' : 'Expert';
+  const levelColor = pct < 40 ? 'text-red-400' : pct < 65 ? 'text-amber-400' : pct < 85 ? 'text-blue-400' : 'text-emerald-400';
+  return (
+    <div className="p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-color)]">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="relative w-10 h-10">
+          <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
+            <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--border-color)" strokeWidth="3" />
+            <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--action-primary)" strokeWidth="3"
+              strokeDasharray={`${pct}, 100`} strokeLinecap="round" />
+          </svg>
+          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-primary">{pct}%</span>
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-primary truncate">{name}</p>
+          <p className={`text-[10px] font-medium ${levelColor}`}>{level}</p>
+        </div>
+      </div>
+      <div className="h-1.5 rounded-full bg-[var(--bg-page)] overflow-hidden">
+        <div className="h-full rounded-full bg-gradient-to-r from-action-primary to-action-primary-hover transition-all duration-500"
+          style={{ width: `${pct}%` }} />
+      </div>
+      <p className="text-[10px] text-muted mt-1.5">{score.toFixed(1)}/10 — {pct < 100 ? `${100 - pct}% to next level` : 'Mastered'}</p>
     </div>
   );
 }
