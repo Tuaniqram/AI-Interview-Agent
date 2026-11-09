@@ -29,6 +29,9 @@ export default {
         inverse:   'var(--text-inverse)',
         divider: 'var(--divider)',
         border:    'var(--border-color)',
+        'border-strong': 'var(--border-strong)',
+        evidence:        'var(--highlight-evidence)',
+        'evidence-text': 'var(--highlight-evidence-text)',
 
         action: {
           primary:        'var(--action-primary)',
@@ -58,6 +61,12 @@ export default {
         info:           'var(--status-info)',
         'info-bg':      'var(--status-info-bg)',
         'info-text':    'var(--status-info-text)',
+      },
+      // Token radii for the marketing pages: the product's own rounded-* scale is left as it is.
+      borderRadius: {
+        'ui-sm': 'var(--radius-sm)',
+        'ui-md': 'var(--radius-md)',
+        'ui-lg': 'var(--radius-lg)',
       },
       boxShadow: {
         sm: 'var(--shadow-sm)',

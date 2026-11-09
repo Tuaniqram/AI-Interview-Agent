@@ -20,7 +20,7 @@
   }
   .card-hover:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(12, 107, 88, 0.10), 0 2px 8px rgba(12, 107, 88, 0.06);
+    box-shadow: var(--shadow-md);
   }
 }
 
@@ -91,6 +91,13 @@
 
     /* ── Focus ── */
     --focus-ring:               rgba(12, 107, 88, 0.28);
+
+    /* The one accent besides the green primary: the words in an answer that a score rests on. */
+    --highlight-evidence:       #fde9b8;
+    --highlight-evidence-text:  #5c3d00;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
 
     /* ── Shadows ── */
     --shadow-sm:                0 1px 2px rgba(0, 0, 0, 0.04);
@@ -164,6 +171,9 @@
 
     --focus-ring:               rgba(47, 191, 154, 0.35);
 
+    --highlight-evidence:       rgba(251, 191, 36, 0.18);
+    --highlight-evidence-text:  #fde68a;
+
     --shadow-sm:                0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md:                0 4px 12px rgba(0, 0, 0, 0.4);
     --shadow-lg:                0 8px 24px rgba(0, 0, 0, 0.5);
@@ -172,27 +182,17 @@
 
 @layer utilities {
   .card-shadow {
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-lg);
   }
 
   .input-glow:focus {
-    box-shadow: 0 0 0 3px rgba(12, 107, 88, 0.35);
+    box-shadow: 0 0 0 3px var(--focus-ring);
   }
 
   .fade-in {
     animation: fadeIn 0.3s ease-in-out;
   }
 
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
 }
 
 /* ──── NEW: Ripple Effect Utility ──── */
@@ -230,13 +230,13 @@
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
-.dark .glass {
+[data-theme="dark"] .glass {
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* ──── Text accent utility ──── */
-.text-gradient {
+.text-accent {
   color: var(--action-primary);
 }
 
@@ -252,7 +252,7 @@
   animation: shimmer 1.5s infinite;
 }
 
-.dark .shimmer {
+[data-theme="dark"] .shimmer {
   background: linear-gradient(
     90deg,
     var(--bg-section) 0%,
@@ -327,6 +327,7 @@
   left: 50%;
   transform: translateX(-50%) translateY(8px);
   border: 6px solid transparent;
+  border-top-color: var(--bg-elevated);
   opacity: 0;
   pointer-events: none;
   transition: all 0.2s ease;
@@ -370,40 +371,6 @@
   }
 }
 
-/* ──── NEW: Waveform Animation ──── */
-.waveform {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  height: 40px;
-}
-
-.waveform-bar {
-  width: 4px;
-  background: var(--action-primary);
-  border-radius: 2px;
-  animation: wave-animation 1s ease-in-out infinite;
-}
-
-@keyframes wave-animation {
-  0%, 100% {
-    height: 8px;
-  }
-  50% {
-    height: 32px;
-  }
-}
-
-/* Staggered delays for bars */
-.waveform-bar:nth-child(1) { animation-delay: 0s; }
-.waveform-bar:nth-child(2) { animation-delay: 0.1s; }
-.waveform-bar:nth-child(3) { animation-delay: 0.2s; }
-.waveform-bar:nth-child(4) { animation-delay: 0.3s; }
-.waveform-bar:nth-child(5) { animation-delay: 0.4s; }
-.waveform-bar:nth-child(6) { animation-delay: 0.3s; }
-.waveform-bar:nth-child(7) { animation-delay: 0.2s; }
-.waveform-bar:nth-child(8) { animation-delay: 0.1s; }
-
 /* ──── NEW: Fade In Up Reveal ──── */
 .animate-fade-in-up {
   animation: fade-in-up 0.6s ease-out forwards;
@@ -412,4 +379,20 @@
 @keyframes fade-in-up {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ──── Evidence: the phrase in a candidate's answer that a score is based on ──── */
+.evidence-mark {
+  background: var(--highlight-evidence);
+  color: var(--highlight-evidence-text);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+/* ──── Display headings for the marketing pages (expanded, heavy). The product keeps .font-heading as is. ──── */
+.font-display {
+  font-family: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-stretch: 125%;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }

@@ -1,19 +1,24 @@
 import { Card } from '../shared/Card';
+import { FlatSurface } from '../shared/FlatSurface';
 import { humanizePhase } from '../../routes/interview/shared';
 
 interface CompetencyTableProps {
   summary: Record<string, { average_score: number; evidence_count: number; gap: number }>;
+  /** A plain bordered surface (no glass, no shadow) for marketing pages. */
+  flat?: boolean;
 }
 
 /** One row per competency the interview assessed: the average score and how many answers back it. */
-export function CompetencyTable({ summary }: CompetencyTableProps) {
+export function CompetencyTable({ summary, flat = false }: CompetencyTableProps) {
   const rows = Object.entries(summary)
     .map(([id, s]) => ({ id, score: Number(s.average_score) || 0, evidence: Number(s.evidence_count) || 0 }))
     .sort((a, b) => b.evidence - a.evidence || b.score - a.score);
   if (rows.length === 0) return null;
 
+  const Surface = flat ? FlatSurface : Card;
+
   return (
-    <Card className="mb-6" data-testid="competency-table">
+    <Surface className="mb-6">
       <h3 className="text-sm font-medium text-primary mb-3">Competencies assessed</h3>
       <table className="w-full text-xs">
         <thead>
@@ -43,6 +48,6 @@ export function CompetencyTable({ summary }: CompetencyTableProps) {
           ))}
         </tbody>
       </table>
-    </Card>
+    </Surface>
   );
 }

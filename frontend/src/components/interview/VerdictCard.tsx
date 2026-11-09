@@ -1,5 +1,6 @@
 import { AlertCircle, ArrowRight } from 'lucide-react';
 import { Card } from '../shared/Card';
+import { FlatSurface } from '../shared/FlatSurface';
 import type { FinalDecision } from '../../types/interview';
 
 /** Plain-English label and tone for each point on the engine's seven-point decision scale. */
@@ -30,6 +31,8 @@ const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 interface VerdictCardProps {
   decision: FinalDecision;
   evidenceCount?: number;
+  /** A plain bordered surface (no glass, no shadow) for marketing pages. */
+  flat?: boolean;
 }
 
 /**
@@ -37,12 +40,14 @@ interface VerdictCardProps {
  * answers; each rule that lowered it from its starting point is listed with its reason, so a recruiter can
  * check the result instead of taking it on trust.
  */
-export function VerdictCard({ decision, evidenceCount }: VerdictCardProps) {
+export function VerdictCard({ decision, evidenceCount, flat = false }: VerdictCardProps) {
   const tone = VERDICTS[decision.verdict]?.tone ?? 'muted';
   const lowered = !!decision.draft_verdict && decision.draft_verdict !== decision.verdict;
 
+  const Surface = flat ? FlatSurface : Card;
+
   return (
-    <Card className="mb-6" data-testid="verdict-card">
+    <Surface className="mb-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs text-muted mb-1">Recommendation</p>
@@ -124,6 +129,6 @@ export function VerdictCard({ decision, evidenceCount }: VerdictCardProps) {
         The recommendation comes from fixed scoring rules applied to the answers below. The wording above is written
         by an AI; it does not choose the verdict.
       </p>
-    </Card>
+    </Surface>
   );
 }
