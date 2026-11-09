@@ -200,8 +200,9 @@ async def persist_answer_turn(session_id: str, brain: InterviewBrain) -> None:
                 if communication_score is not None
                 else turn["composite"]
             ),
-            strengths=", ".join(strengths) if strengths else None,
-            weaknesses=", ".join(weaknesses) if weaknesses else None,
+            # One item per line: items themselves often contain commas, so a ", " join cannot be split back.
+            strengths="\n".join(" ".join(i.split()) for i in strengths) if strengths else None,
+            weaknesses="\n".join(" ".join(i.split()) for i in weaknesses) if weaknesses else None,
             feedback=None,
             overall_score=turn["composite"],
         )

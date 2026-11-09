@@ -146,5 +146,136 @@ async def test_legacy_summary_survives_none_total_questions(monkeypatch):
     data = await _get_legacy_summary(sid)
 
     assert data["session_id"] == sid
-    assert data["total_questions"] == 10  # falls back to the default
-    assert data["answered_ratio"] == 0.0  # 0 answered / 10 possible, no crash
+    assert data["total_questions"] == 14  # falls back to the engine's question cap
+    assert data["answered_ratio"] == 0.0  # 0 answered / 14 possible, no crash
+
+
+# ---- who may read a session's summary -------------------------------------------------------------
+
+from types import SimpleNamespace
+
+from fastapi import HTTPException
+
+from app.api.interview_agent import _verify_session_access
+
+
+class _SeqDB:
+    """execute() returns the queued results in order (session row first, then the org-owner lookup)."""
+
+    def __init__(self, *rows):
+        self._rows = list(rows)
+
+    async def execute(self, statement):
+        return _ScalarResult(self._rows.pop(0) if self._rows else None)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+
+def _sess(**kw):
+    base = dict(id=uuid4(), org_id=uuid4(), candidate_profile_id=uuid4())
+    base.update(kw)
+    return SimpleNamespace(**base)
+
+
+def _factory(db):
+    return lambda: (lambda: db)
+
+
+@pytest.mark.asyncio
+async def test_org_owner_can_read_a_candidate_interview_summary(monkeypatch):
+    session = _sess()
+    monkeypatch.setattr(_FACTORY_SEAM, _factory(_SeqDB(session, uuid4())))  # second row: the org-owner lookup hit
+    user = SimpleNamespace(id=uuid4(), is_admin=False)
+    assert await _verify_session_access(str(session.id), None, user) is session
+
+
+@pytest.mark.asyncio
+async def test_other_users_still_need_to_own_the_session(monkeypatch):
+    session = _sess()
+    monkeypatch.setattr(_FACTORY_SEAM, _factory(_SeqDB(session, None)))  # not the org owner
+    user = SimpleNamespace(id=uuid4(), is_admin=False)
+    with pytest.raises(HTTPException) as e:
+        await _verify_session_access(str(session.id), None, user)
+    assert e.value.status_code == 401  # a candidate login is still required
+
+
+@pytest.mark.asyncio
+async def test_admin_can_read_any_summary(monkeypatch):
+    session = _sess()
+    monkeypatch.setattr(_FACTORY_SEAM, _factory(_SeqDB(session)))
+    assert await _verify_session_access(str(session.id), None, SimpleNamespace(id=uuid4(), is_admin=True)) is session
+
+
+@pytest.mark.asyncio
+async def test_candidate_access_is_unchanged(monkeypatch):
+    mine = SimpleNamespace(id=uuid4())
+    session = _sess(candidate_profile_id=mine.id)
+    monkeypatch.setattr(_FACTORY_SEAM, _factory(_SeqDB(session)))
+    assert await _verify_session_access(str(session.id), mine) is session
+    monkeypatch.setattr(_FACTORY_SEAM, _factory(_SeqDB(session)))
+    with pytest.raises(HTTPException) as e:
+        await _verify_session_access(str(session.id), SimpleNamespace(id=uuid4()))
+    assert e.value.status_code == 403
+
+
+from app.api.interview_agent import split_feedback_items
+
+
+def test_new_rows_split_on_lines_and_keep_inner_commas():
+    assert split_feedback_items("Uses caching, with a TTL\nNames the trade-off") == [
+        "Uses caching, with a TTL", "Names the trade-off"]
+
+
+def test_old_comma_joined_rows_are_not_cut_inside_brackets():
+    assert split_feedback_items("Applies concrete fixes (index, cache), Considers edge cases (expiry, stampedes)") == [
+        "Applies concrete fixes (index, cache)", "Considers edge cases (expiry, stampedes)"]
+
+
+def test_empty_feedback_gives_no_items():
+    assert split_feedback_items(None) == [] and split_feedback_items("") == [] and split_feedback_items(" , ") == []
+
+
+@pytest.mark.asyncio
+async def test_summary_total_falls_back_to_the_engine_cap_and_never_below_answered(monkeypatch):
+    class _Repo:
+        def __init__(self, session, messages):
+            self._s, self._m = session, messages
+
+        async def get_session(self, sid):
+            return self._s
+
+        async def get_session_messages(self, sid):
+            return self._m
+
+    class _Evals:
+        async def get_evaluations_by_session(self, sid):
+            return []
+
+        async def get_evaluations(self, sid):
+            return []
+
+    answers = [{"role": "user"}] * 13
+    monkeypatch.setattr(_REPO_SEAM, lambda: _Repo({"total_questions": None, "final_score": 4.0}, answers))
+    monkeypatch.setattr(_MESSAGE_SEAM, lambda: _MsgRepo(answers))
+    monkeypatch.setattr(_EVAL_SEAM, lambda: _Evals())
+    out = await _get_legacy_summary(str(uuid4()))
+    assert out["total_questions"] >= 13  # was 10 for an organization interview: "13 / 10"
+
+    few = [{"role": "user"}] * 30
+    monkeypatch.setattr(_MESSAGE_SEAM, lambda: _MsgRepo(few))
+    assert (await _get_legacy_summary(str(uuid4())))["total_questions"] >= 30
+
+
+class _MsgRepo:
+    def __init__(self, messages):
+        self._m = messages
+
+    async def get_session_messages(self, sid):
+        return self._m
+
+    async def get_evaluations(self, sid):
+        return []

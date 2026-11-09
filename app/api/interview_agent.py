@@ -13,9 +13,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 
+from app.auth.middleware import optional_auth
 from app.candidates.auth import optional_candidate_auth
 from app.database.session import get_session_factory
-from app.models.db import CandidateProfile, InterviewSession
+from app.models.db import CandidateProfile, InterviewSession, Organization, User
 from app.exceptions import SessionNotFoundException
 from app.services.repositories import (
     get_evaluation_repo,
@@ -35,20 +36,61 @@ router = APIRouter(tags=["AI Interview Agent"])
 async def _verify_session_access(
     session_id: str,
     current_candidate: Optional[CandidateProfile],
+    current_user: Optional[User] = None,
 ) -> InterviewSession:
+    org_access = False
     async with get_session_factory()() as db:
         result = await db.execute(
             select(InterviewSession).where(InterviewSession.id == UUID(session_id))
         )
         session = result.scalar_one_or_none()
+        if session is not None and current_user is not None:
+            # The recruiter reads the report of an interview run for their own organization (same rule as
+            # require_org_role: the organization's owner, or a system admin).
+            if current_user.is_admin:
+                org_access = True
+            elif session.org_id is not None:
+                owned = await db.execute(
+                    select(Organization.id).where(
+                        Organization.id == session.org_id,
+                        Organization.owner_user_id == current_user.id,
+                    )
+                )
+                org_access = owned.scalar_one_or_none() is not None
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+    if org_access:
+        return session
     if session.candidate_profile_id is not None:
         if not current_candidate:
             raise HTTPException(status_code=401, detail="Authentication required")
         if str(session.candidate_profile_id) != str(current_candidate.id):
             raise HTTPException(status_code=403, detail="You don't own this session")
     return session
+
+
+def split_feedback_items(text: Optional[str]) -> list[str]:
+    """Turn a stored strengths/weaknesses string back into its items.
+
+    New rows hold one item per line. Older rows were joined with ", ", so they are split only on commas
+    outside brackets: "Applies concrete fixes (index, cache), clear steps" stays two items, not four.
+    """
+    if not text:
+        return []
+    if "\n" in text:
+        parts = text.split("\n")
+    else:
+        parts, depth, start = [], 0, 0
+        for i, ch in enumerate(text):
+            if ch in "([{":
+                depth += 1
+            elif ch in ")]}":
+                depth = max(0, depth - 1)
+            elif ch == "," and depth == 0:
+                parts.append(text[start:i])
+                start = i + 1
+        parts.append(text[start:])
+    return [p.strip() for p in parts if p.strip()]
 
 
 async def _get_legacy_summary(session_id: str) -> dict:
@@ -67,7 +109,12 @@ async def _get_legacy_summary(session_id: str) -> dict:
         evaluations = []
 
     answered_questions = len([m for m in messages if m.get("role") == "user"])
-    total_questions_possible = int(session.get("total_questions") or 10)
+    # Organization interviews store no question total: fall back to the engine's own cap (not a made-up 10), and
+    # never report fewer possible questions than were actually answered ("13 / 10", "130%").
+    from app.config.interview_styles import get_style
+
+    default_total = int(get_style("AURA").get("max_questions", 14) or 14)
+    total_questions_possible = max(int(session.get("total_questions") or default_total), answered_questions, 1)
 
     if evaluations:
         scores = [float(e.get("score", 0)) for e in evaluations]
@@ -95,9 +142,9 @@ async def _get_legacy_summary(session_id: str) -> dict:
     all_weaknesses = []
     for e in evaluations:
         if e.get("strengths"):
-            all_strengths.extend([s.strip() for s in e["strengths"].split(",") if s.strip()])
+            all_strengths.extend(split_feedback_items(e["strengths"]))
         if e.get("weaknesses"):
-            all_weaknesses.extend([w.strip() for w in e["weaknesses"].split(",") if w.strip()])
+            all_weaknesses.extend(split_feedback_items(e["weaknesses"]))
 
     return {
         "session_id": session_id,
@@ -206,6 +253,7 @@ async def _get_engine_summary(session_id: str) -> dict:
 async def get_session_summary(
     session_id: str,
     current_candidate: Optional[CandidateProfile] = Depends(optional_candidate_auth),
+    current_user: Optional[User] = Depends(optional_auth),
 ):
     """
     Get comprehensive session summary.
@@ -213,7 +261,7 @@ async def get_session_summary(
     Includes engine extras (competency coverage, hypothesis outcomes) for
     v4/v5 sessions, read from the durable ``interview_brain`` snapshot.
     """
-    db_session = await _verify_session_access(session_id, current_candidate)
+    db_session = await _verify_session_access(session_id, current_candidate, current_user)
     engine = db_session.engine_version or "v3"
 
     if engine in ("v4", "v5"):
