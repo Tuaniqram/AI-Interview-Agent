@@ -286,11 +286,11 @@ from app.api.interview_agent import top_feedback_items
 
 def test_top_feedback_items_rank_by_frequency_and_cap():
     items = ["Clear steps", "Names trade-offs", "clear steps.", "Uses tests", "Clear Steps", "Names trade-offs", "Other"]
-    assert top_feedback_items(items, limit=3) == ["Clear steps", "Names trade-offs", "Uses tests"]
+    assert top_feedback_items(items, limit=3) == ["Clear steps.", "Names trade-offs.", "Uses tests."]  # "Other" is one word: dropped
 
 
 def test_top_feedback_items_ignore_blanks_and_keep_a_stable_order():
-    assert top_feedback_items(["", " ", "b", "a"]) == ["b", "a"]
+    assert top_feedback_items(["", " ", "bb cc", "aa dd"]) == ["Bb cc.", "Aa dd."]
     assert top_feedback_items([]) == []
 
 
@@ -320,3 +320,24 @@ def test_final_decision_is_none_without_a_decision():
     assert build_final_decision(None) is None
     assert build_final_decision({}) is None
     assert build_final_decision({"decision": ""}) is None
+
+
+from app.api.interview_agent import _with_feedback_items, tidy_feedback_item
+
+
+def test_tidy_feedback_item_makes_readable_sentences_and_drops_fragments():
+    assert tidy_feedback_item("  concise description of migration steps ") == "Concise description of migration steps."
+    assert tidy_feedback_item("Already a sentence.") == "Already a sentence."
+    for fragment in ("sources", "or fix", "and monitoring", "cache)", "", None):
+        assert tidy_feedback_item(fragment) is None
+
+
+def test_ranking_ignores_fragments():
+    assert top_feedback_items(["or fix", "diagnosis", "Names the trade-off", "names the trade-off."]) == ["Names the trade-off."]
+
+
+def test_evaluation_gets_clean_per_answer_lists():
+    ev = _with_feedback_items({"id": 1, "strengths": "Clear steps\nsources", "weaknesses": "No rollback plan, or fix"})
+    assert ev["strengths_items"] == ["Clear steps."]
+    assert ev["weaknesses_items"] == ["No rollback plan."]
+    assert ev["strengths"] == "Clear steps\nsources"  # the stored text is left untouched

@@ -27,6 +27,9 @@ interface Evaluation {
   communication_score: number | null;
   strengths: string | null;
   weaknesses: string | null;
+  /** The same points as clean sentences (sent by the summary endpoint). */
+  strengths_items?: string[];
+  weaknesses_items?: string[];
   feedback: string | null;
   overall_score: number | null;
 }
@@ -212,7 +215,7 @@ export function InterviewReportPage() {
               const matchingAnswer = answers.find(a => a.question_number === q.question_number);
               const evalData = evaluations.find(e => e.message_id === matchingAnswer?.id);
               return (
-                <div key={q.id || i} className="-l-2 -action-primary/30 pl-4">
+                <div key={q.id || i} className="border-l-2 border-[var(--border-strong)] pl-4">
                   <div className="mb-2">
                     <span className="text-[10px] font-medium text-action-primary uppercase">Q{q.question_number}</span>
                     <p className="text-sm text-primary mt-0.5">{q.content}</p>
@@ -239,6 +242,26 @@ export function InterviewReportPage() {
                   {evalData?.feedback && (
                     <p className="text-[10px] text-muted mt-1 italic">{evalData.feedback}</p>
                   )}
+                  {(evalData?.strengths_items?.length || evalData?.weaknesses_items?.length) ? (
+                    <div className="mt-2 ml-2 grid gap-3 sm:grid-cols-2" data-testid="answer-feedback">
+                      {evalData?.strengths_items?.length ? (
+                        <div>
+                          <p className="text-[10px] font-medium text-success-text uppercase mb-1">Went well</p>
+                          <ul className="list-disc pl-4 space-y-0.5">
+                            {evalData.strengths_items.map((t, k) => <li key={k} className="text-xs text-secondary">{t}</li>)}
+                          </ul>
+                        </div>
+                      ) : null}
+                      {evalData?.weaknesses_items?.length ? (
+                        <div>
+                          <p className="text-[10px] font-medium text-warning-text uppercase mb-1">Missing or unclear</p>
+                          <ul className="list-disc pl-4 space-y-0.5">
+                            {evalData.weaknesses_items.map((t, k) => <li key={k} className="text-xs text-secondary">{t}</li>)}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               );
             })}

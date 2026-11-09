@@ -6,6 +6,7 @@ DB state (session/message/evaluation rows plus the V5 ``interview_brain``
 snapshot) and serves the post-interview report page.
 """
 import asyncio
+import re
 import logging
 from typing import Optional
 from uuid import UUID
@@ -93,6 +94,24 @@ def split_feedback_items(text: Optional[str]) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
+_FRAGMENT_START = re.compile(r"^(or|and|but|nor|so|then)\b", re.IGNORECASE)
+
+
+def tidy_feedback_item(text: Optional[str]) -> Optional[str]:
+    """One strength/weakness as a short readable sentence, or ``None`` when it is only a fragment.
+
+    Older rows were split at every comma, leaving pieces such as "or fix", "sources" or "cache)". A single word, or a
+    piece that starts with a conjunction, cannot stand on its own, so it is dropped rather than shown as noise.
+    """
+    t = " ".join((text or "").split())
+    if not t or len(t.split()) < 2 or _FRAGMENT_START.match(t):
+        return None
+    if t.count("(") != t.count(")"):
+        return None
+    t = t[0].upper() + t[1:]
+    return t if t[-1] in ".!?" else t + "."
+
+
 def top_feedback_items(items: list[str], limit: int = 8) -> list[str]:
     """The points made most often across the interview, most frequent first (ties keep first-seen order).
 
@@ -101,14 +120,26 @@ def top_feedback_items(items: list[str], limit: int = 8) -> list[str]:
     """
     counts: dict[str, int] = {}
     first: dict[str, tuple[int, str]] = {}
-    for index, item in enumerate(items):
-        key = item.strip().rstrip(".;:").lower()
-        if not key:
+    for index, raw in enumerate(items):
+        item = tidy_feedback_item(raw)
+        if not item:
             continue
+        key = item.strip().rstrip(".;:").lower()
         counts[key] = counts.get(key, 0) + 1
         first.setdefault(key, (index, item.strip()))
     ranked = sorted(counts, key=lambda k: (-counts[k], first[k][0]))
     return [first[k][1] for k in ranked[:limit]]
+
+
+def _with_feedback_items(evaluation: dict) -> dict:
+    """The evaluation row plus its strengths and weaknesses as clean lists (``strengths_items``/``weaknesses_items``)."""
+    if not isinstance(evaluation, dict):
+        return evaluation
+    out = dict(evaluation)
+    for field in ("strengths", "weaknesses"):
+        items = [tidy_feedback_item(x) for x in split_feedback_items(evaluation.get(field))]
+        out[f"{field}_items"] = [x for x in items if x]
+    return out
 
 
 async def _get_legacy_summary(session_id: str) -> dict:
@@ -192,7 +223,7 @@ async def _get_legacy_summary(session_id: str) -> dict:
         "started_at": session.get("started_at"),
         "ended_at": session.get("ended_at"),
         "messages": messages,
-        "evaluations": evaluations,
+        "evaluations": [_with_feedback_items(e) for e in evaluations],
     }
 
 
