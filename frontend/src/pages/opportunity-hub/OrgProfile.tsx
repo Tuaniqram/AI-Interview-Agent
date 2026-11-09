@@ -42,9 +42,9 @@ export default function OrgProfile() {
         Back to opportunities
       </Link>
 
-      <div className="rounded-2xl bg-gradient-to-br from-[#7C3AED]/5 to-[#A78BFA]/5 border border-[#7C3AED]/10 p-6 sm:p-8">
+      <div className="rounded-2xl bg-gradient-to-br from-[#0c6b58]/5 to-[#2fbf9a]/5 border border-[#0c6b58]/10 p-6 sm:p-8">
         <div className="flex items-start gap-5">
-          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#A78BFA] flex items-center justify-center shrink-0 text-white font-bold text-2xl">
+          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-[#0c6b58] to-[#2fbf9a] flex items-center justify-center shrink-0 text-white font-bold text-2xl">
             {org.name.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -55,7 +55,7 @@ export default function OrgProfile() {
             <div className="flex items-center gap-4 mt-3">
               {org.website && (
                 <a href={org.website} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm text-[#7C3AED] hover:text-[#6D28D9] transition-colors">
+                  className="inline-flex items-center gap-1.5 text-sm text-[var(--action-primary)] hover:text-[var(--action-primary-hover)] transition-colors">
                   <Globe className="w-3.5 h-3.5" />
                   {new URL(org.website).hostname}
                 </a>
@@ -85,7 +85,7 @@ export default function OrgProfile() {
                 : null;
 
               return (
-                <div key={interview.id} className="relative p-5 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[#7C3AED]/40 hover:shadow-lg hover:shadow-[#7C3AED]/5 transition-all group">
+                <div key={interview.id} className="relative p-5 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[#0c6b58]/40 hover:shadow-lg hover:shadow-[#0c6b58]/5 transition-all group">
                   <div className="absolute top-3 right-3">
                     <BookmarkButton
                       listingId={Number(interview.id)}
@@ -98,7 +98,7 @@ export default function OrgProfile() {
                     />
                   </div>
                   <Link to={`/opportunity-hub/interviews/${interview.id}`}>
-                    <h3 className="font-semibold text-primary group-hover:text-[#7C3AED] transition-colors font-heading">{interview.title}</h3>
+                    <h3 className="font-semibold text-primary group-hover:text-[var(--action-primary)] transition-colors font-heading">{interview.title}</h3>
                   {interview.department_name && (
                     <p className="text-xs text-muted mt-0.5">{interview.department_name}</p>
                   )}
@@ -106,7 +106,7 @@ export default function OrgProfile() {
                     <p className="text-sm text-secondary mt-1.5 line-clamp-2">{interview.description}</p>
                   )}
                   <div className="flex items-center gap-2 flex-wrap mt-3">
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-[#7C3AED]/10 text-[#7C3AED] font-medium">
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-[#0c6b58]/10 text-[var(--action-primary)] font-medium">
                       {interview.interview_mode}
                     </span>
                     {skills.slice(0, 3).map(skill => (

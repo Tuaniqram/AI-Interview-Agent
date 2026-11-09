@@ -107,9 +107,9 @@ export default function InterviewDetail() {
         Back to opportunities
       </Link>
 
-      <div className="rounded-2xl bg-gradient-to-br from-[#7C3AED]/5 to-[#A78BFA]/5 border border-[#7C3AED]/10 p-6 sm:p-8">
+      <div className="rounded-2xl bg-gradient-to-br from-[#0c6b58]/5 to-[#2fbf9a]/5 border border-[#0c6b58]/10 p-6 sm:p-8">
         <div className="flex items-start gap-4 mb-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#A78BFA] flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#0c6b58] to-[#2fbf9a] flex items-center justify-center shrink-0">
             <Briefcase className="w-6 h-6 text-white" />
           </div>
           <div className="flex-1 min-w-0">
@@ -132,7 +132,7 @@ export default function InterviewDetail() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs px-3 py-1 rounded-full bg-[#7C3AED]/10 text-[#7C3AED] font-medium flex items-center gap-1">
+          <span className="text-xs px-3 py-1 rounded-full bg-[#0c6b58]/10 text-[var(--action-primary)] font-medium flex items-center gap-1">
             <Shield className="w-3 h-3" />
             {interview.interview_mode}
           </span>
@@ -185,7 +185,7 @@ export default function InterviewDetail() {
       ) : null}
 
       {!isExpired && (
-        <div className="rounded-xl bg-gradient-to-br from-[#7C3AED]/5 to-[#A78BFA]/5 border border-[#7C3AED]/10 p-6 sm:p-8">
+        <div className="rounded-xl bg-gradient-to-br from-[#0c6b58]/5 to-[#2fbf9a]/5 border border-[#0c6b58]/10 p-6 sm:p-8">
           <h2 className="text-lg font-semibold text-primary mb-1 font-heading">Apply for this interview</h2>
           <p className="text-sm text-secondary mb-6">Submit your application with your CV. The organization will review it and invite you to interview.</p>
           {authLoading ? (

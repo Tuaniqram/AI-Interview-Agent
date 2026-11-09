@@ -7,7 +7,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   icon?: ReactNode;
 }
 
-const baseInput = 'w-full bg-input text-primary rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] transition-colors placeholder:text-muted disabled:opacity-50 disabled:cursor-not-allowed';
+const baseInput = 'w-full bg-input text-primary border border-[var(--border-strong)] focus:border-[var(--action-primary)] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] transition-colors placeholder:text-muted disabled:opacity-50 disabled:cursor-not-allowed';
 
 export function Input({ label, error, hint, icon, className = '', id, ...props }: InputProps) {
   // Link the label to its input (click-to-focus, screen readers, form testing).

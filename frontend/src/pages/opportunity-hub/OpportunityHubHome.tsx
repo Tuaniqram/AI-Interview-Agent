@@ -89,15 +89,15 @@ export default function OpportunityHubHome() {
         <div className="flex items-center gap-2 flex-wrap animate-fade-in">
           <span className="text-xs text-muted font-medium">Active filters:</span>
           {search && (
-            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-[#7C3AED]/10 text-[#7C3AED] font-medium">
+            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-[#0c6b58]/10 text-[var(--action-primary)] font-medium">
               Search: &ldquo;{search}&rdquo;
-              <button onClick={() => clearFilter('search')} className="hover:bg-[#7C3AED]/20 rounded-full p-0.5 -mr-0.5" aria-label="Clear search">
+              <button onClick={() => clearFilter('search')} className="hover:bg-[#0c6b58]/20 rounded-full p-0.5 -mr-0.5" aria-label="Clear search">
                 <X className="w-3 h-3" />
               </button>
             </span>
           )}
           {activeModes.map(m => (
-            <span key={m} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-[#7C3AED]/10 text-[#7C3AED] font-medium">
+            <span key={m} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-[#0c6b58]/10 text-[var(--action-primary)] font-medium">
               {m}
               <button onClick={() => {
                 const next = activeModes.filter(x => x !== m);
@@ -105,15 +105,15 @@ export default function OpportunityHubHome() {
                 if (next.length) params.set('modes', next.join(','));
                 else params.delete('modes');
                 setSearchParams(params, { replace: true });
-              }} className="hover:bg-[#7C3AED]/20 rounded-full p-0.5 -mr-0.5" aria-label={`Remove ${m}`}>
+              }} className="hover:bg-[#0c6b58]/20 rounded-full p-0.5 -mr-0.5" aria-label={`Remove ${m}`}>
                 <X className="w-3 h-3" />
               </button>
             </span>
           ))}
           {expiryLabel && (
-            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-[#7C3AED]/10 text-[#7C3AED] font-medium">
+            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-[#0c6b58]/10 text-[var(--action-primary)] font-medium">
               {expiryLabel}
-              <button onClick={() => clearFilter('expiry')} className="hover:bg-[#7C3AED]/20 rounded-full p-0.5 -mr-0.5" aria-label="Clear expiry">
+              <button onClick={() => clearFilter('expiry')} className="hover:bg-[#0c6b58]/20 rounded-full p-0.5 -mr-0.5" aria-label="Clear expiry">
                 <X className="w-3 h-3" />
               </button>
             </span>

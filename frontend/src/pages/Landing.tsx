@@ -108,7 +108,7 @@ ${EL} .el-btn-ghost:hover { border-color: var(--el-glass-border-hi); color: var(
   background: var(--el-glass-2); }
 
 /* hero */
-${EL} .el-hero { padding: 44px 0 64px; text-align: center; }
+${EL} .el-hero { padding: 44px 0 16px; text-align: center; }
 ${EL} .el-badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px;
   background: var(--el-glass); color: var(--el-accent-hover); font-size: 12px; font-weight: 500;
   border: 1px solid var(--el-glass-border); margin-bottom: 20px; }

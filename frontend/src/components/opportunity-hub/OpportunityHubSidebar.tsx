@@ -70,7 +70,7 @@ export function OpportunityHubSidebar({
             onClick={onClose}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
               isActive('/opportunity-hub')
-                ? 'bg-[#7C3AED]/15 text-[#7C3AED]'
+                ? 'bg-[#0c6b58]/15 text-[var(--action-primary)]'
                 : 'text-secondary hover:bg-hover hover:text-primary'
             }`}
           >
@@ -125,7 +125,7 @@ export function OpportunityHubSidebar({
 
           <button
             onClick={() => { onApply(); onClose(); }}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-[#7C3AED] text-white hover:bg-[#6D28D9] transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-[#0c6b58] text-white hover:bg-[#085244] transition-colors"
           >
             <Search className="w-3.5 h-3.5" />
             Apply Filters

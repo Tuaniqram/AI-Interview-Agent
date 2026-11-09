@@ -52,7 +52,7 @@ export function OpportunityHubLayout() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search organizations..."
-                className="w-full pl-9 pr-3 py-2 text-sm bg-[var(--bg-page)] text-primary rounded-lg border border-[var(--border-color)] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED] placeholder:text-muted transition-colors"
+                className="w-full pl-9 pr-3 py-2 text-sm bg-[var(--bg-page)] text-primary rounded-lg border border-[var(--border-color)] focus:outline-none focus:ring-2 focus:ring-[#0c6b58]/30 focus:border-[#0c6b58] placeholder:text-muted transition-colors"
               />
             </div>
           </form>
@@ -78,7 +78,7 @@ export function OpportunityHubLayout() {
                   </Link>
                 )}
                 <div className="flex items-center gap-2 pl-2 border-l border-[var(--border-color)]">
-                  <div className="w-6 h-6 rounded-full bg-[#7C3AED] flex items-center justify-center text-white text-xs font-medium">
+                  <div className="w-6 h-6 rounded-full bg-[#0c6b58] flex items-center justify-center text-white text-xs font-medium">
                     {(isAuthenticated ? user?.name : candidate?.name)?.charAt(0)?.toUpperCase() || '?'}
                   </div>
                   <button
@@ -108,7 +108,7 @@ export function OpportunityHubLayout() {
                 </Link>
                 <Link
                   to="/register"
-                  className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#7C3AED] text-white hover:bg-[#6D28D9] transition-colors"
+                  className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#0c6b58] text-white hover:bg-[#085244] transition-colors"
                 >
                   <UserPlus className="w-4 h-4" />
                   <span className="hidden sm:inline">Get Started</span>

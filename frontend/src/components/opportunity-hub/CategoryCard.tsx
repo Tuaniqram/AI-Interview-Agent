@@ -24,10 +24,10 @@ export function CategoryCard({ name, icon, count, onClick }: CategoryCardProps) 
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-3 p-4 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[#7C3AED]/40 card-hover group text-left"
+      className="flex items-center gap-3 p-4 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[#0c6b58]/40 card-hover group text-left"
     >
-      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#7C3AED]/10 to-[#A78BFA]/10 flex items-center justify-center shrink-0 group-hover:from-[#7C3AED]/20 group-hover:to-[#A78BFA]/20 transition-colors">
-        <Icon className="w-5 h-5 text-[#7C3AED]" />
+      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#0c6b58]/10 to-[#2fbf9a]/10 flex items-center justify-center shrink-0 group-hover:from-[#0c6b58]/20 group-hover:to-[#2fbf9a]/20 transition-colors">
+        <Icon className="w-5 h-5 text-[var(--action-primary)]" />
       </div>
       <div className="min-w-0">
         <p className="text-sm font-medium text-primary font-heading">{name}</p>

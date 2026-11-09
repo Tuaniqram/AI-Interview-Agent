@@ -37,7 +37,7 @@ export function Select({ label, options, value, onChange, placeholder, error, cl
       <div ref={ref} className="relative">
         <button type="button" onClick={() => setOpen(!open)} disabled={disabled}
           className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg border transition-colors
-            ${error ? 'border-error' : 'border-border'}
+            ${error ? 'border-error' : 'border-[var(--border-strong)]'}
             ${disabled ? 'bg-input/50 text-muted cursor-not-allowed' : 'bg-input text-primary hover:border-border/80'}
             ${open ? 'ring-2 ring-focus-ring' : ''}`}
         >
