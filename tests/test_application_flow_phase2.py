@@ -66,7 +66,7 @@ class FakeDB:
         self.commits = 0
         self.rollbacks = 0
 
-    async def get(self, model, key):
+    async def get(self, model, key, **kwargs):
         if model is PublicInterviewSubmission and str(key) == str(self.submission.id):
             return self.submission
         return None
@@ -338,7 +338,7 @@ class DocDB:
     def __init__(self, document, profile=None):
         self.document, self.profile = document, profile
 
-    async def get(self, model, key):
+    async def get(self, model, key, **kwargs):
         return self.document if model.__name__ == "CandidateDocument" else self.profile
 
 

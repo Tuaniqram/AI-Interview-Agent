@@ -366,7 +366,10 @@ async def evaluate_application_fit(
             },
         }
 
-        row = await db.get(PublicInterviewSubmission, application_id)
+        # populate_existing: this session cached the row before the (slow) evaluation started. Without a
+        # re-read, an invitation sent meanwhile is invisible here, and the stale "applied" status below
+        # would overwrite the "interview_offered" that the invite just saved.
+        row = await db.get(PublicInterviewSubmission, application_id, populate_existing=True)
         if row is None:  # deleted while evaluating
             return None
         row.fit_score = result.fit_score
