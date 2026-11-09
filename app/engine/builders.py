@@ -98,6 +98,7 @@ def build_start_response(session_id: str, state: StateLike) -> dict:
         "job_role": s.get("job_role", ""),
         "department_id": s.get("department_id"),
         "org_id": s.get("org_id"),  # set for real (organization) interviews, absent for practice
+        "max_questions": int(s.get("max_questions") or 0),  # upper bound; the engine may finish earlier
         "conversation_turn": compose_conversation_turn(s),
         "question": {
             "text": question,

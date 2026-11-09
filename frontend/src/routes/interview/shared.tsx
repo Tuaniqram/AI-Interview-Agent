@@ -187,7 +187,10 @@ export function ConversationThread({ showEvaluation = true }: { showEvaluation?:
       {state.currentQuestion && (
         <div className="space-y-2 max-w-2xl mx-auto w-full">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-medium text-action-primary uppercase">Q{state.currentQuestion.question_number}</span>
+            <span className="text-[10px] font-medium text-action-primary uppercase">
+              Question {state.currentQuestion.question_number}
+              {(state.session?.total_questions ?? 0) >= state.currentQuestion.question_number && ` · up to ${state.session?.total_questions}`}
+            </span>
             <span className="text-[10px] text-muted uppercase tracking-wide">AURA</span>
             {state.currentQuestion.phase && (
               <span className="text-[10px] text-muted">{humanizePhase(state.currentQuestion.phase)}</span>

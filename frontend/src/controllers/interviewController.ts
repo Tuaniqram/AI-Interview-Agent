@@ -218,7 +218,7 @@ export class InterviewController {
       status: 'active',
       current_phase: 'intro',
       question_number: q.number ?? 1,
-      total_questions: 10,
+      total_questions: Number(data.max_questions) || 0, // 0 = unknown (e.g. a resumed session)
       difficulty_level: data.difficulty ?? 1,
       interaction_mode: 'typing',
       job_role: data.job_role,
