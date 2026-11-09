@@ -6,6 +6,7 @@ import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Select } from '../../components/shared/Select';
 import { useToast } from '../../components/shared/Toast';
+import { humanizeAction, humanizeName, summarizeDetails } from '../../utils/humanize';
 
 interface AuditEntry {
   id: string;
@@ -47,7 +48,7 @@ export default function AuditLogs() {
         value={actionFilter}
         onChange={setActionFilter}
         placeholder="All Actions"
-        options={actions.map(a => ({ value: a, label: a }))}
+        options={actions.map(a => ({ value: a, label: humanizeAction(a) }))}
       />
 
       {filtered.length === 0 ? (
@@ -56,15 +57,15 @@ export default function AuditLogs() {
         <div className="space-y-1">
           {filtered.map(log => (
             <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg bg-section border border-border text-xs">
-              <span className="px-2 py-0.5 rounded bg-action-primary/10 text-action-primary font-medium shrink-0">{log.action}</span>
+              <span className="px-2 py-0.5 rounded bg-action-primary/10 text-action-primary font-medium shrink-0">{humanizeAction(log.action)}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-primary">
-                  {log.resource_type && <span className="text-muted">{log.resource_type} </span>}
+                  {log.resource_type && <span className="text-muted">{humanizeName(log.resource_type)} </span>}
                   {log.resource_id && <span className="font-mono text-[10px] text-muted">#{log.resource_id.slice(0, 8)}</span>}
                 </p>
                 {log.details && (typeof log.details === 'string' || Object.keys(log.details).length > 0) && (
                   <p className="text-muted mt-0.5 break-all">
-                    {typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}
+                    {summarizeDetails(log.details)}
                   </p>
                 )}
               </div>

@@ -1,3 +1,4 @@
+import { humanizeName } from '../../utils/humanize';
 import { useEffect, useState } from 'react';
 import { useOrg } from '../../contexts/OrgContext';
 import { apiClient } from '../../services/apiClient';
@@ -67,7 +68,7 @@ export default function EmailTemplates() {
                   selected?.name === t.name ? 'bg-action-primary/10 text-action-primary' : 'text-secondary hover:bg-hover'
                 }`}>
                 <FileText className="w-3.5 h-3.5" />
-                <span className="truncate">{t.name}</span>
+                <span className="truncate">{humanizeName(t.name)}</span>
               </button>
             ))
           )}
@@ -76,7 +77,7 @@ export default function EmailTemplates() {
           {selected ? (
             <Card padding="lg" className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-primary">{selected.name}</h3>
+                <h3 className="text-sm font-semibold text-primary">{humanizeName(selected.name)}</h3>
                 <Button size="sm" onClick={handleSave} loading={saving}>
                   <Save className="w-3.5 h-3.5 mr-1" /> Save
                 </Button>
