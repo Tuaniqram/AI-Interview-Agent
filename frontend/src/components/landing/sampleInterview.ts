@@ -61,7 +61,18 @@ function toExcerpt(step: RealStep, number: number): SampleExcerpt {
   };
 }
 
-export const sampleExcerpts = (): SampleExcerpt[] => SOURCE.steps.slice(0, 3).map((s, i) => toExcerpt(s, i + 1));
+/** Words the marketing copy never uses. The sample is real text, so an excerpt containing one is skipped, not edited. */
+const BANNED = /supercharge|revolution|unlock|seamless|all-in-one|ai-powered|10x|next-gen|game-changer/i;
+
+/**
+ * The first three steps worth showing: no banned wording, and at least one figure in the answer to highlight.
+ * Question numbers are the step's position in the real interview, not its position in this list.
+ */
+export const sampleExcerpts = (): SampleExcerpt[] =>
+  SOURCE.steps
+    .map((s, i) => toExcerpt(s, i + 1))
+    .filter(e => !BANNED.test(`${e.question} ${e.answer}`) && e.phrases.length > 0)
+    .slice(0, 3);
 
 /** The final decision for the sample, in the shape the recruiter's report uses. */
 export function sampleDecision(): FinalDecision {

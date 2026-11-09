@@ -52,7 +52,7 @@
     --text-primary:       #1a1a1e;
     --text-secondary:     #54545c;
     --text-tertiary:      #6f6f7a;
-    --text-muted:         #6b7280;
+    --text-muted:         #646b78;  /* AA (4.7:1+) on the page, section and input surfaces; #6b7280 was 4.25:1 on inputs */
     --text-inverse:       #ffffff;
 
     /* ── Divider + Borders ── */

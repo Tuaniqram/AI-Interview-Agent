@@ -155,7 +155,7 @@ export function Landing() {
                 <li>Create an account to keep your applications and interview history in one place.</li>
               </ul>
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link to="/opportunity-hub" className={SECONDARY_BUTTON}>Browse open roles</Link>
+                <Link to="/opportunity-hub" className={PRIMARY_BUTTON}>Browse open roles</Link>
                 <Link to="/candidate/login" className="inline-flex items-center px-1 py-2.5 text-sm font-semibold text-action-primary hover:underline">
                   Candidate sign in
                 </Link>
