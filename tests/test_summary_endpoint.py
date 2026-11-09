@@ -279,3 +279,16 @@ class _MsgRepo:
 
     async def get_evaluations(self, sid):
         return []
+
+
+from app.api.interview_agent import top_feedback_items
+
+
+def test_top_feedback_items_rank_by_frequency_and_cap():
+    items = ["Clear steps", "Names trade-offs", "clear steps.", "Uses tests", "Clear Steps", "Names trade-offs", "Other"]
+    assert top_feedback_items(items, limit=3) == ["Clear steps", "Names trade-offs", "Uses tests"]
+
+
+def test_top_feedback_items_ignore_blanks_and_keep_a_stable_order():
+    assert top_feedback_items(["", " ", "b", "a"]) == ["b", "a"]
+    assert top_feedback_items([]) == []

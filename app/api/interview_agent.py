@@ -93,6 +93,24 @@ def split_feedback_items(text: Optional[str]) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
+def top_feedback_items(items: list[str], limit: int = 8) -> list[str]:
+    """The points made most often across the interview, most frequent first (ties keep first-seen order).
+
+    A 14-question interview yields dozens of near-duplicate strengths and weaknesses; ``list(set(...))`` returned all
+    of them in random order. Case and trailing punctuation are ignored when counting repeats.
+    """
+    counts: dict[str, int] = {}
+    first: dict[str, tuple[int, str]] = {}
+    for index, item in enumerate(items):
+        key = item.strip().rstrip(".;:").lower()
+        if not key:
+            continue
+        counts[key] = counts.get(key, 0) + 1
+        first.setdefault(key, (index, item.strip()))
+    ranked = sorted(counts, key=lambda k: (-counts[k], first[k][0]))
+    return [first[k][1] for k in ranked[:limit]]
+
+
 async def _get_legacy_summary(session_id: str) -> dict:
     """Build the legacy v3 summary directly from DB state.
 
@@ -160,8 +178,8 @@ async def _get_legacy_summary(session_id: str) -> dict:
         "average_answer_score": round(avg_score, 2) if avg_score else None,
         "technical_score": round(avg_technical, 2) if avg_technical else None,
         "communication_score": round(avg_communication, 2) if avg_communication else None,
-        "strengths": list(set(all_strengths)),
-        "weaknesses": list(set(all_weaknesses)),
+        "strengths": top_feedback_items(all_strengths),
+        "weaknesses": top_feedback_items(all_weaknesses),
         "answered_ratio": (
             round(answered_questions / total_questions_possible, 2)
             if total_questions_possible > 0
