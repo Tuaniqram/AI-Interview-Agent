@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet, Link, useNavigate } from 'react-router-dom';
+import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCandidateAuth } from '../contexts/CandidateAuthContext';
 import { OpportunityHubSidebar } from '../components/opportunity-hub/OpportunityHubSidebar';
@@ -10,6 +10,8 @@ export function OpportunityHubLayout() {
   const { isAuthenticated, isLoading, user, logout } = useAuth();
   const { isAuthenticated: isCandidateAuth, isLoading: isCandidateLoading, logout: candidateLogout, candidate } = useCandidateAuth();
   const navigate = useNavigate();
+  // Filters only make sense on the list page; listing and organization pages get the full width.
+  const showFilters = useLocation().pathname.replace(/\/+$/, '') === '/opportunity-hub';
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<HubFilters>({ modes: [], expiry: 'any' });
@@ -31,13 +33,13 @@ export function OpportunityHubLayout() {
     <div className="h-screen bg-[var(--bg-page)] flex flex-col overflow-hidden">
       <header className="shrink-0 z-30 h-16 glass border-b border-[var(--border-color)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center gap-4">
-          <button
+          {showFilters && <button
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden p-2 -ml-2 rounded-lg text-secondary hover:text-primary hover:bg-hover"
             aria-label="Open sidebar"
           >
             <Menu className="w-5 h-5" />
-          </button>
+          </button>}
 
           <Link to="/opportunity-hub" className="flex items-center gap-2.5 shrink-0">
             <img src="/favicon.svg" className="w-7 h-7" alt="" />
@@ -120,14 +122,14 @@ export function OpportunityHubLayout() {
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        <OpportunityHubSidebar
+        {showFilters && <OpportunityHubSidebar
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           isAuthenticated={isAuthenticated}
           filters={filters}
           onFiltersChange={setFilters}
           onApply={applyFilters}
-        />
+        />}
 
         <main className="flex-1 min-w-0 overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 animate-fade-in">

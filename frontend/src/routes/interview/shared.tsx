@@ -5,6 +5,22 @@ import { useInterviewStore } from '../../state/interviewStore';
 
 const PHASES = ['intro', 'experience', 'technical', 'behavioral', 'conclusion'];
 
+const PHASE_LABELS: Record<string, string> = {
+  tech_db: 'Databases', tech_devops: 'DevOps', tech_core: 'Core technical', tech_system_design: 'System design',
+  tech_framework: 'Frameworks', tech_stack: 'Tech stack', tech_testing: 'Testing', tech_data: 'Data',
+  tech_security: 'Security', tech_caching: 'Caching', tech_mobile: 'Mobile', tech_event_driven: 'Event-driven systems',
+};
+
+/** Internal phase/competency ids (e.g. "cog_problem_solving") -> text a candidate can read. */
+export function humanizePhase(raw?: string | null): string {
+  if (!raw) return '';
+  const key = raw.toLowerCase();
+  if (PHASE_LABELS[key]) return PHASE_LABELS[key];
+  const text = key.replace(/^(cog|behav|beh|tech|soft)_/, '').replace(/_/g, ' ').trim();
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+
 export function BackButton() {
   const navigate = useNavigate();
   return (
@@ -50,7 +66,7 @@ export function QuestionDisplay() {
         <span className="px-2 py-0.5 bg-action-primary/10 text-action-primary text-[10px] font-semibold rounded">
           Q{q.question_number || '?'}
         </span>
-        <span className="text-[10px] text-muted capitalize">{q.phase || state.session?.current_phase}</span>
+        <span className="text-[10px] text-muted capitalize">{humanizePhase(q.phase || state.session?.current_phase)}</span>
       </div>
       <p className="text-sm text-primary leading-relaxed">{q.question}</p>
     </div>
@@ -174,7 +190,7 @@ export function ConversationThread({ showEvaluation = true }: { showEvaluation?:
             <span className="text-[10px] font-medium text-action-primary uppercase">Q{state.currentQuestion.question_number}</span>
             <span className="text-[10px] text-muted uppercase tracking-wide">AURA</span>
             {state.currentQuestion.phase && (
-              <span className="text-[10px] text-muted capitalize">Phase: {state.currentQuestion.phase}</span>
+              <span className="text-[10px] text-muted">{humanizePhase(state.currentQuestion.phase)}</span>
             )}
           </div>
           <p className="text-sm text-primary bg-section/60 rounded-xl px-5 py-3.5 leading-relaxed">
