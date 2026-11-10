@@ -1,4 +1,4 @@
-"""Document analyzer — turns retrieved company/department document chunks into
+"""Document analyzer — turns retrieved company document chunks into
 structured company knowledge (tech stack, culture, process, challenges).
 
 Deterministic keyword extraction always works and is fully offline; the LLM

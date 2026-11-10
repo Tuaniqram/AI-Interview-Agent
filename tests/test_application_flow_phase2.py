@@ -395,7 +395,7 @@ async def test_resume_download_404_when_no_cv(monkeypatch, resume_dir):
 def test_org_namespace_matches_existing_document_namespace():
     from app.rag.pinecone_store import org_namespace
 
-    # departments._process_document stores under this exact namespace
+    # org document ingestion uses this legacy-compatible namespace
     assert org_namespace("abc-123") == "department_abc-123"
 
 
@@ -446,8 +446,8 @@ async def test_company_brain_retrieves_org_documents(monkeypatch):
     assert brain["rag_metadata"]["success"] is True
 
 
-async def test_department_context_node_uses_org_id(monkeypatch):
-    from app.agents.init.company_context import _session_context_cache, department_context_node
+async def test_company_context_node_uses_org_id(monkeypatch):
+    from app.agents.init.company_context import _session_context_cache, company_context_node
 
     _session_context_cache.clear()
     asked = []
@@ -465,20 +465,20 @@ async def test_department_context_node_uses_org_id(monkeypatch):
         lambda org_id, k=5: asked.append(org_id) or Retriever(),
     )
 
-    state = await department_context_node(
+    state = await company_context_node(
         {"session_id": "s1", "org_id": "org-7", "job_role": "Backend", "current_phase": "intro"}
     )
 
     assert asked == ["org-7"]
     assert state["rag_metadata"]["success"] is True
-    assert "code review is mandatory" in state["department_requirements"]
+    assert "code review is mandatory" in state["company_requirements"]
 
 
-async def test_department_context_node_without_org_is_empty():
-    from app.agents.init.company_context import department_context_node
+async def test_company_context_node_without_org_is_empty():
+    from app.agents.init.company_context import company_context_node
 
-    state = await department_context_node({"session_id": "s2", "job_role": "Backend"})
-    assert state["department_context"] == []
+    state = await company_context_node({"session_id": "s2", "job_role": "Backend"})
+    assert state["company_context"] == []
     assert state["rag_metadata"]["reason"] == "no_org_id"
 
 

@@ -12,7 +12,7 @@ _PHASE_QUERY_TEMPLATES = {
     "intro": """
 Role: {job_role}
 Phase: Introduction — building rapport, assessing career trajectory
-Retrieve documents about: company overview, team structure, company culture, department mission
+Retrieve documents about: company overview, team structure, company culture, company mission
 Focus areas: company values, team composition, organizational structure, role context
 """,
     "experience": """
@@ -42,7 +42,7 @@ Focus areas: company roadmap, career development, company mission, future initia
 }
 
 
-async def department_context_node(state: InterviewState) -> InterviewState:
+async def company_context_node(state: InterviewState) -> InterviewState:
     session_id = state.get('session_id')
     org_id = state.get('org_id')
     job_role = state.get('job_role')
@@ -53,8 +53,8 @@ async def department_context_node(state: InterviewState) -> InterviewState:
         logger.warning("No org_id provided, RAG context will be empty")
         return {
             **state,
-            'department_context': [],
-            'department_requirements': '',
+            'company_context': [],
+            'company_requirements': '',
             'rag_metadata': {'success': False, 'reason': 'no_org_id'}
         }
 
@@ -66,8 +66,8 @@ async def department_context_node(state: InterviewState) -> InterviewState:
             logger.info(f"Using cached RAG context for session {session_id}, phase={current_phase}")
             return {
                 **state,
-                'department_context': cached['department_context'],
-                'department_requirements': cached['department_requirements'],
+                'company_context': cached['company_context'],
+                'company_requirements': cached['company_requirements'],
                 'rag_metadata': {**cached['rag_metadata'], 'cached': True, 'phase': current_phase}
             }
 
@@ -77,7 +77,7 @@ async def department_context_node(state: InterviewState) -> InterviewState:
 
         template = _PHASE_QUERY_TEMPLATES.get(
             current_phase,
-            "Retrieve documents related to: {job_role}, department requirements"
+            "Retrieve documents related to: {job_role}, company requirements"
         )
         base_query = template.format(job_role=job_role or "Unknown Role")
 
@@ -104,18 +104,18 @@ async def department_context_node(state: InterviewState) -> InterviewState:
         )
 
         context_docs = []
-        department_requirements = ""
+        company_requirements = ""
 
         for doc in docs:
             context_docs.append({
                 'page_content': doc.page_content,
                 'metadata': doc.metadata if hasattr(doc, 'metadata') else {}
             })
-            department_requirements += doc.page_content + "\n"
+            company_requirements += doc.page_content + "\n"
 
         result = {
-            'department_context': context_docs,
-            'department_requirements': department_requirements.strip(),
+            'company_context': context_docs,
+            'company_requirements': company_requirements.strip(),
             'rag_metadata': {
                 'success': True,
                 'org_id': str(org_id),
@@ -134,8 +134,8 @@ async def department_context_node(state: InterviewState) -> InterviewState:
         logger.error(f"RAG retrieval failed for org {org_id}, phase={current_phase}: {e}")
         return {
             **state,
-            'department_context': [],
-            'department_requirements': '',
+            'company_context': [],
+            'company_requirements': '',
             'rag_metadata': {
                 'success': False,
                 'org_id': str(org_id),

@@ -66,7 +66,7 @@ async def lifespan(app: FastAPI):
     # Pre-load prompt templates into cache
     from app.services.prompt_loader import load_prompt as _warm
     _warm("interview", "question_generation.md", job_role="warmup", phase="intro", difficulty_level=1,
-          department_context="N/A", candidate_profile="N/A", question_number=0, conversation_history="(warmup)")
+          company_context="N/A", candidate_profile="N/A", question_number=0, conversation_history="(warmup)")
     logger.info("Prompt cache pre-warmed")
 
     # Warm up the embedding model + Pinecone client (best-effort). The first

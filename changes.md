@@ -223,6 +223,15 @@ Single-owner organizations, department removal, UI standardization, and supporti
 - Removed the broken legacy dev scripts `build_brain_demo.py`, `verify_brain_profiles.py`, and `setup_role_demo.py`.
 - Added `test_ws_reconnect_resumes_existing_state`: closing and reopening the socket resumes the stored question instead of rebuilding the interview.
 
+## 16. Company context naming
+
+- Renamed the RAG state fields `department_context` → `company_context` and `department_requirements` -> `company_requirements` in the brain and V4 state.
+- Renamed `department_context_node` to `company_context_node` and updated the engine lifecycle, session start, and tests.
+- Updated the phase prompts to refer to the company instead of a department.
+- The default interview flow is now `practice` instead of the legacy `department`.
+- The prompt warm-up now passes `company_context` instead of `department_context`.
+- Renamed the prompt helper parameter that feeds `company_context`-adjacent RAG text to `organization_context`.
+
 ## Verification
 
 - Backend tests: `1020 passed` (default suite, integration excluded), including:
@@ -264,6 +273,6 @@ Single-owner organizations, department removal, UI standardization, and supporti
 
 ## Follow-ups
 
-- Optional: rename the remaining `department_context` / `department_requirements` state keys to `company_context` / `company_requirements`. These are context labels, not department ids.
 - Optional: give the awkward persona a second valid simulation run when the LLM provider is stable. The rerun was stopped on request to save time.
+- Optional: update the static demo interview text in `frontend/src/data/realInterviews.ts` that still mentions departments.
 - Keep demo/test data separate from production data before a real launch.

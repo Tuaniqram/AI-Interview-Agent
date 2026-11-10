@@ -54,8 +54,8 @@ class InterviewBrain:
     # -- Company Intelligence ----------------------------------------------
     company_brain: Optional[dict] = None
     interview_blueprint: Optional[dict] = None
-    department_context: list = field(default_factory=list)
-    department_requirements: str = ""
+    company_context: list = field(default_factory=list)
+    company_requirements: str = ""
     rag_metadata: dict = field(default_factory=dict)
 
     # -- Candidate Intelligence --------------------------------------------

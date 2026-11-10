@@ -49,7 +49,7 @@ async def start_session(engine, state: dict, build_intelligence: bool = False, i
         return build_start_response(session_id, existing)
 
     from app.agents.init.session_init import session_init_node
-    from app.agents.init.company_context import department_context_node
+    from app.agents.init.company_context import company_context_node
     from app.agents.init.candidate_profile import candidate_profile_node
     from app.agents.planning.competency_planner import competency_planner_node
     from app.agents.planning.strategy_planner import strategy_brain_node
@@ -135,7 +135,7 @@ async def start_session(engine, state: dict, build_intelligence: bool = False, i
 
     s = brain_to_dict(brain)
     s = session_init_node(s)
-    s = await department_context_node(s)
+    s = await company_context_node(s)
     s = await candidate_profile_node(s)
     s = await competency_planner_node(s)
     s = await strategy_brain_node(s)

@@ -49,8 +49,8 @@ class InterviewState(TypedDict, total=False):
     coverage_map: Dict[str, float]
 
     # RAG Context
-    department_context: List[Dict[str, str]]
-    department_requirements: str
+    company_context: List[Dict[str, str]]
+    company_requirements: str
     rag_metadata: Dict[str, Any]
 
     # Evaluation Data

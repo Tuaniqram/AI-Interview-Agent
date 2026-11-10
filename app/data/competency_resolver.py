@@ -6,7 +6,7 @@ interview for ANY field, not just software engineering.
 
 Resolution order (first decisive wins):
     1. Scorecard template  (org-curated competencies, highest priority)
-    2. Interview template  (department-level competencies)
+    2. Interview template  (role-level competencies)
     3. AI role profiler     (role-first: role context drives the LLM pass; the
                             cached result lands on the newest organization
                             interview template for reuse)
@@ -284,7 +284,7 @@ async def _resolve_template_defs(
 
 
 async def _db_suggestion_cache(db: AsyncSession, org_id: int | None) -> list[dict]:
-    """Best-effort read of a previously persisted AI profile for the department."""
+    """Best-effort read of a previously persisted AI profile for the organization."""
     if not org_id:
         return []
     try:
