@@ -159,12 +159,12 @@ def _invalidate_org_brain(org_id) -> None:
 async def _process_org_document(filepath: str, org_id: str, doc_id: str, filename: str):
     try:
         from app.rag.loader import load_pdf
-        from app.rag.pinecone_store import store_department_knowledge
+        from app.rag.pinecone_store import store_org_knowledge
         from app.rag.splitter import split_documents
 
         documents = load_pdf(filepath)
         chunks = split_documents(documents)
-        store_department_knowledge(chunks, org_id, doc_id=doc_id)
+        store_org_knowledge(chunks, org_id, doc_id=doc_id)
         _invalidate_org_brain(org_id)
         logger.info(f"RAG pipeline completed: {len(chunks)} chunks stored (doc_id={doc_id})")
     except Exception as e:
@@ -189,8 +189,8 @@ async def delete_document(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
     try:
-        from app.rag.pinecone_store import delete_department_knowledge
-        delete_department_knowledge(str(org_id), doc_id)
+        from app.rag.pinecone_store import delete_org_knowledge
+        delete_org_knowledge(str(org_id), doc_id)
     except Exception as e:
         logger.warning(f"Pinecone delete failed (continuing): {e}")
     _invalidate_org_brain(org_id)

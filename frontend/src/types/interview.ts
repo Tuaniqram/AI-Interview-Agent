@@ -51,7 +51,6 @@ export interface InterviewSession {
   interaction_mode?: InterviewMode;
   /** AURA/v4 metadata returned by the engine */
   job_role?: string;
-  department_id?: number | null;
   /** Present for organization interviews (invited / public); absent for practice. */
   org_id?: string | null;
 }
@@ -196,7 +195,7 @@ export interface InterviewStatusResponse {
 /**
  * GET /interviews/{session_id}/summary Response
  * {
- *   session_id, department_id, job_role, status, current_phase, question_number,
+ *  session_id, org_id, job_role, status, current_phase, question_number,
  *   total_questions, final_score, answered_ratio, total_questions_answered,
  *   messages_count, evaluations_count, interview_complete, messages, evaluations
  * }

@@ -51,7 +51,6 @@ export class InterviewService {
   // Start a new interview session
   // ============================================================================
   async startSession(params: {
-    department_id?: number;
     job_role: string;
     total_questions?: number;
     initial_difficulty?: number;
@@ -61,7 +60,6 @@ export class InterviewService {
   }): Promise<InterviewSession> {
     console.log('[InterviewService] startSession:', params);
     const body: Record<string, any> = {
-      ...(params.department_id !== undefined && { department_id: params.department_id }),
       job_role: params.job_role,
       total_questions: params.total_questions ?? 10,
       initial_difficulty: params.initial_difficulty ?? 1,
@@ -166,12 +164,12 @@ export class InterviewService {
   // ============================================================================
   async getRagStatus(session_id: string): Promise<{
     rag_available: boolean;
-    rag_details: { department_id: string | number; department_requirements: boolean };
+    rag_details: Record<string, unknown>;
   }> {
     console.log('[InterviewService] getRagStatus:', { session_id });
     return await this.apiClient.get<{
       rag_available: boolean;
-      rag_details: { department_id: string | number; department_requirements: boolean };
+      rag_details: Record<string, unknown>;
     }>(`/interviews/${session_id}/rag-status`);
   }
 }

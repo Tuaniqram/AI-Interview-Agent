@@ -417,7 +417,6 @@ def test_get_org_retriever_uses_org_namespace(monkeypatch):
 
     assert ps.get_org_retriever("org-1") == "retriever"
     assert seen["namespace"] == "department_org-1"
-    assert ps.get_department_retriever("org-1") == "retriever"  # legacy alias still works
 
 
 async def test_company_brain_retrieves_org_documents(monkeypatch):

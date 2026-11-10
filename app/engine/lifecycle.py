@@ -32,7 +32,7 @@ async def start_session(engine, state: dict, build_intelligence: bool = False, i
 
     When ``build_intelligence`` is True and no intelligence kwargs are
     supplied, the V5 intelligence module produces the bundle from the
-    session fields (job role, department, candidate profile/resume,
+    session fields (job role, organization, candidate profile/resume,
     scorecard competencies). Every stage is best-effort.
 
     Returns the ``{type: question}`` response dict.

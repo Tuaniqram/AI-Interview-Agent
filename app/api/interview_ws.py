@@ -258,7 +258,7 @@ async def _load_candidate_profile_data(
 async def _start_engine(session_id: str, notify=None) -> dict:
     """Start (or resume) the v5 AURA engine for the given session.
 
-    The session row in the DB is the source of truth for job_role / department_id;
+    The session row in the DB is the source of truth for job_role / org_id;
     the engine state lives in the v4 session store under the same session_id.
     All orchestration is delegated to ``InterviewEngine``.
 
@@ -307,8 +307,6 @@ async def _start_engine(session_id: str, notify=None) -> dict:
                         org_name = org_row.name or ""
                 role_context = build_role_context(
                     job_role=db_session.job_role_snapshot or "",
-                    department_id=None,
-                    department_name="",
                     org_name=org_name,
                 )
             except Exception as exc:  # noqa: BLE001 - role context is best-effort

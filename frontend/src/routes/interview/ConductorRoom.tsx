@@ -33,7 +33,7 @@ export function ConductorRoom() {
   const lastSpokenRef = React.useRef('');
 
   const session = state.session;
-  const isPractice = !session?.org_id && !session?.department_id;
+  const isPractice = !session?.org_id;
   const isCompleted = session?.status === 'completed';
 
   // ── Answer time-box (contract §4.7): hard per-question window from the

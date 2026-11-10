@@ -32,7 +32,6 @@ def _key(scope_id, job_role: str) -> tuple:
 async def get_or_build_company_brain(
     *,
     org_id: Optional[str] = None,
-    department_id: Optional[int] = None,
     job_role: str = "",
     use_rag: bool = True,
     use_llm: bool = True,
@@ -40,10 +39,8 @@ async def get_or_build_company_brain(
     ttl: float = TTL_SECONDS,
 ) -> dict:
     """Return the cached company brain for ``(org_id, job_role)``, building and
-    caching it on a miss. Always returns a fresh deep copy. ``department_id`` is
-    a deprecated alias for ``org_id``."""
-    scope_id = org_id if org_id is not None else department_id
-    key = _key(scope_id, job_role)
+    caching it on a miss. Always returns a fresh deep copy."""
+    key = _key(org_id, job_role)
     now = time.monotonic()
     with _lock:
         entry = _cache.get(key)
@@ -53,7 +50,6 @@ async def get_or_build_company_brain(
     build_fn = builder or build_company_brain
     brain = await build_fn(
         org_id=org_id,
-        department_id=department_id,
         job_role=job_role,
         use_rag=use_rag,
         use_llm=use_llm,
@@ -78,7 +74,6 @@ async def get_or_build_company_brain(
 
 
 def invalidate_company_brain(
-    department_id: Optional[int] = None,
     job_role: Optional[str] = None,
     org_id: Optional[str] = None,
 ) -> None:
@@ -87,10 +82,9 @@ def invalidate_company_brain(
     - ``org_id`` alone evicts every job role cached for that organization (use
       this when its documents change);
     - ``org_id`` + ``job_role`` evicts one entry;
-    - no arguments clears the whole cache. ``department_id`` is a deprecated
-      alias for ``org_id``.
+    - no arguments clears the whole cache.
     """
-    scope_id = org_id if org_id is not None else department_id
+    scope_id = org_id
     with _lock:
         if scope_id is None and job_role is None:
             _cache.clear()

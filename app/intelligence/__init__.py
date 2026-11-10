@@ -42,7 +42,6 @@ async def build_interview_intelligence(
     *,
     job_role: str,
     org_id: str | None = None,
-    department_id: int | None = None,
     style: dict | None = None,
     candidate_profile: dict | None = None,
     candidate_id: str = "",
@@ -57,7 +56,7 @@ async def build_interview_intelligence(
     """One-shot V5 intelligence bundle for ``InterviewEngine.start_session``.
 
     Pipeline order (F1, role-first):
-        1. company_brain      — org/dept context (RAG + LLM, cached)
+        1. company_brain      — organization context (RAG + LLM, cached)
         2. competency set     — resolved by the caller (scorecard → template →
                                AI role profiler → default) and passed in as
                                ``competency_taxonomy``/``required_competencies``
@@ -69,12 +68,11 @@ async def build_interview_intelligence(
     All arguments are optional except ``job_role``; missing source material
     yields minimal-but-valid artifacts (no LLM or RAG calls are made when there
     is nothing to analyze). ``company_brain`` may be supplied pre-built (e.g.
-    from the department/role cache) to skip the RAG/LLM pass.
+    from the organization/role cache) to skip the RAG/LLM pass.
     """
     if company_brain is None:
         company_brain = await build_company_brain(
             org_id=org_id,
-            department_id=department_id,
             job_role=job_role,
             use_rag=use_rag,
             use_llm=use_llm,

@@ -270,8 +270,6 @@ async def start_public_interview(
             job_role=pi.title or "",
             skills_required=list(pi.skills_required) if getattr(pi, "skills_required", None) else None,
             description=pi.description or "",
-            department_id=None,
-            department_name="",
             org_name=org_name,
         )
     except Exception as exc:  # noqa: BLE001 - role context is best-effort

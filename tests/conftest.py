@@ -216,7 +216,7 @@ def fake_repos(monkeypatch):
 
 STUB_COMPANY_BRAIN = {
     "version": "v1",
-    "department_id": None,
+    "org_id": None,
     "job_role": "Software Engineer",
     "tech_stack": [],
     "culture": [],
@@ -286,7 +286,6 @@ def make_v4_state(**overrides) -> dict:
     state = {
         "session_id": "session-1",
         "job_role": "Software Engineer",
-        "department_id": None,
         "interview_style": get_style("STANDARD"),
         "persona": "friendly",
         "difficulty_level": 1,

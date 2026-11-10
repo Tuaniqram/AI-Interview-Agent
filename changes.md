@@ -206,9 +206,26 @@ Single-owner organizations, department removal, UI standardization, and supporti
   - `GET /api/v1/orgs/772debd4-.../scorecards/results` returned the demo result: `Test Candidate`, `Senior Backend Developer`, `Senior Backend Scorecard`, weighted score `7.57`, status `completed`.
   - Added `test_scorecard_results_route_is_registered` to guard the route surface.
 
+## 15. Department alias cleanup
+
+- Removed the legacy `department_id` field from `InterviewBrain` and the V4 `InterviewState` TypedDict.
+- Removed `department_id` from the WebSocket start, answer, and status payloads; clients now use `org_id`.
+- Removed the deprecated `department_id` / `department_name` parameters from:
+  - `build_interview_intelligence()`
+  - `build_company_brain()` and the company-brain cache
+  - `build_role_context()`
+  - the `/api/v1/intelligence/build` request schema
+- `/api/v1/intelligence/build` now passes `org_id` through to the builder instead of ignoring it.
+- Renamed the Pinecone helpers to `store_org_knowledge` / `delete_org_knowledge`; the `department_{org_id}` namespace prefix is retained so existing vectors remain readable.
+- `org_content.py` and `scripts/index_org_documents.py` use the organization-named helpers.
+- Removed `department_id` from the frontend interview types, controller, service, and WebSocket start payload.
+- Practice detection now checks `org_id` only (`InterviewRoom`, `ConductorRoom`).
+- Removed the broken legacy dev scripts `build_brain_demo.py`, `verify_brain_profiles.py`, and `setup_role_demo.py`.
+- Added `test_ws_reconnect_resumes_existing_state`: closing and reopening the socket resumes the stored question instead of rebuilding the interview.
+
 ## Verification
 
-- Backend tests: `1018 passed` (default suite, integration excluded), including:
+- Backend tests: `1020 passed` (default suite, integration excluded), including:
   - `tests/test_org_standardization.py` guards the organization routes, the removal of `/departments`, the IT-role analytics route, the admin endpoints, and the template response shape.
   - `tests/test_report_context.py` covers candidate and organization context in the report payload.
   - Existing application/invite, V5 persistence, and WebSocket protocol tests pass with the new template/scorecard fields.
@@ -247,9 +264,6 @@ Single-owner organizations, department removal, UI standardization, and supporti
 
 ## Follow-ups
 
-- Optional: verify WebSocket reconnect in the real UI. The HTTP token refresh is covered by `apiClient`, and the interview access token now lasts 12 hours.
+- Optional: rename the remaining `department_context` / `department_requirements` state keys to `company_context` / `company_requirements`. These are context labels, not department ids.
 - Optional: give the awkward persona a second valid simulation run when the LLM provider is stable. The rerun was stopped on request to save time.
-- Optional: remove the remaining internal `department_id` aliases in the interview engine. The database and public API no longer expose departments, but the engine still treats the organization id as a legacy `department_id`.
-- Optional: retire or refresh the older dev scripts that still use the legacy alias: `scripts/build_brain_demo.py`, `scripts/verify_brain_profiles.py`, and `scripts/setup_role_demo.py`.
 - Keep demo/test data separate from production data before a real launch.
-- Commit the changes when ready.

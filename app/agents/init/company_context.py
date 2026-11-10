@@ -44,8 +44,7 @@ Focus areas: company roadmap, career development, company mission, future initia
 
 async def department_context_node(state: InterviewState) -> InterviewState:
     session_id = state.get('session_id')
-    # Documents belong to the organization; ``department_id`` is a legacy alias.
-    org_id = state.get('org_id') or state.get('department_id')
+    org_id = state.get('org_id')
     job_role = state.get('job_role')
     current_phase = state.get('current_phase', 'intro')
     skills_weak = state.get('skills_weak', [])

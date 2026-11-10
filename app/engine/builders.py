@@ -96,7 +96,6 @@ def build_start_response(session_id: str, state: StateLike) -> dict:
         "session_id": session_id,
         "status": "in_progress",
         "job_role": s.get("job_role", ""),
-        "department_id": s.get("department_id"),
         "org_id": s.get("org_id"),  # set for real (organization) interviews, absent for practice
         "max_questions": int(s.get("max_questions") or 0),  # upper bound; the engine may finish earlier
         "conversation_turn": compose_conversation_turn(s),
@@ -209,7 +208,6 @@ def build_answer_response(session_id: str, state: StateLike) -> dict:
         "session_id": session_id,
         "status": "in_progress",
         "job_role": s.get("job_role", ""),
-        "department_id": s.get("department_id"),
         "org_id": s.get("org_id"),  # set for real (organization) interviews, absent for practice
         "conversation_turn": compose_conversation_turn(s),
         "evaluation": {
@@ -257,7 +255,6 @@ def build_state_response(session_id: str, state: StateLike) -> dict:
         "question_number": s.get("question_number", 0),
         "persona": s.get("persona", ""),
         "job_role": s.get("job_role", ""),
-        "department_id": s.get("department_id"),
         "org_id": s.get("org_id"),  # set for real (organization) interviews, absent for practice
         "conversation_turn": compose_conversation_turn(s),
         "current_question": s.get("current_question", ""),

@@ -9,7 +9,7 @@ export function InterviewRoom() {
   const { state, actions } = useInterviewStore();
   const session = state.session;
   // Real interviews belong to an organization; practice sessions have none.
-  const isPractice = !session?.org_id && !session?.department_id;
+  const isPractice = !session?.org_id;
 
   const handleEnd = () => {
     actions.cancelInterview();

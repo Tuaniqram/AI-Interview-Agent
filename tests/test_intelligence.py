@@ -58,8 +58,8 @@ async def test_build_company_brain_uses_provided_documents():
         {"page_content": "We build with python, aws and docker. "
                          "Agile sprints with code review and on-call."},
     ]
-    brain = await build_company_brain(department_id=7, job_role="Backend", documents=docs, use_llm=False)
-    assert brain["department_id"] == 7
+    brain = await build_company_brain(org_id="org-7", job_role="Backend", documents=docs, use_llm=False)
+    assert brain["org_id"] == "org-7"
     assert brain["documents_analyzed"] == 1
     assert brain["source"] == "fallback"
     assert "python" in brain["tech_stack"]
@@ -67,8 +67,8 @@ async def test_build_company_brain_uses_provided_documents():
     assert brain["rag_metadata"]["documents_retrieved"] == 1
 
 
-async def test_build_company_brain_without_department_is_empty_but_valid():
-    brain = await build_company_brain(department_id=None, job_role="Backend", use_rag=False, use_llm=False)
+async def test_build_company_brain_without_org_is_empty_but_valid():
+    brain = await build_company_brain(org_id=None, job_role="Backend", use_rag=False, use_llm=False)
     assert brain["source"] == "fallback"
     assert brain["tech_stack"] == []
     assert brain["rag_metadata"]["success"] is False

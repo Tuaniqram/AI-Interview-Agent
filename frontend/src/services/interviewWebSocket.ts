@@ -159,7 +159,6 @@ export class InterviewWebSocket {
 
   async startSession(params: {
     session_id: string;
-    department_id?: number;
     job_role?: string;
   }): Promise<any> {
     // The server allows up to 300s to prepare an interview (role profile, company context, strategy,

@@ -27,7 +27,6 @@ router = APIRouter(prefix="/intelligence", tags=["intelligence"])
 
 class IntelligenceBuildRequest(BaseModel):
     job_role: str = Field(..., min_length=1)
-    department_id: int | None = None
     org_id: str | None = None
     candidate_id: str = ""
     candidate_profile: dict | None = None
@@ -62,7 +61,7 @@ async def build_intelligence(
 
     bundle = await build_interview_intelligence(
         job_role=req.job_role,
-        department_id=None,
+        org_id=req.org_id,
         candidate_id=req.candidate_id,
         candidate_profile=candidate_profile,
         resume_text=resume_text,

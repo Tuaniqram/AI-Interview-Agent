@@ -81,7 +81,6 @@ class FakeRow:
         self.job_role_snapshot = "Software Engineer"
         self.org_id = None
         self.it_role_id = uuid4()
-        self.department_id = None
         self.scorecard_template_id = None
         self.candidate_profile_id = None
         self.used = False
@@ -147,7 +146,7 @@ def test_ws_full_cycle(ws_env, client, stub_llm, fake_evidence_repo, fake_repos,
             assert question_msg["question"]["text"]
             assert question_msg["conversation_turn"]
             assert question_msg["job_role"] == "Software Engineer"
-            assert question_msg["department_id"] is None
+            assert question_msg["org_id"] is None
 
             # ── answer ──
             ws.send_json({"_id": "2", "type": "submit_answer", "candidate_answer": "I build distributed systems."})
@@ -192,6 +191,28 @@ def test_ws_full_cycle(ws_env, client, stub_llm, fake_evidence_repo, fake_repos,
             assert "a" in persisted["strengths"]
             assert "b" in persisted["weaknesses"]
             assert persisted["message_id"] == fake_repos["messages"].answers[0]["id"]
+
+
+def test_ws_reconnect_resumes_existing_state(ws_env, client, stub_llm, fake_evidence_repo, fake_repos, stub_intelligence):
+    """Dropping the socket and reconnecting must resume the stored turn, not rebuild it."""
+    stub_llm(responses=[STRATEGY_JSON, CONDUCTOR_TURN_JSON])
+    session_id = str(uuid4())
+
+    with client.websocket_connect(_ws_url(session_id)) as ws:
+        assert ws.receive_json()["type"] == "connected"
+        ws.send_json({"_id": "1", "type": "start_interview"})
+        first = _receive_skipping_progress(ws)
+        assert first["type"] == "question"
+        assert first["question"]["text"]
+
+    with client.websocket_connect(_ws_url(session_id)) as ws:
+        assert ws.receive_json()["type"] == "connected"
+        ws.send_json({"_id": "2", "type": "start_interview"})
+        resumed = _receive_skipping_progress(ws)
+        assert resumed["type"] == "question"
+        assert resumed["_id"] == "2"
+        assert resumed["question"]["text"] == first["question"]["text"]
+        assert resumed["question"]["number"] == first["question"]["number"]
 
 
 def test_ws_start_full_boot_when_store_preseeded(ws_env, client, stub_llm, fake_evidence_repo, fake_repos, stub_intelligence):

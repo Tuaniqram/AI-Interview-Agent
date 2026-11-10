@@ -25,9 +25,9 @@ from app.database.session import get_session_factory  # noqa: E402
 from app.models.db import OrganizationDocument  # noqa: E402
 from app.rag.loader import load_pdf  # noqa: E402
 from app.rag.pinecone_store import (  # noqa: E402
-    get_department_retriever,
+    get_org_retriever,
     org_namespace,
-    store_department_knowledge,
+    store_org_knowledge,
 )
 from app.rag.splitter import split_documents  # noqa: E402
 
@@ -72,14 +72,14 @@ async def index_org(org_id: str) -> None:
             if not chunks:
                 print(f"  SKIP {doc.filename}: 0 chunks")
                 continue
-            store_department_knowledge(chunks, org_id, doc_id=str(doc.id))
+            store_org_knowledge(chunks, org_id, doc_id=str(doc.id))
             print(f"  OK  {doc.filename}: {len(chunks)} chunks (doc_id={doc.id})")
         except Exception as exc:  # noqa: BLE001
             print(f"  FAIL {doc.filename}: {exc}")
 
     print(f"\nVerifying retrieval for organization {org_id}...")
     try:
-        retriever = get_department_retriever(org_id)
+        retriever = get_org_retriever(org_id)
         docs = await asyncio.wait_for(
             asyncio.to_thread(
                 lambda: retriever.invoke(

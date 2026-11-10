@@ -14,7 +14,6 @@ export class InterviewController {
   private isProbing = false;
 
   async startInterview(params: {
-    departmentId?: number;
     jobRole: string;
     totalQuestions?: number;
     mode?: string;
@@ -26,11 +25,10 @@ export class InterviewController {
 
     try {
       const session = await interviewService.startSession({
-        department_id: params.departmentId,
         job_role: params.jobRole,
         total_questions: params.totalQuestions,
         interaction_mode: params.mode,
-        session_type: params.departmentId ? 'department' : 'practice',
+        session_type: 'practice',
         scorecard_template_id: params.scorecardTemplateId,
       });
 
@@ -222,7 +220,6 @@ export class InterviewController {
       difficulty_level: data.difficulty ?? 1,
       interaction_mode: 'typing',
       job_role: data.job_role,
-      department_id: data.department_id ?? null,
       org_id: data.org_id ?? null,
     };
     const question: Question = {
@@ -251,7 +248,6 @@ export class InterviewController {
           session_id: sessionId,
           status: 'in_progress',
           job_role: snapshot.job_role,
-          department_id: snapshot.department_id,
           org_id: snapshot.org_id,
           difficulty: snapshot.difficulty,
           question: { text: snapshot.current_question, number: snapshot.question_number, target_competency: '' },

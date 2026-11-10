@@ -165,8 +165,6 @@ def build_role_context(
     job_role: str,
     skills_required: list | None = None,
     description: str = "",
-    department_id: int | None = None,
-    department_name: str = "",
     org_name: str = "",
     company_brain: dict | None = None,
 ) -> dict:
@@ -181,8 +179,6 @@ def build_role_context(
         "job_role": str(job_role or "").strip() or "Unknown",
         "skills_required": [str(s).strip() for s in (skills_required or []) if str(s).strip()][:20],
         "description": str(description or "").strip()[:2000],
-        "department_id": department_id,
-        "department_name": str(department_name or "").strip(),
         "org_name": str(org_name or "").strip(),
         "tech_stack": [str(t).strip() for t in tech_stack],
     }

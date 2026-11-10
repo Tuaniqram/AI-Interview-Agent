@@ -14,7 +14,6 @@ from app.core.interview_brain import InterviewBrain
 
 class InterviewState(TypedDict, total=False):
     session_id: str
-    department_id: int
     candidate_id: str
 
     # Interview Context

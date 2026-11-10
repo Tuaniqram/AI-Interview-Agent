@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 async def build_company_brain(
     *,
     org_id: str | None = None,
-    department_id: int | str | None = None,
     job_role: str = "",
     documents: list[dict] | None = None,
     use_rag: bool = True,
@@ -23,15 +22,13 @@ async def build_company_brain(
 
     Retrieves the organization's documents from Pinecone when ``org_id`` is set
     and ``use_rag`` is enabled, falls back to ``documents`` when provided, and
-    finally to an empty analysis. ``department_id`` is a deprecated alias for
-    ``org_id`` (the IT-only schema has no departments). The LLM enrichment pass
-    runs only when there is actual document content to reason about.
+    finally to an empty analysis. The LLM enrichment pass runs only when there
+    is actual document content to reason about.
     """
-    scope_id = org_id if org_id is not None else department_id
+    scope_id = org_id
     rag_metadata = {
         "success": False,
         "org_id": scope_id,
-        "department_id": department_id,
         "documents_retrieved": 0,
         "reason": "no_org_id",
     }
@@ -47,7 +44,6 @@ async def build_company_brain(
     brain = {
         "version": "v1",
         "org_id": scope_id,
-        "department_id": department_id,
         "job_role": job_role,
         **analysis,
         "documents_analyzed": len(documents),
@@ -114,7 +110,7 @@ async def _enrich_with_llm(brain: dict, documents: list[dict]) -> dict:
         "intelligence",
         "company_brain.md",
         job_role=brain.get("job_role", "Unknown"),
-        organization_id=str(brain.get("org_id") or brain.get("department_id") or ""),
+        organization_id=str(brain.get("org_id") or ""),
         documents=doc_text,
     )
 

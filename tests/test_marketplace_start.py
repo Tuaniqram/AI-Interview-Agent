@@ -54,7 +54,6 @@ def _fake_listing():
         description=None,
         skills_required=None,
         level_code=None,
-        department_id=None,
         title="Backend Engineer",
         interview_mode="text",
         style_name="STANDARD",

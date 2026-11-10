@@ -51,8 +51,8 @@ def org_namespace(org_id) -> str:
     return f"department_{org_id}"
 
 
-def store_department_knowledge(chunks, department_id, doc_id=None):
-    namespace = org_namespace(department_id)
+def store_org_knowledge(chunks, org_id, doc_id=None):
+    namespace = org_namespace(org_id)
     if doc_id:
         for chunk in chunks:
             chunk.metadata["doc_id"] = str(doc_id)
@@ -65,10 +65,10 @@ def store_department_knowledge(chunks, department_id, doc_id=None):
     return vector_store
 
 
-def delete_department_knowledge(department_id, doc_id):
+def delete_org_knowledge(org_id, doc_id):
     try:
         index = get_index()
-        namespace = org_namespace(department_id)
+        namespace = org_namespace(org_id)
         index.delete(
             filter={"doc_id": str(doc_id)},
             namespace=namespace
@@ -88,8 +88,3 @@ def get_org_retriever(org_id, k: int = 5):
     return vector_store.as_retriever(
         search_kwargs={"k": k}
     )
-
-
-def get_department_retriever(department_id):
-    """Backward-compatible alias: the old "department id" is the organization id."""
-    return get_org_retriever(department_id)
