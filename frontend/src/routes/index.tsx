@@ -11,8 +11,7 @@ import { ContentSkeleton } from '../components/shared/ContentSkeleton';
 
 const Landing = React.lazy(() => import('../pages/Landing').then(m => ({ default: m.Landing })));
 const AccountChoice = React.lazy(() => import('../pages/AccountChoice').then(m => ({ default: m.AccountChoice })));
-const DepartmentList = React.lazy(() => import('./DepartmentList').then(m => ({ default: m.DepartmentList })));
-const DepartmentDetail = React.lazy(() => import('./DepartmentDetail').then(m => ({ default: m.DepartmentDetail })));
+const Company = React.lazy(() => import('./Company').then(m => ({ default: m.Company })));
 const Sessions = React.lazy(() => import('./Sessions').then(m => ({ default: m.Sessions })));
 const InterviewRoom = React.lazy(() => import('./InterviewRoom').then(m => ({ default: m.InterviewRoom })));
 const InterviewReportPage = React.lazy(() => import('./InterviewReport').then(m => ({ default: m.InterviewReportPage })));
@@ -107,8 +106,7 @@ export function AppRoutes() {
 
       <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
         <Route path="dashboard" element={<Navigate to="/org" replace />} />
-        <Route path="departments" element={<Suspense fallback={<ContentSkeleton />}><DepartmentList /></Suspense>} />
-        <Route path="departments/:id" element={<Suspense fallback={<ContentSkeleton />}><DepartmentDetail /></Suspense>} />
+        <Route path="org/company" element={<Suspense fallback={<ContentSkeleton />}><Company /></Suspense>} />
         <Route path="sessions" element={<Suspense fallback={<ContentSkeleton />}><Sessions /></Suspense>} />
         <Route path="analytics" element={<Suspense fallback={<ContentSkeleton />}><Analytics /></Suspense>} />
         <Route path="interview/:id/report" element={<Suspense fallback={<ContentSkeleton />}><InterviewReportPage /></Suspense>} />
@@ -119,16 +117,16 @@ export function AppRoutes() {
         <Route path="org/scorecards" element={<Suspense fallback={<ContentSkeleton />}><OrgScorecards /></Suspense>} />
         <Route path="org/candidates" element={<Suspense fallback={<ContentSkeleton />}><OrgCandidateRanking /></Suspense>} />
         <Route path="org/templates" element={<Suspense fallback={<ContentSkeleton />}><OrgTemplates /></Suspense>} />
-        <Route path="org/audit-logs" element={<Suspense fallback={<ContentSkeleton />}><OrgAuditLogs /></Suspense>} />
-        <Route path="org/llm" element={<Suspense fallback={<ContentSkeleton />}><OrgLLMDashboard /></Suspense>} />
-        <Route path="org/email-templates" element={<Suspense fallback={<ContentSkeleton />}><OrgEmailTemplates /></Suspense>} />
-        <Route path="org/health" element={<Suspense fallback={<ContentSkeleton />}><OrgSystemHealth /></Suspense>} />
       </Route>
 
       <Route element={<ProtectedRoute><AdminShell /></ProtectedRoute>}>
         <Route path="admin" element={<Suspense fallback={<ContentSkeleton />}><AdminDashboard /></Suspense>} />
         <Route path="admin/organizations" element={<Suspense fallback={<ContentSkeleton />}><AdminOrgs /></Suspense>} />
         <Route path="admin/users" element={<Suspense fallback={<ContentSkeleton />}><AdminUsers /></Suspense>} />
+        <Route path="admin/audit-logs" element={<Suspense fallback={<ContentSkeleton />}><OrgAuditLogs /></Suspense>} />
+        <Route path="admin/llm" element={<Suspense fallback={<ContentSkeleton />}><OrgLLMDashboard /></Suspense>} />
+        <Route path="admin/email-templates" element={<Suspense fallback={<ContentSkeleton />}><OrgEmailTemplates /></Suspense>} />
+        <Route path="admin/health" element={<Suspense fallback={<ContentSkeleton />}><OrgSystemHealth /></Suspense>} />
       </Route>
 
       <Route element={<InterviewShell />}>

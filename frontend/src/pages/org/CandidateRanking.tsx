@@ -21,8 +21,8 @@ interface CandidateRank {
   resume_url: string | null;
   skills: string | null;
   job_role: string;
-  department_name: string | null;
-  department_id: number | null;
+  role_name: string | null;
+  it_role_id: string | null;
   final_score: number | null;
   weighted_score: number | null;
   started_at: string | null;
@@ -31,8 +31,8 @@ interface CandidateRank {
 
 interface RankingSummary {
   job_role: string;
-  department_id: number | null;
-  department_name: string | null;
+  it_role_id: string | null;
+  role_name: string | null;
   total_candidates: number;
   average_score: number | null;
   max_score: number | null;
@@ -87,9 +87,9 @@ export default function CandidateRanking() {
       {summary.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {summary.map(s => (
-            <Card key={`${s.job_role}-${s.department_id}`} padding="lg">
+            <Card key={`${s.job_role}-${s.it_role_id}`} padding="lg">
               <h3 className="text-sm font-semibold text-primary">{s.job_role}</h3>
-              {s.department_name && <p className="text-xs text-muted">{s.department_name}</p>}
+              {s.role_name && <p className="text-xs text-muted">{s.role_name}</p>}
               <div className="flex items-center gap-4 mt-3">
                 <div className="text-center">
                   <p className="text-xs text-muted">Candidates</p>
@@ -150,7 +150,7 @@ export default function CandidateRanking() {
                   {r.job_role && <span className="text-xs px-2 py-0.5 rounded-full bg-action-primary/10 text-action-primary">{r.job_role}</span>}
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
-                  {r.department_name && <span className="text-xs text-muted">{r.department_name}</span>}
+                  {r.role_name && <span className="text-xs text-muted">{r.role_name}</span>}
                   {r.candidate_email && <span className="text-xs text-muted">• {r.candidate_email}</span>}
                 </div>
                 {r.skills && (

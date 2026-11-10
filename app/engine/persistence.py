@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from app.core.interview_brain import InterviewBrain
+from app.services.feedback_text import plain_feedback
 
 logger = logging.getLogger(__name__)
 
@@ -251,9 +252,11 @@ async def persist_completion(session_id: str, brain: InterviewBrain) -> None:
         confidence = rec.get("confidence", 0.0)
         questions_asked = brain.question_number
         evidence_count = len(brain.evidence_store or [])
-        final_feedback = (
-            f"Verdict: {verdict} (confidence {confidence:.2f}). "
-            f"Questions asked: {questions_asked}. Evidence collected: {evidence_count}."
+        final_feedback = plain_feedback(
+            verdict,
+            float(confidence or 0.0),
+            questions_asked,
+            evidence_count,
         )
         await get_session_repo().complete_session(
             session_id,
@@ -264,7 +267,10 @@ async def persist_completion(session_id: str, brain: InterviewBrain) -> None:
         )
         # The phase was stuck at "intro" for the session's whole life — close it
         # out so summaries stop reporting an intro phase on a finished interview.
-        await get_session_repo().update_phase(session_id, "summary")
+        try:
+            await get_session_repo().update_phase(session_id, "summary")
+        except Exception as exc:  # noqa: BLE001 - completion already succeeded
+            logger.warning(f"Failed to set summary phase (non-fatal): {exc}")
         logger.info(
             f"Persisted v5 completion: session={session_id[:12]}..., score={final_score}"
         )

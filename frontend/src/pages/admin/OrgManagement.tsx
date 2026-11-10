@@ -43,38 +43,61 @@ export default function OrgManagement() {
       {orgs.length === 0 ? (
         <EmptyState title="No organizations found" />
       ) : (
-        <div className="space-y-3">
-          {orgs.map((org) => (
-            <div
-              key={org.id}
-              className="p-4 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] flex items-center justify-between"
-            >
-              <div>
-                <h3 className="font-semibold text-[var(--text-primary)]">{org.name}</h3>
-                <p className="text-sm text-[var(--text-secondary)]">
-                  {org.member_count} members · {org.interview_count} interviews
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span
-                  className={`text-xs px-2 py-1 rounded-full font-medium ${
-                    org.is_active
-                      ? 'bg-green-100 dark:bg-green-900/20 text-green-600'
-                      : 'bg-red-100 dark:bg-red-900/20 text-red-600'
-                  }`}
-                >
-                  {org.is_active ? 'Active' : 'Suspended'}
-                </span>
-                <Button
-                  variant={org.is_active ? 'danger' : 'primary'}
-                  size="sm"
-                  onClick={() => handleToggleSuspend(org.id)}
-                >
-                  {org.is_active ? 'Suspend' : 'Reactivate'}
-                </Button>
-              </div>
-            </div>
-          ))}
+        <div className="overflow-hidden rounded-xl border border-border bg-section">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border bg-page">
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Organization</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Owner</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Interviews</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Status</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {orgs.map((org) => (
+                  <tr key={org.id} className="hover:bg-hover/50 transition-colors">
+                    <td className="px-4 py-3">
+                      <h3 className="text-sm font-medium text-primary">{org.name}</h3>
+                      <p className="text-xs text-muted">{org.slug}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      {org.owner_name ? (
+                        <>
+                          <p className="text-sm text-primary">{org.owner_name}</p>
+                          <p className="text-xs text-muted">{org.owner_email}</p>
+                        </>
+                      ) : (
+                        <span className="text-sm text-muted">No owner</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-secondary">{org.interview_count}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          org.is_active
+                            ? 'bg-success-bg text-success-text'
+                            : 'bg-error-bg text-error-text'
+                        }`}
+                      >
+                        {org.is_active ? 'Active' : 'Suspended'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        variant={org.is_active ? 'danger' : 'primary'}
+                        size="sm"
+                        onClick={() => handleToggleSuspend(org.id)}
+                      >
+                        {org.is_active ? 'Suspend' : 'Reactivate'}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

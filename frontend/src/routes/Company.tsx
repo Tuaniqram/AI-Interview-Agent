@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Building2, FileText, ListChecks, ExternalLink, AlertCircle, Clock, Copy, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Breadcrumb } from '../components/shared/Breadcrumb';
-import { departmentService, type Department, type Document, type SessionRecord, type Template } from '../services/departmentService';
+import { orgContentService, type Document, type SessionRecord, type Template } from '../services/orgContentService';
 import { marketplaceService } from '../services/marketplaceService';
 import { itService, type ItRole } from '../services/itService';
 import { useOrg } from '../contexts/OrgContext';
@@ -10,9 +10,9 @@ import { Button } from '../components/shared/Button';
 import { Card } from '../components/shared/Card';
 import { DateTimePicker } from '../components/shared/DateTimePicker';
 import { MetricCard } from '../components/shared/MetricCard';
-import { DocumentCard } from '../components/department/DocumentCard';
-import { DocumentUploader } from '../components/department/DocumentUploader';
-import { InterviewHistoryTable } from '../components/department/InterviewHistoryTable';
+import { DocumentCard } from '../components/org/DocumentCard';
+import { DocumentUploader } from '../components/org/DocumentUploader';
+import { InterviewHistoryTable } from '../components/org/InterviewHistoryTable';
 import { CardSkeleton } from '../components/shared/Skeleton';
 import { ConfirmDialog } from '../components/shared/ConfirmDialog';
 import { TagInput } from '../components/shared/TagInput';
@@ -38,24 +38,21 @@ const INTERVIEW_STYLES = [
 
 type Tab = 'overview' | 'documents' | 'history' | 'listings';
 
-export function DepartmentDetail() {
-  const { id } = useParams<{ id: string }>();
+export function Company() {
   const navigate = useNavigate();
+  const { activeOrg } = useOrg();
   const [tab, setTab] = useState<Tab>('overview');
-  const [department, setDepartment] = useState<Department | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [listings, setListings] = useState<OrgPublicListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { activeOrg } = useOrg();
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<OrgPublicListing | null>(null);
   const [fTitle, setFTitle] = useState('');
   const [fRoleId, setFRoleId] = useState('');
   const [fDescription, setFDescription] = useState('');
-  const [fInterviewMode, setFInterviewMode] = useState('typing');
   const [fMaxCandidates, setFMaxCandidates] = useState('');
   const [fSkills, setFSkills] = useState('');
   const [fStyle, setFStyle] = useState('STANDARD');
@@ -71,55 +68,37 @@ export function DepartmentDetail() {
   const toast = useToast();
 
   const loadListings = useCallback(async () => {
-    if (!activeOrg?.id || !id) return;
+    if (!activeOrg?.id) return;
     try {
       const data = await marketplaceService.listOrgListings(activeOrg.id);
       setListings(data);
     } catch {}
-  }, [activeOrg?.id, id]);
+  }, [activeOrg?.id]);
 
   useEffect(() => {
-    if (!id) return;
+    if (!activeOrg?.id) return;
     let cancelled = false;
+    const orgId = activeOrg.id;
 
     async function load() {
       setLoading(true);
       setError(null);
 
-      try {
-        const d = await departmentService.getDepartment(Number(id));
-        if (cancelled) return;
-        setDepartment(d);
-      } catch (err: any) {
-        if (cancelled) return;
-        if (err?.response?.status === 404) {
-          navigate('/departments');
-          return;
-        }
-        setError('Failed to load department details.');
-        setLoading(false);
-        return;
-      }
-
-      const docPromise = departmentService.listDocuments(Number(id))
+      const docPromise = orgContentService.listDocuments(orgId)
         .then(data => { if (!cancelled) setDocuments(data); })
         .catch(() => toast.error('Failed to load documents'));
 
-      const sessionPromise = departmentService.listSessions(Number(id))
+      const sessionPromise = orgContentService.listSessions(orgId)
         .then(data => { if (!cancelled) setSessions(data); })
         .catch(() => toast.error('Failed to load interview sessions'));
 
-      const listingPromise = activeOrg?.id
-        ? marketplaceService.listOrgListings(activeOrg.id)
-          .then(data => { if (!cancelled) setListings(data); })
-          .catch(() => toast.error('Failed to load marketplace listings'))
-        : Promise.resolve();
+      const listingPromise = marketplaceService.listOrgListings(orgId)
+        .then(data => { if (!cancelled) setListings(data); })
+        .catch(() => toast.error('Failed to load marketplace listings'));
 
-      const templatePromise = id
-        ? departmentService.listTemplates(Number(id))
-          .then(data => { if (!cancelled) setTemplates(data); })
-          .catch(() => {})
-        : Promise.resolve();
+      const templatePromise = orgContentService.listTemplates(orgId)
+        .then(data => { if (!cancelled) setTemplates(data); })
+        .catch(() => {});
 
       const rolePromise = itService.listRoles({ active_only: true })
         .then(data => { if (!cancelled) setRoles(data); })
@@ -131,13 +110,12 @@ export function DepartmentDetail() {
 
     load();
     return () => { cancelled = true; };
-  }, [id, navigate, activeOrg?.id]);
+  }, [activeOrg?.id]);
 
   const resetForm = () => {
     setFTitle('');
     setFRoleId('');
     setFDescription('');
-    setFInterviewMode('typing');
     setFMaxCandidates('');
     setFSkills('');
     setFStyle('STANDARD');
@@ -153,7 +131,6 @@ export function DepartmentDetail() {
     setFTitle(listing.title);
     setFRoleId(listing.it_role_id);
     setFDescription(listing.description || '');
-    setFInterviewMode(listing.interview_mode);
     setFMaxCandidates(listing.max_candidates?.toString() || '');
     setFSkills(listing.skills_required || '');
     setFStyle(listing.style_name || 'STANDARD');
@@ -172,7 +149,7 @@ export function DepartmentDetail() {
       errors.dates = 'Expiry must be after start date';
     }
     setFormErrors(errors);
-    if (Object.keys(errors).length > 0 || !id) return;
+    if (Object.keys(errors).length > 0 || !activeOrg?.id) return;
     setSaving(true);
     try {
       if (editing) {
@@ -180,7 +157,7 @@ export function DepartmentDetail() {
           title: fTitle.trim(),
           it_role_id: fRoleId,
           description: fDescription.trim() || undefined,
-          interview_mode: fInterviewMode,
+          interview_mode: 'typing',
           max_candidates: fMaxCandidates ? parseInt(fMaxCandidates) : undefined,
           skills_required: fSkills.trim() || undefined,
           style_name: fStyle,
@@ -194,7 +171,7 @@ export function DepartmentDetail() {
           title: fTitle.trim(),
           it_role_id: fRoleId,
           description: fDescription.trim() || undefined,
-          interview_mode: fInterviewMode,
+          interview_mode: 'typing',
           max_candidates: fMaxCandidates ? parseInt(fMaxCandidates) : undefined,
           skills_required: fSkills.trim() || undefined,
           style_name: fStyle,
@@ -253,15 +230,15 @@ export function DepartmentDetail() {
   if (error) {
     return (
       <div>
-        <button onClick={() => navigate('/departments')} className="flex items-center gap-1.5 text-xs text-muted hover:text-secondary mb-4 transition-colors">
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to Departments
+        <button onClick={() => navigate('/org')} className="flex items-center gap-1.5 text-xs text-muted hover:text-secondary mb-4 transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" /> Back to Organization
         </button>
         <Card>
           <div className="flex flex-col items-center py-8 text-center">
             <AlertCircle className="w-8 h-8 text-error mb-3" />
             <p className="text-sm text-primary font-medium mb-1">{error}</p>
-            <button onClick={() => navigate('/departments')} className="mt-3 text-sm text-action-primary hover:text-action-primary-hover transition-colors">
-              Back to Departments
+            <button onClick={() => navigate('/org')} className="mt-3 text-sm text-action-primary hover:text-action-primary-hover transition-colors">
+              Back to Organization
             </button>
           </div>
         </Card>
@@ -269,13 +246,13 @@ export function DepartmentDetail() {
     );
   }
 
-  if (!department) return null;
+  if (!activeOrg) return null;
 
   return (
     <div>
       <Breadcrumb crumbs={[
-        { label: 'Departments', to: '/departments' },
-        { label: department?.name || 'Department' },
+        { label: 'Organization', to: '/org' },
+        { label: activeOrg.name || 'Company' },
       ]} />
 
       <Card className="mb-6">
@@ -284,9 +261,9 @@ export function DepartmentDetail() {
             <Building2 className="w-6 h-6 text-action-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-primary">{department.name}</h1>
-            {department.website && <p className="text-sm text-muted mt-0.5">{department.website}</p>}
-            {department.description && <p className="text-sm text-secondary mt-1 max-w-xl">{department.description}</p>}
+            <h1 className="text-xl font-semibold text-primary">{activeOrg.name}</h1>
+            {activeOrg.website && <p className="text-sm text-muted mt-0.5">{activeOrg.website}</p>}
+            {activeOrg.description && <p className="text-sm text-secondary mt-1 max-w-xl">{activeOrg.description}</p>}
           </div>
         </div>
       </Card>
@@ -322,9 +299,9 @@ export function DepartmentDetail() {
             />
           </div>
           <Card>
-            <h3 className="text-sm font-medium text-primary mb-1">Department Info</h3>
-            <p className="text-xs text-muted">Created {new Date(department.created_at).toLocaleDateString()}</p>
-            {department.description && <p className="text-sm text-secondary mt-2">{department.description}</p>}
+            <h3 className="text-sm font-medium text-primary mb-1">Company Info</h3>
+            <p className="text-xs text-muted">Created {new Date(activeOrg.created_at || '').toLocaleDateString()}</p>
+            {activeOrg.description && <p className="text-sm text-secondary mt-2">{activeOrg.description}</p>}
           </Card>
           {sessions.length > 0 && (
             <Card>
@@ -338,7 +315,7 @@ export function DepartmentDetail() {
       {tab === 'documents' && (
         <div className="space-y-4">
           <div className="flex justify-end">
-            <DocumentUploader departmentId={department.id} onUploaded={(result) => {
+            <DocumentUploader orgId={activeOrg.id} onUploaded={(result) => {
               const newDoc: Document = {
                 id: result.doc_id,
                 filename: result.filename,
@@ -347,19 +324,19 @@ export function DepartmentDetail() {
                 created_at: new Date().toISOString(),
               };
               setDocuments(prev => [newDoc, ...prev]);
-              departmentService.listDocuments(Number(id)).then(setDocuments).catch(() => toast.error('Failed to refresh documents'));
+              orgContentService.listDocuments(activeOrg.id).then(setDocuments).catch(() => toast.error('Failed to refresh documents'));
             }} />
           </div>
           {documents.length === 0 ? (
             <Card>
-              <p className="text-sm text-secondary py-8 text-center">No documents uploaded yet. Upload a PDF to add department knowledge.</p>
+              <p className="text-sm text-secondary py-8 text-center">No documents uploaded yet. Upload a PDF to add organization knowledge.</p>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {documents.map(d => (
                 <DocumentCard key={d.id} document={d} onDelete={async (docId) => {
                   try {
-                    await departmentService.deleteDocument(department.id, docId);
+                    await orgContentService.deleteDocument(activeOrg.id, docId);
                     setDocuments(prev => prev.filter(x => x.id !== docId));
                     toast.success('Document deleted');
                   } catch {
@@ -383,7 +360,7 @@ export function DepartmentDetail() {
           <div className={`transition-all duration-300 ease-in-out overflow-hidden ${showForm ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
             <form onSubmit={handleSave} className="bg-[var(--bg-section)] rounded-xl p-6 border border-[var(--border-color)] space-y-4 mb-4">
               <h3 className="font-semibold text-[var(--text-primary)]">
-                {editing ? 'Edit Listing' : 'New Listing'} — {department?.name}
+                {editing ? 'Edit Listing' : 'New Listing'} — {activeOrg?.name}
               </h3>
 
               <div>
@@ -411,24 +388,12 @@ export function DepartmentDetail() {
                   className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)] transition-colors" />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Interview Mode</label>
-                  <Select label="Interview Mode" value={fInterviewMode} onChange={setFInterviewMode}
-                    options={[
-                      { value: 'typing', label: 'Typing' },
-                      { value: 'voice', label: 'Voice' },
-                      { value: 'avatar', label: 'Avatar' },
-                    ]}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Interview Style</label>
-                  <Select label="Interview Style" value={fStyle} onChange={setFStyle}
-                    options={INTERVIEW_STYLES.map(s => ({ value: s.value, label: s.label }))}
-                  />
-                  <p className="text-xs text-muted mt-1">{INTERVIEW_STYLES.find(s => s.value === fStyle)?.desc}</p>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Interview Style</label>
+                <Select label="Interview Style" value={fStyle} onChange={setFStyle}
+                  options={INTERVIEW_STYLES.map(s => ({ value: s.value, label: s.label }))}
+                />
+                <p className="text-xs text-muted mt-1">{INTERVIEW_STYLES.find(s => s.value === fStyle)?.desc}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -474,7 +439,7 @@ export function DepartmentDetail() {
             <Card>
               <div className="flex flex-col items-center py-8 text-center">
                 <ExternalLink className="w-8 h-8 text-muted mb-3" />
-                <p className="text-sm text-secondary">No interview listings for this department.</p>
+                <p className="text-sm text-secondary">No interview listings for this company.</p>
               </div>
             </Card>
           ) : (
@@ -511,9 +476,6 @@ export function DepartmentDetail() {
                               {role.name}
                             </span>
                           )}
-                          <span className="text-xs px-2 py-0.5 rounded bg-action-primary/10 text-action-primary">
-                            {listing.interview_mode}
-                          </span>
                           {listing.style_name && listing.style_name !== 'STANDARD' && (
                             <span className="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-500">
                               {listing.style_name}

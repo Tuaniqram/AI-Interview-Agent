@@ -12,7 +12,15 @@ import pytest
 
 
 def database_url() -> str | None:
-    return os.getenv("DATABASE_URL") or os.getenv("TEST_DATABASE_URL")
+    url = os.getenv("DATABASE_URL") or os.getenv("TEST_DATABASE_URL")
+    if url:
+        return url
+    try:
+        from app.config import settings
+
+        return settings.DATABASE_URL
+    except Exception:
+        return None
 
 
 @pytest.fixture

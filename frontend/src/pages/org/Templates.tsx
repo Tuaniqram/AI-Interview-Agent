@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useOrg } from '../../contexts/OrgContext';
 import { apiClient } from '../../services/apiClient';
-import { departmentService, type Template } from '../../services/departmentService';
+import { orgContentService, type Template } from '../../services/orgContentService';
 import { itService, type ItRole } from '../../services/itService';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { Card } from '../../components/shared/Card';
@@ -17,7 +17,6 @@ import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import { ConfirmDialog } from '../../components/shared/ConfirmDialog';
 
 interface OrgTemplate extends Template {
-  department_name: string;
   it_role_id?: string | null;
   level_code?: string | null;
   description: string | null;
@@ -27,7 +26,6 @@ interface OrgTemplate extends Template {
 
 const COMPETENCY_CATEGORIES = ['technical', 'behavioral', 'cognitive', 'experience', 'general'];
 const FOCUS = 'focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)]';
-const DEFAULT_DEPARTMENT_ID = 0;
 
 export default function Templates() {
   const { activeOrg } = useOrg();
@@ -111,6 +109,7 @@ export default function Templates() {
 
   const handleSave = async () => {
     if (!activeOrg?.id || !name.trim() || !jobRole.trim()) return;
+    const orgId = activeOrg.id;
     setSaving(true);
     const cleaned = competencies.filter(c => c.name.trim());
     const payload = {
@@ -123,13 +122,13 @@ export default function Templates() {
     };
     try {
       if (editingId) {
-        await departmentService.updateTemplate(DEFAULT_DEPARTMENT_ID, editingId, payload);
+        await orgContentService.updateTemplate(orgId, editingId, payload);
         toast.success('Template updated');
       } else {
-        await departmentService.createTemplate(DEFAULT_DEPARTMENT_ID, payload);
+        await orgContentService.createTemplate(orgId, payload);
         toast.success('Template created');
       }
-      const updated = await apiClient.get<OrgTemplate[]>(`/api/v1/orgs/${activeOrg.id}/templates`);
+      const updated = await apiClient.get<OrgTemplate[]>(`/api/v1/orgs/${orgId}/templates`);
       setTemplates(updated);
       resetForm();
     } catch {
@@ -140,8 +139,9 @@ export default function Templates() {
   };
 
   const handleDelete = async (t: OrgTemplate) => {
+    if (!activeOrg?.id) return;
     try {
-      await departmentService.deleteTemplate(t.department_id, t.id);
+      await orgContentService.deleteTemplate(activeOrg.id, t.id);
       setTemplates(templates.filter(tm => tm.id !== t.id));
       toast.success('Template deleted');
     } catch {

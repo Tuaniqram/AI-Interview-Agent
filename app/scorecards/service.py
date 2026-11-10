@@ -21,6 +21,7 @@ async def calculate_scorecard_for_session(
     db: AsyncSession,
     session_id: UUID,
     template_id: UUID,
+    commit: bool = True,
 ) -> Optional[ScorecardResultResponse]:
     template_result = await db.execute(
         select(ScorecardTemplate).where(ScorecardTemplate.id == template_id)
@@ -51,6 +52,7 @@ async def calculate_scorecard_for_session(
         avg = sum(raw_scores) / len(raw_scores) if raw_scores else 0.0
         normalized = (avg / cd.max_score) * 10.0
         scores[cd.id] = {
+            "name": cd.name,
             "raw_avg": round(avg, 2),
             "normalized": round(normalized, 2),
             "weight": cd.weight,
@@ -63,13 +65,11 @@ async def calculate_scorecard_for_session(
     final_weighted = round(weighted_sum / total_weight, 2) if total_weight else 0.0
 
     existing_result = await db.execute(
-        select(ScorecardResult).where(
-            ScorecardResult.session_id == session_id,
-            ScorecardResult.template_id == template_id,
-        )
+        select(ScorecardResult).where(ScorecardResult.session_id == session_id).limit(1)
     )
     result = existing_result.scalar_one_or_none()
     if result:
+        result.template_id = template_id
         result.scores = scores
         result.weighted_score = final_weighted
     else:
@@ -82,8 +82,11 @@ async def calculate_scorecard_for_session(
         )
         db.add(result)
 
-    await db.commit()
-    await db.refresh(result)
+    if commit:
+        await db.commit()
+        await db.refresh(result)
+    else:
+        await db.flush()
     return ScorecardResultResponse(
         id=result.id,
         session_id=result.session_id,

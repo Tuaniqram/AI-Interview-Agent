@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Briefcase, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, Calendar, Briefcase, Building2, TrendingUp, TrendingDown, UserRound } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 import { Card } from '../components/shared/Card';
 import { StatusBadge } from '../components/shared/StatusBadge';
@@ -134,6 +134,14 @@ export function InterviewReportPage() {
       <div className="mb-6">
         <h1 className="text-xl font-bold text-primary mb-1">Interview Report</h1>
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+          {report.candidate_name && (
+            <span className="flex items-center gap-1" title={report.candidate_email || undefined}>
+              <UserRound className="w-3.5 h-3.5" /> {report.candidate_name}
+            </span>
+          )}
+          {report.org_name && (
+            <span className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5" /> {report.org_name}</span>
+          )}
           {report.job_role && (
             <span className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5" /> {report.job_role}</span>
           )}
@@ -155,7 +163,7 @@ export function InterviewReportPage() {
           <div className="text-center">
             <p className="text-xs text-muted mb-1">Overall Score</p>
             <p className={`text-3xl font-bold ${scoreColor(report.final_score)}`}>
-              {report.final_score !== null ? report.final_score.toFixed(1) : '—'}
+              {report.final_score != null ? report.final_score.toFixed(1) : '—'}
             </p>
           </div>
         </Card>
@@ -176,6 +184,42 @@ export function InterviewReportPage() {
           </div>
         </Card>
       </div>
+
+      {/* Scorecard: custom rubric or AURA's built-in competency summary. */}
+      {report.scorecard && (
+        <Card className="mb-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-medium text-primary">Scorecard</h3>
+              <p className="text-xs text-muted mt-0.5">
+                {report.scorecard.template_name || 'Built-in AURA rubric'}
+              </p>
+            </div>
+            {report.scorecard.weighted_score != null && (
+              <div className="text-right">
+                <p className="text-xs text-muted">Weighted score</p>
+                <p className={`text-2xl font-bold ${scoreColor(Number(report.scorecard.weighted_score))}`}>
+                  {Number(report.scorecard.weighted_score).toFixed(2)}<span className="text-xs text-muted"> / 10</span>
+                </p>
+              </div>
+            )}
+          </div>
+          {Object.keys(report.scorecard.scores || {}).length > 0 && (
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {Object.entries(report.scorecard.scores).map(([id, s]) => {
+                const value = Number(s.normalized ?? s.score ?? 0);
+                const label = s.name || humanizePhase(id);
+                return (
+                  <div key={id} className="flex items-center justify-between rounded-lg bg-page px-3 py-2">
+                    <span className="text-xs text-secondary truncate">{label}</span>
+                    <span className={`text-xs font-semibold ${scoreColor(value)}`}>{value.toFixed(1)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">

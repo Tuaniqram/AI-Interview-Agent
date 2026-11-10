@@ -9,6 +9,7 @@ break an interview), and the session factory can be injected for tests.
 """
 import logging
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
@@ -90,6 +91,25 @@ def _backfill_evidence_summary(summary: dict, required_competencies: list) -> di
             "gap": 1.0,
         }
     return out
+
+
+_ALLOWED_HYPOTHESIS_STATUSES = {"untested", "testing", "confirmed", "refuted", "saturated"}
+
+
+@asynccontextmanager
+async def _savepoint(session):
+    """Use a real savepoint, or a no-op for test doubles without begin_nested."""
+    if hasattr(session, "begin_nested"):
+        async with session.begin_nested():
+            yield
+    else:
+        yield
+
+
+def _normalize_hypothesis_status(value) -> str:
+    """Map the engine's hypothesis state onto the persisted check constraint."""
+    status = str(value or "untested").strip().lower()
+    return status if status in _ALLOWED_HYPOTHESIS_STATUSES else "testing"
 
 
 class V5BrainPersister:
@@ -278,10 +298,27 @@ class V5BrainPersister:
 
         try:
             async with factory() as session:
-                await self._upsert_hypotheses(session, session_id, brain)
-                await self._upsert_intelligence(session, session_id, brain)
+                # Each table is independent: a bad hypothesis row must not lose the
+                # scorecard or the intelligence snapshot.
+                try:
+                    async with _savepoint(session):
+                        await self._upsert_hypotheses(session, session_id, brain)
+                except Exception as exc:  # noqa: BLE001 - best-effort by design
+                    logger.warning("Hypothesis persistence skipped (non-fatal): %s", exc)
+
+                try:
+                    async with _savepoint(session):
+                        await self._upsert_intelligence(session, session_id, brain)
+                except Exception as exc:  # noqa: BLE001 - best-effort by design
+                    logger.warning("Intelligence persistence skipped (non-fatal): %s", exc)
+
                 if finalize:
-                    await self._insert_scorecard_result(session, session_id, brain)
+                    try:
+                        async with _savepoint(session):
+                            await self._insert_scorecard_result(session, session_id, brain)
+                    except Exception as exc:  # noqa: BLE001 - best-effort by design
+                        logger.warning("Scorecard persistence skipped (non-fatal): %s", exc)
+
                 await session.commit()
         except Exception as exc:  # noqa: BLE001 - best-effort by design
             logger.error(f"V5 relational persistence failed (finalize={finalize})", exc_info=exc)
@@ -305,7 +342,7 @@ class V5BrainPersister:
                 "confidence": _clamp(h.get("confidence", h.get("probability", 0.0))),
                 "supporting_evidence": _uuid_list(h.get("supporting_evidence")),
                 "contradicting_evidence": _uuid_list(h.get("contradicting_evidence")),
-                "status": h.get("status") or "untested",
+                "status": _normalize_hypothesis_status(h.get("status")),
             })
         if not rows:
             return
@@ -326,6 +363,24 @@ class V5BrainPersister:
         await session.execute(stmt)
 
     async def _insert_scorecard_result(self, session, session_id: UUID, brain) -> None:
+        # A linked custom scorecard wins: calculate its weighted result from the
+        # same evidence rows. Otherwise persist AURA's built-in competency summary.
+        from app.models.db import InterviewSession
+
+        try:
+            session_row = await session.get(InterviewSession, session_id)
+            template_id = getattr(session_row, "scorecard_template_id", None)
+        except Exception:  # test doubles may not expose session.get
+            template_id = None
+        if template_id:
+            from app.scorecards.service import calculate_scorecard_for_session
+
+            result = await calculate_scorecard_for_session(
+                session, session_id, template_id, commit=False
+            )
+            if result is not None:
+                return
+
         existing = await session.execute(
             select(ScorecardResultRecord.id)
             .where(ScorecardResultRecord.session_id == session_id)
@@ -337,15 +392,16 @@ class V5BrainPersister:
         for comp, summary in (getattr(brain, "competency_summary", {}) or {}).items():
             if isinstance(summary, dict):
                 scores[comp] = {
-                    "score": summary.get("score"),
+                    "score": summary.get("average_score", summary.get("score")),
                     "evidence_count": summary.get("evidence_count", 0),
-                    "confidence": summary.get("confidence"),
+                    "confidence": summary.get("average_confidence", summary.get("confidence")),
                 }
             else:
                 scores[comp] = {"score": summary}
         evaluation_score = getattr(brain, "evaluation_score", None)
         session.add(ScorecardResultRecord(
             session_id=session_id,
+            template_id=None,
             scores=scores or {},
             weighted_score=float(evaluation_score) if evaluation_score is not None else None,
         ))

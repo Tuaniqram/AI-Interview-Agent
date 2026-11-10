@@ -17,7 +17,14 @@ from sqlalchemy import select
 from app.auth.middleware import optional_auth
 from app.candidates.auth import optional_candidate_auth
 from app.database.session import get_session_factory
-from app.models.db import CandidateProfile, InterviewSession, Organization, User
+from app.models.db import (
+    CandidateProfile,
+    InterviewSession,
+    Organization,
+    ScorecardResult,
+    ScorecardTemplate,
+    User,
+)
 from app.exceptions import SessionNotFoundException
 from app.services.repositories import (
     get_evaluation_repo,
@@ -362,6 +369,55 @@ async def _get_engine_summary(session_id: str) -> dict:
 # ENDPOINTS
 # ============================================================================
 
+async def _report_context(session_id: str) -> dict:
+    """Candidate and organization names shown at the top of the report."""
+    context: dict = {}
+    async with get_session_factory()() as db:
+        ids = (await db.execute(
+            select(InterviewSession.candidate_profile_id, InterviewSession.org_id)
+            .where(InterviewSession.id == UUID(session_id))
+        )).one_or_none()
+        if ids is None:
+            return context
+        candidate_id, org_id = ids
+        if candidate_id is not None:
+            row = (await db.execute(
+                select(CandidateProfile.name, CandidateProfile.email).where(
+                    CandidateProfile.id == candidate_id
+                )
+            )).one_or_none()
+            if row:
+                context["candidate_name"] = row.name
+                context["candidate_email"] = row.email
+        if org_id is not None:
+            context["org_name"] = await db.scalar(
+                select(Organization.name).where(Organization.id == org_id)
+            )
+    return context
+
+
+async def _scorecard_context(session_id: str) -> dict:
+    """The weighted scorecard result for the report, when one was persisted."""
+    async with get_session_factory()() as db:
+        result = await db.execute(
+            select(ScorecardResult).where(ScorecardResult.session_id == UUID(session_id))
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return {}
+        template_name = None
+        if row.template_id is not None:
+            template = await db.get(ScorecardTemplate, row.template_id)
+            template_name = template.name if template else None
+        return {
+            "scorecard": {
+                "template_name": template_name,
+                "weighted_score": float(row.weighted_score) if row.weighted_score is not None else None,
+                "scores": row.scores or {},
+            }
+        }
+
+
 @router.get("/interviews/{session_id}/summary")
 async def get_session_summary(
     session_id: str,
@@ -376,6 +432,8 @@ async def get_session_summary(
     """
     db_session = await _verify_session_access(session_id, current_candidate, current_user)
     engine = db_session.engine_version or "v3"
+    context = await _report_context(session_id)
+    context.update(await _scorecard_context(session_id))
 
     if engine in ("v4", "v5"):
         engine_data = await _get_engine_summary(session_id)
@@ -384,13 +442,13 @@ async def get_session_summary(
         except SessionNotFoundException:
             base = None
         if base:
-            return {**base, **engine_data}
+            return {**base, **engine_data, **context}
         if engine_data:
-            return engine_data
+            return {**engine_data, **context}
 
     try:
         result = await _get_legacy_summary(session_id)
-        return result
+        return {**result, **context}
     except SessionNotFoundException:
         logger.error(f"Session not found: {session_id}")
         raise HTTPException(status_code=404, detail="Session not found")

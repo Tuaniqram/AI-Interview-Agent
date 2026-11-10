@@ -4,8 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.middleware import authenticate
-from app.auth.rbac import require_org_role_path
+from app.auth.rbac import require_admin
 from app.database.deps import get_db
 from app.models.db import AuditLog, User
 
@@ -19,7 +18,7 @@ async def list_audit_logs(
     resource_type: str | None = Query(None),
     limit: int = Query(50, le=200),
     offset: int = Query(0, ge=0),
-    _: User = Depends(require_org_role_path(["owner"])),
+    _: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     query = (

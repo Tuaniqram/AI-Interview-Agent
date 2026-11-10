@@ -50,13 +50,13 @@ def _calibration_fields(brain_metadata) -> dict:
 
 
 def build_ranking_row(
-    session, candidate, department, weighted_score, calibration_fields
+    session, candidate, it_role, weighted_score, calibration_fields
 ) -> dict:
     """Compose one ranking entry from DB rows + a calibration snapshot.
 
-    Pure — unit-testable without a database. ``session`` exposes ``id``,
+    Pure - unit-testable without a database. ``session`` exposes ``id``,
     ``job_role``, ``final_score``, ``started_at``, ``ended_at``; candidate /
-    department expose their display fields.
+    it_role expose their display fields.
     """
     family = detect_family(str(session.job_role_snapshot or ""))
     calibrated_score = calibration_fields.get("calibrated_score")
@@ -68,8 +68,8 @@ def build_ranking_row(
         "resume_url": candidate.resume_url if candidate else None,
         "skills": candidate.skills if candidate else None,
         "job_role": session.job_role_snapshot,
-        "department_name": department.name if department else None,
-        "department_id": department.id if department else None,
+        "role_name": it_role.name if it_role else None,
+        "it_role_id": it_role.id if it_role else None,
         "final_score": float(session.final_score) if session.final_score else None,
         "weighted_score": weighted_score,
         "calibrated_score": (
@@ -123,7 +123,6 @@ def sort_rankings(rows: list[dict], sort_by: str = "final") -> list[dict]:
 @router.get("/ranking")
 async def get_candidate_ranking(
     org_id: UUID,
-    department_id: int | None = Query(None),
     job_role: str | None = Query(None),
     family: str | None = Query(None, description="Filter to a detected job family (e.g. marketing)"),
     sort_by: str = Query("final", pattern="^(final|calibrated)$"),
@@ -173,13 +172,13 @@ async def get_candidate_ranking(
             calibration_map[str(brain.session_id)] = _calibration_fields(brain.brain_metadata)
 
     rankings = []
-    for session, candidate, department in rows:
+    for session, candidate, it_role in rows:
         sid = str(session.id)
         rankings.append(
             build_ranking_row(
                 session,
                 candidate,
-                department,
+                it_role,
                 scorecard_map.get(sid),
                 calibration_map.get(sid, {}),
             )
@@ -199,7 +198,6 @@ async def get_candidate_ranking(
 @router.get("/export")
 async def export_candidates_csv(
     org_id: UUID,
-    department_id: int | None = Query(None),
     job_role: str | None = Query(None),
     _: User = Depends(require_org_role_path(["owner", "member"])),
     db: AsyncSession = Depends(get_db),
@@ -232,12 +230,12 @@ async def export_candidates_csv(
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(["Candidate Name", "Email", "Job Role", "ItRole", "Score", "Skills", "Date"])
-    for session, candidate, department in rows:
+    for session, candidate, it_role in rows:
         writer.writerow([
             candidate.name if candidate else "Unknown",
             candidate.email if candidate else "",
             session.job_role_snapshot,
-            department.name if department else "",
+            it_role.name if it_role else "",
             float(session.final_score) if session.final_score else "",
             candidate.skills if candidate and candidate.skills else "",
             session.ended_at.isoformat() if session.ended_at else "",
@@ -258,7 +256,7 @@ async def get_ranking_summary(
         select(
             InterviewSession.job_role_snapshot,
             InterviewSession.it_role_id,
-            ItRole.name.label("dept_name"),
+            ItRole.name.label("role_name"),
             func.count(InterviewSession.id).label("total"),
             func.avg(InterviewSession.final_score).label("avg_score"),
             func.max(InterviewSession.final_score).label("max_score"),
@@ -277,8 +275,8 @@ async def get_ranking_summary(
     return [
         {
             "job_role": row.job_role_snapshot,
-            "department_id": row.it_role_id,
-            "department_name": row.dept_name,
+            "it_role_id": row.it_role_id,
+            "role_name": row.role_name,
             "total_candidates": row.total,
             "average_score": round(float(row.avg_score), 2) if row.avg_score else None,
             "max_score": round(float(row.max_score), 2) if row.max_score else None,

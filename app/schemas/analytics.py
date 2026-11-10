@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel
 
 
 class OverviewResponse(BaseModel):
-    total_departments: int = 0
+    total_it_roles: int = 0
     total_sessions: int = 0
     active_sessions: int = 0
     completed_sessions: int = 0
@@ -25,8 +26,8 @@ class DistributionBucket(BaseModel):
     count: int
 
 
-class DepartmentSessionSummary(BaseModel):
-    department_id: int
+class ItRoleSessionSummary(BaseModel):
+    it_role_id: UUID
     name: str
     session_count: int
     avg_score: Optional[float] = None

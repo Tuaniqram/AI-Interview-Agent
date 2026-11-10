@@ -30,47 +30,55 @@ export default function UserManagement() {
       {users.length === 0 ? (
         <EmptyState title="No users found" />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-[var(--border-color)]">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-[var(--bg-section)]">
-                <th className="text-left px-4 py-3 text-sm font-medium text-[var(--text-secondary)]">Name</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-[var(--text-secondary)]">Email</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-[var(--text-secondary)]">Role</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-[var(--text-secondary)]">Status</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-[var(--text-secondary)]">Joined</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border-color)]">
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-[var(--bg-section)]/50">
-                  <td className="px-4 py-3 text-sm text-[var(--text-primary)]">{user.name}</td>
-                  <td className="px-4 py-3 text-sm text-[var(--text-secondary)]">{user.email}</td>
-                  <td className="px-4 py-3">
-                    {user.is_admin && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-purple-100 dark:bg-purple-900/20 text-purple-600">
-                        Admin
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        user.is_active
-                          ? 'bg-green-100 dark:bg-green-900/20 text-green-600'
-                          : 'bg-gray-100 dark:bg-gray-900/20 text-gray-600'
-                      }`}
-                    >
-                      {user.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-[var(--text-secondary)]">
-                    {user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}
-                  </td>
+        <div className="overflow-hidden rounded-xl border border-border bg-section">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border bg-page">
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Name</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Email</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Organization</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Role</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Joined</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {users.map((user) => (
+                  <tr key={user.id} className="hover:bg-hover/50 transition-colors">
+                    <td className="px-4 py-3 text-sm font-medium text-primary">{user.name}</td>
+                    <td className="px-4 py-3 text-sm text-secondary">{user.email}</td>
+                    <td className="px-4 py-3 text-sm text-secondary">{user.org_name || '-'}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          user.is_admin
+                            ? 'bg-action-primary/10 text-action-primary'
+                            : 'bg-input text-secondary'
+                        }`}
+                      >
+                        {user.is_admin ? 'Admin' : 'Owner'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          user.is_active
+                            ? 'bg-success-bg text-success-text'
+                            : 'bg-input text-muted'
+                        }`}
+                      >
+                        {user.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-secondary">
+                      {user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

@@ -8,8 +8,8 @@ from app.auth.rbac import require_org_role, resolve_org_id
 from app.database.deps import get_db
 from app.models.db import InterviewSession, ItRole
 from app.schemas.analytics import (
-    DepartmentSessionSummary,
     DistributionBucket,
+    ItRoleSessionSummary,
     OverviewResponse,
     RoleSessionSummary,
     ScoreTrendPoint,
@@ -33,7 +33,7 @@ async def overview(
     if not org_id:
         return OverviewResponse()
 
-    department_count = await db.scalar(
+    it_role_count = await db.scalar(
         select(func.count(func.distinct(InterviewSession.it_role_id))).where(InterviewSession.org_id == org_id)
     ) or 0
 
@@ -53,7 +53,7 @@ async def overview(
     completion_rate = round(completed / total * 100, 1) if total > 0 else 0
 
     return OverviewResponse(
-        total_departments=department_count or 0,
+        total_it_roles=it_role_count or 0,
         total_sessions=total,
         active_sessions=active,
         completed_sessions=completed,
@@ -120,8 +120,8 @@ async def scores_distribution(
     return result
 
 
-@router.get("/sessions/by-department", response_model=list[DepartmentSessionSummary])
-async def sessions_by_department(
+@router.get("/sessions/by-it-role", response_model=list[ItRoleSessionSummary])
+async def sessions_by_it_role(
     org_id: str = Depends(_get_org_id),
     _: None = Depends(require_org_role(["owner", "member", "viewer"])),
     db: AsyncSession = Depends(get_db),
@@ -131,7 +131,7 @@ async def sessions_by_department(
 
     result = await db.execute(
         select(
-            ItRole.id.label("department_id"),
+            ItRole.id.label("it_role_id"),
             ItRole.name,
             func.count(InterviewSession.id).label("session_count"),
             cast(func.avg(InterviewSession.final_score), Float).label("avg_score"),
@@ -142,8 +142,8 @@ async def sessions_by_department(
         .order_by(func.count(InterviewSession.id).desc())
     )
     return [
-        DepartmentSessionSummary(
-            department_id=0,
+        ItRoleSessionSummary(
+            it_role_id=r.it_role_id,
             name=r.name,
             session_count=r.session_count,
             avg_score=round(r.avg_score, 2) if r.avg_score is not None else None,

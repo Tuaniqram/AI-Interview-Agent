@@ -81,7 +81,7 @@ async def test_start_public_interview_seeds_v4_state(monkeypatch):
     assert verify_interview_access_token(resp.token) == str(resp.session_id)
 
     state = store.get_or_raise(str(resp.session_id))
-    assert state["flow_type"] == "v4_evidence_driven"
+    assert state["flow_type"] == "v5_evidence_driven"
     assert state["job_role"] == "Backend Engineer"
     assert state["session_id"] == str(resp.session_id)
     assert state["candidate_profile"]["full_name"] == "Alice"

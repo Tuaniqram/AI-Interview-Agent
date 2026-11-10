@@ -113,7 +113,8 @@ async def test_persist_completion_writes_session_row(fake_repos):
     assert completion["final_score"] == pytest.approx(7.4)
     assert completion["engine_version"] == "v5"
     assert isinstance(completion["ended_at"], datetime)
-    assert "hire" in completion["final_feedback"]
+    assert "went well" in completion["final_feedback"]
+    assert "Verdict:" not in completion["final_feedback"]
 
 
 @pytest.mark.asyncio

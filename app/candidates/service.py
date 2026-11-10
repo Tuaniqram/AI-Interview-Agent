@@ -25,6 +25,7 @@ from app.candidates.schemas import (
     PracticeStartResponse,
 )
 from app.config import settings
+from app.services.feedback_text import legacy_to_plain
 from app.database.deps import get_db
 from app.models.db import (
     CandidateInvitation,
@@ -271,7 +272,7 @@ async def get_interviews(candidate_id: UUID, db: AsyncSession) -> list[Candidate
             final_score=session.final_score,
             started_at=session.started_at,
             ended_at=session.ended_at,
-            department_name=organization.name if organization else None,
+            org_name=organization.name if organization else None,
         ))
     return interviews
 
@@ -299,11 +300,10 @@ async def get_interview_detail(candidate_id: UUID, interview_id: UUID, db: Async
         "interaction_mode": session.interaction_mode,
         "status": session.status,
         "final_score": session.final_score,
-        "final_feedback": session.final_feedback,
+        "final_feedback": legacy_to_plain(session.final_feedback),
         "started_at": session.started_at,
         "ended_at": session.ended_at,
-        "department_name": organization.name if organization else None,
-        "department_id": None,
+        "org_name": organization.name if organization else None,
     }
 
 
@@ -379,7 +379,7 @@ async def start_practice(
         session_type="practice",
         interaction_mode="typing",
         total_questions=num_questions,
-        engine_version="v4",
+        engine_version="v5",
     )
     db.add(session)
     await db.flush()
@@ -425,7 +425,7 @@ async def start_practice(
         "question_number": 0,
         "current_question": "",
         "candidate_answer": "",
-        "flow_type": "v4_evidence_driven",
+        "flow_type": "v5_evidence_driven",
         "nodes_executed": [],
         "start_time": datetime.now(timezone.utc).isoformat(),
         "hypotheses": [],

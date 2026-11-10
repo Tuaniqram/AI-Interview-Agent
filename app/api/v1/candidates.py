@@ -281,7 +281,6 @@ async def list_saved_listings(
             "title": pi.title,
             "org_name": org.name,
             "org_slug": org.slug,
-            "department_name": pi.department_name,
             "interview_mode": pi.interview_mode,
             "description": pi.description,
             "skills_required": pi.skills_required,

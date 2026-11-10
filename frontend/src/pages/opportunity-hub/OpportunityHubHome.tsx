@@ -27,10 +27,9 @@ export default function OpportunityHubHome() {
   const [loading, setLoading] = useState(true);
 
   const search = searchParams.get('search') || '';
-  const activeModes = searchParams.get('modes')?.split(',').filter(Boolean) || [];
   const activeExpiry = searchParams.get('expiry') || '';
 
-  const hasFilters = search || activeModes.length > 0 || activeExpiry;
+  const hasFilters = search || activeExpiry;
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -38,22 +37,20 @@ export default function OpportunityHubHome() {
     const params = new URLSearchParams(searchParams);
     if (debouncedSearch) params.set('search', debouncedSearch);
     else params.delete('search');
-    if (searchParams.get('modes')) params.set('modes', searchParams.get('modes')!);
     if (searchParams.get('expiry')) params.set('expiry', searchParams.get('expiry')!);
     setSearchParams(params, { replace: true });
   }, [debouncedSearch]);
 
   useEffect(() => {
     setLoading(true);
-    const apiParams: { search?: string; modes?: string; expiry?: string } = {};
+    const apiParams: { search?: string; expiry?: string } = {};
     if (debouncedSearch) apiParams.search = debouncedSearch;
-    if (activeModes.length) apiParams.modes = activeModes.join(',');
     if (activeExpiry && activeExpiry !== 'any') apiParams.expiry = activeExpiry;
     marketplaceService.listOrganizations(Object.keys(apiParams).length ? apiParams : undefined)
       .then(setOrgs)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [debouncedSearch, activeModes.join(','), activeExpiry]);
+  }, [debouncedSearch, activeExpiry]);
 
   const handleCategoryClick = (keywords: string[]) => {
     const params = new URLSearchParams(searchParams);
@@ -96,20 +93,6 @@ export default function OpportunityHubHome() {
               </button>
             </span>
           )}
-          {activeModes.map(m => (
-            <span key={m} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-[#0c6b58]/10 text-[var(--action-primary)] font-medium">
-              {m}
-              <button onClick={() => {
-                const next = activeModes.filter(x => x !== m);
-                const params = new URLSearchParams(searchParams);
-                if (next.length) params.set('modes', next.join(','));
-                else params.delete('modes');
-                setSearchParams(params, { replace: true });
-              }} className="hover:bg-[#0c6b58]/20 rounded-full p-0.5 -mr-0.5" aria-label={`Remove ${m}`}>
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          ))}
           {expiryLabel && (
             <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-[#0c6b58]/10 text-[var(--action-primary)] font-medium">
               {expiryLabel}

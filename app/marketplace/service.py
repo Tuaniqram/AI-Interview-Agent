@@ -150,7 +150,6 @@ async def get_org_profile(org_slug: str, db: AsyncSession) -> dict:
                 rich_description=pi.rich_description,
                 interview_mode=pi.interview_mode,
                 org_name=org.name,
-                department_name=dept_name or "",
                 skills_required=pi.skills_required,
                 style_name=pi.style_name or "STANDARD",
                 starts_at=pi.starts_at,
@@ -189,14 +188,6 @@ async def get_public_interview(interview_id: str, db: AsyncSession) -> PublicInt
     org_result = await db.execute(select(Organization).where(Organization.id == pi.org_id))
     org = org_result.scalar_one_or_none()
 
-    dept_name = ""
-    if pi.org_id:
-        dept_result = await db.execute(
-            select(Organization).where(Organization.id == pi.org_id)
-        )
-        dept = dept_result.scalar_one_or_none()
-        dept_name = dept.name if dept else ""
-
     return PublicInterviewResponse(
         id=pi.id,
         org_id=pi.org_id,
@@ -205,7 +196,6 @@ async def get_public_interview(interview_id: str, db: AsyncSession) -> PublicInt
         rich_description=pi.rich_description,
         interview_mode=pi.interview_mode,
         org_name=org.name if org else None,
-        department_name=dept_name,
         skills_required=pi.skills_required,
         style_name=pi.style_name or "STANDARD",
         starts_at=pi.starts_at,
@@ -227,9 +217,10 @@ async def start_public_interview(
 
     # Resolve scorecard_template_id from the linked InterviewTemplate if set
     sc_template_id = None
-    if pi.template_id:
+    template_id = getattr(pi, "template_id", None)
+    if template_id:
         tmpl_result = await db.execute(
-            select(InterviewTemplate).where(InterviewTemplate.id == pi.template_id)
+            select(InterviewTemplate).where(InterviewTemplate.id == template_id)
         )
         tmpl = tmpl_result.scalar_one_or_none()
         if tmpl:
@@ -243,8 +234,9 @@ async def start_public_interview(
         job_role_snapshot=pi.title,
         session_type="public",
         interaction_mode=pi.interview_mode,
-        engine_version="v4",
+        engine_version="v5",
         scorecard_template_id=sc_template_id,
+        template_id=template_id,
     )
 
     # G4: link to existing candidate profile if email matches
@@ -291,6 +283,7 @@ async def start_public_interview(
         org_id=pi.org_id,
         role_context=role_context,
         it_role_id=pi.it_role_id,
+        template_id=template_id,
     )
     competency_taxonomy, required_competencies, domain_label = taxonomy_for_state(
         taxonomy, priority_map=style.get("base_competency_priority")
@@ -317,7 +310,7 @@ async def start_public_interview(
         "question_number": 0,
         "current_question": "",
         "candidate_answer": "",
-        "flow_type": "v4_evidence_driven",
+        "flow_type": "v5_evidence_driven",
         "nodes_executed": [],
         "start_time": datetime.now(timezone.utc).isoformat(),
         "hypotheses": [],
@@ -408,7 +401,7 @@ async def create_public_interview(
     org_result = await db.execute(select(Organization).where(Organization.id == org_id))
     org = org_result.scalar_one_or_none()
     resp = OrgPublicInterviewResponse.model_validate(pi)
-    resp.department_name = org.name if org else ""
+    resp.org_name = org.name if org else ""
     return resp
 
 
@@ -429,7 +422,7 @@ async def list_org_public_interviews(
     items = []
     for pi, dept_name in result.all():
         resp = OrgPublicInterviewResponse.model_validate(pi)
-        resp.department_name = dept_name or ""
+        resp.org_name = dept_name or ""
         items.append(resp)
     return items
 
@@ -467,7 +460,7 @@ async def update_public_interview(
         dept_name = dept.name if dept else ""
 
     resp = OrgPublicInterviewResponse.model_validate(pi)
-    resp.department_name = dept_name
+    resp.org_name = dept_name
     return resp
 
 
@@ -814,7 +807,13 @@ async def invite_application(
         # Re-inviting would overwrite the candidate's answer and status.
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Candidate already responded")
 
+    template_id = getattr(pi, "template_id", None)
     if submission.session_id is None:
+        sc_template_id = None
+        if template_id:
+            template = await db.get(InterviewTemplate, template_id)
+            if template is not None:
+                sc_template_id = template.scorecard_template_id
         session = InterviewSession(
             id=uuid.uuid4(),
             org_id=pi.org_id,
@@ -824,6 +823,9 @@ async def invite_application(
             job_role_snapshot=pi.title,
             session_type="public",
             interaction_mode=pi.interview_mode,
+            engine_version="v5",
+            scorecard_template_id=sc_template_id,
+            template_id=template_id,
             status="initiating",
             invite_token=uuid.uuid4().hex,
             invite_expires_at=datetime.now(timezone.utc) + timedelta(days=7),
@@ -840,6 +842,12 @@ async def invite_application(
             if not existing.invite_token:
                 existing.invite_token = uuid.uuid4().hex
             existing.invite_expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+            if getattr(existing, "template_id", None) is None:
+                existing.template_id = template_id
+            if getattr(existing, "scorecard_template_id", None) is None and template_id:
+                template = await db.get(InterviewTemplate, template_id)
+                if template is not None:
+                    existing.scorecard_template_id = template.scorecard_template_id
 
     now = datetime.now(timezone.utc)
     submission.org_decision = "invited"

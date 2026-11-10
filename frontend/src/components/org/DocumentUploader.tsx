@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Upload, Loader2 } from 'lucide-react';
-import { departmentService } from '../../services/departmentService';
+import { orgContentService } from '../../services/orgContentService';
 import { useToast } from '../shared/Toast';
 
 interface UploadResult {
@@ -10,11 +10,11 @@ interface UploadResult {
 }
 
 interface DocumentUploaderProps {
-  departmentId: number;
+  orgId: string;
   onUploaded: (result: UploadResult) => void;
 }
 
-export function DocumentUploader({ departmentId, onUploaded }: DocumentUploaderProps) {
+export function DocumentUploader({ orgId, onUploaded }: DocumentUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const toast = useToast();
@@ -26,7 +26,7 @@ export function DocumentUploader({ departmentId, onUploaded }: DocumentUploaderP
     setUploading(true);
 
     try {
-      const result = await departmentService.uploadDocument(departmentId, file);
+      const result = await orgContentService.uploadDocument(orgId, file);
       toast.success('Document uploaded successfully');
       onUploaded(result);
     } catch (err: any) {

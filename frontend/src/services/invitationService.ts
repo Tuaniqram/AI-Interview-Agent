@@ -6,7 +6,7 @@ export const invitationService = {
     candidate_name: string;
     candidate_email: string;
     job_role: string;
-    department_name: string | null;
+    org_name: string | null;
   }> {
     return apiClient.get(`/api/v1/invitations/${token}`);
   },

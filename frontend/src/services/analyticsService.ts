@@ -1,7 +1,7 @@
 import { apiClient } from './apiClient';
 
 export interface OverviewData {
-  total_departments: number;
+  total_it_roles: number;
   total_sessions: number;
   active_sessions: number;
   completed_sessions: number;
@@ -20,8 +20,8 @@ export interface DistributionPoint {
   count: number;
 }
 
-export interface DepartmentData {
-  department_id: number;
+export interface ItRoleData {
+  it_role_id: string;
   name: string;
   session_count: number;
   avg_score: number | null;
@@ -46,8 +46,8 @@ export const analyticsService = {
     return apiClient.get<DistributionPoint[]>('/api/v1/analytics/scores/distribution');
   },
 
-  async getSessionsByDepartment(): Promise<DepartmentData[]> {
-    return apiClient.get<DepartmentData[]>('/api/v1/analytics/sessions/by-department');
+  async getSessionsByItRole(): Promise<ItRoleData[]> {
+    return apiClient.get<ItRoleData[]>('/api/v1/analytics/sessions/by-it-role');
   },
 
   async getSessionsByRole(): Promise<RoleData[]> {

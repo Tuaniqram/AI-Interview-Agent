@@ -22,10 +22,10 @@ def require_org_role(allowed_roles: list[str]):
     """Dependency factory: check user has an org role from X-Org-Id header.
 
     Usage:
-        @router.get("/departments")
-        async def list_departments(
+        @router.get("/orgs/{org_id}/documents")
+        async def list_documents(
             user: User = Depends(authenticate),
-            _: None = Depends(require_org_role(["owner", "member", "viewer"])),
+            _: None = Depends(require_org_role(["owner"])),
         ):
     """
     async def _check(

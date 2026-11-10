@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useOrg } from '../../contexts/OrgContext';
 import { apiClient } from '../../services/apiClient';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
@@ -10,6 +9,8 @@ import { humanizeAction, humanizeName, summarizeDetails } from '../../utils/huma
 
 interface AuditEntry {
   id: string;
+  org_id?: string | null;
+  org_name?: string | null;
   user_id: string | null;
   action: string;
   resource_type: string | null;
@@ -20,20 +21,18 @@ interface AuditEntry {
 }
 
 export default function AuditLogs() {
-  const { activeOrg } = useOrg();
   const toast = useToast();
   const [logs, setLogs] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionFilter, setActionFilter] = useState('');
 
   useEffect(() => {
-    if (!activeOrg?.id) return;
     setLoading(true);
-    apiClient.get<AuditEntry[]>(`/api/v1/orgs/${activeOrg.id}/audit-logs`)
+    apiClient.get<AuditEntry[]>('/api/v1/admin/audit-logs')
       .then(setLogs)
       .catch(() => toast.error('Failed to load audit logs'))
       .finally(() => setLoading(false));
-  }, [activeOrg?.id]);
+  }, []);
 
   if (loading) return <ContentSkeleton />;
 
@@ -42,7 +41,7 @@ export default function AuditLogs() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Audit Logs" description="Track all actions taken in your organization" />
+      <PageHeader title="Audit Logs" description="Track actions across every organization" />
 
       <Select
         value={actionFilter}
@@ -60,6 +59,7 @@ export default function AuditLogs() {
               <span className="px-2 py-0.5 rounded bg-action-primary/10 text-action-primary font-medium shrink-0">{humanizeAction(log.action)}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-primary">
+                  {log.org_name && <span className="text-secondary font-medium">{log.org_name} </span>}
                   {log.resource_type && <span className="text-muted">{humanizeName(log.resource_type)} </span>}
                   {log.resource_id && <span className="font-mono text-[10px] text-muted">#{log.resource_id.slice(0, 8)}</span>}
                 </p>

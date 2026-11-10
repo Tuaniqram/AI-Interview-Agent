@@ -121,12 +121,6 @@ export default function InterviewDetail() {
                   {interview.org_name}
                 </span>
               )}
-              {interview.department_name && (
-                <>
-                  <span className="text-muted">·</span>
-                  <span>{interview.department_name}</span>
-                </>
-              )}
             </div>
           </div>
         </div>

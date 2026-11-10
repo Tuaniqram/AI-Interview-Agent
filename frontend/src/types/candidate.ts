@@ -60,7 +60,7 @@ export interface CandidateInterview {
   final_score: number | null;
   started_at: string | null;
   ended_at: string | null;
-  department_name: string | null;
+  org_name: string | null;
 }
 
 export interface CandidateInterviewDetail {
@@ -73,8 +73,7 @@ export interface CandidateInterviewDetail {
   final_feedback: string | null;
   started_at: string | null;
   ended_at: string | null;
-  department_name: string | null;
-  department_id: number | null;
+  org_name: string | null;
 }
 
 export interface CandidateStats {
@@ -112,7 +111,6 @@ export interface SavedListing {
   title: string;
   org_name: string;
   org_slug: string;
-  department_name: string | null;
   interview_mode: string;
   description: string | null;
   skills_required: string | null;

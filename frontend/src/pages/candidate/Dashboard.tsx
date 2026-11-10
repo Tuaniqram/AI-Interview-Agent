@@ -143,8 +143,8 @@ export default function CandidateDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="font-medium text-[var(--text-primary)]">{interview.job_role}</span>
-                    {interview.department_name && (
-                      <span className="text-sm text-[var(--text-secondary)] ml-2">@{interview.department_name}</span>
+              {interview.org_name && (
+                <span className="text-sm text-[var(--text-secondary)] ml-2">@{interview.org_name}</span>
                     )}
                   </div>
                   {interview.final_score != null && (

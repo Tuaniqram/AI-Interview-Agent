@@ -19,6 +19,7 @@ from app.models.db import (
 )
 from app.scorecards.schemas import (
     CompetencyDef,
+    ScorecardResultListItem,
     ScorecardTemplateCreate,
     ScorecardTemplateResponse,
     ScorecardTemplateUpdate,
@@ -60,6 +61,46 @@ async def create_scorecard(
     await db.commit()
     await db.refresh(template)
     return template
+
+
+@router.get("/results", response_model=list[ScorecardResultListItem])
+async def list_scorecard_results(
+    org_id: UUID,
+    _: User = Depends(require_org_role_path(["owner", "member"])),
+    db: AsyncSession = Depends(get_db),
+):
+    """Weighted scorecard results for the organization, newest first."""
+    rows = (await db.execute(
+        select(
+            ScorecardResult,
+            ScorecardTemplate.name,
+            CandidateProfile.name,
+            CandidateProfile.email,
+            InterviewSession.job_role_snapshot,
+            InterviewSession.status,
+        )
+        .join(InterviewSession, ScorecardResult.session_id == InterviewSession.id)
+        .outerjoin(ScorecardTemplate, ScorecardResult.template_id == ScorecardTemplate.id)
+        .outerjoin(CandidateProfile, InterviewSession.candidate_profile_id == CandidateProfile.id)
+        .where(InterviewSession.org_id == org_id)
+        .order_by(ScorecardResult.created_at.desc())
+        .limit(100)
+    )).all()
+    return [
+        ScorecardResultListItem(
+            id=result.id,
+            session_id=result.session_id,
+            template_id=result.template_id,
+            template_name=template_name,
+            candidate_name=candidate_name,
+            candidate_email=candidate_email,
+            job_role=job_role,
+            session_status=session_status,
+            weighted_score=float(result.weighted_score) if result.weighted_score is not None else None,
+            created_at=result.created_at,
+        )
+        for result, template_name, candidate_name, candidate_email, job_role, session_status in rows
+    ]
 
 
 @router.get("/{template_id}", response_model=ScorecardTemplateResponse)

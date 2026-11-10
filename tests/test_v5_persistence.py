@@ -525,3 +525,41 @@ async def test_hypothesis_node_seeds_from_initial_hypotheses(fake_evidence_repo)
     }]
     assert result["hypotheses"][0]["session_id"] == "seed-session"
     assert result["hypothesis_target"]["id"] == "ih1"
+
+def test_hypothesis_status_normalizer_allows_saturated_and_coerces_unknown():
+    from app.services.v5_brain_persister import _normalize_hypothesis_status
+
+    assert _normalize_hypothesis_status("saturated") == "saturated"
+    assert _normalize_hypothesis_status("bogus") == "testing"
+    assert _normalize_hypothesis_status(None) == "untested"
+
+
+async def test_insert_scorecard_result_prefers_linked_template(monkeypatch):
+    from types import SimpleNamespace
+
+    calls = []
+
+    async def fake_calculate(session, session_id, template_id, commit=True):
+        calls.append((session_id, template_id, commit))
+        return SimpleNamespace(id=uuid4())
+
+    monkeypatch.setattr("app.scorecards.service.calculate_scorecard_for_session", fake_calculate)
+
+    class LinkedSession:
+        def __init__(self):
+            self.added = []
+
+        async def get(self, model, sid):
+            return SimpleNamespace(scorecard_template_id=uuid4())
+
+        def add(self, record):
+            self.added.append(record)
+
+    brain = _make_brain()
+    session = LinkedSession()
+    persister = V5BrainPersister(session_factory=lambda: None)
+
+    await persister._insert_scorecard_result(session, UUID(brain.session_id), brain)
+
+    assert calls and calls[0][2] is False
+    assert session.added == []  # the custom scorecard owns the result row

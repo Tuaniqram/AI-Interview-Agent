@@ -1,5 +1,5 @@
 """
-WebSocket-based interview protocol (v4 / AURA engine).
+WebSocket-based interview protocol (v5 / AURA engine).
 
 Persistent connection replaces HTTP request/response cycle for the interview flow.
 
@@ -9,7 +9,7 @@ Protocol (JSON messages over WebSocket):
   Server → Client (pushes): { type: "status", phase: "evaluating" | "question_ready" }
 
 Message types:
-  start_interview  → { type: "question", ...start_response }      (starts/resumes v4 engine)
+  start_interview  → { type: "question", ...start_response }      (starts/resumes v5 engine)
   request_question → { type: "question", ...current question }     (idempotent resend)
   submit_answer    → { type: "evaluation", ...answer_response } or { type: "report", ... }
   get_status       → { type: "status_snapshot", ...state_response }
@@ -255,7 +255,7 @@ async def _load_candidate_profile_data(
     return data, resume_text, cv_fit
 
 
-async def _start_v4_engine(session_id: str, notify=None) -> dict:
+async def _start_engine(session_id: str, notify=None) -> dict:
     """Start (or resume) the v5 AURA engine for the given session.
 
     The session row in the DB is the source of truth for job_role / department_id;
@@ -320,6 +320,7 @@ async def _start_v4_engine(session_id: str, notify=None) -> dict:
                 org_id=db_session.org_id,
                 role_context=role_context,
                 it_role_id=db_session.it_role_id,  # the role's catalog competencies drive the interview
+                template_id=getattr(db_session, "template_id", None),
             )
 
     # The three pre-start inputs do not depend on each other (competency taxonomy, the candidate's
@@ -466,7 +467,7 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                 try:
                     async with _session_locks.lock(sid):
                         response = await asyncio.wait_for(
-                            _start_v4_engine(sid, notify=push_progress), timeout=START_TIMEOUT_S
+                            _start_engine(sid, notify=push_progress), timeout=START_TIMEOUT_S
                         )
                 except SessionNotFoundException:
                     await reply({"type": "error", "detail": "Session not found"}, data)

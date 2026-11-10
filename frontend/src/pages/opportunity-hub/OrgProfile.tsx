@@ -99,8 +99,8 @@ export default function OrgProfile() {
                   </div>
                   <Link to={`/opportunity-hub/interviews/${interview.id}`}>
                     <h3 className="font-semibold text-primary group-hover:text-[var(--action-primary)] transition-colors font-heading">{interview.title}</h3>
-                  {interview.department_name && (
-                    <p className="text-xs text-muted mt-0.5">{interview.department_name}</p>
+                  {interview.org_name && (
+                    <p className="text-xs text-muted mt-0.5">{interview.org_name}</p>
                   )}
                   {interview.description && (
                     <p className="text-sm text-secondary mt-1.5 line-clamp-2">{interview.description}</p>

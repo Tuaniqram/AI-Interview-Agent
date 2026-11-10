@@ -60,7 +60,17 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
-scripts/
+scripts/*
+!scripts/seed_it_catalog.py
+!scripts/seed_v2.py
+!scripts/reset_and_seed.py
+!scripts/verify_seed.py
+!scripts/prepare_demo.py
+!scripts/sanitize_single_user_orgs.py
+!scripts/seed_org_documents.py
+!scripts/index_org_documents.py
+!scripts/generate_demo_assets.py
+!scripts/reset_db.py
 
 # Frontend build artifacts
 .vite/
@@ -77,6 +87,7 @@ docs/*
 
 # ...except the working docs future sessions must follow (see CLAUDE.md)
 !CLAUDE.md
+!changes.md
 !docs/PROBLEMS_AND_SOLUTIONS.md
 !docs/IMPLEMENTATION_PLAN.md
 !docs/PROMPTS.md

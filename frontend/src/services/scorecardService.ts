@@ -1,9 +1,13 @@
 import { apiClient } from './apiClient';
-import type { ScorecardTemplate, ScorecardResult } from '../types/scorecard';
+import type { ScorecardTemplate, ScorecardResult, ScorecardResultListItem } from '../types/scorecard';
 
 export const scorecardService = {
   async list(orgId: string): Promise<ScorecardTemplate[]> {
     return apiClient.get<ScorecardTemplate[]>(`/api/v1/orgs/${orgId}/scorecards`);
+  },
+
+  async listResults(orgId: string): Promise<ScorecardResultListItem[]> {
+    return apiClient.get<ScorecardResultListItem[]>(`/api/v1/orgs/${orgId}/scorecards/results`);
   },
 
   async get(orgId: string, templateId: string): Promise<ScorecardTemplate> {

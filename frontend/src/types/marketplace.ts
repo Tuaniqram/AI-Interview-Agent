@@ -17,7 +17,6 @@ export interface PublicInterview {
   rich_description: string | null;
   interview_mode: string;
   org_name: string | null;
-  department_name: string | null;
   skills_required: string | null;
   style_name: string | null;
   starts_at: string | null;
@@ -29,7 +28,7 @@ export interface OrgPublicListing {
   org_id: string;
   it_role_id: string;
   level_code: string | null;
-  department_name: string | null;
+  org_name: string | null;
   title: string;
   description: string | null;
   rich_description: string | null;

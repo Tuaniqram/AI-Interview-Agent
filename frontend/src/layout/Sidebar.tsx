@@ -100,7 +100,7 @@ export function Sidebar({
       )}
 
       <aside 
-        className={`h-screen glass flex flex-col w-52 fixed lg:static z-50 lg:z-auto
+        className={`h-screen shrink-0 bg-section border-r border-border flex flex-col w-52 fixed lg:static z-50 lg:z-auto
           ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >

@@ -208,7 +208,7 @@ def ws_env(monkeypatch):
             calls.answers.append((sid, answer))
             return {"status": "in_progress", "question": "Next?", "question_number": 2}
 
-    monkeypatch.setattr(interview_ws, "_start_v4_engine", fake_start)
+    monkeypatch.setattr(interview_ws, "_start_engine", fake_start)
     monkeypatch.setattr(interview_ws, "InterviewEngine", FakeEngine)
     return SimpleNamespace(client=TestClient(app), calls=calls)
 

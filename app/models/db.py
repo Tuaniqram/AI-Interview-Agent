@@ -147,6 +147,12 @@ class InterviewSession(Base):
         nullable=True,
         index=True,
     )
+    template_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("interview_templates.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     invite_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True, unique=True)
     invite_expires_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True

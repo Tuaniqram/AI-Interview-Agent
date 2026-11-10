@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { Organization, OrgMember, OrganizationCreate, OrganizationUpdate } from '../types/org';
+import type { Organization, OrganizationCreate, OrganizationUpdate } from '../types/org';
 
 export const orgService = {
   async create(data: OrganizationCreate): Promise<Organization> {
@@ -12,9 +12,5 @@ export const orgService = {
 
   async update(orgId: string, data: OrganizationUpdate): Promise<Organization> {
     return apiClient.patch<Organization>(`/api/v1/orgs/${orgId}`, data);
-  },
-
-  async listMembers(orgId: string): Promise<OrgMember[]> {
-    return apiClient.get<OrgMember[]>(`/api/v1/orgs/${orgId}/members`);
   },
 };

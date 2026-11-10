@@ -231,13 +231,35 @@ async def _resolve_scorecard_defs(
 
 
 async def _resolve_template_defs(
-    db: AsyncSession, org_id: int | None
+    db: AsyncSession, org_id: int | None, template_id=None
 ) -> tuple[list[dict], InterviewTemplate | None]:
-    """Organization interview-template competencies + the newest template row
-    (the row the AI cache writes through to)."""
+    """Organization interview-template competencies + the template row.
+
+    When ``template_id`` is given (the template attached to the listing), that
+    exact template is preferred. Otherwise the newest org template with a
+    competency list is used for backward compatibility.
+    """
     if not org_id:
         return [], None
     try:
+        if template_id:
+            linked = await db.execute(
+                select(InterviewTemplate).where(
+                    InterviewTemplate.id == UUID(str(template_id)),
+                    InterviewTemplate.org_id == org_id,
+                )
+            )
+            template = linked.scalar_one_or_none()
+            if template is not None:
+                defs = _normalize(template.competencies)
+                if defs:
+                    logger.info(
+                        "Resolved %d competencies from linked interview template %s",
+                        len(defs),
+                        template.id,
+                    )
+                    return defs, template
+
         result = await db.execute(
             select(InterviewTemplate)
             .where(InterviewTemplate.org_id == org_id)
@@ -403,6 +425,7 @@ async def resolve_competencies(
     role_context: dict | None = None,
     use_llm: bool = True,
     it_role_id=None,
+    template_id=None,
 ) -> list[dict]:
     """Resolve the competency taxonomy for a new interview session.
 
@@ -418,7 +441,7 @@ async def resolve_competencies(
     if scorecard_defs and not is_thin_scorecard(scorecard_defs):
         return scorecard_defs
 
-    template_defs, template_row = await _resolve_template_defs(db, org_id)
+    template_defs, template_row = await _resolve_template_defs(db, org_id, template_id)
     if template_defs and not is_thin_scorecard(template_defs):
         return template_defs
 

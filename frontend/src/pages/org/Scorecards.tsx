@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useOrg } from '../../contexts/OrgContext';
 import { scorecardService } from '../../services/scorecardService';
 import { PageHeader } from '../../components/shared/PageHeader';
@@ -10,7 +11,7 @@ import { Select } from '../../components/shared/Select';
 import { Slider } from '../../components/shared/Slider';
 import { useToast } from '../../components/shared/Toast';
 import { Plus, Pencil, Trash2, X } from 'lucide-react';
-import type { ScorecardTemplate, CompetencyDef } from '../../types/scorecard';
+import type { ScorecardTemplate, CompetencyDef, ScorecardResultListItem } from '../../types/scorecard';
 import { ConfirmDialog } from '../../components/shared/ConfirmDialog';
 
 const DEFAULT_CATEGORIES = ['technical', 'communication', 'behavioral', 'leadership'];
@@ -20,6 +21,7 @@ export default function Scorecards() {
   const { activeOrg } = useOrg();
   const toast = useToast();
   const [templates, setTemplates] = useState<ScorecardTemplate[]>([]);
+  const [results, setResults] = useState<ScorecardResultListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -31,8 +33,14 @@ export default function Scorecards() {
   useEffect(() => {
     if (!activeOrg?.id) return;
     setLoading(true);
-    scorecardService.list(activeOrg.id)
-      .then(setTemplates)
+    Promise.all([
+      scorecardService.list(activeOrg.id),
+      scorecardService.listResults(activeOrg.id).catch(() => [] as ScorecardResultListItem[]),
+    ])
+      .then(([templateData, resultData]) => {
+        setTemplates(templateData);
+        setResults(resultData);
+      })
       .catch(() => toast.error('Failed to load scorecards'))
       .finally(() => setLoading(false));
   }, [activeOrg?.id]);
@@ -183,6 +191,61 @@ export default function Scorecards() {
             ))}
           </div>
         )}
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-primary">Recent results</h2>
+            <span className="text-xs text-muted">
+              {results.length} scored interview{results.length === 1 ? '' : 's'}
+            </span>
+          </div>
+          {results.length === 0 ? (
+            <EmptyState
+              title="No results yet"
+              description="Weighted scorecard results appear here once a candidate finishes an interview."
+            />
+          ) : (
+            <div className="rounded-xl border border-border bg-page overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-hover text-xs text-muted">
+                  <tr>
+                    <th className="text-left font-medium px-4 py-2">Candidate</th>
+                    <th className="text-left font-medium px-4 py-2">Role</th>
+                    <th className="text-left font-medium px-4 py-2">Scorecard</th>
+                    <th className="text-right font-medium px-4 py-2">Score</th>
+                    <th className="text-right px-4 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {results.map((result) => (
+                    <tr key={result.id} className="hover:bg-hover">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-primary">{result.candidate_name || 'Candidate'}</p>
+                        {result.candidate_email && (
+                          <p className="text-xs text-muted">{result.candidate_email}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-secondary">{result.job_role || '—'}</td>
+                      <td className="px-4 py-3 text-secondary">{result.template_name || 'AURA built-in'}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-primary">
+                        {result.weighted_score != null ? result.weighted_score.toFixed(2) : '—'}
+                        <span className="text-xs text-muted font-normal"> / 10</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Link
+                          to={`/interview/${result.session_id}/report`}
+                          className="text-xs font-medium text-action-primary hover:underline"
+                        >
+                          Report
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       <ConfirmDialog

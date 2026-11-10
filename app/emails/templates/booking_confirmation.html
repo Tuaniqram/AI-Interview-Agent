@@ -3,91 +3,79 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>Interview confirmed</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,sans-serif">
-<table width="100%" cellpadding="0" cellspacing="0" role="presentation">
-  <tr>
-    <td align="center" style="padding:48px 16px">
-      <table width="480" cellpadding="0" cellspacing="0" role="presentation" style="max-width:480px;width:100%">
+<body style="margin:0;padding:0;background-color:#f6f7f4;font-family:'Archivo',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;-webkit-font-smoothing:antialiased">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0">Your ${JOB_ROLE} interview with ${ORG_NAME} is confirmed.</div>
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#f6f7f4">
+    <tr>
+      <td align="center" style="padding:40px 16px">
+        <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;max-width:600px">
 
-        <!-- Logo -->
-        <tr>
-          <td align="center" style="padding-bottom:32px">
-            <img src="${APP_URL}/favicon.svg" width="40" height="40" alt="AI Interview Agent" style="display:block;border:0" />
-          </td>
-        </tr>
+          <tr>
+            <td style="padding:0 4px 18px">
+              <table cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                  <td style="vertical-align:middle">
+                    <img src="${APP_URL}/favicon.svg" width="36" height="36" alt="AI Interview Agent" style="display:block;border:0;border-radius:8px" />
+                  </td>
+                  <td style="padding-left:10px;vertical-align:middle">
+                    <span style="font-size:15px;font-weight:700;color:#0c6b58;letter-spacing:-0.01em">AI Interview Agent</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-        <!-- Main card -->
-        <tr>
-          <td style="background:#ffffff;border-radius:12px;padding:40px 32px;box-shadow:0 1px 2px rgba(0,0,0,0.06),0 1px 3px rgba(0,0,0,0.04)">
+          <tr>
+            <td style="background:#ffffff;border:1px solid #e2e2e8;border-radius:14px;overflow:hidden">
+              <div style="height:4px;background:#0c6b58"></div>
+              <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                  <td style="padding:36px">
+                    <h1 style="font-size:22px;line-height:1.3;font-weight:700;color:#1a1a1e;margin:0 0 12px">Interview confirmed</h1>
+                    <p style="font-size:15px;line-height:1.65;color:#54545c;margin:0 0 24px">Your interview has been scheduled. Here is a quick summary:</p>
 
-            <h1 style="font-size:20px;font-weight:600;color:#1a1a2e;margin:0 0 8px;text-align:center">Interview confirmed</h1>
-            <p style="font-size:15px;color:#5b6778;line-height:1.5;margin:0 0 24px;text-align:center">
-              Your interview has been scheduled. Here's a quick summary:
-            </p>
+                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f6f7f4;border-left:3px solid #0c6b58;border-radius:8px;margin:0 0 24px">
+                      <tr>
+                        <td style="padding:16px 18px">
+                          <p style="font-size:14px;line-height:1.5;color:#54545c;margin:0 0 6px"><strong style="color:#1a1a1e">Organization:</strong> ${ORG_NAME}</p>
+                          <p style="font-size:14px;line-height:1.5;color:#54545c;margin:0 0 6px"><strong style="color:#1a1a1e">Role:</strong> ${JOB_ROLE}</p>
+                          <p style="font-size:14px;line-height:1.5;color:#54545c;margin:0"><strong style="color:#1a1a1e">Scheduled:</strong> ${SCHEDULED_AT}</p>
+                        </td>
+                      </tr>
+                    </table>
 
-            <!-- Detail card -->
-            <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f8f9fa;border-radius:8px;margin-bottom:24px">
-              <tr>
-                <td style="padding:20px">
-                  <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
-                    <tr>
-                      <td style="padding-bottom:12px">
-                        <p style="font-size:13px;color:#8e99a9;margin:0 0 2px">Organization</p>
-                        <p style="font-size:15px;color:#1a1a2e;font-weight:500;margin:0">${ORG_NAME}</p>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding-bottom:12px">
-                        <p style="font-size:13px;color:#8e99a9;margin:0 0 2px">Role</p>
-                        <p style="font-size:15px;color:#1a1a2e;font-weight:500;margin:0">${JOB_ROLE}</p>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <p style="font-size:13px;color:#8e99a9;margin:0 0 2px">Scheduled</p>
-                        <p style="font-size:15px;color:#1a1a2e;font-weight:500;margin:0">${SCHEDULED_AT}</p>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
+                    <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 24px">
+                      <tr>
+                        <td style="border-radius:8px;background:#0c6b58">
+                          <a href="${DASHBOARD_URL}" style="display:inline-block;padding:13px 32px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px">View dashboard</a>
+                        </td>
+                      </tr>
+                    </table>
 
-            <!-- Button -->
-            <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
-              <tr>
-                <td align="center" style="padding:0 0 24px">
-                  <a href="${DASHBOARD_URL}" style="display:inline-block;padding:14px 40px;background:#6c5ce7;color:#ffffff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:600;letter-spacing:0.3px">View dashboard</a>
-                </td>
-              </tr>
-            </table>
+                    <div style="height:1px;background:#eaeaf0;margin:0 0 18px"></div>
+                    <p style="font-size:13px;color:#6b7280;line-height:1.5;margin:0">
+                      Make sure you are in a quiet environment with a stable internet connection before your interview starts.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-            <!-- Divider -->
-            <div style="height:1px;background:#e8eaed;margin:0 0 20px"></div>
+          <tr>
+            <td align="center" style="padding:22px 12px 0">
+              <p style="font-size:12px;line-height:1.5;color:#6b7280;margin:0 0 4px">AI Interview Agent &middot; Evidence-based interviews</p>
+              <p style="font-size:12px;line-height:1.5;color:#8a8f98;margin:0">You received this email because you booked an interview. We will send a reminder before it starts.</p>
+              <p style="font-size:12px;line-height:1.5;color:#8a8f98;margin:6px 0 0">&copy; AI Interview Agent. All rights reserved.</p>
+            </td>
+          </tr>
 
-            <p style="font-size:13px;color:#8e99a9;margin:0;text-align:center;line-height:1.4">
-              Make sure you're in a quiet environment with a stable internet connection before your interview starts.
-            </p>
-
-          </td>
-        </tr>
-
-        <!-- Footer -->
-        <tr>
-          <td align="center" style="padding:24px 16px 0">
-            <p style="font-size:12px;color:#9aa0a6;margin:0 0 4px;line-height:1.4">
-              AI Interview Agent &mdash; AI-powered interview practice and evaluation
-            </p>
-            <p style="font-size:12px;color:#9aa0a6;margin:0;line-height:1.4">
-              You received this confirmation because you booked an interview. We'll send you a reminder before it starts.
-            </p>
-          </td>
-        </tr>
-
-      </table>
-    </td>
-  </tr>
-</table>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>

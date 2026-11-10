@@ -35,11 +35,16 @@ async def list_orgs(
         Organization.slug,
         Organization.is_active,
         Organization.created_at,
-        func.count(func.distinct(Organization.owner_user_id)).label("member_count"),
+        User.name.label("owner_name"),
+        User.email.label("owner_email"),
         func.count(func.distinct(InterviewSession.id)).label("interview_count"),
     ).outerjoin(
+        User, User.id == Organization.owner_user_id
+    ).outerjoin(
         InterviewSession, InterviewSession.org_id == Organization.id
-    ).group_by(Organization.id).order_by(Organization.created_at.desc())
+    ).group_by(
+        Organization.id, User.name, User.email
+    ).order_by(Organization.created_at.desc())
 
     if search:
         query = query.where(Organization.name.ilike(f"%{search}%"))
@@ -51,7 +56,8 @@ async def list_orgs(
             name=row.name,
             slug=row.slug,
             is_active=row.is_active,
-            member_count=row.member_count or 0,
+            owner_name=row.owner_name,
+            owner_email=row.owner_email,
             interview_count=row.interview_count or 0,
             created_at=row.created_at,
         )
@@ -72,10 +78,25 @@ async def list_users(
     search: str | None = None,
     db: AsyncSession = Depends(get_db),
 ) -> list[AdminUserResponse]:
-    query = select(User).order_by(User.created_at.desc())
+    query = (
+        select(User, Organization.name.label("org_name"))
+        .outerjoin(Organization, Organization.owner_user_id == User.id)
+        .order_by(User.created_at.desc())
+    )
     if search:
         query = query.where(
             User.name.ilike(f"%{search}%") | User.email.ilike(f"%{search}%")
         )
     result = await db.execute(query)
-    return [AdminUserResponse.model_validate(u) for u in result.scalars().all()]
+    return [
+        AdminUserResponse(
+            id=u.id,
+            email=u.email,
+            name=u.name,
+            is_active=u.is_active,
+            is_admin=u.is_admin,
+            org_name=org_name,
+            created_at=u.created_at,
+        )
+        for u, org_name in result.all()
+    ]

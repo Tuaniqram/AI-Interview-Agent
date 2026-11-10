@@ -66,7 +66,7 @@ class CandidateInterviewResponse(BaseModel):
     final_score: Optional[float] = None
     started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
-    department_name: Optional[str] = None
+    org_name: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

@@ -9,22 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.db import Organization, User
 from app.orgs.schemas import (
-    AddMemberByEmailRequest,
-    AddMemberRequest,
-    InviteMemberRequest,
-    OrgMemberResponse,
     OrganizationCreate,
     OrganizationResponse,
     OrganizationUpdate,
-    UpdateMemberRoleRequest,
+    OrgMemberResponse,
 )
-
-
-def _single_user_error() -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_410_GONE,
-        detail="Single-user organization: teammate management is disabled",
-    )
 
 
 async def create_org(req: OrganizationCreate, user: User, db: AsyncSession) -> OrganizationResponse:
@@ -77,6 +66,7 @@ async def update_org(org_id: UUID, req: OrganizationUpdate, user: User, db: Asyn
 
 
 async def list_members(org_id: UUID, db: AsyncSession, skip: int = 0, limit: int = 100) -> list[OrgMemberResponse]:
+    """An organization has exactly one member: its owner."""
     result = await db.execute(select(Organization).where(Organization.id == org_id))
     org = result.scalar_one_or_none()
     if not org:
@@ -97,42 +87,6 @@ async def list_members(org_id: UUID, db: AsyncSession, skip: int = 0, limit: int
             joined_at=org.created_at,
         )
     ]
-
-
-async def add_member(org_id: UUID, req: AddMemberRequest, user: User, db: AsyncSession) -> OrgMemberResponse:
-    raise _single_user_error()
-
-
-async def add_member_by_email(
-    org_id: UUID, req: AddMemberByEmailRequest, user: User, db: AsyncSession
-) -> OrgMemberResponse:
-    raise _single_user_error()
-
-
-async def remove_member(org_id: UUID, member_id: UUID, user: User, db: AsyncSession) -> None:
-    raise _single_user_error()
-
-
-async def update_member_role(
-    org_id: UUID,
-    member_user_id: UUID,
-    req: UpdateMemberRoleRequest,
-    actor: User,
-    db: AsyncSession,
-) -> OrgMemberResponse:
-    raise _single_user_error()
-
-
-async def invite_member(org_id: UUID, req: InviteMemberRequest, user: User, db: AsyncSession):
-    raise _single_user_error()
-
-
-async def verify_org_invitation(token: str, db: AsyncSession):
-    raise _single_user_error()
-
-
-async def accept_org_invitation(token: str, user: User, db: AsyncSession) -> OrgMemberResponse:
-    raise _single_user_error()
 
 
 async def _require_org_role(org_id: UUID, user_id: UUID, allowed_roles: list[str], db: AsyncSession) -> None:

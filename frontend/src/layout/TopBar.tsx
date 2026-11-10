@@ -3,8 +3,7 @@ import { Sun, Moon, Menu } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
 const pageTitles: Record<string, string> = {
-  '/dashboard': 'Dashboard',
-  '/departments': 'Departments',
+  '/org': 'Organization',
   '/sessions': 'Interview Sessions',
   '/analytics': 'Analytics',
   '/avatar-lab': 'Avatar Lab',
@@ -23,7 +22,7 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
   const { isDark, toggle } = useTheme();
 
   return (
-    <header className="h-14 bg-section flex items-center justify-between px-4 lg:px-6">
+    <header className="h-14 bg-section border-b border-border flex items-center justify-between px-4 lg:px-6">
       <div className="flex items-center gap-3">
         {onMenuToggle && (
           <button
@@ -34,7 +33,6 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
             <Menu className="w-5 h-5" />
           </button>
         )}
-        <img src="/favicon.svg" className="w-5 h-5" alt="" />
         <h2 className="text-sm font-semibold text-primary">{title}</h2>
       </div>
       <button

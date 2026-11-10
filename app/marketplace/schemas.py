@@ -28,7 +28,6 @@ class PublicInterviewResponse(BaseModel):
     rich_description: Optional[str] = None
     interview_mode: str
     org_name: Optional[str] = None
-    department_name: Optional[str] = None
     skills_required: Optional[str] = None
     style_name: Optional[str] = "STANDARD"
     starts_at: Optional[datetime] = None
@@ -42,7 +41,7 @@ class OrgPublicInterviewResponse(BaseModel):
     org_id: UUID
     it_role_id: UUID
     level_code: Optional[str] = None
-    department_name: Optional[str] = None
+    org_name: Optional[str] = None
     title: str
     description: Optional[str] = None
     rich_description: Optional[str] = None

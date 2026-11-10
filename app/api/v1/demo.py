@@ -66,7 +66,7 @@ async def refresh_demo_db(db: AsyncSession = Depends(get_db)):
     return {
         "message": (
             "Demo DB refreshed — interview/V5 runtime + listings wiped, "
-            "org / departments / docs / candidates / templates kept"
+            "org / docs / candidates / templates kept"
         ),
         "deleted": deleted,
         "kept": KEPT_TABLES,

@@ -1,3 +1,4 @@
+"""Organization-scoped content: sessions, knowledge documents, and interview templates."""
 import asyncio
 import logging
 import os
@@ -8,115 +9,21 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, UploadFile, File, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.rbac import require_org_role, resolve_org_id
+from app.auth.rbac import require_org_role_path
 from app.database.deps import get_db
-from app.models.db import InterviewSession, InterviewTemplate, Organization, OrganizationDocument
-from app.schemas.department import DepartmentCreate, DepartmentResponse, DepartmentUpdate
+from app.models.db import InterviewSession, InterviewTemplate, OrganizationDocument
 from app.services.it_role_resolver import resolve_it_role
 
-router = APIRouter(prefix="/departments", tags=["departments"])
+router = APIRouter(prefix="/orgs/{org_id}", tags=["org-content"])
 
 UPLOAD_DIR = "documents"
 ALLOWED_EXTENSIONS = {".pdf", ".doc", ".docx", ".txt", ".md"}
 logger = logging.getLogger(__name__)
-
-
-def _get_org_id(org_id: str = Depends(resolve_org_id)) -> str:
-    if not org_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="X-Org-Id header is required")
-    return org_id
-
-
-async def _org_or_404(org_id: str, db: AsyncSession) -> Organization:
-    result = await db.execute(select(Organization).where(Organization.id == org_id))
-    org = result.scalar_one_or_none()
-    if not org:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
-    return org
-
-
-def _synthetic_department(org: Organization) -> DepartmentResponse:
-    return DepartmentResponse(
-        id=0,
-        org_id=org.id,
-        name="IT Department",
-        website=org.website,
-        description=org.description,
-        created_at=org.created_at,
-    )
-
-
-@router.get("", response_model=list[DepartmentResponse])
-async def list_departments(
-    org_id: str = Depends(_get_org_id),
-    _: None = Depends(require_org_role(["owner", "member", "viewer"])),
-    db: AsyncSession = Depends(get_db),
-):
-    org = await _org_or_404(org_id, db)
-    return [_synthetic_department(org)]
-
-
-@router.post("", response_model=DepartmentResponse)
-async def create_department(
-    req: DepartmentCreate,
-    org_id: str = Depends(_get_org_id),
-    _: None = Depends(require_org_role(["owner"])),
-    db: AsyncSession = Depends(get_db),
-):
-    raise HTTPException(
-        status_code=status.HTTP_410_GONE,
-        detail="Departments are not configurable; IT documents belong to the organization",
-    )
-
-
-@router.get("/{department_id}", response_model=DepartmentResponse)
-async def get_department(
-    department_id: int,
-    org_id: str = Depends(_get_org_id),
-    _: None = Depends(require_org_role(["owner", "member", "viewer"])),
-    db: AsyncSession = Depends(get_db),
-):
-    org = await _org_or_404(org_id, db)
-    return _synthetic_department(org)
-
-
-@router.patch("/{department_id}", response_model=DepartmentResponse)
-async def update_department(
-    department_id: int,
-    req: DepartmentUpdate,
-    org_id: str = Depends(_get_org_id),
-    _: None = Depends(require_org_role(["owner"])),
-    db: AsyncSession = Depends(get_db),
-):
-    org = await _org_or_404(org_id, db)
-    data = req.model_dump(exclude_unset=True)
-    if "name" in data and data["name"]:
-        org.name = data["name"]
-    if "website" in data:
-        org.website = data["website"]
-    if "description" in data:
-        org.description = data["description"]
-    await db.commit()
-    await db.refresh(org)
-    return _synthetic_department(org)
-
-
-@router.delete("/{department_id}", status_code=204)
-async def delete_department(
-    department_id: int,
-    org_id: str = Depends(_get_org_id),
-    _: None = Depends(require_org_role(["owner"])),
-    db: AsyncSession = Depends(get_db),
-):
-    raise HTTPException(
-        status_code=status.HTTP_410_GONE,
-        detail="Departments are not configurable; delete organization documents instead",
-    )
 
 
 class SessionSummaryResponse(BaseModel):
@@ -130,11 +37,10 @@ class SessionSummaryResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-@router.get("/{department_id}/sessions", response_model=list[SessionSummaryResponse])
-async def list_department_sessions(
-    department_id: int,
-    org_id: str = Depends(_get_org_id),
-    _: None = Depends(require_org_role(["owner", "member", "viewer"])),
+@router.get("/sessions", response_model=list[SessionSummaryResponse])
+async def list_org_sessions(
+    org_id: UUID,
+    _: None = Depends(require_org_role_path(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -166,11 +72,10 @@ class DocumentResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-@router.get("/{department_id}/documents", response_model=list[DocumentResponse])
+@router.get("/documents", response_model=list[DocumentResponse])
 async def list_documents(
-    department_id: int,
-    org_id: str = Depends(_get_org_id),
-    _: None = Depends(require_org_role(["owner", "member", "viewer"])),
+    org_id: UUID,
+    _: None = Depends(require_org_role_path(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -190,17 +95,14 @@ async def list_documents(
     ]
 
 
-@router.post("/{department_id}/documents")
+@router.post("/documents")
 async def upload_document(
-    department_id: int,
+    org_id: UUID,
     file: UploadFile = File(...),
     background_tasks: BackgroundTasks = None,
-    org_id: str = Depends(_get_org_id),
-    _: None = Depends(require_org_role(["owner"])),
+    _: None = Depends(require_org_role_path(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
-    await _org_or_404(org_id, db)
-
     _, ext = os.path.splitext(file.filename or "")
     if ext.lower() not in ALLOWED_EXTENSIONS:
         raise HTTPException(
@@ -219,21 +121,22 @@ async def upload_document(
     loop = asyncio.get_running_loop()
     filepath = await loop.run_in_executor(None, _save)
 
+    from app.rag.pinecone_store import org_namespace
+
     doc_id = libuuid.uuid4()
-    namespace = f"department_{org_id}"
     doc = OrganizationDocument(
         id=doc_id,
         org_id=org_id,
         filename=file.filename,
         document_type=ext.lstrip(".").lower() or "pdf",
-        pinecone_namespace=namespace,
+        pinecone_namespace=org_namespace(str(org_id)),
     )
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
 
     if background_tasks:
-        background_tasks.add_task(_process_document, filepath, org_id, str(doc_id), file.filename)
+        background_tasks.add_task(_process_org_document, filepath, str(org_id), str(doc_id), file.filename)
 
     return {
         "message": "Upload queued",
@@ -253,11 +156,11 @@ def _invalidate_org_brain(org_id) -> None:
         logger.warning(f"Company brain cache invalidation failed: {exc}")
 
 
-async def _process_document(filepath: str, org_id: str, doc_id: str, filename: str):
+async def _process_org_document(filepath: str, org_id: str, doc_id: str, filename: str):
     try:
         from app.rag.loader import load_pdf
-        from app.rag.splitter import split_documents
         from app.rag.pinecone_store import store_department_knowledge
+        from app.rag.splitter import split_documents
 
         documents = load_pdf(filepath)
         chunks = split_documents(documents)
@@ -268,12 +171,11 @@ async def _process_document(filepath: str, org_id: str, doc_id: str, filename: s
         logger.error(f"RAG pipeline failed for {filename} (doc_id={doc_id}): {e}")
 
 
-@router.delete("/{department_id}/documents/{doc_id}", status_code=204)
+@router.delete("/documents/{doc_id}", status_code=204)
 async def delete_document(
-    department_id: int,
+    org_id: UUID,
     doc_id: str,
-    org_id: str = Depends(_get_org_id),
-    _: None = Depends(require_org_role(["owner"])),
+    _: None = Depends(require_org_role_path(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
     doc_result = await db.execute(
@@ -288,7 +190,7 @@ async def delete_document(
 
     try:
         from app.rag.pinecone_store import delete_department_knowledge
-        delete_department_knowledge(org_id, doc_id)
+        delete_department_knowledge(str(org_id), doc_id)
     except Exception as e:
         logger.warning(f"Pinecone delete failed (continuing): {e}")
     _invalidate_org_brain(org_id)
@@ -325,7 +227,6 @@ class TemplateUpdateRequest(BaseModel):
 
 class TemplateResponse(BaseModel):
     id: UUID
-    department_id: int = 0
     it_role_id: Optional[UUID] = None
     name: str
     job_role: str
@@ -343,7 +244,6 @@ class TemplateResponse(BaseModel):
 def _template_response(t: InterviewTemplate) -> TemplateResponse:
     return TemplateResponse(
         id=t.id,
-        department_id=0,
         it_role_id=t.it_role_id,
         name=t.name,
         job_role=t.job_role_snapshot,
@@ -357,11 +257,10 @@ def _template_response(t: InterviewTemplate) -> TemplateResponse:
     )
 
 
-@router.get("/{department_id}/templates", response_model=list[TemplateResponse])
+@router.get("/templates", response_model=list[TemplateResponse])
 async def list_templates(
-    department_id: int,
-    org_id: str = Depends(_get_org_id),
-    _: None = Depends(require_org_role(["owner", "member", "viewer"])),
+    org_id: UUID,
+    _: None = Depends(require_org_role_path(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -372,15 +271,13 @@ async def list_templates(
     return [_template_response(t) for t in result.scalars().all()]
 
 
-@router.post("/{department_id}/templates", response_model=TemplateResponse)
+@router.post("/templates", response_model=TemplateResponse)
 async def create_template(
-    department_id: int,
+    org_id: UUID,
     req: TemplateCreateRequest,
-    org_id: str = Depends(_get_org_id),
-    _: None = Depends(require_org_role(["owner"])),
+    _: None = Depends(require_org_role_path(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
-    await _org_or_404(org_id, db)
     it_role = await resolve_it_role(db, req.job_role)
 
     template = InterviewTemplate(
@@ -402,12 +299,11 @@ async def create_template(
     return _template_response(template)
 
 
-@router.get("/{department_id}/templates/{template_id}", response_model=TemplateResponse)
+@router.get("/templates/{template_id}", response_model=TemplateResponse)
 async def get_template(
-    department_id: int,
+    org_id: UUID,
     template_id: str,
-    org_id: str = Depends(_get_org_id),
-    _: None = Depends(require_org_role(["owner", "member", "viewer"])),
+    _: None = Depends(require_org_role_path(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -422,13 +318,12 @@ async def get_template(
     return _template_response(template)
 
 
-@router.put("/{department_id}/templates/{template_id}", response_model=TemplateResponse)
+@router.put("/templates/{template_id}", response_model=TemplateResponse)
 async def update_template(
-    department_id: int,
+    org_id: UUID,
     template_id: str,
     req: TemplateUpdateRequest,
-    org_id: str = Depends(_get_org_id),
-    _: None = Depends(require_org_role(["owner"])),
+    _: None = Depends(require_org_role_path(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -457,12 +352,11 @@ async def update_template(
     return _template_response(template)
 
 
-@router.delete("/{department_id}/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_template(
-    department_id: int,
+    org_id: UUID,
     template_id: str,
-    org_id: str = Depends(_get_org_id),
-    _: None = Depends(require_org_role(["owner"])),
+    _: None = Depends(require_org_role_path(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(

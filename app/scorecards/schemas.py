@@ -45,3 +45,16 @@ class ScorecardResultResponse(BaseModel):
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+
+
+class ScorecardResultListItem(BaseModel):
+    id: UUID
+    session_id: UUID
+    template_id: Optional[UUID] = None
+    template_name: Optional[str] = None
+    candidate_name: Optional[str] = None
+    candidate_email: Optional[str] = None
+    job_role: Optional[str] = None
+    session_status: Optional[str] = None
+    weighted_score: Optional[float] = None
+    created_at: Optional[datetime] = None

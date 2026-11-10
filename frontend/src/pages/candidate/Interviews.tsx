@@ -52,8 +52,8 @@ export default function CandidateInterviews() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold text-[var(--text-primary)]">{interview.job_role}</h3>
-                  {interview.department_name && (
-                    <p className="text-sm text-[var(--text-secondary)]">{interview.department_name}</p>
+              {interview.org_name && (
+                <p className="text-sm text-[var(--text-secondary)]">{interview.org_name}</p>
                   )}
                 </div>
                 <div className="text-right">

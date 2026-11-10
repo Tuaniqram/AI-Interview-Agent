@@ -203,7 +203,9 @@ export interface InterviewStatusResponse {
  */
 export interface InterviewReport {
   session_id: string;
-  department_id?: number;
+  org_name?: string | null;
+  candidate_name?: string | null;
+  candidate_email?: string | null;
   job_role?: string;
   status: InterviewStatus;
   final_score: number | null;
@@ -236,6 +238,19 @@ export interface InterviewReport {
   /** What each score rests on, per answer: competency, score and the supporting words. */
   evidence_items?: EvidenceItem[];
   v4_competency_summary?: Record<string, { average_score: number; evidence_count: number; gap: number }>;
+  /** Weighted scorecard result (custom rubric or AURA's built-in summary). */
+  scorecard?: {
+    template_name?: string | null;
+    weighted_score?: number | null;
+    scores: Record<string, {
+      name?: string;
+      normalized?: number;
+      weighted?: number;
+      score?: number;
+      evidence_count?: number;
+      [key: string]: unknown;
+    }>;
+  } | null;
 }
 
 export interface EvidenceItem {

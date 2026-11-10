@@ -1,10 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Home, LayoutDashboard, X, Search } from 'lucide-react';
-import { Checkbox } from '../shared/Checkbox';
 import { RadioGroup } from '../shared/RadioGroup';
 
 export interface HubFilters {
-  modes: string[];
   expiry: string;
 }
 
@@ -17,12 +15,6 @@ interface OpportunityHubSidebarProps {
   onApply: () => void;
 }
 
-const INTERVIEW_MODES = [
-  { value: 'typing', label: 'Typing' },
-  { value: 'voice', label: 'Voice' },
-  { value: 'avatar', label: 'Avatar' },
-];
-
 const EXPIRY_OPTIONS = [
   { value: 'any', label: 'Any Time' },
   { value: '7d', label: 'Within 7 days' },
@@ -33,13 +25,6 @@ export function OpportunityHubSidebar({
   open, onClose, isAuthenticated, filters, onFiltersChange, onApply,
 }: OpportunityHubSidebarProps) {
   const location = useLocation();
-
-  const toggleMode = (mode: string) => {
-    const next = filters.modes.includes(mode)
-      ? filters.modes.filter(m => m !== mode)
-      : [...filters.modes, mode];
-    onFiltersChange({ ...filters, modes: next });
-  };
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -100,18 +85,6 @@ export function OpportunityHubSidebar({
           <p className="px-3 text-xs font-medium text-muted uppercase tracking-wider mb-2">
             Filters
           </p>
-
-          <div className="space-y-1 mb-4">
-            <p className="px-3 text-xs font-medium text-secondary">Interview Mode</p>
-            {INTERVIEW_MODES.map(mode => (
-              <Checkbox
-                key={mode.value}
-                checked={filters.modes.includes(mode.value)}
-                onChange={() => toggleMode(mode.value)}
-                label={mode.label}
-              />
-            ))}
-          </div>
 
           <div className="mb-4">
             <RadioGroup

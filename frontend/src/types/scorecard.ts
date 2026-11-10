@@ -20,6 +20,7 @@ export interface ScorecardResult {
   session_id: string;
   template_id: string | null;
   scores: Record<string, {
+    name?: string;
     raw_avg: number;
     normalized: number;
     weight: number;
@@ -28,4 +29,17 @@ export interface ScorecardResult {
   }>;
   weighted_score: number | null;
   created_at: string | null;
+}
+
+export interface ScorecardResultListItem {
+  id: string;
+  session_id: string;
+  template_id?: string | null;
+  template_name?: string | null;
+  candidate_name?: string | null;
+  candidate_email?: string | null;
+  job_role?: string | null;
+  session_status?: string | null;
+  weighted_score?: number | null;
+  created_at?: string | null;
 }

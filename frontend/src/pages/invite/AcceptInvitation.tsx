@@ -12,7 +12,7 @@ export default function AcceptInvitation() {
     candidate_name: string;
     candidate_email: string;
     job_role: string;
-    department_name: string | null;
+    org_name: string | null;
   } | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -69,10 +69,10 @@ export default function AcceptInvitation() {
             <span className="text-sm text-[var(--text-secondary)]">Position</span>
             <p className="font-semibold text-[var(--text-primary)]">{invite?.job_role}</p>
           </div>
-          {invite?.department_name && (
+          {invite?.org_name && (
             <div>
-              <span className="text-sm text-[var(--text-secondary)]">Department</span>
-              <p className="font-semibold text-[var(--text-primary)]">{invite.department_name}</p>
+              <span className="text-sm text-[var(--text-secondary)]">Organization</span>
+              <p className="font-semibold text-[var(--text-primary)]">{invite.org_name}</p>
             </div>
           )}
           <div>

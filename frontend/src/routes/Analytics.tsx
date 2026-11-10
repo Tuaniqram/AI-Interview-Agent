@@ -12,7 +12,7 @@ import {
   type OverviewData as Overview,
   type TrendPoint,
   type DistributionPoint,
-  type DepartmentData,
+  type ItRoleData,
   type RoleData,
 } from '../services/analyticsService';
 
@@ -23,7 +23,7 @@ export function Analytics() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [distribution, setDistribution] = useState<DistributionPoint[]>([]);
-  const [byDepartment, setByDepartment] = useState<DepartmentData[]>([]);
+  const [byItRole, setByItRole] = useState<ItRoleData[]>([]);
   const [byRole, setByRole] = useState<RoleData[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('All');
@@ -37,14 +37,14 @@ export function Analytics() {
           analyticsService.getOverview(),
           analyticsService.getScoreTrend(),
           analyticsService.getScoreDistribution(),
-          analyticsService.getSessionsByDepartment(),
+          analyticsService.getSessionsByItRole(),
           analyticsService.getSessionsByRole(),
         ]);
         if (cancelled) return;
         if (o.status === 'fulfilled') setOverview(o.value);
         if (t.status === 'fulfilled') setTrend(t.value);
         if (d.status === 'fulfilled') setDistribution(d.value);
-        if (c.status === 'fulfilled') setByDepartment(c.value);
+        if (c.status === 'fulfilled') setByItRole(c.value);
         if (r.status === 'fulfilled') setByRole(r.value);
       } catch {} finally {
         if (!cancelled) setLoading(false);
@@ -119,7 +119,7 @@ export function Analytics() {
         <MetricCard label="Total Sessions" value={overview?.total_sessions ?? 0} icon={<ListChecks className="w-4 h-4" />} />
         <MetricCard label="Avg Score" value={overview?.average_score != null ? overview.average_score.toFixed(1) : '—'} icon={<TrendingUp className="w-4 h-4" />} />
         <MetricCard label="Completion Rate" value={`${overview?.completion_rate ?? 0}%`} icon={<Target className="w-4 h-4" />} />
-        <MetricCard label="Departments" value={overview?.total_departments ?? 0} icon={<Building2 className="w-4 h-4" />} />
+        <MetricCard label="IT Roles" value={overview?.total_it_roles ?? 0} icon={<Building2 className="w-4 h-4" />} />
       </div>
 
       {/* Charts Row */}
@@ -166,14 +166,14 @@ export function Analytics() {
 
       {/* Second Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Sessions by Department */}
+        {/* Sessions by IT Role */}
         <Card>
-          <h3 className="text-sm font-medium text-primary mb-4">Sessions by Department</h3>
-          {byDepartment.length === 0 ? (
+          <h3 className="text-sm font-medium text-primary mb-4">Sessions by IT Role</h3>
+          {byItRole.length === 0 ? (
             <p className="text-xs text-muted text-center py-8">No data yet</p>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={byDepartment.slice(0, 8)} layout="vertical">
+              <BarChart data={byItRole.slice(0, 8)} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--divider)" />
                 <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
                 <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />

@@ -30,8 +30,8 @@ export default function CandidateInterviewDetail() {
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">{interview.job_role}</h1>
-        {interview.department_name && (
-          <p className="text-[var(--text-secondary)]">{interview.department_name}</p>
+        {interview.org_name && (
+          <p className="text-[var(--text-secondary)]">{interview.org_name}</p>
         )}
       </div>
 

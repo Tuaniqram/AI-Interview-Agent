@@ -54,19 +54,19 @@ export default function OrgDashboard() {
           onClick={() => navigate('/sessions')} />
         <MetricCard label="Active Sessions" value={overview?.active_sessions ?? 0} icon={<Target className="w-4 h-4" />} />
         <MetricCard label="Avg Score" value={overview?.average_score != null ? overview.average_score.toFixed(1) : '—'} icon={<TrendingUp className="w-4 h-4" />} />
-        <MetricCard label="IT Roles" value={overview?.total_departments ?? 0} icon={<Building2 className="w-4 h-4" />}
-          onClick={() => navigate('/departments')} />
+        <MetricCard label="IT Roles" value={overview?.total_it_roles ?? 0} icon={<Building2 className="w-4 h-4" />}
+          onClick={() => navigate('/org/company')} />
         <MetricCard label="Completion Rate" value={`${overview?.completion_rate ?? 0}%`} icon={<Target className="w-4 h-4" />} />
         <MetricCard label="Marketplace Listings" value={listingCount} icon={<Store className="w-4 h-4" />}
-          onClick={() => navigate('/departments')} />
+          onClick={() => navigate('/org/company')} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card hover onClick={() => navigate('/departments')}>
+        <Card hover onClick={() => navigate('/org/company')}>
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-medium text-primary flex items-center gap-2"><Building2 className="w-4 h-4" /> IT Department</h3>
-              <p className="text-xs text-muted mt-1">Role listings and interview settings</p>
+              <h3 className="text-sm font-medium text-primary flex items-center gap-2"><Building2 className="w-4 h-4" /> Company</h3>
+              <p className="text-xs text-muted mt-1">Documents, listings and interview settings</p>
             </div>
             <ArrowRight className="w-4 h-4 text-muted" />
           </div>

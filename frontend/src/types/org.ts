@@ -10,25 +10,7 @@ export interface Organization {
   updated_at: string | null;
 }
 
-export interface OrgMember {
-  id: string;
-  user_id: string;
-  email: string;
-  name: string;
-  role: string;
-  joined_at: string | null;
-}
-
-export type OrgRole = 'owner' | 'member' | 'viewer';
-
-export interface OrgInvitationVerifyResponse {
-  valid: boolean;
-  org_name: string;
-  org_slug: string;
-  inviter_name: string;
-  email: string;
-  role: string;
-}
+export type OrgRole = 'owner';
 
 export interface OrganizationCreate {
   name: string;

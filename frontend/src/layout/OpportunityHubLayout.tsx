@@ -14,12 +14,11 @@ export function OpportunityHubLayout() {
   const showFilters = useLocation().pathname.replace(/\/+$/, '') === '/opportunity-hub';
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState<HubFilters>({ modes: [], expiry: 'any' });
+  const [filters, setFilters] = useState<HubFilters>({ expiry: 'any' });
 
   const applyFilters = () => {
     const params = new URLSearchParams();
     if (search) params.set('search', search);
-    if (filters.modes.length) params.set('modes', filters.modes.join(','));
     if (filters.expiry !== 'any') params.set('expiry', filters.expiry);
     navigate({ pathname: '/opportunity-hub', search: params.toString() });
   };

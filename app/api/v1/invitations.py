@@ -122,7 +122,7 @@ async def verify_invitation(token: str, db: AsyncSession = Depends(get_db)):
         "candidate_name": invitation.candidate_name,
         "candidate_email": invitation.candidate_email,
         "job_role": invitation.job_role_snapshot,
-        "department_name": organization.name if organization else None,
+        "org_name": organization.name if organization else None,
     }
 
 

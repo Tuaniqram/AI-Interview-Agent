@@ -1,15 +1,13 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import type { Organization, OrgMember } from '../types/org';
+import type { Organization } from '../types/org';
 import { orgService } from '../services/orgService';
 import { useAuth } from './AuthContext';
 
 interface OrgContextType {
   activeOrg: Organization | null;
   orgs: Organization[];
-  members: OrgMember[];
   loading: boolean;
   switchOrg: (orgId: string) => Promise<void>;
-  refreshMembers: () => Promise<void>;
   refreshOrgs: () => Promise<void>;
 }
 
@@ -19,7 +17,6 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
   const { memberships } = useAuth();
   const [activeOrg, setActiveOrg] = useState<Organization | null>(null);
   const [orgs, setOrgs] = useState<Organization[]>([]);
-  const [members, setMembers] = useState<OrgMember[]>([]);
   const [loading, setLoading] = useState(false);
 
   const switchOrg = useCallback(async (orgId: string) => {
@@ -28,8 +25,6 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('active_org_id', orgId);
       const org = await orgService.get(orgId);
       setActiveOrg(org);
-      // Members are loaded on demand (refreshMembers): no page needs them at startup, and
-      // every extra request costs a full round trip to the database.
     } catch (err) {
       console.error('Failed to switch org', err);
     } finally {
@@ -49,12 +44,6 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
     setOrgs(orgList);
   }, [memberships]);
 
-  const refreshMembers = useCallback(async () => {
-    if (!activeOrg) return;
-    const memberList = await orgService.listMembers(activeOrg.id);
-    setMembers(memberList);
-  }, [activeOrg]);
-
   useEffect(() => {
     if (!memberships || memberships.length === 0) return;
     // Use the remembered org when the user still belongs to it, else the first membership.
@@ -70,7 +59,7 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <OrgContext.Provider
-      value={{ activeOrg, orgs, members, loading, switchOrg, refreshMembers, refreshOrgs }}
+      value={{ activeOrg, orgs, loading, switchOrg, refreshOrgs }}
     >
       {children}
     </OrgContext.Provider>

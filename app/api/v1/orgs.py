@@ -1,37 +1,23 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.middleware import authenticate
-from app.auth.rbac import require_admin, require_org_role_path
+from app.auth.rbac import require_org_role_path
 from app.database.deps import get_db
-from app.models.db import InterviewTemplate, Organization, User, ScorecardTemplate, ScorecardResult
+from app.models.db import User
 from app.orgs.schemas import (
-    AddMemberByEmailRequest,
-    AddMemberRequest,
-    InviteMemberRequest,
-    InviteMemberResponse,
-    OrgInvitationVerifyResponse,
     OrganizationCreate,
     OrganizationResponse,
     OrganizationUpdate,
     OrgMemberResponse,
-    UpdateMemberRoleRequest,
 )
 from app.orgs.service import (
-    accept_org_invitation,
-    add_member,
-    add_member_by_email,
     create_org,
     get_org,
-    invite_member,
     list_members,
-    remove_member,
-    update_member_role,
     update_org,
-    verify_org_invitation,
 )
 
 router = APIRouter(prefix="/orgs", tags=["orgs"])
@@ -49,8 +35,7 @@ async def create_org_endpoint(
 @router.get("/{org_id}", response_model=OrganizationResponse)
 async def get_org_endpoint(
     org_id: UUID,
-    user: User = Depends(authenticate),
-    _: None = Depends(require_org_role_path(["owner", "member", "viewer"])),
+    _: None = Depends(require_org_role_path(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
     return await get_org(org_id, db)
@@ -70,122 +55,9 @@ async def update_org_endpoint(
 @router.get("/{org_id}/members", response_model=list[OrgMemberResponse])
 async def list_members_endpoint(
     org_id: UUID,
-    user: User = Depends(authenticate),
-    _: None = Depends(require_org_role_path(["owner", "member", "viewer"])),
+    _: None = Depends(require_org_role_path(["owner"])),
     db: AsyncSession = Depends(get_db),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
 ):
     return await list_members(org_id, db, skip=skip, limit=limit)
-
-
-@router.post("/{org_id}/members", response_model=OrgMemberResponse)
-async def add_member_endpoint(
-    org_id: UUID,
-    req: AddMemberRequest,
-    user: User = Depends(authenticate),
-    _: None = Depends(require_org_role_path(["owner"])),
-    db: AsyncSession = Depends(get_db),
-):
-    return await add_member(org_id, req, user, db)
-
-
-@router.post("/{org_id}/members/by-email", response_model=OrgMemberResponse)
-async def add_member_by_email_endpoint(
-    org_id: UUID,
-    req: AddMemberByEmailRequest,
-    user: User = Depends(authenticate),
-    _: None = Depends(require_org_role_path(["owner"])),
-    db: AsyncSession = Depends(get_db),
-):
-    return await add_member_by_email(org_id, req, user, db)
-
-
-@router.patch("/{org_id}/members/{member_id}", response_model=OrgMemberResponse)
-async def update_member_role_endpoint(
-    org_id: UUID,
-    member_id: UUID,
-    req: UpdateMemberRoleRequest,
-    user: User = Depends(authenticate),
-    _: None = Depends(require_org_role_path(["owner"])),
-    db: AsyncSession = Depends(get_db),
-):
-    return await update_member_role(org_id, member_id, req, user, db)
-
-
-@router.delete("/{org_id}/members/{member_id}", status_code=204)
-async def remove_member_endpoint(
-    org_id: UUID,
-    member_id: UUID,
-    user: User = Depends(authenticate),
-    _: None = Depends(require_org_role_path(["owner"])),
-    db: AsyncSession = Depends(get_db),
-):
-    await remove_member(org_id, member_id, user, db)
-
-
-@router.get("/{org_id}/templates")
-async def list_org_templates(
-    org_id: UUID,
-    department_id: int | None = None,
-    it_role_id: UUID | None = None,
-    _: User = Depends(require_org_role_path(["owner", "member", "viewer"])),
-    db: AsyncSession = Depends(get_db),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
-):
-    query = (
-        select(InterviewTemplate, Organization.name.label("org_name"))
-        .join(Organization, InterviewTemplate.org_id == Organization.id)
-        .where(InterviewTemplate.org_id == org_id)
-        .order_by(InterviewTemplate.created_at.desc())
-    )
-    if it_role_id is not None:
-        query = query.where(InterviewTemplate.it_role_id == it_role_id)
-
-    result = await db.execute(query.offset(skip).limit(limit))
-    rows = result.all()
-    return [
-        {
-            "id": str(t.id),
-            "department_id": None,
-            "department_name": org_name,
-            "it_role_id": str(t.it_role_id),
-            "level_code": t.level_code,
-            "name": t.name,
-            "job_role": t.job_role_snapshot,
-            "description": t.description,
-            "interview_style": t.interview_style,
-            "competencies": t.competencies,
-            "total_questions": t.total_questions,
-            "created_at": t.created_at.isoformat() if t.created_at else None,
-        }
-        for t, org_name in rows
-    ]
-
-
-@router.post("/{org_id}/invite", response_model=InviteMemberResponse)
-async def invite_member_endpoint(
-    org_id: UUID,
-    req: InviteMemberRequest,
-    user: User = Depends(authenticate),
-    db: AsyncSession = Depends(get_db),
-):
-    return await invite_member(org_id, req, user, db)
-
-
-@router.get("/invitations/{token}", response_model=OrgInvitationVerifyResponse)
-async def verify_org_invitation_endpoint(
-    token: str,
-    db: AsyncSession = Depends(get_db),
-):
-    return await verify_org_invitation(token, db)
-
-
-@router.post("/invitations/{token}/accept", response_model=OrgMemberResponse)
-async def accept_org_invitation_endpoint(
-    token: str,
-    user: User = Depends(authenticate),
-    db: AsyncSession = Depends(get_db),
-):
-    return await accept_org_invitation(token, user, db)

@@ -87,13 +87,13 @@ export function Settings() {
       </Card>
 
       {/* Marketplace */}
-      <Card padding="lg" hover onClick={() => navigate('/departments')}>
+      <Card padding="lg" hover onClick={() => navigate('/org/company')}>
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-primary mb-1">Marketplace</h3>
             <p className="text-xs text-muted mb-2">Manage your public interview listings</p>
             <p className="text-sm text-secondary">
-              Create and manage interview listings from each department's{' '}
+              Create and manage interview listings from your company's{' '}
               <span className="font-medium text-primary">Interview Listings</span> tab.
             </p>
           </div>

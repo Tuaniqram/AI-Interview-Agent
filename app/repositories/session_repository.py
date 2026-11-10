@@ -124,29 +124,3 @@ class SessionRepository(BaseRepository):
         except Exception as e:
             self.logger.error(f"Error counting messages: {e}")
             return 0
-
-    async def get_session_summary(self, session_id: str) -> dict:
-        try:
-            session = await self.get_session(session_id)
-            messages = await self.list_by_session(session_id, InterviewMessage)
-            questions_attempted = len([
-                m for m in messages
-                if m.get("question_number", 0) < session.get("current_question_number", 0)
-            ])
-            return {
-                "id": session["id"],
-                "department_id": session["department_id"],
-                "job_role": session["job_role"],
-                "status": session["status"],
-                "current_phase": session["current_phase"],
-                "current_question_number": session["current_question_number"],
-                "total_questions": session["total_questions"],
-                "session_type": session.get("session_type", "company"),
-                "final_score": session.get("final_score"),
-                "ended_at": session.get("ended_at"),
-                "messages_count": len(messages),
-                "questions_attempted": questions_attempted
-            }
-        except Exception as e:
-            logger.error(f"Error getting session summary: {e}", exc_info=True)
-            raise
