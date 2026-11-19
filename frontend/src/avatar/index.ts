@@ -1,6 +1,0 @@
-export { LipSyncController } from './LipSyncController'
-export { VisemeEngine } from './VisemeEngine'
-export { AudioSync } from './AudioSync'
-export { MorphTargetController } from './MorphTargetController'
-export { ExpressionController } from './ExpressionController'
-export type { VisemeEvent, AudioChunkEvent, ExpressionEvent, GestureEvent, LipSyncState } from './types'

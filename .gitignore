@@ -100,3 +100,14 @@ docs/*
 tools/interview_sim/out/
 # Grim Prompter threat-model output
 threat-model/
+
+# ---- prod branch: deploy-only allow-list (everything not listed below is ignored) ----
+/*
+!/app/
+!/prompts/
+!/alembic/
+!/alembic.ini
+!/requirements.txt
+!/runtime.txt
+!/.env.example
+!/.gitignore
