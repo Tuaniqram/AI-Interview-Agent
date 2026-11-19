@@ -429,10 +429,14 @@ async def update_public_interview(
     interview_id: str,
     req: UpdatePublicInterviewRequest,
     db: AsyncSession,
+    org_id: Optional[str] = None,
 ) -> OrgPublicInterviewResponse:
-    result = await db.execute(
-        select(PublicInterview).where(PublicInterview.id == interview_id)
-    )
+    # ``org_id`` scopes the lookup to the caller's organization: a listing of another organization is "not found".
+    # ``None`` (platform admin) leaves it unscoped.
+    query = select(PublicInterview).where(PublicInterview.id == interview_id)
+    if org_id is not None:
+        query = query.where(PublicInterview.org_id == org_id)
+    result = await db.execute(query)
     pi = result.scalar_one_or_none()
     if not pi:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found")
@@ -465,10 +469,12 @@ async def update_public_interview(
 async def delete_public_interview(
     interview_id: str,
     db: AsyncSession,
+    org_id: Optional[str] = None,
 ) -> None:
-    result = await db.execute(
-        select(PublicInterview).where(PublicInterview.id == interview_id)
-    )
+    query = select(PublicInterview).where(PublicInterview.id == interview_id)
+    if org_id is not None:
+        query = query.where(PublicInterview.org_id == org_id)
+    result = await db.execute(query)
     pi = result.scalar_one_or_none()
     if not pi:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interview not found")

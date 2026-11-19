@@ -9,6 +9,7 @@ from app.auth.middleware import authenticate
 from app.auth.rbac import require_org_role, require_org_role_path, resolve_org_id
 from app.candidates.auth import optional_candidate_auth, require_verified_candidate
 from app.database.deps import get_db
+from app.models.db import User
 from app.marketplace.schemas import (
     ApplicationInvitationResponse,
     ApplicationOutcomeRequest,
@@ -117,11 +118,14 @@ async def update_listing(
     interview_id: UUID,
     req: UpdatePublicInterviewRequest,
     request: Request,
+    org_id: Optional[str] = Depends(resolve_org_id),
+    user: User = Depends(authenticate),
     _: None = Depends(require_org_role(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
     interview_id = str(interview_id)
-    result = await update_public_interview(interview_id, req, db)
+    # require_org_role proved the caller owns the header organization; the listing must belong to it too.
+    result = await update_public_interview(interview_id, req, db, org_id=None if user.is_admin else org_id)
     audit = AuditLogService(db)
     await audit.log(
         action="marketplace.update",
@@ -137,11 +141,13 @@ async def update_listing(
 async def delete_listing(
     interview_id: UUID,
     request: Request,
+    org_id: Optional[str] = Depends(resolve_org_id),
+    user: User = Depends(authenticate),
     _: None = Depends(require_org_role(["owner"])),
     db: AsyncSession = Depends(get_db),
 ):
     interview_id = str(interview_id)
-    await delete_public_interview(interview_id, db)
+    await delete_public_interview(interview_id, db, org_id=None if user.is_admin else org_id)
     audit = AuditLogService(db)
     await audit.log(
         action="marketplace.delete",
