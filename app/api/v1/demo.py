@@ -48,8 +48,13 @@ KEPT_TABLES = [
 async def refresh_demo_db(db: AsyncSession = Depends(get_db)):
     """Wipe all interview/V5 runtime data and listings, keep demo data.
 
-    Local demo tool — refused unless the app is served from localhost.
+    Local demo tool — refused unless DEMO_TOOLS_ENABLED is set AND the app is served from localhost. The route has
+    no login, so the explicit switch (off by default) is what keeps it closed on a deployed instance.
     """
+    if not settings.DEMO_TOOLS_ENABLED:
+        raise HTTPException(
+            status_code=403, detail="Demo tools are disabled (set DEMO_TOOLS_ENABLED=true for local demos)"
+        )
     is_dev = "localhost" in settings.APP_URL or "127.0.0.1" in settings.APP_URL
     if not is_dev:
         raise HTTPException(

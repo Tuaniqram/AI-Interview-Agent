@@ -120,7 +120,7 @@ Organization access is checked through `organizations.owner_user_id`. There is n
 
 | Method | Path | Auth | Status | Purpose |
 |---|---|---|---|---|
-| POST | `/refresh-db` | Local dev only | ALIGNED | Wipe runtime sessions, keep org/docs/resume/catalog |
+| POST | `/refresh-db` | Local dev only; needs `DEMO_TOOLS_ENABLED=true` (off by default) | ALIGNED | Wipe runtime sessions, keep org/docs/resume/catalog |
 
 ## 9. Departments — `/departments`
 

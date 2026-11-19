@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     MAIL_FROM_NAME: str = "AI Interview Agent"
     APP_URL: str = "http://localhost:5173"
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    # Local demo tools (POST /api/v1/demo/refresh-db wipes interview sessions, no login). OFF unless this is set, so a
+    # deployment that leaves APP_URL at its localhost default still cannot be wiped by an anonymous caller.
+    DEMO_TOOLS_ENABLED: bool = False
 
     # Anti-cheat integrity guard (contract: docs/anti-cheat-guard.md).
     # Master switch is OFF by default so developers can keep testing with AI.
