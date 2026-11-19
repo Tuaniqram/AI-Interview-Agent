@@ -98,3 +98,5 @@ docs/*
 
 # interview harness transcripts
 tools/interview_sim/out/
+# Grim Prompter threat-model output
+threat-model/
