@@ -111,3 +111,4 @@ threat-model/
 !/runtime.txt
 !/.env.example
 !/.gitignore
+!/render.yaml
