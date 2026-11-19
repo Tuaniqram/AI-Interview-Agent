@@ -8,7 +8,7 @@ Pinecone index and the similarity thresholds stay valid:
 * ``local``   ``sentence-transformers`` in-process, loaded lean (one thread, cached). The default.
 
 ``EMBEDDING_BACKEND`` = ``auto`` (default: local when sentence-transformers is installed, otherwise hosted when
-a token is set) | ``hosted`` | ``local``.
+a token is set) | ``hosted`` | ``local`` | ``off`` (no embeddings; callers fall back to text-only behaviour).
 
 A hosted outage must never slow or break an interview: calls are retried briefly, repeated failures open a circuit
 breaker so later calls fail at once, and every caller already treats a failed embedding as "no result".
@@ -280,11 +280,13 @@ def _normalize(vec: list[float]) -> list[float]:
     return [x / norm for x in vec] if norm else vec
 
 
-# The local model needs roughly 220 MB on top of the app (measured: PyTorch + weights + buffers). On a small container,
+# The local model needs roughly 220 MB on top of the app (measured on Windows: PyTorch + weights + buffers); the 400 MB
+# default leaves a margin because Linux builds of PyTorch and the container's own accounting (it also counts file cache)
+# come out higher. On a small container,
 # loading it would get the process killed for running out of memory, and the host would restart it in a loop. So the
 # local backend refuses to start when the container does not have that much room, and the service runs without
 # embeddings (callers already treat that as "no result") instead of crashing.
-LOCAL_MODEL_NEEDS_MB = 260
+LOCAL_MODEL_NEEDS_MB = 400
 
 
 def _cgroup_limit_bytes() -> Optional[int]:
@@ -296,6 +298,19 @@ def _cgroup_limit_bytes() -> Optional[int]:
         except OSError:
             continue
         if raw.isdigit() and int(raw) < (1 << 50):  # "max" / huge numbers mean unlimited
+            return int(raw)
+    return None
+
+
+def _cgroup_used_bytes() -> Optional[int]:
+    """Memory the container is using, as the host counts it (Linux cgroup v2 or v1), or None."""
+    for path in ("/sys/fs/cgroup/memory.current", "/sys/fs/cgroup/memory/memory.usage_in_bytes"):
+        try:
+            with open(path, encoding="ascii") as handle:
+                raw = handle.read().strip()
+        except OSError:
+            continue
+        if raw.isdigit():
             return int(raw)
     return None
 
@@ -314,10 +329,13 @@ def _rss_bytes() -> Optional[int]:
 
 def local_model_headroom_mb() -> Optional[float]:
     """Megabytes still free in the container, or None when it cannot be known (then nothing is blocked)."""
-    limit, rss = _cgroup_limit_bytes(), _rss_bytes()
-    if limit is None or rss is None:
+    limit = _cgroup_limit_bytes()
+    used = _cgroup_used_bytes()
+    if used is None:
+        used = _rss_bytes()
+    if limit is None or used is None:
         return None
-    return (limit - rss) / 1048576
+    return (limit - used) / 1048576
 
 
 def _require_room_for_local_model() -> None:
@@ -337,8 +355,8 @@ def hf_token() -> Optional[str]:
 
 def _backend_choice() -> str:
     backend = os.getenv("EMBEDDING_BACKEND", "auto").strip().lower()
-    if backend not in ("auto", "hosted", "local"):
-        raise ValueError(f"EMBEDDING_BACKEND must be auto, hosted or local, not {backend!r}")
+    if backend not in ("auto", "hosted", "local", "off"):
+        raise ValueError(f"EMBEDDING_BACKEND must be auto, hosted, local or off, not {backend!r}")
     return backend
 
 
@@ -361,6 +379,8 @@ def hosted_backend_selected() -> bool:
 
 def build_embeddings() -> Embeddings:
     """Create the configured backend (see module docstring)."""
+    if _backend_choice() == "off":
+        raise EmbeddingUnavailable("embeddings are turned off (EMBEDDING_BACKEND=off)")
     token = hf_token()
     if hosted_backend_selected():
         if not token:
