@@ -2,6 +2,7 @@
 import hashlib
 import json
 import math
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -244,8 +245,17 @@ def test_an_unknown_backend_name_is_rejected(clean_env):
 
 def test_local_without_sentence_transformers_explains_how_to_fix_it(clean_env):
     clean_env.setenv("EMBEDDING_BACKEND", "local")
-    clean_env.setitem(sys.modules, "langchain_huggingface", None)  # makes the import raise ImportError
-    with pytest.raises(RuntimeError, match="requirements-local"):
+    clean_env.setitem(sys.modules, "torch", None)                  # makes "import torch" raise ImportError
+    clean_env.setitem(sys.modules, "sentence_transformers", None)
+    with pytest.raises(RuntimeError, match="sentence-transformers"):
+        emb.build_embeddings()
+
+
+def test_plain_loader_without_the_library_explains_how_to_fix_it(clean_env):
+    clean_env.setenv("EMBEDDING_BACKEND", "local")
+    clean_env.setenv("EMBEDDING_LOCAL_LEAN", "false")
+    clean_env.setitem(sys.modules, "langchain_huggingface", None)
+    with pytest.raises(RuntimeError, match="sentence-transformers"):
         emb.build_embeddings()
 
 
@@ -275,6 +285,156 @@ loaded = [m for m in sys.modules if m.split('.')[0] in ('torch', 'sentence_trans
 assert not loaded, loaded
 print('OK')
 """
+    # One BLAS thread: each extra thread allocates its own buffers, and on a machine that is already busy that
+    # allocation can fail ("OpenBLAS error: Memory allocation still failed") for reasons unrelated to this test.
+    env = {**os.environ, "OPENBLAS_NUM_THREADS": "1", "OMP_NUM_THREADS": "1", "MKL_NUM_THREADS": "1"}
     done = subprocess.run([sys.executable, "-W", "ignore", "-c", code], cwd=ROOT, capture_output=True, text=True,
-                          timeout=240)
+                          timeout=240, env=env)
     assert done.returncode == 0 and "OK" in done.stdout, done.stderr[-1500:]
+
+
+# ---- the local model, loaded lean -------------------------------------------------------------------------------
+class FakeSentenceModel:
+    """Stands in for SentenceTransformer: records calls and returns deterministic unit vectors."""
+
+    def __init__(self):
+        self.encode_calls: list[list[str]] = []
+        self.kwargs: list[dict] = []
+        self.halved = False
+
+    def half(self):  # must never be called: half precision is ~13x slower on a CPU
+        self.halved = True
+        return self
+
+    def encode(self, texts, **kwargs):
+        self.encode_calls.append(list(texts))
+        self.kwargs.append(kwargs)
+        import numpy as np
+
+        return np.array([emb._normalize(_vec(t)) for t in texts], dtype="float32")
+
+
+def make_local(**kw):
+    model = FakeSentenceModel()
+    threads: list[int] = []
+    e = emb.LocalEmbeddings(model_factory=lambda name: model, set_threads=threads.append, **kw)
+    return e, model, threads
+
+
+def test_lean_mode_uses_one_thread_and_full_precision():
+    e, model, threads = make_local()
+    assert threads == [1]
+    assert model.halved is False
+
+
+def test_lean_can_be_turned_off():
+    e, model, threads = make_local(lean=False)
+    assert threads == []
+
+
+def test_local_vectors_are_returned_in_order_and_normalized():
+    e, model, _ = make_local()
+    texts = ["alpha", "beta", "gamma"]
+    out = e.embed_documents(texts)
+    for text, vec in zip(texts, out):
+        assert len(vec) == EMBEDDING_DIM and abs(_norm(vec) - 1.0) < 1e-5
+        assert all(abs(a - b) < 1e-6 for a, b in zip(vec, emb._normalize(_vec(text))))
+    assert model.kwargs[0]["normalize_embeddings"] is True and model.kwargs[0]["show_progress_bar"] is False
+
+
+def test_local_repeats_are_cached_so_only_new_questions_are_encoded():
+    e, model, _ = make_local()
+    e.embed_documents(["q1", "q2", "q3"])
+    e.embed_documents(["q1", "q2", "q3", "q4"])      # the similarity guard re-embeds earlier questions each turn
+    assert model.encode_calls == [["q1", "q2", "q3"], ["q4"]]
+    e.embed_query("q4")
+    assert len(model.encode_calls) == 2               # served from cache
+
+
+def test_local_cache_is_bounded():
+    e, model, _ = make_local(cache_size=2)
+    e.embed_documents(["a", "b", "c"])
+    e.embed_documents(["a"])                          # "a" was evicted, so it is encoded again
+    assert model.encode_calls[-1] == ["a"]
+
+
+def test_local_handles_an_empty_list():
+    e, model, _ = make_local()
+    assert e.embed_documents([]) == [] and model.encode_calls == []
+
+
+def test_build_embeddings_uses_the_lean_loader_by_default(clean_env, monkeypatch):
+    built = {}
+
+    class Spy(emb.LocalEmbeddings):
+        def __init__(self, *a, **kw):
+            built["lean"] = kw.get("lean")
+            self._model = None
+
+    monkeypatch.setattr(emb, "LocalEmbeddings", Spy)
+    clean_env.setenv("EMBEDDING_BACKEND", "local")
+    emb.build_embeddings()
+    assert built == {"lean": True}
+
+
+def test_lean_loader_can_be_disabled_by_environment(clean_env, monkeypatch):
+    clean_env.setenv("EMBEDDING_BACKEND", "local")
+    clean_env.setenv("EMBEDDING_LOCAL_LEAN", "false")
+    monkeypatch.setattr(emb, "LocalEmbeddings", lambda *a, **k: pytest.fail("lean loader must not be used"))
+    clean_env.setitem(sys.modules, "langchain_huggingface", type(sys)("langchain_huggingface"))
+    sys.modules["langchain_huggingface"].HuggingFaceEmbeddings = lambda **kw: ("plain loader", kw)
+    assert emb.build_embeddings() == ("plain loader", {"model_name": emb.EMBEDDING_MODEL})
+
+
+# ---- never load the local model into a container that cannot hold it (it would be killed and restarted in a loop) --
+MB = 1048576
+
+
+def _container(clean_env, limit_mb, rss_mb):
+    clean_env.setattr(emb, "_cgroup_limit_bytes", lambda: None if limit_mb is None else int(limit_mb * MB))
+    clean_env.setattr(emb, "_rss_bytes", lambda: None if rss_mb is None else int(rss_mb * MB))
+
+
+def test_headroom_is_limit_minus_resident_memory(clean_env):
+    _container(clean_env, 512, 330)
+    assert abs(emb.local_model_headroom_mb() - 182) < 0.01
+
+
+def test_local_model_is_refused_when_the_container_is_too_small(clean_env):
+    _container(clean_env, 512, 330)                  # 182 MB free, ~260 needed
+    clean_env.setenv("EMBEDDING_BACKEND", "local")
+    with pytest.raises(EmbeddingUnavailable, match="not enough memory"):
+        emb.build_embeddings()
+
+
+def test_local_model_is_allowed_when_there_is_room(clean_env):
+    _container(clean_env, 2048, 330)
+    clean_env.setenv("EMBEDDING_BACKEND", "local")
+    clean_env.setattr(emb, "LocalEmbeddings", lambda *a, **k: "built")
+    assert emb.build_embeddings() == "built"
+
+
+def test_nothing_is_blocked_when_the_limit_is_unknown(clean_env):
+    _container(clean_env, None, None)                 # e.g. a developer's Windows machine
+    assert emb.local_model_headroom_mb() is None
+    clean_env.setenv("EMBEDDING_BACKEND", "local")
+    clean_env.setattr(emb, "LocalEmbeddings", lambda *a, **k: "built")
+    assert emb.build_embeddings() == "built"
+
+
+def test_the_memory_requirement_can_be_overridden(clean_env):
+    _container(clean_env, 512, 330)
+    clean_env.setenv("EMBEDDING_BACKEND", "local")
+    clean_env.setenv("EMBEDDING_LOCAL_MIN_FREE_MB", "100")
+    clean_env.setattr(emb, "LocalEmbeddings", lambda *a, **k: "built")
+    assert emb.build_embeddings() == "built"
+
+
+def test_an_unlimited_cgroup_is_treated_as_no_limit(tmp_path, clean_env):
+    # "max" (cgroup v2) and absurdly large numbers (cgroup v1) mean unlimited
+    real_open = open
+    for content in ("max", str(1 << 60)):
+        f = tmp_path / "limit"
+        f.write_text(content)
+        clean_env.setattr("builtins.open", lambda path, *a, **k: real_open(f, *a, **k) if "cgroup" in str(path) else real_open(path, *a, **k))
+        assert emb._cgroup_limit_bytes() is None

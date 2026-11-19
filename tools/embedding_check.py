@@ -2,7 +2,7 @@
 
     python tools/embedding_check.py
 
-Needs HF_TOKEN in .env (or the environment) AND the local model: pip install -r requirements-local.txt.
+Needs HF_TOKEN in .env (or the environment) AND the local model (sentence-transformers).
 Prints, for each sample text, the cosine similarity between the local and the hosted vector (1.0 = identical), the
 hosted latency, and a verdict. A pass means the existing Pinecone index and the question-similarity thresholds
 (tuned on the local model) are still valid with the hosted backend. Exit code 0 = pass, 1 = fail, 2 = cannot run.
@@ -55,7 +55,7 @@ def main() -> int:
 
         local = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
     except Exception as exc:  # noqa: BLE001
-        print(f"Cannot load the local model ({type(exc).__name__}: {exc}).\nInstall it: pip install -r requirements-local.txt")
+        print(f"Cannot load the local model ({type(exc).__name__}: {exc}).\nInstall it: pip install sentence-transformers")
         return 2
 
     hosted = HostedEmbeddings(token, timeout=30.0, max_retries=3)

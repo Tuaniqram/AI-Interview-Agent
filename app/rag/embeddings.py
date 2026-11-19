@@ -3,9 +3,9 @@
 Two interchangeable backends, both producing the same 384-dimension vectors of ``all-MiniLM-L6-v2`` so the existing
 Pinecone index and the similarity thresholds stay valid:
 
-* ``hosted``  Hugging Face Inference API over HTTPS. Needs ``HF_TOKEN``. No PyTorch in the web process, which matters
-              on small hosts: importing the app alone is ~330 MB, and the local model (PyTorch) does not fit in 512 MB.
-* ``local``   ``sentence-transformers`` in-process (the original behaviour). Install ``requirements-local.txt``.
+* ``hosted``  Hugging Face Inference API over HTTPS. Needs ``HF_TOKEN`` and, on the free plan, pre-paid credits
+              (HTTP 402 otherwise). No PyTorch in the web process.
+* ``local``   ``sentence-transformers`` in-process, loaded lean (one thread, cached). The default.
 
 ``EMBEDDING_BACKEND`` = ``auto`` (default: local when sentence-transformers is installed, otherwise hosted when
 a token is set) | ``hosted`` | ``local``.
@@ -196,6 +196,79 @@ class HostedEmbeddings(Embeddings):
         raise EmbeddingUnavailable("embedding service returned an unexpected vector shape")
 
 
+class LocalEmbeddings(Embeddings):
+    """``all-MiniLM-L6-v2`` in this process through sentence-transformers, loaded to be light on a small host.
+
+    Lean mode (the default) limits PyTorch to ONE thread: each extra thread allocates its own working buffers, which
+    is the difference between fitting and not fitting in a 512 MB host, and for this tiny model it costs almost
+    nothing (measured on a desktop: a 14-question batch took 249 ms instead of 213 ms). The weights stay in full
+    precision on purpose: half precision on a CPU was ~13x slower. Results are cached, because the similarity guard
+    re-embeds every earlier question on each turn. Vectors are identical to ``HuggingFaceEmbeddings``.
+    """
+
+    def __init__(
+        self,
+        model_name: str = EMBEDDING_MODEL,
+        *,
+        lean: bool = True,
+        batch_size: int = 16,
+        cache_size: int = 4096,
+        model_factory: Optional[Callable[[str], object]] = None,
+        set_threads: Optional[Callable[[int], None]] = None,
+    ):
+        if lean:
+            if set_threads is None:
+                import torch
+
+                set_threads = torch.set_num_threads
+            set_threads(1)
+        if model_factory is None:
+            from sentence_transformers import SentenceTransformer
+
+            def model_factory(name: str):  # noqa: E306
+                return SentenceTransformer(name, device="cpu")
+
+        self._model = model_factory(model_name)
+        self._batch_size = max(1, batch_size)
+        self._cache: "OrderedDict[str, list[float]]" = OrderedDict()
+        self._cache_size = max(0, cache_size)
+        self._lock = threading.Lock()
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        texts = [t if isinstance(t, str) else str(t) for t in texts]
+        results: dict[int, list[float]] = {}
+        missing: list[tuple[int, str]] = []
+        with self._lock:
+            for i, text in enumerate(texts):
+                hit = self._cache.get(text)
+                if hit is not None:
+                    self._cache.move_to_end(text)
+                    results[i] = hit
+                else:
+                    missing.append((i, text))
+        if missing:
+            vectors = self._model.encode(
+                [t for _, t in missing],
+                batch_size=self._batch_size,
+                normalize_embeddings=True,
+                show_progress_bar=False,
+                convert_to_numpy=True,
+            )
+            with self._lock:
+                for (i, text), row in zip(missing, vectors):
+                    vec = [float(x) for x in row]
+                    results[i] = vec
+                    if self._cache_size:
+                        self._cache[text] = vec
+                        self._cache.move_to_end(text)
+                while len(self._cache) > self._cache_size:
+                    self._cache.popitem(last=False)
+        return [list(results[i]) for i in range(len(texts))]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self.embed_documents([text])[0]
+
+
 def _retryable(message: str) -> EmbeddingUnavailable:
     exc = EmbeddingUnavailable(message)
     exc.retryable = True  # type: ignore[attr-defined]
@@ -205,6 +278,57 @@ def _retryable(message: str) -> EmbeddingUnavailable:
 def _normalize(vec: list[float]) -> list[float]:
     norm = math.sqrt(sum(x * x for x in vec))
     return [x / norm for x in vec] if norm else vec
+
+
+# The local model needs roughly 220 MB on top of the app (measured: PyTorch + weights + buffers). On a small container,
+# loading it would get the process killed for running out of memory, and the host would restart it in a loop. So the
+# local backend refuses to start when the container does not have that much room, and the service runs without
+# embeddings (callers already treat that as "no result") instead of crashing.
+LOCAL_MODEL_NEEDS_MB = 260
+
+
+def _cgroup_limit_bytes() -> Optional[int]:
+    """The container memory limit (Linux cgroup v2 or v1), or None when there is none or it is not Linux."""
+    for path in ("/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"):
+        try:
+            with open(path, encoding="ascii") as handle:
+                raw = handle.read().strip()
+        except OSError:
+            continue
+        if raw.isdigit() and int(raw) < (1 << 50):  # "max" / huge numbers mean unlimited
+            return int(raw)
+    return None
+
+
+def _rss_bytes() -> Optional[int]:
+    """This process's resident memory (Linux), or None."""
+    try:
+        with open("/proc/self/status", encoding="ascii") as handle:
+            for line in handle:
+                if line.startswith("VmRSS:"):
+                    return int(line.split()[1]) * 1024
+    except (OSError, ValueError, IndexError):
+        pass
+    return None
+
+
+def local_model_headroom_mb() -> Optional[float]:
+    """Megabytes still free in the container, or None when it cannot be known (then nothing is blocked)."""
+    limit, rss = _cgroup_limit_bytes(), _rss_bytes()
+    if limit is None or rss is None:
+        return None
+    return (limit - rss) / 1048576
+
+
+def _require_room_for_local_model() -> None:
+    need = float(os.getenv("EMBEDDING_LOCAL_MIN_FREE_MB", LOCAL_MODEL_NEEDS_MB))
+    free = local_model_headroom_mb()
+    if free is not None and free < need:
+        raise EmbeddingUnavailable(
+            f"not enough memory for the local embedding model ({free:.0f} MB free, about {need:.0f} MB needed). "
+            "Embeddings are turned off; use a larger instance, or a hosted backend (EMBEDDING_BACKEND=hosted + HF_TOKEN)."
+        )
+
 
 
 def hf_token() -> Optional[str]:
@@ -243,11 +367,20 @@ def build_embeddings() -> Embeddings:
             raise RuntimeError("EMBEDDING_BACKEND=hosted needs HF_TOKEN to be set")
         logger.info("Embedding backend: hosted (Hugging Face Inference API)")
         return HostedEmbeddings(token)
+    _require_room_for_local_model()
+    # Lean (one PyTorch thread + a cache) is the default; EMBEDDING_LOCAL_LEAN=false restores the plain LangChain loader.
+    if os.getenv("EMBEDDING_LOCAL_LEAN", "true").strip().lower() not in ("0", "false", "no", "off"):
+        try:
+            backend = LocalEmbeddings(lean=True)
+        except ImportError as exc:
+            raise RuntimeError("Local embeddings need sentence-transformers (pip install sentence-transformers).") from exc
+        logger.info("Embedding backend: local all-MiniLM-L6-v2, lean (one thread, cached)")
+        return backend
     try:
         from langchain_huggingface import HuggingFaceEmbeddings  # imports sentence-transformers / PyTorch
     except ImportError as exc:
         raise RuntimeError(
-            "Local embeddings need sentence-transformers (pip install -r requirements-local.txt). "
+            "Local embeddings need sentence-transformers (pip install sentence-transformers). "
             "Or set HF_TOKEN to use the hosted backend."
         ) from exc
     logger.info("Embedding backend: local (sentence-transformers in this process)")
