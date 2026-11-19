@@ -34,6 +34,8 @@ async def authenticate(
         user = result.scalar_one_or_none()
         if not user or not user.is_active:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
+        # Audited handlers read the acting user from ``request.state.user``; without this they all logged no actor.
+        request.state.user = user
         return user
     except ValueError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
