@@ -1,0 +1,5 @@
+# Everything in requirements.txt, plus the local embedding model (pulls in PyTorch, ~2 GB installed).
+# Use this on a developer machine with no Hugging Face token:  pip install -r requirements-local.txt
+# Deployments use requirements.txt and the hosted backend (set HF_TOKEN).
+-r requirements.txt
+sentence-transformers>=5.6.0,<6.0.0

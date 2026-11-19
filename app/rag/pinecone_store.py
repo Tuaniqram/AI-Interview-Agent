@@ -3,10 +3,11 @@ Pinecone vector store operations with singleton client/embedding reuse.
 """
 import os
 import logging
+import threading
 
 from dotenv import load_dotenv
+from langchain_core.embeddings import Embeddings
 from pinecone import Pinecone
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_pinecone import PineconeVectorStore
 
 load_dotenv()
@@ -16,7 +17,8 @@ INDEX_NAME = os.getenv("PINECONE_INDEX_NAME")
 
 # Module-level singletons — created once, reused across all calls
 _pinecone_client: Pinecone | None = None
-_embedding_model: HuggingFaceEmbeddings | None = None
+_embedding_model: Embeddings | None = None
+_embedding_lock = threading.Lock()  # the startup warm-up and a first request can race to create the backend
 
 
 def get_pinecone_client() -> Pinecone:
@@ -27,13 +29,16 @@ def get_pinecone_client() -> Pinecone:
     return _pinecone_client
 
 
-def get_embedding() -> HuggingFaceEmbeddings:
+def get_embedding() -> Embeddings:
+    """The configured embedding backend (hosted API or local model; see app/rag/embeddings.py)."""
     global _embedding_model
     if _embedding_model is None:
-        _embedding_model = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
-        )
-        logger.info("Embedding model initialized")
+        with _embedding_lock:
+            if _embedding_model is None:
+                from app.rag.embeddings import build_embeddings
+
+                _embedding_model = build_embeddings()
+                logger.info("Embedding backend initialized")
     return _embedding_model
 
 

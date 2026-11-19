@@ -78,6 +78,7 @@ async def lifespan(app: FastAPI):
     # blowing the retrieval timeout and producing an empty company brain.
     try:
         import asyncio
+        from app.rag.embeddings import hosted_backend_selected
         from app.rag.pinecone_store import get_embedding, get_pinecone_client
 
         def _warm_embeddings():
@@ -85,8 +86,20 @@ async def lifespan(app: FastAPI):
             get_embedding().embed_query("warmup company overview retrieval")
             return True
 
-        await asyncio.wait_for(asyncio.to_thread(_warm_embeddings), timeout=120.0)
-        logger.info("Embedding model + Pinecone client warmed up")
+        if hosted_backend_selected():
+            # Nothing heavy to load: warm in the background so the server opens its port at once
+            # (hosts such as Render wait for the port before they consider the deploy started).
+            async def _warm_in_background():
+                try:
+                    await asyncio.wait_for(asyncio.to_thread(_warm_embeddings), timeout=60.0)
+                    logger.info("Hosted embeddings + Pinecone client warmed up")
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning(f"Embedding/Pinecone warm-up failed (best-effort): {exc}")
+
+            app.state.embedding_warmup_task = asyncio.create_task(_warm_in_background())
+        else:
+            await asyncio.wait_for(asyncio.to_thread(_warm_embeddings), timeout=120.0)
+            logger.info("Embedding model + Pinecone client warmed up")
     except Exception as exc:  # noqa: BLE001
         logger.warning(f"Embedding/Pinecone warm-up failed (best-effort): {exc}")
 
