@@ -36,30 +36,13 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: verify async SQLAlchemy engine is ready
+    import asyncio
+
+    # Startup: verify async SQLAlchemy engine is ready (the slow first connection is warmed in the background below)
     from app.database.session import get_engine
     eng = get_engine()
     if eng:
         logger.info("Async SQLAlchemy engine ready")
-        # Open the first connection now: against a remote database it takes several
-        # seconds, which the first user request would otherwise pay.
-        try:
-            import asyncio
-            from sqlalchemy import text
-
-            async def _warm_db():
-                async with eng.connect() as conn:
-                    await conn.execute(text("select 1"))
-
-            await asyncio.wait_for(_warm_db(), timeout=30.0)
-            logger.info("Database connection pool warmed up")
-
-            # Evaluations interrupted by the previous shutdown would otherwise stay "pending" forever.
-            from app.marketplace.fit_evaluation import resume_unfinished_evaluations
-
-            app.state.resume_evaluations_task = asyncio.create_task(resume_unfinished_evaluations())
-        except Exception as exc:  # noqa: BLE001 - never block startup on this
-            logger.warning(f"Database warm-up skipped: {exc}")
     else:
         logger.warning("DATABASE_URL not set — async DB features disabled")
 
@@ -73,28 +56,66 @@ async def lifespan(app: FastAPI):
           company_context="N/A", candidate_profile="N/A", question_number=0, conversation_history="(warmup)")
     logger.info("Prompt cache pre-warmed")
 
-    # Warm up the embedding model + Pinecone client (best-effort). The first
-    # RAG retrieval otherwise loads model weights lazily inside the request,
-    # blowing the retrieval timeout and producing an empty company brain.
-    try:
-        import asyncio
-        from app.rag.pinecone_store import get_embedding, get_pinecone_client
-
-        def _warm_embeddings():
-            get_pinecone_client()
-            get_embedding().embed_query("warmup company overview retrieval")
-            return True
-
-        await asyncio.wait_for(asyncio.to_thread(_warm_embeddings), timeout=120.0)
-        logger.info("Embedding model + Pinecone client warmed up")
-    except Exception as exc:  # noqa: BLE001
-        logger.warning(f"Embedding/Pinecone warm-up failed (best-effort): {exc}")
-
     # Start WebSocket stale-connection cleanup
     from app.api.interview_ws import start_cleanup_task
     cleanup_handle = start_cleanup_task()
 
+    async def _warm_up():
+        """Slow, best-effort warm-up that runs AFTER the server is listening.
+
+        uvicorn opens its port only when this startup function yields, and hosts such as Render give up on a
+        service that has not opened a port within a few minutes. A remote database connect can take ~30 s and loading
+        the embedding model more than a minute on a small CPU, so none of it may block startup. A request that needs
+        one of these before it is ready simply pays for it, exactly as when the warm-up is skipped.
+        """
+        if eng:
+            # Open the first connection now: against a remote database it takes several seconds.
+            try:
+                from sqlalchemy import text
+
+                async def _warm_db():
+                    async with eng.connect() as conn:
+                        await conn.execute(text("select 1"))
+
+                await asyncio.wait_for(_warm_db(), timeout=30.0)
+                logger.info("Database connection pool warmed up")
+
+                # Evaluations interrupted by the previous shutdown would otherwise stay "pending" forever.
+                from app.marketplace.fit_evaluation import resume_unfinished_evaluations
+
+                app.state.resume_evaluations_task = asyncio.create_task(resume_unfinished_evaluations())
+            except Exception as exc:  # noqa: BLE001 - never let this affect the app
+                logger.warning(f"Database warm-up skipped: {exc}")
+
+        # Embedding backend + Pinecone client: the first RAG retrieval otherwise loads the model inside the request,
+        # which can exceed the retrieval timeout and produce an empty company brain.
+        try:
+            from app.rag.embeddings import hosted_backend_selected
+            from app.rag.pinecone_store import get_embedding, get_pinecone_client
+
+            def _warm_embeddings():
+                get_pinecone_client()
+                get_embedding().embed_query("warmup company overview retrieval")
+
+            await asyncio.wait_for(
+                asyncio.to_thread(_warm_embeddings), timeout=60.0 if hosted_backend_selected() else 180.0
+            )
+            logger.info("Embedding backend + Pinecone client warmed up")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"Embedding/Pinecone warm-up failed (best-effort): {exc}")
+
+    app.state.warmup_task = asyncio.create_task(_warm_up())
+
     yield
+
+    # Shutdown: stop the warm-up if it is still running
+    warmup = getattr(app.state, "warmup_task", None)
+    if warmup is not None and not warmup.done():
+        warmup.cancel()
+        try:
+            await warmup
+        except BaseException:  # noqa: BLE001 - cancellation or a late failure must not block shutdown
+            pass
 
     # Shutdown: flush v4 session store (drains dirty sessions / closes Redis client)
     from app.services.v4_session_store import get_v4_session_store
