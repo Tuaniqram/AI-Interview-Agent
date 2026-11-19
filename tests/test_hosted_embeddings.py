@@ -391,6 +391,7 @@ MB = 1048576
 
 
 def _container(clean_env, limit_mb, rss_mb):
+    clean_env.setattr(emb, "_cgroup_used_bytes", lambda: None)  # most tests use the process-memory fallback
     clean_env.setattr(emb, "_cgroup_limit_bytes", lambda: None if limit_mb is None else int(limit_mb * MB))
     clean_env.setattr(emb, "_rss_bytes", lambda: None if rss_mb is None else int(rss_mb * MB))
 
@@ -438,3 +439,33 @@ def test_an_unlimited_cgroup_is_treated_as_no_limit(tmp_path, clean_env):
         f.write_text(content)
         clean_env.setattr("builtins.open", lambda path, *a, **k: real_open(f, *a, **k) if "cgroup" in str(path) else real_open(path, *a, **k))
         assert emb._cgroup_limit_bytes() is None
+
+
+def test_the_container_usage_figure_is_preferred_over_process_memory(clean_env):
+    """The host kills the container by ITS accounting (which includes file cache), so that is what we compare."""
+    _container(clean_env, 1024, 300)                                   # process memory alone would leave 724 MB
+    clean_env.setattr(emb, "_cgroup_used_bytes", lambda: 900 * MB)     # but the container already uses 900 MB
+    assert abs(emb.local_model_headroom_mb() - 124) < 0.01
+    clean_env.setenv("EMBEDDING_BACKEND", "local")
+    with pytest.raises(EmbeddingUnavailable, match="not enough memory"):
+        emb.build_embeddings()
+
+
+@pytest.mark.parametrize("limit_mb,allowed", [(512, False), (640, False), (768, True), (1024, True), (2048, True)])
+def test_default_threshold_on_typical_instance_sizes(clean_env, limit_mb, allowed):
+    _container(clean_env, limit_mb, 330)
+    clean_env.setenv("EMBEDDING_BACKEND", "local")
+    clean_env.setattr(emb, "LocalEmbeddings", lambda *a, **k: "built")
+    if allowed:
+        assert emb.build_embeddings() == "built"
+    else:
+        with pytest.raises(EmbeddingUnavailable):
+            emb.build_embeddings()
+
+
+def test_embeddings_can_be_turned_off_explicitly(clean_env):
+    clean_env.setenv("EMBEDDING_BACKEND", "off")
+    clean_env.setenv("HF_TOKEN", "hf_x")
+    assert emb.hosted_backend_selected() is False
+    with pytest.raises(EmbeddingUnavailable, match="turned off"):
+        emb.build_embeddings()
