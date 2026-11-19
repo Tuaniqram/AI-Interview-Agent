@@ -27,6 +27,10 @@ from app.config import settings
 
 API_VERSION = "v1"
 logging.basicConfig(level=logging.INFO)
+# The interview WebSocket carries its tokens in the URL query string and uvicorn logs the full URL.
+from app.utils.log_redaction import install_url_secret_redaction
+
+install_url_secret_redaction()
 logger = logging.getLogger(__name__)
 
 
@@ -176,6 +180,7 @@ app.add_middleware(
            "/api/v1/candidates/forgot-password", "/api/v1/candidates/reset-password",
            "/api/v1/candidates/send-verification",
            "/api/v1/candidates/claim", "/api/v1/candidates/verify"],
+    trusted_proxies=settings.TRUSTED_PROXY_COUNT,
 )
 
 # General rate limit on all API + v4 endpoints (120 req/min per IP)
@@ -184,6 +189,7 @@ app.add_middleware(
     max_requests=120,
     window_seconds=60,
     paths=["/api/v1/", "/interviews/", "/"],
+    trusted_proxies=settings.TRUSTED_PROXY_COUNT,
 )
 
 # CORS must be OUTERMOST so it intercepts OPTIONS preflight before other middleware

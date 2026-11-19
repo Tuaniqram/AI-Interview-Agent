@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     # Local demo tools (POST /api/v1/demo/refresh-db wipes interview sessions, no login). OFF unless this is set, so a
     # deployment that leaves APP_URL at its localhost default still cannot be wiped by an anonymous caller.
     DEMO_TOOLS_ENABLED: bool = False
+    # Number of reverse proxies in front of the app (ngrok, a load balancer, a platform router). 0 = none. The rate
+    # limiter keys on the real client address behind them instead of treating every user as the proxy.
+    TRUSTED_PROXY_COUNT: int = 0
 
     # Anti-cheat integrity guard (contract: docs/anti-cheat-guard.md).
     # Master switch is OFF by default so developers can keep testing with AI.
