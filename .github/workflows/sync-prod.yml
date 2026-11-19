@@ -1,0 +1,55 @@
+name: Sync prod
+
+# Render deploys from the `prod` branch. After CI passes on `main`, copy the deploy files from main into prod; the
+# push to prod is what makes Render redeploy. Copying (not merging) keeps prod free of the frontend, tests and docs.
+# Run it by hand from the Actions tab (workflow_dispatch) to deploy main's current state without a new commit.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-prod
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Copy deploy files from main to prod
+    runs-on: ubuntu-latest
+    # Only for a successful CI run of a push to main (never for pull requests), or a manual run.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || 'main' }}
+          path: main
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: prod
+          path: prod
+
+      - name: Copy deploy files
+        run: bash main/scripts/sync_prod.sh main prod
+
+      - name: Commit and push to prod
+        working-directory: prod
+        run: |
+          if git diff --cached --quiet; then
+            echo "Nothing to deploy."
+            exit 0
+          fi
+          sha="$(git -C ../main rev-parse --short HEAD)"
+          subject="$(git -C ../main log -1 --format=%s)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "deploy: sync from main@${sha}" -m "${subject}"
+          git push origin prod

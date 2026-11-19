@@ -71,6 +71,7 @@ scripts/*
 !scripts/index_org_documents.py
 !scripts/generate_demo_assets.py
 !scripts/reset_db.py
+!scripts/sync_prod.sh
 
 # Frontend build artifacts
 .vite/
