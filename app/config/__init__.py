@@ -1,5 +1,5 @@
 import json
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings
 from pydantic_settings.sources import EnvSettingsSource, DotEnvSettingsSource
 
@@ -22,8 +22,11 @@ class _LenientDotenvSource(DotEnvSettingsSource):
         return super().prepare_field_value(field_name, field, value, value_is_complex)
 
 
+DEV_SECRET_KEY = "dev-secret-key-change-in-production"
+
+
 class Settings(BaseSettings):
-    SECRET_KEY: str = "dev-secret-key-change-in-production"
+    SECRET_KEY: str = DEV_SECRET_KEY
     DATABASE_URL: str | None = None
     SUPABASE_URL: str | None = None
     SUPABASE_KEY: str | None = None
@@ -81,10 +84,25 @@ class Settings(BaseSettings):
     def validate_secret_key(cls, v: str) -> str:
         if not v:
             raise ValueError("SECRET_KEY must not be empty")
-        if v == "dev-secret-key-change-in-production":
+        if v == DEV_SECRET_KEY:
             import warnings
             warnings.warn("SECRET_KEY is still the dev default — set a strong secret in production")
         return v
+
+    @model_validator(mode="after")
+    def refuse_dev_secret_when_deployed(self):
+        """Every token type is signed with SECRET_KEY, so the public dev default lets anyone forge logins.
+
+        Refuse to start only when the app is clearly deployed (APP_URL is not a local address). A local run, and a
+        deployment that sets its own key, are unaffected.
+        """
+        local = "localhost" in self.APP_URL or "127.0.0.1" in self.APP_URL
+        if self.SECRET_KEY == DEV_SECRET_KEY and not local:
+            raise ValueError(
+                "SECRET_KEY is still the public development default while APP_URL is not local; "
+                "set a strong SECRET_KEY before starting this deployment"
+            )
+        return self
 
     @classmethod
     def settings_customise_sources(
