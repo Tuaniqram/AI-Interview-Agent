@@ -276,3 +276,12 @@ Single-owner organizations, department removal, UI standardization, and supporti
 - Optional: give the awkward persona a second valid simulation run when the LLM provider is stable. The rerun was stopped on request to save time.
 - Optional: update the static demo interview text in `frontend/src/data/realInterviews.ts` that still mentions departments.
 - Keep demo/test data separate from production data before a real launch.
+
+## Deploy branches (2026-11-19)
+
+- `dev` is where work happens. Pushing it deploys nothing to production.
+- `main` is the stable branch. Vercel builds the frontend from `main` (Production). Merging `dev` into `main` also starts the CI workflow.
+- `prod` is a deploy-only branch for Render: just `app/`, `prompts/`, `alembic/`, `alembic.ini`, `requirements.txt`, `runtime.txt`, `.env.example` and `render.yaml`, with an allow-list in its `.gitignore`. Never merge `main` into it.
+- The "Sync prod" workflow copies those deploy files from `main` into `prod` after CI passes on a push to `main`; the push to `prod` is what redeploys Render. It can also be run by hand from the Actions tab.
+- `render.yaml` exists only on `prod`; edit it there. Render needs `PYTHON_VERSION=3.12.6` set in the service's Environment.
+- Known issue: the backend job in CI fails on GitHub's Linux runner (it has since at least 2026-11-07) although all tests pass locally, so Sync prod is skipped until that is fixed.
