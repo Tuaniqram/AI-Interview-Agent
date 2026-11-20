@@ -206,6 +206,18 @@ export class InterviewWebSocket {
   }
 }
 
+/**
+ * Where the interview socket connects, first match wins:
+ *  1. window.__INTERVIEW_WS_URL (injected by the page), 2. VITE_WS_URL, 3. VITE_API_URL (the same backend the REST client
+ *  uses; the class turns http(s) into ws(s)), 4. the local dev backend.
+ * Without step 3 a deployed site fell back to ws://localhost:8000 (the visitor's own machine, and an insecure socket
+ * from an https page), so no interview could start in production.
+ */
+export function resolveInterviewWsBase(): string {
+  const injected = typeof window !== 'undefined' ? (window as any).__INTERVIEW_WS_URL : undefined;
+  return injected || import.meta.env.VITE_WS_URL || import.meta.env.VITE_API_URL || 'ws://localhost:8000';
+}
+
 export const interviewWebSocket = new InterviewWebSocket(
-  (typeof window !== 'undefined' && (window as any).__INTERVIEW_WS_URL) || 'ws://localhost:8000'
+  resolveInterviewWsBase()
 );
