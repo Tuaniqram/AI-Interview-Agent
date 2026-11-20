@@ -92,6 +92,7 @@ docs/*
 !docs/PROBLEMS_AND_SOLUTIONS.md
 !docs/IMPLEMENTATION_PLAN.md
 !docs/PROMPTS.md
+!docs/UNIFIED_USER_ACCOUNTS_PLAN.md
 
 # Prompt templates are source code, keep them tracked despite the *.md rule above
 !prompts/
