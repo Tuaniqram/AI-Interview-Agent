@@ -56,8 +56,20 @@ def org_namespace(org_id) -> str:
     return f"department_{org_id}"
 
 
+def physical_namespace(org_id) -> str:
+    """The namespace actually used in Pinecone: the logical one plus the active embedding model's suffix.
+
+    ``org_namespace`` is the name recorded in the database and stays the same whatever model is in use. Vectors
+    from different embedding models must not share a namespace, so a non-MiniLM backend gets a suffix; until its
+    documents are re-indexed, searching finds nothing (safe) instead of comparing across models (garbage).
+    """
+    from app.rag.embeddings import embedding_namespace_suffix
+
+    return org_namespace(org_id) + embedding_namespace_suffix()
+
+
 def store_org_knowledge(chunks, org_id, doc_id=None):
-    namespace = org_namespace(org_id)
+    namespace = physical_namespace(org_id)
     if doc_id:
         for chunk in chunks:
             chunk.metadata["doc_id"] = str(doc_id)
@@ -73,12 +85,16 @@ def store_org_knowledge(chunks, org_id, doc_id=None):
 def delete_org_knowledge(org_id, doc_id):
     try:
         index = get_index()
-        namespace = org_namespace(org_id)
-        index.delete(
-            filter={"doc_id": str(doc_id)},
-            namespace=namespace
-        )
-        logger.info(f"Deleted vectors for doc_id={doc_id} in namespace={namespace}")
+        # Delete from the plain namespace AND the active model's one: the document may have been indexed under either.
+        from app.rag.embeddings import PineconeEmbeddings
+
+        base = org_namespace(org_id)
+        for namespace in dict.fromkeys([base, base + PineconeEmbeddings.namespace_suffix, physical_namespace(org_id)]):
+            index.delete(
+                filter={"doc_id": str(doc_id)},
+                namespace=namespace
+            )
+            logger.info(f"Deleted vectors for doc_id={doc_id} in namespace={namespace}")
     except Exception as e:
         logger.warning(f"Failed to delete vectors from Pinecone: {e}")
 
@@ -88,7 +104,7 @@ def get_org_retriever(org_id, k: int = 5):
     vector_store = PineconeVectorStore(
         index_name=INDEX_NAME,
         embedding=get_embedding(),
-        namespace=org_namespace(org_id)
+        namespace=physical_namespace(org_id)
     )
     return vector_store.as_retriever(
         search_kwargs={"k": k}

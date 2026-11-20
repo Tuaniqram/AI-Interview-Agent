@@ -5,10 +5,12 @@ Pinecone index and the similarity thresholds stay valid:
 
 * ``hosted``  Hugging Face Inference API over HTTPS. Needs ``HF_TOKEN`` and, on the free plan, pre-paid credits
               (HTTP 402 otherwise). No PyTorch in the web process.
-* ``local``   ``sentence-transformers`` in-process, loaded lean (one thread, cached). The default.
+* ``pinecone`` Pinecone's hosted llama-text-embed-v2 at 384 dimensions: free allowance, no new key, tiny memory. A
+              different model, so it uses its own Pinecone namespace and the similarity guard stays text-only.
+* ``local``   ``sentence-transformers`` in-process, loaded lean (one thread, cached). Needs ~400 MB of room.
 
-``EMBEDDING_BACKEND`` = ``auto`` (default: local when sentence-transformers is installed, otherwise hosted when
-a token is set) | ``hosted`` | ``local`` | ``off`` (no embeddings; callers fall back to text-only behaviour).
+``EMBEDDING_BACKEND`` = ``auto`` (default, see ``choose_backend``) | ``local`` | ``pinecone`` | ``hosted`` | ``off`` (no
+embeddings; callers fall back to text-only behaviour).
 
 A hosted outage must never slow or break an interview: calls are retried briefly, repeated failures open a circuit
 breaker so later calls fail at once, and every caller already treats a failed embedding as "no result".
@@ -269,6 +271,133 @@ class LocalEmbeddings(Embeddings):
         return self.embed_documents([text])[0]
 
 
+class PineconeEmbeddings(Embeddings):
+    """Pinecone's hosted ``llama-text-embed-v2`` (384-dimension output) through the Pinecone API key the app already has.
+
+    Free within Pinecone's monthly embedding allowance and nothing heavy in this process, so it fits a 512 MB host.
+    It is a DIFFERENT model from all-MiniLM-L6-v2, so its vectors cannot be mixed with the MiniLM ones in an index:
+    documents embedded with it live in their own namespace (``namespace_suffix``) and must be re-indexed. The
+    question-similarity guard's threshold was tuned on MiniLM scores, so it uses its text-only fallback with this
+    backend (``calibrated_for_similarity`` is False).
+    """
+
+    MODEL = "llama-text-embed-v2"
+    namespace_suffix = "__llama-text-embed-v2-384"
+    calibrated_for_similarity = False
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        *,
+        client=None,
+        batch_size: int = 64,
+        max_retries: int = 2,
+        cache_size: int = 4096,
+        breaker_failures: int = 2,
+        breaker_seconds: float = 60.0,
+        sleep: Callable[[float], None] = time.sleep,
+        clock: Callable[[], float] = time.monotonic,
+    ):
+        if client is None:
+            if not api_key:
+                raise ValueError("PineconeEmbeddings needs PINECONE_API_KEY")
+            from pinecone import Pinecone
+
+            client = Pinecone(api_key=api_key)
+        self._client = client
+        self._batch_size = max(1, batch_size)
+        self._max_retries = max(0, max_retries)
+        self._sleep = sleep
+        self._clock = clock
+        self._cache: "OrderedDict[tuple[str, str], list[float]]" = OrderedDict()
+        self._cache_size = max(0, cache_size)
+        self._lock = threading.Lock()
+        self._breaker_failures = breaker_failures
+        self._breaker_seconds = breaker_seconds
+        self._failures = 0
+        self._down_until = 0.0
+
+    # Pinecone embeds queries and passages differently (an asymmetric model), so the two entry points differ.
+    def embed_query(self, text: str) -> list[float]:
+        return self._embed([text], "query")[0]
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self._embed(list(texts), "passage")
+
+    def _embed(self, texts: list[str], kind: str) -> list[list[float]]:
+        texts = [t if isinstance(t, str) else str(t) for t in texts]
+        results: dict[int, list[float]] = {}
+        missing: list[tuple[int, str]] = []
+        with self._lock:
+            for i, text in enumerate(texts):
+                hit = self._cache.get((kind, text))
+                if hit is not None:
+                    self._cache.move_to_end((kind, text))
+                    results[i] = hit
+                else:
+                    missing.append((i, text))
+        for start in range(0, len(missing), self._batch_size):
+            chunk = missing[start:start + self._batch_size]
+            vectors = self._embed_batch([t for _, t in chunk], kind)
+            with self._lock:
+                for (i, text), vec in zip(chunk, vectors):
+                    results[i] = vec
+                    if self._cache_size:
+                        self._cache[(kind, text)] = vec
+                        self._cache.move_to_end((kind, text))
+                while len(self._cache) > self._cache_size:
+                    self._cache.popitem(last=False)
+        return [list(results[i]) for i in range(len(texts))]
+
+    def _embed_batch(self, batch: list[str], kind: str) -> list[list[float]]:
+        if self._clock() < self._down_until:
+            raise EmbeddingUnavailable("Pinecone embeddings are temporarily unavailable (circuit open)")
+        last: Optional[Exception] = None
+        for attempt in range(self._max_retries + 1):
+            try:
+                response = self._client.inference.embed(
+                    model=self.MODEL,
+                    inputs=batch,
+                    parameters={"input_type": kind, "dimension": EMBEDDING_DIM, "truncate": "END"},
+                )
+                vectors = self._parse(response, len(batch))
+                self._failures = 0
+                return vectors
+            except EmbeddingUnavailable as exc:  # a malformed answer will not improve on a retry
+                last = exc
+                break
+            except Exception as exc:  # noqa: BLE001 - the Pinecone client raises its own exception types
+                last = exc
+                status = getattr(exc, "status", None)
+                if status in (400, 401, 403, 404, 422):  # rejected, not busy: retrying cannot help
+                    break
+            if attempt < self._max_retries:
+                self._sleep(min(4.0, 0.5 * (2 ** attempt)))
+        self._failures += 1
+        if self._failures >= self._breaker_failures:
+            self._down_until = self._clock() + self._breaker_seconds
+            logger.warning("Pinecone embeddings failing; pausing calls for %.0fs: %s", self._breaker_seconds, last)
+        raise EmbeddingUnavailable(
+            f"Pinecone embedding request failed: {type(last).__name__}: {str(last)[:200]}"
+        ) from last
+
+    @staticmethod
+    def _parse(response, expected: int) -> list[list[float]]:
+        items = list(getattr(response, "data", None) or response)
+        if len(items) != expected:
+            raise EmbeddingUnavailable(f"expected {expected} embeddings, got {len(items)}")
+        vectors: list[list[float]] = []
+        for item in items:
+            try:
+                vec = [float(x) for x in item["values"]]
+            except (KeyError, TypeError, ValueError) as exc:
+                raise EmbeddingUnavailable("Pinecone returned an unexpected embedding shape") from exc
+            if len(vec) != EMBEDDING_DIM or not all(math.isfinite(x) for x in vec):
+                raise EmbeddingUnavailable(f"embedding has {len(vec)} dimensions, expected {EMBEDDING_DIM}")
+            vectors.append(_normalize(vec))
+        return vectors
+
+
 def _retryable(message: str) -> EmbeddingUnavailable:
     exc = EmbeddingUnavailable(message)
     exc.retryable = True  # type: ignore[attr-defined]
@@ -355,8 +484,8 @@ def hf_token() -> Optional[str]:
 
 def _backend_choice() -> str:
     backend = os.getenv("EMBEDDING_BACKEND", "auto").strip().lower()
-    if backend not in ("auto", "hosted", "local", "off"):
-        raise ValueError(f"EMBEDDING_BACKEND must be auto, hosted, local or off, not {backend!r}")
+    if backend not in ("auto", "hosted", "pinecone", "local", "off"):
+        raise ValueError(f"EMBEDDING_BACKEND must be auto, hosted, pinecone, local or off, not {backend!r}")
     return backend
 
 
@@ -367,26 +496,72 @@ def local_available() -> bool:
     return importlib.util.find_spec("sentence_transformers") is not None
 
 
-def hosted_backend_selected() -> bool:
-    """True when embeddings go to the hosted API (nothing heavy to load in this process).
+def pinecone_key() -> Optional[str]:
+    return os.getenv("PINECONE_API_KEY") or None
 
-    ``auto`` prefers the local model when it is installed, so a developer machine behaves exactly as before even when
-    an HF_TOKEN happens to be set; a deployment without PyTorch uses the hosted API when a token is set.
+
+def _local_min_free_mb() -> float:
+    return float(os.getenv("EMBEDDING_LOCAL_MIN_FREE_MB", LOCAL_MODEL_NEEDS_MB))
+
+
+def _local_has_room() -> bool:
+    free = local_model_headroom_mb()
+    return free is None or free >= _local_min_free_mb()
+
+
+def choose_backend() -> str:
+    """Which backend will be used: ``local`` | ``pinecone`` | ``hosted`` | ``off`` (cheap: loads nothing).
+
+    ``auto`` order: the local MiniLM model when it is installed AND the container has room for it (a developer machine,
+    or a large instance); otherwise Pinecone's free hosted embeddings when a Pinecone key is set; otherwise the
+    Hugging Face API (pre-paid credits) when a token is set; otherwise local, which then refuses with an explanation.
     """
     backend = _backend_choice()
-    return backend == "hosted" or (backend == "auto" and bool(hf_token()) and not local_available())
+    if backend != "auto":
+        return backend
+    if local_available():
+        if _local_has_room():
+            return "local"
+        if pinecone_key():
+            return "pinecone"
+        return "hosted" if hf_token() else "local"
+    if pinecone_key():
+        return "pinecone"
+    if hf_token():
+        return "hosted"
+    return "local"
+
+
+def hosted_backend_selected() -> bool:
+    """True when embeddings come from a remote service (nothing heavy to load in this process)."""
+    return choose_backend() in ("hosted", "pinecone")
+
+
+def embedding_namespace_suffix() -> str:
+    """Added to an organization's Pinecone namespace: vectors from different models must not share a namespace.
+
+    Empty for the MiniLM backends (local and the Hugging Face API), so the documents already indexed stay readable.
+    """
+    return PineconeEmbeddings.namespace_suffix if choose_backend() == "pinecone" else ""
 
 
 def build_embeddings() -> Embeddings:
     """Create the configured backend (see module docstring)."""
-    if _backend_choice() == "off":
+    backend = choose_backend()
+    if backend == "off":
         raise EmbeddingUnavailable("embeddings are turned off (EMBEDDING_BACKEND=off)")
-    token = hf_token()
-    if hosted_backend_selected():
+    if backend == "hosted":
+        token = hf_token()
         if not token:
             raise RuntimeError("EMBEDDING_BACKEND=hosted needs HF_TOKEN to be set")
         logger.info("Embedding backend: hosted (Hugging Face Inference API)")
         return HostedEmbeddings(token)
+    if backend == "pinecone":
+        key = pinecone_key()
+        if not key:
+            raise RuntimeError("EMBEDDING_BACKEND=pinecone needs PINECONE_API_KEY to be set")
+        logger.info("Embedding backend: Pinecone llama-text-embed-v2 (384 dimensions)")
+        return PineconeEmbeddings(key)
     _require_room_for_local_model()
     # Lean (one PyTorch thread + a cache) is the default; EMBEDDING_LOCAL_LEAN=false restores the plain LangChain loader.
     if os.getenv("EMBEDDING_LOCAL_LEAN", "true").strip().lower() not in ("0", "false", "no", "off"):

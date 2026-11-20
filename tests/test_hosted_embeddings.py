@@ -189,7 +189,7 @@ def test_a_token_is_required():
 # ---- backend selection ---------------------------------------------------------------------------------------
 @pytest.fixture
 def clean_env(monkeypatch):
-    for k in ("EMBEDDING_BACKEND", "HF_TOKEN", "HUGGINGFACEHUB_API_TOKEN"):
+    for k in ("EMBEDDING_BACKEND", "HF_TOKEN", "HUGGINGFACEHUB_API_TOKEN", "PINECONE_API_KEY", "EMBEDDING_LOCAL_MIN_FREE_MB"):
         monkeypatch.delenv(k, raising=False)
     return monkeypatch
 
