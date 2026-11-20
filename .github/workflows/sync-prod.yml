@@ -1,7 +1,8 @@
 name: Sync prod
 
-# Render deploys from the `prod` branch. After CI passes on `main`, copy the deploy files from main into prod; the
-# push to prod is what makes Render redeploy. Copying (not merging) keeps prod free of the frontend, tests and docs.
+# `prod` is the deploy branch for BOTH halves: Render builds the backend from it and Vercel builds the frontend from it.
+# After CI passes on `main`, copy the deploy files (backend + frontend) from main into prod; the push to prod is what
+# redeploys them. Copying (not merging) keeps prod free of the tests, docs and tools.
 # Run it by hand from the Actions tab (workflow_dispatch) to deploy main's current state without a new commit.
 
 on:

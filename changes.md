@@ -277,11 +277,20 @@ Single-owner organizations, department removal, UI standardization, and supporti
 - Optional: update the static demo interview text in `frontend/src/data/realInterviews.ts` that still mentions departments.
 - Keep demo/test data separate from production data before a real launch.
 
-## Deploy branches (2026-11-19)
+## Deploy branches (2026-11-19, updated 2026-11-20)
 
-- `dev` is where work happens. Pushing it deploys nothing to production.
-- `main` is the stable branch. Vercel builds the frontend from `main` (Production). Merging `dev` into `main` also starts the CI workflow.
-- `prod` is a deploy-only branch for Render: just `app/`, `prompts/`, `alembic/`, `alembic.ini`, `requirements.txt`, `runtime.txt`, `.env.example` and `render.yaml`, with an allow-list in its `.gitignore`. Never merge `main` into it.
-- The "Sync prod" workflow copies those deploy files from `main` into `prod` after CI passes on a push to `main`; the push to `prod` is what redeploys Render. It can also be run by hand from the Actions tab.
-- `render.yaml` exists only on `prod`; edit it there. Render needs `PYTHON_VERSION=3.12.6` set in the service's Environment.
-- Known issue: the backend job in CI fails on GitHub's Linux runner (it has since at least 2026-11-07) although all tests pass locally, so Sync prod is skipped until that is fixed.
+- `dev` is where work happens. Pushing it deploys nothing.
+- `main` is the stable branch. Merging `dev` into it starts CI.
+- `prod` is the deploy branch for BOTH halves. Render builds the backend from it (`app/`, `prompts/`, `alembic/`, `alembic.ini`,
+  `requirements.txt`, `runtime.txt`, `.env.example`, `render.yaml`) and Vercel builds the frontend from it (`frontend/`, without
+  `node_modules`, `dist`, the Playwright end-to-end tests and their reports). Its `.gitignore` is an allow-list, so nothing else
+  can be added. Never merge `main` into it.
+- The "Sync prod" workflow copies those files from `main` into `prod` after CI passes on a push to `main` (`scripts/sync_prod.sh`);
+  the push to `prod` is what redeploys. It can also be run by hand from the Actions tab.
+- `render.yaml` exists only on `prod`; edit it there. It has a build filter so a frontend-only change does not redeploy the backend.
+  Render needs `PYTHON_VERSION=3.12.6` in the service's Environment.
+- Vercel: Production Branch `prod`, Root Directory `frontend`, and an Ignored Build Step so only `prod` builds:
+  `[ "$VERCEL_GIT_COMMIT_REF" = "prod" ] && exit 1 || exit 0`.
+- Embeddings: `EMBEDDING_BACKEND=auto` uses the local MiniLM model only when it is installed and ~400 MB are free; otherwise
+  Pinecone's free hosted embeddings. Pinecone vectors live in their own namespace and need a one-time re-index
+  (`EMBEDDING_BACKEND=pinecone python scripts/index_org_documents.py <org_id>`).
