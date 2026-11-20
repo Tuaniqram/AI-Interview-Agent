@@ -27,11 +27,13 @@ from app.marketplace.schemas import (
     StartInterviewResponse,
     UpdatePublicInterviewRequest,
 )
+from app.auth.accounts import find_user_by_email, get_candidate_profile
 from app.auth.interview_access import create_interview_access_token
 from app.candidates.resume_service import latest_resume_document, store_candidate_resume
 from app.models.db import (
     CandidateDocument,
     CandidateProfile,
+    User,
     InterviewSession,
     InterviewTemplate,
     Organization,
@@ -241,7 +243,10 @@ async def start_public_interview(
 
     # G4: link to existing candidate profile if email matches
     candidate_result = await db.execute(
-        select(CandidateProfile).where(CandidateProfile.email == req.candidate_email).limit(1)
+        select(CandidateProfile)
+        .join(User, User.id == CandidateProfile.id)
+        .where(func.lower(User.email) == (req.candidate_email or "").strip().lower())
+        .limit(1)
     )
     candidate = candidate_result.scalar_one_or_none()
     profile_data = None
@@ -627,27 +632,33 @@ async def apply_to_public_interview(
         name = (req.candidate_name or "").strip()
         if not name:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Name is required")
-        profile_result = await db.execute(
-            select(CandidateProfile).where(func.lower(CandidateProfile.email) == email.lower())
-        )
-        profile = profile_result.scalars().first()
-        if profile is not None and profile.is_registered:
+        account = await find_user_by_email(db, email)
+        if account is not None and account.is_registered:
             # A guest must not attach a CV to (or apply as) someone's real account.
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="An account already exists for this email. Please sign in to apply.",
             )
-        if profile is None:
-            profile = CandidateProfile(
+        profile = None
+        if account is None:
+            # An unclaimed guest: an account with no password that cannot sign in until the owner claims it by email.
+            account = User(
                 id=uuid.uuid4(),
                 email=email,
                 name=name,
+                password_hash=None,
                 is_registered=False,
+                is_verified=False,
             )
-            db.add(profile)
+            db.add(account)
             await db.flush()
         else:
-            profile.name = name
+            profile = await get_candidate_profile(db, account.id)
+            account.name = name
+        if profile is None:
+            profile = CandidateProfile(id=account.id, user=account)
+            db.add(profile)
+            await db.flush()
 
     document, is_new_upload = await _resolve_resume_document(profile, req, resume, authenticated, db)
 

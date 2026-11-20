@@ -10,8 +10,19 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.jwt import create_access_token, create_refresh_token, decode_token
-from app.auth.password import hash_password, verify_password
+from app.auth.accounts import (
+    ACTOR_CANDIDATE,
+    clean_email,
+    find_user_by_email,
+    get_candidate_profile,
+    hash_token,
+    issue_refresh_token,
+    password_matches,
+    revoke_all_sessions,
+    rotate_refresh_token,
+)
+from app.auth.jwt import create_access_token
+from app.auth.password import hash_password
 from app.candidates.schemas import (
     CandidateAuthResponse,
     CandidateClaimPendingResponse,
@@ -30,9 +41,9 @@ from app.database.deps import get_db
 from app.models.db import (
     CandidateInvitation,
     CandidateProfile,
-    CandidateRefreshToken,
     InterviewSession,
     Organization,
+    User,
 )
 from app.services.it_role_resolver import resolve_it_role
 from app.services.v4_session_store import get_v4_session_store
@@ -42,19 +53,32 @@ from app.data.competency_resolver import default_taxonomy, resolve_competencies,
 from app.models.db import EvidenceStore
 
 
-async def _find_by_email(email: str, db: AsyncSession) -> Optional[CandidateProfile]:
-    """Case-insensitive lookup so a guest profile can be claimed regardless of casing."""
-    result = await db.execute(
-        select(CandidateProfile).where(func.lower(CandidateProfile.email) == email.strip().lower())
-    )
-    return result.scalars().first()
+async def _find_by_email(email: str, db: AsyncSession) -> Optional[User]:
+    """Case-insensitive lookup so a guest account can be claimed regardless of casing."""
+    return await find_user_by_email(db, email)
 
 
 CLAIM_TOKEN_TTL = timedelta(hours=24)
 
+_BAD_CREDENTIALS = "Invalid email or password"
 
-async def _start_account_claim(candidate: CandidateProfile, db: AsyncSession) -> CandidateClaimPendingResponse:
-    """Email the inbox owner a link to claim an existing guest profile.
+
+async def _ensure_profile(user: User, db: AsyncSession) -> CandidateProfile:
+    """The candidate-only data of an account; created on first use (same id as the user)."""
+    profile = await get_candidate_profile(db, user.id)
+    if profile is None:
+        profile = CandidateProfile(id=user.id, user=user)
+        db.add(profile)
+        await db.flush()
+    return profile
+
+
+async def _is_candidate_account(db: AsyncSession, user: User) -> bool:
+    return bool(user.is_registered) and await get_candidate_profile(db, user.id) is not None
+
+
+async def _start_account_claim(user: User, db: AsyncSession) -> CandidateClaimPendingResponse:
+    """Email the inbox owner a link to claim an existing guest account.
 
     The password is deliberately NOT accepted here: it is set on the claim page, after the
     link proves ownership of the inbox. Otherwise anyone could register a victim's email
@@ -65,15 +89,15 @@ async def _start_account_claim(candidate: CandidateProfile, db: AsyncSession) ->
     from app.services.email import send_email
 
     token = secrets.token_urlsafe(32)
-    candidate.verification_token_hash = _hash(token)
-    candidate.verification_sent_at = datetime.now(timezone.utc)
+    user.verification_token_hash = _hash(token)
+    user.verification_sent_at = datetime.now(timezone.utc)
     await db.commit()
 
     await send_email(
-        to=candidate.email,
+        to=user.email,
         subject="Finish setting up your account — AI Interview Agent",
         template_name="account_claim.html",
-        CANDIDATE_NAME=candidate.name,
+        CANDIDATE_NAME=user.name,
         CLAIM_URL=f"{settings.APP_URL.rstrip('/')}/candidate/claim?token={token}",
         APP_URL=settings.APP_URL.rstrip("/"),
     )
@@ -81,26 +105,25 @@ async def _start_account_claim(candidate: CandidateProfile, db: AsyncSession) ->
 
 
 async def complete_claim(req: CandidateClaimRequest, db: AsyncSession) -> CandidateAuthResponse:
-    """Finish claiming a guest profile: valid emailed token + chosen password."""
-    result = await db.execute(
-        select(CandidateProfile).where(CandidateProfile.verification_token_hash == _hash(req.token))
-    )
-    candidate = result.scalars().first()
+    """Finish claiming a guest account: valid emailed token + chosen password."""
+    result = await db.execute(select(User).where(User.verification_token_hash == _hash(req.token)))
+    user = result.scalars().first()
     expired = (
-        candidate is None
-        or candidate.verification_sent_at is None
-        or datetime.now(timezone.utc) - candidate.verification_sent_at > CLAIM_TOKEN_TTL
+        user is None
+        or user.verification_sent_at is None
+        or datetime.now(timezone.utc) - user.verification_sent_at > CLAIM_TOKEN_TTL
     )
-    if candidate is None or candidate.is_registered or expired:
+    if user is None or user.is_registered or expired:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This link is invalid or has expired")
 
-    candidate.password_hash = hash_password(req.password)
+    user.password_hash = hash_password(req.password)
     if req.name and req.name.strip():
-        candidate.name = req.name.strip()
-    candidate.is_registered = True
-    candidate.is_verified = True  # the emailed link proved inbox ownership
-    candidate.verified_at = datetime.now(timezone.utc)
-    candidate.verification_token_hash = None
+        user.name = req.name.strip()
+    user.is_registered = True
+    user.is_verified = True  # the emailed link proved inbox ownership
+    user.verified_at = datetime.now(timezone.utc)
+    user.verification_token_hash = None
+    candidate = await _ensure_profile(user, db)
     await db.commit()
     await db.refresh(candidate)
     return await _build_auth_response(candidate, db)
@@ -115,17 +138,20 @@ async def register(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
     if existing is not None:
-        # A guest profile (earlier applications) already owns this email: claim it by email link.
+        # A guest account (earlier applications) already owns this email: claim it by email link.
         return await _start_account_claim(existing, db)
 
-    candidate = CandidateProfile(
+    user = User(
         id=uuid.uuid4(),
-        email=req.email.strip(),
-        name=req.name,
+        email=clean_email(req.email),
         password_hash=hash_password(req.password),
+        name=req.name,
         is_registered=True,
         is_verified=False,
     )
+    db.add(user)
+    await db.flush()
+    candidate = CandidateProfile(id=user.id, user=user)
     db.add(candidate)
     await db.commit()
     await db.refresh(candidate)
@@ -134,100 +160,73 @@ async def register(
 
 
 async def login(req: CandidateLoginRequest, db: AsyncSession) -> CandidateAuthResponse:
-    result = await db.execute(select(CandidateProfile).where(CandidateProfile.email == req.email))
-    candidate = result.scalar_one_or_none()
-    if not candidate or not candidate.password_hash:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
-    if not verify_password(req.password, candidate.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    user = await _find_by_email(req.email, db)
+    # Same answer for every failure (no such account, no password, wrong password, deactivated, not a candidate account).
+    if not password_matches(user, req.password) or not user.is_active or not user.is_registered:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_BAD_CREDENTIALS)
+    candidate = await get_candidate_profile(db, user.id)
+    if candidate is None:  # a hiring-only account cannot use the candidate sign-in
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_BAD_CREDENTIALS)
 
     return await _build_auth_response(candidate, db)
 
 
 async def google_login(google_data: dict, db: AsyncSession) -> CandidateAuthResponse:
+    from app.auth.accounts import is_org_account
+
     email = google_data.get("email")
-    if not email:
+    subject = google_data.get("sub")
+    if not email or not subject:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email not provided by Google")
+    # verify_google_token already rejects unverified emails; this keeps the rule even if the service is called directly.
+    if google_data.get("email_verified") is not True:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Your Google email address is not verified")
 
-    name = google_data.get("name", email.split("@")[0])
+    name = google_data.get("name") or email.split("@")[0]
+    now = datetime.now(timezone.utc)
 
-    candidate = await _find_by_email(email, db)
+    user = await _find_by_email(email, db)
 
-    if not candidate:
-        candidate = CandidateProfile(
+    if user is None:
+        user = User(
             id=uuid.uuid4(),
-            email=email,
+            email=clean_email(email),
+            password_hash=None,
             name=name,
-            google_id=google_data.get("sub"),
+            google_id=subject,
             is_registered=True,
-            is_verified=google_data.get("email_verified", False),
-            verified_at=datetime.now(timezone.utc) if google_data.get("email_verified") else None,
+            is_verified=True,
+            verified_at=now,
         )
-        db.add(candidate)
+        db.add(user)
+        await db.flush()
     else:
-        candidate.google_id = google_data.get("sub")
-        if not candidate.is_registered:
-            # Claim a guest profile: keep the id (and all history), mark registered.
-            candidate.is_registered = True
-        if google_data.get("email_verified") and not candidate.is_verified:
-            # Google has proven inbox ownership. Anything set up before that proof
-            # (a password or sessions from an unverified claim) is not trusted.
-            candidate.password_hash = None
-            await db.execute(
-                update(CandidateRefreshToken)
-                .where(CandidateRefreshToken.candidate_id == candidate.id)
-                .values(revoked=True)
-            )
-            candidate.is_verified = True
-            candidate.verified_at = datetime.now(timezone.utc)
+        if not user.is_active or (user.google_id and user.google_id != subject):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="This Google account cannot sign in here")
+        if not user.google_id:
+            user.google_id = subject
+        if not user.is_registered:
+            # Claim a guest account: keep the id (and all history), mark registered.
+            user.is_registered = True
+        if not user.is_verified:
+            # Google has proven inbox ownership. For a candidate-only account, anything set up before that proof (a password,
+            # or sessions from an unverified claim) is not trusted. A hiring account keeps its password and its hiring sessions.
+            if not await is_org_account(db, user):
+                user.password_hash = None
+                await revoke_all_sessions(db, user.id, ACTOR_CANDIDATE)
+            user.is_verified = True
+            user.verified_at = now
 
+    candidate = await _ensure_profile(user, db)
     return await _build_auth_response(candidate, db)
 
 
 async def refresh(refresh_token: str, db: AsyncSession) -> CandidateTokenResponse:
-    try:
-        payload = decode_token(refresh_token)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
-
-    if payload.get("type") != "refresh":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
-
-    token_id = payload.get("jti")
-    candidate_id = payload.get("sub")
-    if not token_id or not candidate_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
-
-    stored = await db.execute(
-        select(CandidateRefreshToken).where(CandidateRefreshToken.token_hash == _hash(token_id))
+    user, refresh_token_str = await rotate_refresh_token(
+        db, refresh_token, ACTOR_CANDIDATE, allow=_is_candidate_account
     )
-    stored_token = stored.scalar_one_or_none()
-    if not stored_token or stored_token.revoked:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token revoked or not found")
-
-    stored_token.revoked = True
-
-    result = await db.execute(
-        select(CandidateProfile).where(CandidateProfile.id == UUID(candidate_id))
-    )
-    candidate = result.scalar_one_or_none()
-    if not candidate:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Candidate not found")
-
-    new_token_id = uuid.uuid4().hex
-    new_refresh = CandidateRefreshToken(
-        id=uuid.uuid4(),
-        candidate_id=UUID(candidate_id),
-        token_hash=_hash(new_token_id),
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
-    )
-    db.add(new_refresh)
-
-    access_token = create_access_token(candidate_id, token_type="candidate_access")
-    refresh_token_str = create_refresh_token(candidate_id, new_token_id)
-
     return CandidateTokenResponse(
-        access_token=access_token,
+        access_token=create_access_token(str(user.id), token_type="candidate_access"),
         refresh_token=refresh_token_str,
     )
 
@@ -463,16 +462,7 @@ async def start_practice(
 
 async def _build_auth_response(candidate: CandidateProfile, db: AsyncSession) -> CandidateAuthResponse:
     access_token = create_access_token(str(candidate.id), token_type="candidate_access")
-
-    token_id = uuid.uuid4().hex
-    refresh_token_str = create_refresh_token(str(candidate.id), token_id)
-
-    db.add(CandidateRefreshToken(
-        id=uuid.uuid4(),
-        candidate_id=candidate.id,
-        token_hash=_hash(token_id),
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
-    ))
+    refresh_token_str = issue_refresh_token(db, candidate.id, ACTOR_CANDIDATE)
 
     await db.flush()
     await db.refresh(candidate)
@@ -486,5 +476,4 @@ async def _build_auth_response(candidate: CandidateProfile, db: AsyncSession) ->
     )
 
 
-def _hash(token_id: str) -> str:
-    return hashlib.sha256(token_id.encode()).hexdigest()
+_hash = hash_token

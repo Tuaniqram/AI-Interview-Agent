@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin.schemas import AdminOrgResponse, AdminUserResponse, PlatformStatsResponse
 from app.database.deps import get_db
 from app.models.db import InterviewSession, Organization, User
 
+# Candidates are rows of `users` too. The admin pages are about hiring-side accounts: an admin, or the owner of an organization.
+_HIRING_ACCOUNT = or_(User.is_admin.is_(True), exists().where(Organization.owner_user_id == User.id))
+
 
 async def get_platform_stats(db: AsyncSession) -> PlatformStatsResponse:
     org_count = await db.scalar(select(func.count(Organization.id)))
-    user_count = await db.scalar(select(func.count(User.id)))
+    user_count = await db.scalar(select(func.count(User.id)).where(_HIRING_ACCOUNT))
     interview_count = await db.scalar(select(func.count(InterviewSession.id)))
     active_sessions = await db.scalar(
         select(func.count(InterviewSession.id)).where(InterviewSession.status == "active")
@@ -81,6 +84,7 @@ async def list_users(
     query = (
         select(User, Organization.name.label("org_name"))
         .outerjoin(Organization, Organization.owner_user_id == User.id)
+        .where(_HIRING_ACCOUNT)
         .order_by(User.created_at.desc())
     )
     if search:

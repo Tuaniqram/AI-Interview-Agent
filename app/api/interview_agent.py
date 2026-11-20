@@ -381,10 +381,10 @@ async def _report_context(session_id: str) -> dict:
             return context
         candidate_id, org_id = ids
         if candidate_id is not None:
+            from app.models.db import User as _User
+
             row = (await db.execute(
-                select(CandidateProfile.name, CandidateProfile.email).where(
-                    CandidateProfile.id == candidate_id
-                )
+                select(_User.name, _User.email).where(_User.id == candidate_id)
             )).one_or_none()
             if row:
                 context["candidate_name"] = row.name
