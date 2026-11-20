@@ -74,14 +74,15 @@ async def list_scorecard_results(
         select(
             ScorecardResult,
             ScorecardTemplate.name,
-            CandidateProfile.name,
-            CandidateProfile.email,
+            User.name,
+            User.email,
             InterviewSession.job_role_snapshot,
             InterviewSession.status,
         )
         .join(InterviewSession, ScorecardResult.session_id == InterviewSession.id)
         .outerjoin(ScorecardTemplate, ScorecardResult.template_id == ScorecardTemplate.id)
         .outerjoin(CandidateProfile, InterviewSession.candidate_profile_id == CandidateProfile.id)
+        .outerjoin(User, User.id == CandidateProfile.id)
         .where(InterviewSession.org_id == org_id)
         .order_by(ScorecardResult.created_at.desc())
         .limit(100)

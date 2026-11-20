@@ -46,9 +46,7 @@ async def verify():
             print(f"  {org_name} -> {email}")
 
         owns_org = select(Organization.id).where(Organization.owner_user_id == User.id).exists()
-        is_candidate = select(CandidateProfile.id).where(
-            func.lower(CandidateProfile.email) == func.lower(User.email)
-        ).exists()
+        is_candidate = select(CandidateProfile.id).where(CandidateProfile.id == User.id).exists()
         orphans = await session.scalar(
             select(func.count()).select_from(User).where(
                 User.is_admin.is_(False), ~owns_org, ~is_candidate

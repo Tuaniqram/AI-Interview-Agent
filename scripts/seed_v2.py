@@ -106,13 +106,20 @@ async def seed():
             ts=ts,
         )
 
-        candidate = CandidateProfile(
+        candidate_user = User(
             id=uuid.uuid4(),
             email="candidate@test.com",
             name="Test Candidate",
             password_hash=hash_password("Test123!"),
             is_registered=True,
             is_verified=True,
+            created_at=ts,
+            updated_at=ts,
+        )
+        session.add(candidate_user)
+        await session.flush()
+        candidate = CandidateProfile(
+            id=candidate_user.id,
             skills="Python, FastAPI, React",
             created_at=ts,
             updated_at=ts,

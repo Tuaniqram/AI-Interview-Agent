@@ -44,10 +44,9 @@ from app.candidates.resume_service import parse_resume, store_candidate_resume
 from app.auth.rbac import require_org_role_path
 from app.database.deps import get_db
 from app.auth.middleware import authenticate
+from app.auth.accounts import finish_password_reset, find_user_by_email, get_candidate_profile, start_password_reset
 from app.models.db import (
-    CandidatePasswordResetToken,
     CandidateProfile,
-    CandidateRefreshToken,
     CandidateSavedListing,
     Organization,
     PublicInterview,
@@ -140,24 +139,22 @@ async def verify_email(
     db: AsyncSession = Depends(get_db),
 ):
     token_hash = hashlib.sha256(token.encode()).hexdigest()
-    result = await db.execute(
-        select(CandidateProfile).where(CandidateProfile.verification_token_hash == token_hash)
-    )
-    candidate = result.scalar_one_or_none()
-    if not candidate or not candidate.is_registered:
-        # Tokens on unregistered guest profiles are claim tokens: they go through POST /claim.
+    result = await db.execute(select(User).where(User.verification_token_hash == token_hash))
+    account = result.scalars().first()
+    if not account or not account.is_registered:
+        # Tokens on unregistered guest accounts are claim tokens: they go through POST /claim.
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid verification token")
-    candidate.is_verified = True
-    candidate.verified_at = __import__('datetime').datetime.now(__import__('datetime').timezone.utc)
-    candidate.verification_token_hash = None
+    account.is_verified = True
+    account.verified_at = __import__('datetime').datetime.now(__import__('datetime').timezone.utc)
+    account.verification_token_hash = None
     await db.commit()
 
     audit = AuditLogService(db)
     await audit.log(
         action="candidate.verify",
         resource_type="candidate_profile",
-        resource_id=str(candidate.id),
-        details={"email": candidate.email},
+        resource_id=str(account.id),
+        details={"email": account.email},
         ip_address=request.client.host if request and request.client else None,
     )
 
@@ -314,36 +311,30 @@ async def forgot_password(
     db: AsyncSession = Depends(get_db),
 ):
     generic = {"message": "If that email exists, a reset link has been sent."}
-    result = await db.execute(
-        select(CandidateProfile).where(func.lower(CandidateProfile.email) == req.email.strip().lower())
-    )
-    candidate = result.scalars().first()
-    # Guest profiles have no account yet: they claim it through registration, not a reset.
-    if not candidate or not candidate.is_registered:
+    user = await find_user_by_email(db, req.email)
+    # Guest accounts have nothing to reset: they claim the account through registration. A hiring-only account has no
+    # candidate profile and uses the hiring reset. The answer is identical in every case.
+    if (
+        user is None
+        or not user.is_active
+        or not user.is_registered
+        or await get_candidate_profile(db, user.id) is None
+    ):
         return generic
 
-    token = secrets.token_urlsafe(32)
-    token_hash = hashlib.sha256(token.encode()).hexdigest()
-    reset = CandidatePasswordResetToken(
-        id=uuid.uuid4(),
-        candidate_id=candidate.id,
-        token_hash=token_hash,
-        expires_at=__import__('datetime').datetime.now(__import__('datetime').timezone.utc) + __import__('datetime').timedelta(hours=1),
-    )
-    db.add(reset)
-    await db.commit()
+    token = await start_password_reset(db, user)
 
     from app.services.email import send_email
     reset_url = f"{settings.APP_URL}/candidate/reset-password?token={token}"
     await send_email(
-        to=candidate.email,
+        to=user.email,
         subject="Reset your password — AI Interview Agent",
         template_name="password_reset.html",
         RESET_URL=reset_url,
         APP_URL=settings.APP_URL,
     )
 
-    return {"message": "If that email exists, a reset link has been sent."}
+    return generic
 
 
 @router.post("/reset-password")
@@ -351,34 +342,8 @@ async def reset_password(
     req: CandidateResetPasswordRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    token, new_password = req.token, req.new_password
-    token_hash = hashlib.sha256(token.encode()).hexdigest()
-    result = await db.execute(
-        select(CandidatePasswordResetToken).where(
-            CandidatePasswordResetToken.token_hash == token_hash,
-            CandidatePasswordResetToken.used == False,
-            CandidatePasswordResetToken.expires_at > __import__('datetime').datetime.now(__import__('datetime').timezone.utc),
-        )
-    )
-    reset = result.scalar_one_or_none()
-    if not reset:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
-
-    candidate_result = await db.execute(select(CandidateProfile).where(CandidateProfile.id == reset.candidate_id))
-    candidate = candidate_result.scalar_one_or_none()
-    if not candidate:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found")
-
-    candidate.password_hash = hash_password(new_password)
-    reset.used = True
-    # Anyone holding an old session must sign in again with the new password.
-    await db.execute(
-        update(CandidateRefreshToken)
-        .where(CandidateRefreshToken.candidate_id == candidate.id)
-        .values(revoked=True)
-    )
-    await db.commit()
-
+    # Sets the new password and signs the account out everywhere (every kind of session).
+    await finish_password_reset(db, req.token, req.new_password)
     return {"message": "Password reset successfully"}
 
 

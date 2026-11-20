@@ -1,17 +1,25 @@
 from __future__ import annotations
 
-import hashlib
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
-from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.jwt import create_access_token, create_refresh_token, decode_token
-from app.auth.password import hash_password, verify_password
+from app.auth.accounts import (
+    ACTOR_ORG,
+    clean_email,
+    find_user_by_email,
+    hash_token,
+    is_org_account,
+    issue_refresh_token,
+    password_matches,
+    rotate_refresh_token,
+)
+from app.auth.jwt import create_access_token, decode_token
+from app.auth.password import hash_password
 from app.auth.schemas import (
     AuthResponse,
     LoginRequest,
@@ -20,20 +28,24 @@ from app.auth.schemas import (
     TokenResponse,
     UserResponse,
 )
-from app.database.deps import get_db
 from app.models.db import Organization, RefreshToken, User
+
+# Hiring-side sign-in only serves hiring accounts (an admin, or the owner of an organization). A candidate who has only a
+# candidate account cannot use it to get a hiring session, and the error is the same as a wrong password.
+_BAD_CREDENTIALS = "Invalid email or password"
 
 
 async def register(req: RegisterRequest, db: AsyncSession) -> AuthResponse:
-    existing = await db.execute(select(User).where(User.email == req.email))
-    if existing.scalar_one_or_none():
+    if await find_user_by_email(db, req.email) is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
     user = User(
         id=uuid.uuid4(),
-        email=req.email,
+        email=clean_email(req.email),
         password_hash=hash_password(req.password),
         name=req.name,
+        is_registered=True,
+        is_verified=False,
     )
     db.add(user)
     await db.flush()
@@ -52,12 +64,13 @@ async def register(req: RegisterRequest, db: AsyncSession) -> AuthResponse:
 
 
 async def login(req: LoginRequest, db: AsyncSession) -> AuthResponse:
-    result = await db.execute(select(User).where(User.email == req.email))
-    user = result.scalar_one_or_none()
-    if not user or not verify_password(req.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+    user = await find_user_by_email(db, req.email)
+    if not password_matches(user, req.password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_BAD_CREDENTIALS)
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated")
+    if not await is_org_account(db, user):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_BAD_CREDENTIALS)
 
     org_result = await db.execute(
         select(Organization).where(Organization.owner_user_id == user.id)
@@ -69,21 +82,28 @@ async def login(req: LoginRequest, db: AsyncSession) -> AuthResponse:
 
 async def google_login(google_data: dict, db: AsyncSession) -> AuthResponse:
     email = google_data.get("email")
-    if not email:
+    subject = google_data.get("sub")
+    if not email or not subject:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email not provided by Google")
+    # verify_google_token already rejects unverified emails; this keeps the rule even if the service is called directly.
+    if google_data.get("email_verified") is not True:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Your Google email address is not verified")
 
-    name = google_data.get("name", email.split("@")[0])
+    name = google_data.get("name") or email.split("@")[0]
 
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalar_one_or_none()
+    user = await find_user_by_email(db, email)
 
-    if not user:
+    if user is None:
         user = User(
             id=uuid.uuid4(),
-            email=email,
-            password_hash=hash_password(uuid.uuid4().hex),
+            email=clean_email(email),
+            password_hash=None,
             name=name,
             avatar_url=google_data.get("avatar"),
+            google_id=subject,
+            is_registered=True,
+            is_verified=True,
+            verified_at=datetime.now(timezone.utc),
         )
         db.add(user)
         await db.flush()
@@ -98,6 +118,13 @@ async def google_login(google_data: dict, db: AsyncSession) -> AuthResponse:
         db.add(org)
         await db.flush()
     else:
+        if not user.is_active:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated")
+        # An existing account is only signed in here if it is a hiring account, and only by the Google identity it is bound to.
+        if not await is_org_account(db, user) or (user.google_id and user.google_id != subject):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="This Google account cannot sign in here")
+        if not user.google_id:
+            user.google_id = subject
         result = await db.execute(
             select(Organization).where(Organization.owner_user_id == user.id)
         )
@@ -107,42 +134,9 @@ async def google_login(google_data: dict, db: AsyncSession) -> AuthResponse:
 
 
 async def refresh(refresh_token: str, db: AsyncSession) -> TokenResponse:
-    try:
-        payload = decode_token(refresh_token)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
-
-    if payload.get("type") != "refresh":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
-
-    token_id = payload.get("jti")
-    user_id = payload.get("sub")
-    if not token_id or not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
-
-    stored = await db.execute(
-        select(RefreshToken).where(RefreshToken.token_hash == _hash(token_id))
-    )
-    stored_token = stored.scalar_one_or_none()
-    if not stored_token or stored_token.revoked:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token revoked or not found")
-
-    stored_token.revoked = True
-
-    new_token_id = uuid.uuid4().hex
-    new_refresh = RefreshToken(
-        id=uuid.uuid4(),
-        user_id=UUID(user_id),
-        token_hash=_hash(new_token_id),
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
-    )
-    db.add(new_refresh)
-
-    access_token = create_access_token(user_id)
-    refresh_token_str = create_refresh_token(user_id, new_token_id)
-
+    user, refresh_token_str = await rotate_refresh_token(db, refresh_token, ACTOR_ORG, allow=is_org_account)
     return TokenResponse(
-        access_token=access_token,
+        access_token=create_access_token(str(user.id)),
         refresh_token=refresh_token_str,
     )
 
@@ -155,7 +149,7 @@ async def logout(refresh_token: str, db: AsyncSession) -> None:
     token_id = payload.get("jti")
     if token_id:
         stored = await db.execute(
-            select(RefreshToken).where(RefreshToken.token_hash == _hash(token_id))
+            select(RefreshToken).where(RefreshToken.token_hash == hash_token(token_id))
         )
         stored_token = stored.scalar_one_or_none()
         if stored_token:
@@ -165,16 +159,7 @@ async def logout(refresh_token: str, db: AsyncSession) -> None:
 
 async def _build_auth_response(user: User, org: Optional[Organization], db: AsyncSession) -> AuthResponse:
     access_token = create_access_token(str(user.id), org_id=str(org.id) if org else None)
-    token_id = uuid.uuid4().hex
-    refresh_token_str = create_refresh_token(str(user.id), token_id)
-
-    rt = RefreshToken(
-        id=uuid.uuid4(),
-        user_id=user.id,
-        token_hash=_hash(token_id),
-        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
-    )
-    db.add(rt)
+    refresh_token_str = issue_refresh_token(db, user.id, ACTOR_ORG)
     await db.commit()
     await db.refresh(user)
 
@@ -197,5 +182,4 @@ async def _build_auth_response(user: User, org: Optional[Organization], db: Asyn
     )
 
 
-def _hash(token_id: str) -> str:
-    return hashlib.sha256(token_id.encode()).hexdigest()
+_hash = hash_token  # kept for callers that imported it from here

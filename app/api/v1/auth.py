@@ -17,16 +17,11 @@ from app.auth.schemas import (
     TokenResponse,
     UserResponse,
 )
-import hashlib
-import secrets
-import uuid
-from datetime import datetime, timedelta, timezone
-
-from app.auth.password import hash_password
+from app.auth.accounts import finish_password_reset, find_user_by_email, is_org_account, start_password_reset
 from app.auth.service import login, logout, refresh, register
 from app.config import settings
 from app.database.deps import get_db
-from app.models.db import Organization, User, UserPasswordResetToken
+from app.models.db import Organization, User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -82,21 +77,14 @@ async def forgot_password(
     req: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(User).where(User.email == req.email))
-    user = result.scalar_one_or_none()
-    if not user:
-        return {"message": "If that email exists, a reset link has been sent."}
+    generic = {"message": "If that email exists, a reset link has been sent."}
+    user = await find_user_by_email(db, req.email)
+    # Only an account that can sign in on the hiring side gets a hiring reset link; guests and candidate-only accounts
+    # use the candidate flow. The answer is the same either way, so it reveals nothing.
+    if user is None or not user.is_active or not user.is_registered or not await is_org_account(db, user):
+        return generic
 
-    token = secrets.token_urlsafe(32)
-    token_hash = hashlib.sha256(token.encode()).hexdigest()
-    reset = UserPasswordResetToken(
-        id=uuid.uuid4(),
-        user_id=user.id,
-        token_hash=token_hash,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-    )
-    db.add(reset)
-    await db.commit()
+    token = await start_password_reset(db, user)
 
     from app.services.email import send_email
     reset_url = f"{settings.APP_URL}/reset-password?token={token}"
@@ -108,7 +96,7 @@ async def forgot_password(
         APP_URL=settings.APP_URL,
     )
 
-    return {"message": "If that email exists, a reset link has been sent."}
+    return generic
 
 
 @router.post("/reset-password")
@@ -116,27 +104,6 @@ async def reset_password(
     req: ResetPasswordRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    token_hash = hashlib.sha256(req.token.encode()).hexdigest()
-    result = await db.execute(
-        select(UserPasswordResetToken).where(
-            UserPasswordResetToken.token_hash == token_hash,
-            UserPasswordResetToken.used == False,
-            UserPasswordResetToken.expires_at > datetime.now(timezone.utc),
-        )
-    )
-    reset = result.scalar_one_or_none()
-    if not reset:
-        from fastapi import HTTPException, status
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
-
-    user_result = await db.execute(select(User).where(User.id == reset.user_id))
-    user = user_result.scalar_one_or_none()
-    if not user:
-        from fastapi import HTTPException, status
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-    user.password_hash = hash_password(req.new_password)
-    reset.used = True
-    await db.commit()
-
+    # Sets the new password and signs the account out everywhere (every kind of session).
+    await finish_password_reset(db, req.token, req.new_password)
     return {"message": "Password reset successfully"}

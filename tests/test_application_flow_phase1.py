@@ -120,7 +120,12 @@ def _guest_profile(**overrides):
         verification_token_hash=None,
     )
     base.update(overrides)
-    return SimpleNamespace(**base)
+    account = SimpleNamespace(**base)
+    # One object plays both the account (users row) and its candidate profile (same id).
+    account.is_active = True
+    account.is_admin = False
+    account.user = account
+    return account
 
 
 @pytest.fixture(autouse=True)
@@ -240,8 +245,8 @@ async def test_guest_cannot_apply_as_registered_account():
 
 async def test_guest_reapply_reuses_existing_guest_profile():
     guest = _guest_profile()
-    # listing, profile lookup (found), existing submission (none), org name, filename
-    db = ScriptedDB(_listing(), guest, None, "Acme", "cv.pdf")
+    # listing, account lookup (found), its candidate profile, existing submission (none), org name, filename
+    db = ScriptedDB(_listing(), guest, guest, None, "Acme", "cv.pdf")
     req = ApplyRequest(candidate_email="Alex@Example.com", candidate_name="Alex R")
 
     await apply_to_public_interview("pi", req, db, resume=_pdf_upload())
@@ -404,7 +409,8 @@ async def test_register_with_different_email_creates_new_profile():
 async def test_google_login_claims_guest_profile_and_verifies():
     guest = _guest_profile()
     original_id = guest.id
-    db = ScriptedDB(guest)
+    # account lookup, org-owner check (none), session revoke, candidate profile
+    db = ScriptedDB(guest, None, None, guest)
 
     await candidate_service.google_login(
         {"email": "alex@example.com", "sub": "g-123", "name": "Alex", "email_verified": True}, db
@@ -421,19 +427,20 @@ async def test_google_login_claims_guest_profile_and_verifies():
 async def test_google_verification_discards_untrusted_password():
     claimed = _guest_profile(is_registered=True, password_hash="attacker-hash")
     await candidate_service.google_login(
-        {"email": "alex@example.com", "sub": "g-1", "email_verified": True}, ScriptedDB(claimed)
+        {"email": "alex@example.com", "sub": "g-1", "email_verified": True}, ScriptedDB(claimed, None, None, claimed)
     )
     assert claimed.password_hash is None
     assert claimed.is_verified is True
 
 
-async def test_google_login_without_verified_email_stays_unverified():
+async def test_google_login_with_unverified_email_is_rejected_and_changes_nothing():
     guest = _guest_profile()
-    await candidate_service.google_login(
-        {"email": "alex@example.com", "sub": "g-1", "email_verified": False}, ScriptedDB(guest)
-    )
-    assert guest.is_registered is True
-    assert guest.is_verified is False
+    with pytest.raises(HTTPException) as exc:
+        await candidate_service.google_login(
+            {"email": "alex@example.com", "sub": "g-1", "email_verified": False}, ScriptedDB(guest)
+        )
+    assert exc.value.status_code == 401
+    assert guest.is_registered is False and guest.is_verified is False and guest.google_id is None
 
 
 # ── HTTP: multipart contract + verified gating ───────────────────────────

@@ -65,6 +65,7 @@ def snapshot(c) -> dict:
 
 def run_in_transaction(sync_conn):
     mig_a, mig_b = load("d4a5b6c7e8f9"), load("e5b6c7d8f9a0")
+    mig_c1, mig_c2 = load("f6c7d8e9a0b1"), load("a7d8e9f0b1c2")
     before = snapshot(sync_conn)
     print("before:", before)
     ctx = MigrationContext.configure(sync_conn)
@@ -125,6 +126,21 @@ def run_in_transaction(sync_conn):
             "values (gen_random_uuid(), 'google@invalid.test', 'g', false, true, true, 'a-google-id')")
 
     with Operations.context(ctx):
+        print("\nstep 3a (legacy columns optional), then 3b (reconcile + foreign key):")
+        mig_c1.upgrade()
+    accepts(sync_conn, "a new-style profile (no email/name/flags) can be inserted for a new account",
+            "with u as (insert into users (id, email, name, is_admin, is_active, is_registered, google_id) "
+            "values (gen_random_uuid(), 'newstyle@invalid.test', 'n', false, true, true, 'ns-google') returning id) "
+            "insert into candidate_profiles (id) select id from u")
+    with Operations.context(ctx):
+        mig_c2.upgrade()
+    check(q1(sync_conn, "select count(*) from pg_constraint where conname='candidate_profiles_id_users_fkey'") == 1,
+          "candidate_profiles.id now has a foreign key to users.id")
+    rejects(sync_conn, "a candidate profile without an account is rejected", "candidate_profiles_id_users_fkey",
+            "insert into candidate_profiles (id, email, name, is_registered, is_verified) "
+            "values (gen_random_uuid(), 'orphan@invalid.test', 'o', true, true)")
+
+    with Operations.context(ctx):
         print("\nrun step 2 again (must change nothing):")
         mig_b.upgrade()
     again = snapshot(sync_conn)
@@ -132,6 +148,8 @@ def run_in_transaction(sync_conn):
 
     with Operations.context(ctx):
         print("\nundo: downgrade step 2, then step 1:")
+        mig_c2.downgrade()
+        mig_c1.downgrade()
         mig_b.downgrade()
         mig_a.downgrade()
     restored = snapshot(sync_conn)

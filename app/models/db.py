@@ -9,6 +9,7 @@ from sqlalchemy import (
     Index, Integer, Numeric, Text, Time, UniqueConstraint, func, text,
 )
 from sqlalchemy.dialects.postgresql import UUID, INET, ARRAY, JSONB
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
 from app.database.base import Base
@@ -21,11 +22,19 @@ class User(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     email: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
-    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    # Empty for an unclaimed guest (someone who only applied) and for a Google-only account.
+    password_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     avatar_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Identity fields shared by every kind of account (candidates used to keep these on candidate_profiles).
+    google_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_registered: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    verification_token_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    verification_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -49,6 +58,9 @@ class RefreshToken(Base):
     token_hash: Mapped[str] = mapped_column(Text, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+    # The kind of session this token may mint: 'org' (hiring side) or 'candidate'. Checked on every refresh, so a
+    # candidate's refresh token can never be exchanged for a hiring-side session.
+    actor: Mapped[str] = mapped_column(Text, default="org", server_default=text("'org'"))
     created_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -309,22 +321,20 @@ class InterviewTemplate(Base):
 
 
 class CandidateProfile(Base):
+    """Candidate-only data (resume, skills, phone, profile data).
+
+    WHO the person is (email, name, password, Google id, verification) lives on the linked ``users`` row, which has the SAME
+    id (shared primary key). The identity attributes below read and write through that row, so ``candidate.email`` still works.
+    The old identity columns on this table are legacy: no longer mapped, nullable, and dropped by the final clean-up migration.
+    """
+
     __tablename__ = "candidate_profiles"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, default=uuid.uuid4
     )
-    email: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
-    name: Mapped[str] = mapped_column(Text, nullable=False)
     phone: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     resume_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    password_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    google_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    is_registered: Mapped[bool] = mapped_column(Boolean, default=False)
-    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
-    verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    verification_token_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    verification_sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     skills: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     profile_data: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict, nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(
@@ -334,9 +344,18 @@ class CandidateProfile(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    __table_args__ = (
-        Index("idx_candidate_email", "email"),
-    )
+    # Always loaded together with the profile (an async session cannot lazy-load later).
+    user: Mapped[User] = relationship("User", lazy="joined", innerjoin=True)
+
+    email = association_proxy("user", "email")
+    name = association_proxy("user", "name")
+    password_hash = association_proxy("user", "password_hash")
+    google_id = association_proxy("user", "google_id")
+    is_registered = association_proxy("user", "is_registered")
+    is_verified = association_proxy("user", "is_verified")
+    verified_at = association_proxy("user", "verified_at")
+    verification_token_hash = association_proxy("user", "verification_token_hash")
+    verification_sent_at = association_proxy("user", "verification_sent_at")
 
 
 class CandidateInvitation(Base):

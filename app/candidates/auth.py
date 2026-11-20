@@ -30,7 +30,7 @@ async def authenticate_candidate(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
         result = await db.execute(select(CandidateProfile).where(CandidateProfile.id == UUID(candidate_id)))
         candidate = result.scalar_one_or_none()
-        if not candidate:
+        if not candidate or not candidate.user.is_active or not candidate.user.is_registered:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Candidate not found")
         return candidate
     except ValueError:
@@ -62,6 +62,9 @@ async def optional_candidate_auth(
         if not candidate_id:
             return None
         result = await db.execute(select(CandidateProfile).where(CandidateProfile.id == UUID(candidate_id)))
-        return result.scalar_one_or_none()
+        candidate = result.scalar_one_or_none()
+        if candidate is None or not candidate.user.is_active or not candidate.user.is_registered:
+            return None
+        return candidate
     except ValueError:
         return None
