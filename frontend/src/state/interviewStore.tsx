@@ -474,7 +474,9 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
 
           const currentQ = stateRef.current.currentQuestion;
           const entry: EvaluationHistoryEntry = {
-            questionNumber: result.question_number,
+            // The question that was ANSWERED. result.question_number is the server's reply and already names the NEXT
+            // question, which labelled every evaluation one too high (Q2/1, Q3/2, Q3/3) and made "Q1" unreachable.
+            questionNumber: currentQ?.question_number ?? result.question_number,
             question: currentQ?.question || '',
             answer: answer,
             score: result.score,
