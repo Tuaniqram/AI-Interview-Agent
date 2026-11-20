@@ -66,26 +66,6 @@ class RefreshToken(Base):
     )
 
 
-class CandidateRefreshToken(Base):
-    __tablename__ = "candidate_refresh_tokens"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    candidate_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("candidate_profiles.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    token_hash: Mapped[str] = mapped_column(Text, nullable=False)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    revoked: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-
-
 class Organization(Base):
     __tablename__ = "organizations"
 
@@ -398,32 +378,6 @@ class CandidateInvitation(Base):
         Index("idx_candidate_invitations_org", "org_id"),
         Index("idx_candidate_invitations_role", "it_role_id"),
         Index("idx_candidate_invitations_created_by", "created_by"),
-    )
-
-
-class CandidatePasswordResetToken(Base):
-    __tablename__ = "candidate_password_reset_tokens"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    candidate_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("candidate_profiles.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    token_hash: Mapped[str] = mapped_column(Text, nullable=False)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    used: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-
-    candidate: Mapped[CandidateProfile] = relationship("CandidateProfile")
-
-    __table_args__ = (
-        Index("idx_candidate_reset_tokens_hash", "token_hash"),
-        Index("idx_candidate_reset_tokens_candidate", "candidate_id"),
     )
 
 
