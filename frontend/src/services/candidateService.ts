@@ -1,0 +1,113 @@
+import { apiClient } from './apiClient';
+import type {
+  CandidateAuthResponse,
+  CandidateClaimPending,
+  CandidateLoginRequest,
+  CandidateRegisterRequest,
+  CandidateTokens,
+  CandidateUpdateRequest,
+  CandidateProfile,
+  CandidateInterview,
+  CandidateInterviewDetail,
+  CandidateStats,
+  CompetencyScore,
+  PracticeStartRequest,
+  PracticeStartResponse,
+  SavedListing,
+} from '../types/candidate';
+import type { Application } from '../types/marketplace';
+
+export const candidateService = {
+  async register(data: CandidateRegisterRequest): Promise<CandidateAuthResponse | CandidateClaimPending> {
+    return apiClient.post<CandidateAuthResponse | CandidateClaimPending>('/api/v1/candidates/register', data);
+  },
+
+  /** Finish claiming a guest profile: emailed token + a new password. Signs the candidate in. */
+  async claimAccount(data: { token: string; password: string; name?: string }): Promise<CandidateAuthResponse> {
+    return apiClient.post<CandidateAuthResponse>('/api/v1/candidates/claim', data);
+  },
+
+  async verifyEmail(token: string): Promise<{ message: string }> {
+    return apiClient.post<{ message: string }>(`/api/v1/candidates/verify?token=${encodeURIComponent(token)}`);
+  },
+
+  async login(data: CandidateLoginRequest): Promise<CandidateAuthResponse> {
+    return apiClient.post<CandidateAuthResponse>('/api/v1/candidates/login', data);
+  },
+
+  async googleLogin(credential: string): Promise<CandidateAuthResponse> {
+    return apiClient.post<CandidateAuthResponse>('/api/v1/candidates/google', { credential });
+  },
+
+  async refresh(refreshToken: string): Promise<CandidateTokens> {
+    return apiClient.post<CandidateTokens>('/api/v1/candidates/refresh', { refresh_token: refreshToken });
+  },
+
+  async me(): Promise<CandidateProfile> {
+    return apiClient.get<CandidateProfile>('/api/v1/candidates/me');
+  },
+
+  async updateProfile(data: CandidateUpdateRequest): Promise<CandidateProfile> {
+    return apiClient.patch<CandidateProfile>('/api/v1/candidates/me', data);
+  },
+
+  async getInterviews(): Promise<CandidateInterview[]> {
+    return apiClient.get<CandidateInterview[]>('/api/v1/candidates/interviews');
+  },
+
+  async getInterviewDetail(interviewId: string): Promise<CandidateInterviewDetail> {
+    return apiClient.get<CandidateInterviewDetail>(`/api/v1/candidates/interviews/${interviewId}`);
+  },
+
+  async getStats(): Promise<CandidateStats> {
+    return apiClient.get<CandidateStats>('/api/v1/candidates/stats');
+  },
+
+  async sendVerification(): Promise<{ message: string }> {
+    return apiClient.post<{ message: string }>('/api/v1/candidates/send-verification');
+  },
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    return apiClient.post<{ message: string }>('/api/v1/candidates/forgot-password', { email });
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    // Body, not query string: the new password must never end up in URLs or access logs.
+    return apiClient.post<{ message: string }>('/api/v1/candidates/reset-password', { token, new_password: newPassword });
+  },
+
+  async startPractice(data: PracticeStartRequest): Promise<PracticeStartResponse> {
+    return apiClient.post<PracticeStartResponse>('/api/v1/candidates/practice/start', data);
+  },
+
+  async getCompetencyScores(): Promise<CompetencyScore[]> {
+    return apiClient.get<CompetencyScore[]>('/api/v1/candidates/competency-scores');
+  },
+
+  async saveListing(listingId: number): Promise<{ message: string }> {
+    return apiClient.post(`/api/v1/candidates/saved-listings/${listingId}`);
+  },
+
+  async unsaveListing(listingId: number): Promise<{ message: string }> {
+    return apiClient.delete(`/api/v1/candidates/saved-listings/${listingId}`);
+  },
+
+  async getSavedListings(): Promise<SavedListing[]> {
+    return apiClient.get<SavedListing[]>('/api/v1/candidates/saved-listings');
+  },
+
+  async getApplications(): Promise<Application[]> {
+    return apiClient.get<Application[]>('/api/v1/marketplace/applications/me');
+  },
+
+  async respondToApplication(applicationId: string, response: 'accepted' | 'declined'): Promise<Application> {
+    return apiClient.post<Application>(`/api/v1/marketplace/applications/${applicationId}/respond`, { response });
+  },
+
+  async uploadResume(file: File): Promise<CandidateProfile> {
+    const formData = new FormData();
+    formData.append('file', file);
+    // upload(), not post(): post() JSON-serializes FormData bodies.
+    return apiClient.upload<CandidateProfile>('/api/v1/candidates/me/resume', formData);
+  },
+};

@@ -112,3 +112,4 @@ threat-model/
 !/.env.example
 !/.gitignore
 !/render.yaml
+!/frontend/

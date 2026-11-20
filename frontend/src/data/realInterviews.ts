@@ -1,0 +1,546 @@
+// AUTO-GENERATED from real sessions (docs/aura/candidate + interview_messages).
+// Regenerate with scripts at D:/UnityTemp/opencode/gen_ts_data_full.py
+
+export interface RealStep {
+  phase: string;
+  comp: string;
+  compLabel: string;
+  q: string;
+  a: string;
+  score: number | null;
+  tech: number | null;
+  comm: number | null;
+  strengths: string;
+  weaknesses: string;
+}
+
+export interface RealHypothesis {
+  status: 'confirmed' | 'refuted' | 'testing' | 'untested';
+  competency: string;
+  confidence: number;
+  statement: string;
+}
+
+export interface RealCandidate {
+  id: string;
+  name: string;
+  email: string;
+  sessionId: string;
+  role: string;
+  difficulty: number;
+  coverage: number | null;
+  verdict: string;
+  composite: number | null;
+  confidence: number | null;
+  decision: string;
+  decisionScore: number | null;
+  steps: RealStep[];
+  hypotheses: RealHypothesis[];
+  evidence: Record<string, { label: string; avg: number | null; count: number | null; gap: number | null }>;
+}
+
+export const REAL_CANDIDATES: Record<'alice' | 'brian', RealCandidate> = {
+  alice: {
+    id: "alice",
+    name: "Alice Chan",
+    email: "alice.chan@test.com",
+    sessionId: "ea01f773-f830-4271-81cb-a123536be68a",
+    role: "Senior Python Developer",
+    difficulty: 4,
+    coverage: 0.68,
+    verdict: "hire",
+    composite: 8.46,
+    confidence: 0.19,
+    decision: "hire",
+    decisionScore: 6.5,
+    steps: [
+      {
+        phase: "intro",
+        comp: "tech_system_design",
+        compLabel: "System Design",
+        q: `You've had experience building production APIs and AI-powered products. Can you walk me through your approach to designing a scalable and maintainable tech stack for a large-scale AI interviewer system like the one we're building here?`,
+        a: `I own a FastAPI service handling about 40k requests per minute with async SQLAlchemy sessions and versioned routes. We used JWT auth with refresh-token rotation, per-tenant row-level isolation, structured JSON logging, and kept test coverage above 85 percent. When a slow endpoint surfaced I profiled it with cProfile, found N+1 queries in the list endpoint, switched to selectinload and added an in-process cache — p95 dropped from 900ms to 210ms. I also design OpenAPI contracts first so the frontend can build against the schema before the implementation lands.`,
+        score: 7.06, tech: 7.50, comm: 8.00,
+        strengths: `Good conceptual understanding, Proper terminology, Clear structure, Good pacing, Logical flow, Honest about limits, Good coverage of basics`,
+        weaknesses: `Missing edge cases, No real-world examples, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases`,
+      },
+      {
+        phase: "intro",
+        comp: "tech_system_design",
+        compLabel: "System Design",
+        q: `How would you approach optimizing the data ingestion pipeline for our company brain, considering the volume of internal department documents and the need for fast data retrieval, while also ensuring data isolation and scalability?`,
+        a: `I work daily with PostgreSQL. We migrated from sync psycopg2 to asyncpg and introduced alembic revisions reviewed in CI. I debugged a deadlock caused by out-of-order row updates and fixed it by ordering lock acquisition consistently. I also run EXPLAIN ANALYZE before touching an index; one change added a partial index on the active-orders flag and cut a join query from 1.4s to 60ms. I understand connection pooling limits, prepared-statement caching in asyncpg, and why you keep migrations backward compatible for zero-downtime deploys.`,
+        score: 7.06, tech: 8.00, comm: 9.00,
+        strengths: `Good conceptual understanding, Proper terminology, Awareness of best practices, Clear structure, Good pacing, Concise and clear explanation, Logical flow, Cause-effect reasoning, Honest about limits, Calibrated certainty, Good coverage of basics`,
+        weaknesses: `No real-world examples, No alternative consideration, Shallow analysis, Missing edge cases and performance implications`,
+      },
+      {
+        phase: "technical",
+        comp: "tech_system_design",
+        compLabel: "System Design",
+        q: `I'd like to understand your experience with tech system design. Tell me about a time when you faced a significant challenge in this area. How did you approach it and what was the outcome?`,
+        a: `Given a design for 10k users growing to 20M, I would start with the constraints: read versus write ratio, consistency needs, and the single biggest failure mode. Start with one Postgres primary with read replicas, an API layer with rate limiting and idempotent writes, and put a CDN in front of static assets. When the DB becomes the bottleneck, partition by tenant id and move hot paths into Redis or Kafka for async processing. I would not jump to microservices — I would keep the monolith until the team and the failure modes demand splitting, and I would define SLOs and error budgets up front so scaling decisions are measurable.`,
+        score: 7.44, tech: 8.00, comm: 8.50,
+        strengths: `Good conceptual understanding, Proper terminology, Awareness of best practices and trade-offs, Clear structure, Good pacing, Concise, Logical flow, Honest about limits, Pushed back on scalability decisions, Good coverage of basics`,
+        weaknesses: `Missing edge cases, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases`,
+      },
+      {
+        phase: "technical",
+        comp: "tech_deployment",
+        compLabel: "Deployment",
+        q: `Let's stress that constraint handling is critical in system design. Given the constraints you've identified for a 10k user system growing to 20M, how would you prioritize and implement data isolation and scalability measures to prevent the single biggest failure mode from occurring?`,
+        a: `Rolling out the feature to production I would do a blue-green deploy behind a feature flag, run the migration first and verify it is safe to roll back, then watch error rates and p95 for fifteen minutes before flipping the flag. If anything looked off I would revert the flag, not the code. We also staged the release in a shadow environment against copied traffic so the hot path was exercised before real users saw it.`,
+        score: 7.06, tech: 7.50, comm: 8.00,
+        strengths: `Good conceptual understanding, Proper terminology, Clear structure, Good pacing, Logical flow, Honest about limits, Good coverage of basics`,
+        weaknesses: `Missing edge cases, No real-world examples, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases`,
+      },
+      {
+        phase: "technical",
+        comp: "tech_event_driven",
+        compLabel: "Event-Driven",
+        q: `You mentioned designing OpenAPI contracts first for your API. Can you walk me through your thought process when it comes to modeling complex workflows and integrating with downstream systems in an event-driven architecture?`,
+        a: `For the event-driven path I would put a Kafka topic in front of the writes, with idempotent consumers so replays are harmless. Producers would publish compacted events keyed by tenant, and consumers would batch-process into Redis or the database. The tricky part is ordering — we kept per-key ordering with a single partition per tenant and accepted that cross-tenant ordering does not matter.`,
+        score: 7.31, tech: 8.00, comm: 8.00,
+        strengths: `Good conceptual understanding, Proper terminology, Awareness of best practices, Clear structure, Good pacing, Good vocabulary and articulation, Logical flow, Honest about limits, Confident in own expertise, Good coverage of basics`,
+        weaknesses: `Missing edge cases, No alternative consideration, Shallow analysis, Missing edge cases`,
+      },
+      {
+        phase: "technical",
+        comp: "tech_data_modeling",
+        compLabel: "Data Modeling",
+        q: `Can you walk me through how you would design a data model for a FastAPI service handling high-traffic, low-latency requests, considering the trade-offs between data consistency, scalability, and maintainability?`,
+        a: `For the data model I would start from access patterns: the reads that matter are the list and detail endpoints, so those get indexes and selectinload. I would model entities as separate tables with explicit foreign keys, keep a version column for optimistic locking, and add a schema_migrations discipline with alembic so the model evolves without downtime. Nulls and defaults are decided per column, never left to chance.`,
+        score: 7.06, tech: 7.50, comm: 8.00,
+        strengths: `Good conceptual understanding, Proper terminology, Clear structure, Good pacing, Logical flow, Honest about limits, Good coverage of basics`,
+        weaknesses: `Missing edge cases, No real-world examples, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases`,
+      },
+      {
+        phase: "technical",
+        comp: "tech_event_driven",
+        compLabel: "Event-Driven",
+        q: `Given the event-driven architecture you've described, can you walk me through how you would handle and process a burst of 10,000 new user registrations within a 10-minute window, considering the potential impact on your system's scalability and data consistency?`,
+        a: `I would approach it as: what breaks first, and what do we trade away to avoid it. Read replicas buy read scale, partitioning buys tenant isolation and write scale, and Kafka buys async fan-out — but each adds operational cost, so the choice depends on the measured read-to-write ratio and the SLO. I would instrument before and after, use error budgets to decide, and keep the monolith until the failure modes actually demand splitting.`,
+        score: 7.59, tech: 8.00, comm: 8.50,
+        strengths: `Good conceptual understanding, Proper terminology, Awareness of performance implications, Clear structure, Good pacing, Concise language, Logical flow, Consideration of alternatives, Honest about limits, Confident in stated knowledge, Good coverage of basics, Comprehensive explanation`,
+        weaknesses: `Missing some edge cases, Shallow analysis`,
+      },
+      {
+        phase: "technical",
+        comp: "tech_caching",
+        compLabel: "Caching & Redis",
+        q: `Let's stress that approach: what are the specific trade-offs you would make when choosing between partitioning by tenant ID and using Redis for async processing, and how would you measure the impact on overall system performance?`,
+        a: `For caching I start from the cache invalidation problem, not the cache itself. On a recent service we had a Redis cache with a 30 second TTL that was serving stale pricing data. I changed the write path to invalidate the key on update and used a short TTL as a safety net, plus read-through with single-flight to avoid stampedes. I benchmarked hit rate before and after: from 78 to 96 percent. For a distributed lock I would use Redis SET NX with a lease, and I know when a cache is the wrong tool — e.g. when consistency matters more than latency.`,
+        score: 7.06, tech: 7.50, comm: 8.00,
+        strengths: `Good conceptual understanding, Proper terminology, Clear structure, Good pacing, Logical flow, Honest about limits, Good coverage of basics`,
+        weaknesses: `Missing edge cases, No real-world examples, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases`,
+      },
+      {
+        phase: "technical",
+        comp: "tech_event_driven",
+        compLabel: "Event-Driven",
+        q: `Walk me through a difficult tech event driven problem you solved recently in your Senior Python Developer work. What made it hard, and how did you decide between the options?`,
+        a: `Eight years of Python, most recently designing an LLM evaluation service that scores candidate answers per competency dimension and reconciles them into a composite score. Each answer is sanitized, evidence is extracted, and scores are normalized to avoid model drift between runs. I profile with cProfile, use dataclasses and pydantic for boundaries, and keep the hot loops out of the event loop. I also maintain a knowledge base pipeline that ingests PDFs, chunks them, embeds them, and stores them in per-department Pinecone namespaces so retrieval stays tenant-isolated.`,
+        score: 7.59, tech: 8.00, comm: 8.50,
+        strengths: `Good conceptual understanding, Proper terminology, Aware of scalability considerations, Clear structure, Good pacing, Good vocabulary, Logical flow, Considered tradeoffs, Some cause-effect reasoning, Honest about limits, Calibrated certainty, Good coverage of basics`,
+        weaknesses: `No real-world examples, No real-world examples, Missing edge cases and performance implications discussion`,
+      },
+      {
+        phase: "behavioral",
+        comp: "tech_deployment",
+        compLabel: "Deployment",
+        q: `Describe a time your tech deployment skills were tested at work. What specifically did you do, and what did you learn from how it turned out?`,
+        a: `I treat tests as the safety net that lets us refactor. On my last project I introduced a layered test strategy: unit tests for pure logic, integration tests against a real Postgres in a docker compose, and a small set of end-to-end flows for critical paths. Coverage went from 41 to 88 percent while the suite stayed under four minutes by mocking the slowest external calls. I also set up mutation testing for the scoring module — it caught three assertions that never failed. I review test quality in PRs, not just coverage numbers.`,
+        score: 7.06, tech: 7.50, comm: 8.00,
+        strengths: `Good conceptual understanding, Proper terminology, Clear structure, Good pacing, Logical flow, Honest about limits, Good coverage of basics`,
+        weaknesses: `Missing edge cases, No real-world examples, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases`,
+      },
+      {
+        phase: "behavioral",
+        comp: "tech_deployment",
+        compLabel: "Deployment",
+        q: `Let's explore a situation where a production issue surfaces in a distributed system, and you need to quickly roll out a fix to mitigate the impact. How would you prioritize the roll-out and ensure the fix doesn't introduce new issues?`,
+        a: `When a production issue surfaces in a distributed system I would first contain the blast radius: disable the new code path or the failing consumer, keep serving reads from the replica, and only then dig into logs and traces. The fix ships behind a flag with the rollback one keypress away, and the postmortem is written within the week — blameless, with the monitoring gap that hid it closed first.`,
+        score: 7.06, tech: 7.50, comm: 8.00,
+        strengths: `Good conceptual understanding, Proper terminology, Clear structure, Good pacing, Logical flow, Honest about limits, Good coverage of basics`,
+        weaknesses: `Missing edge cases, No real-world examples, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases`,
+      },
+      {
+        phase: "behavioral",
+        comp: "tech_core",
+        compLabel: "Core Python",
+        q: `In your design, what trade-offs do you see between the performance of a single Postgres primary with read replicas versus partitioning the database by tenant ID and moving hot paths into Redis or Kafka for async processing?`,
+        a: `On the core Python side I would keep the hot loop out of the event loop: the scoring engine batches evidence through pydantic-validated dataclasses, profile with cProfile before optimizing, and normalize scores to avoid model drift between runs. I maintain a knowledge base pipeline that ingests PDFs, chunks them, embeds them, and stores them in per-department Pinecone namespaces so retrieval stays tenant-isolated.`,
+        score: 7.53, tech: 8.00, comm: 8.00,
+        strengths: `Good conceptual understanding, Proper terminology, Considered system constraints, Clear structure, Good pacing, Concise language, Logical flow, Considered alternatives, Honest about limits, Calibrated certainty, Good coverage of basics`,
+        weaknesses: `Missing edge cases in partitioning strategy, Shallow analysis on partitioning strategy, Missing edge cases`,
+      },
+      {
+        phase: "behavioral",
+        comp: "behav_communication",
+        compLabel: "Communication",
+        q: `Given the technical lead role, how would you articulate the trade-offs and constraints you've identified to the development team, ensuring everyone is aligned with the design decisions?`,
+        a: `I lead by pairing with juniors and reviewing designs early, before the code is written. I run weekly 1:1s where the agenda belongs to the engineer, and I prefer incremental migrations over rewrites because small reversible steps keep the team shipping. When a junior missed a deadline I looked at what the process hid from them — unclear acceptance criteria — and we fixed the intake instead of blaming the engineer. I also mentor by working in public: design docs, code reviews, and postmortems are shared so everyone learns the same lessons.`,
+        score: 7.44, tech: 8.00, comm: 8.50,
+        strengths: `Good conceptual understanding, Proper terminology, Best practices, Clear structure, Good pacing, Good vocabulary, Logical flow, Considered rate limiting and idempotent writes, Honest about limits, Good pushback, Good coverage of basics, Good coverage of trade-offs`,
+        weaknesses: `Missing edge cases, No alternative consideration, Shallow analysis of failure modes, Minor omissions`,
+      },
+      {
+        phase: "conclusion",
+        comp: "tech_core",
+        compLabel: "Core Python",
+        q: `Given the technical lead role, how would you articulate the trade-offs and constraints you've identified to the development team, ensuring everyone is aligned with the design decisions?`,
+        a: `To align the team I would frame it as a decision record: the constraint, the two or three options we weighed, the metrics that made one win, and what we would watch to know if we are wrong. Present that in a short design doc before the code, let people poke holes, and leave the trade-off discussion in writing so the reasoning survives past the meeting.`,
+        score: 7.44, tech: 8.00, comm: 8.50,
+        strengths: `Good conceptual understanding, Proper terminology, Best practices, Clear structure, Good pacing, Good vocabulary, Logical flow, Considered rate limiting and idempotent writes, Honest about limits, Good pushback, Good coverage of basics, Good coverage of trade-offs`,
+        weaknesses: `Missing edge cases, No alternative consideration, Shallow analysis of failure modes, Minor omissions`,
+      },
+    ],
+    hypotheses: [
+      {
+        status: "testing",
+        competency: "tech_core",
+        confidence: 0.7363,
+        statement: `Candidate has strong Strong experience with Python and its ecosystem`,
+      },
+      {
+        status: "testing",
+        competency: "tech_core",
+        confidence: 0.7363,
+        statement: `Candidate has strong Familiarity with scalable systems and cloud infrastructure`,
+      },
+      {
+        status: "testing",
+        competency: "tech_core",
+        confidence: 0.2637,
+        statement: `Candidate is weak in Limited testing exposure`,
+      },
+      {
+        status: "testing",
+        competency: "tech_core",
+        confidence: 0.2637,
+        statement: `Candidate is weak in Possible gaps in professional experience and formal education`,
+      },
+      {
+        status: "testing",
+        competency: "tech_core",
+        confidence: 0.7363,
+        statement: `Candidate has strong python skills for this role`,
+      },
+      {
+        status: "testing",
+        competency: "behav_communication",
+        confidence: 0.9256,
+        statement: `Candidate communicates clearly and effectively`,
+      },
+      {
+        status: "confirmed",
+        competency: "tech_system_design",
+        confidence: 0.9788,
+        statement: `Candidate demonstrates System Design & Scalability`,
+      },
+      {
+        status: "testing",
+        competency: "tech_system_design",
+        confidence: 0.7791,
+        statement: `Candidate demonstrates System Design & Scalability`,
+      },
+      {
+        status: "confirmed",
+        competency: "tech_deployment",
+        confidence: 0.9561,
+        statement: `Candidate demonstrates Reliable Deployments & AWS`,
+      },
+      {
+        status: "confirmed",
+        competency: "tech_event_driven",
+        confidence: 0.972,
+        statement: `Candidate demonstrates Event-Driven Processing & Kafka`,
+      },
+      {
+        status: "testing",
+        competency: "tech_data_modeling",
+        confidence: 0.7363,
+        statement: `Candidate demonstrates PostgreSQL Data Modeling & SQLAlchemy`,
+      },
+      {
+        status: "testing",
+        competency: "tech_caching",
+        confidence: 0.7363,
+        statement: `Candidate demonstrates Caching & Redis`,
+      },
+      {
+        status: "testing",
+        competency: "tech_event_driven",
+        confidence: 0.7791,
+        statement: `Candidate demonstrates Event-Driven Processing & Kafka`,
+      },
+      {
+        status: "testing",
+        competency: "tech_deployment",
+        confidence: 0.7363,
+        statement: `Candidate demonstrates Reliable Deployments & AWS`,
+      },
+    ],
+    evidence: {
+      "tech_core": { label: "Core Python", avg: 8.00, count: 1, gap: 0.50 },
+      "tech_caching": { label: "Caching & Redis", avg: 8.00, count: 1, gap: 0.00 },
+      "tech_deployment": { label: "Deployment", avg: 8.00, count: 3, gap: 0.00 },
+      "tech_event_driven": { label: "Event-Driven", avg: 8.33, count: 3, gap: 0.00 },
+      "tech_data_modeling": { label: "Data Modeling", avg: 8.00, count: 1, gap: 0.50 },
+      "tech_system_design": { label: "System Design", avg: 8.50, count: 3, gap: 0.00 },
+      "behav_communication": { label: "Communication", avg: 8.50, count: 1, gap: 0.50 },
+    },
+  },
+  brian: {
+    id: "brian",
+    name: "Brian Osei",
+    email: "brian.osei@test.com",
+    sessionId: "b6b36986-2df0-4005-b9ad-c104bb35634f",
+    role: "Senior Python Developer",
+    difficulty: 3,
+    coverage: 0.68,
+    verdict: "borderline",
+    composite: 6.8,
+    confidence: 0.16,
+    decision: "insufficient_evidence",
+    decisionScore: 6.44,
+    steps: [
+      {
+        phase: "intro",
+        comp: "tech_system_design",
+        compLabel: "System Design",
+        q: `Can you walk me through your thought process and design decisions when scaling a system, and what trade-offs you considered?`,
+        a: `I have worked on backend systems for a while. I like Python and have used FastAPI on some projects. I think testing is important and I try to write tests when I can. Databases are something I have used, mostly PostgreSQL in one job. I care about quality and work well with teams. I am always learning and open to new tools.`,
+        score: 5.00, tech: 6.00, comm: 5.00,
+        strengths: `Familiarity with Python and database concepts`,
+        weaknesses: `Missing depth and complexity in system design, Lacked clear structure and explanation flow, Lacked logical flow and alternative consideration, Hesitated on technical topics, Incomplete response`,
+      },
+      {
+        phase: "intro",
+        comp: "tech_system_design",
+        compLabel: "System Design",
+        q: `Let's explore how you would handle a situation where a critical database query is causing performance issues in a production environment. How would you approach this problem and what tools or techniques would you use to resolve it?`,
+        a: `For a design question I would start by listing what the system has to do, then draw a simple diagram on paper: a web server, a database, maybe a queue. I have worked on services with a few hundred users, so I have not needed to scale much yet. I would keep it simple, add an index when queries are slow, and learn the bigger patterns as I go.`,
+        score: 6.69, tech: 7.00, comm: 8.00,
+        strengths: `Good conceptual understanding of databases, Clear structure, Good pacing, Linear reasoning, Honest about limits, Good coverage of basics`,
+        weaknesses: `Limited real-world examples, No trade-off awareness, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases`,
+      },
+      {
+        phase: "technical",
+        comp: "tech_system_design",
+        compLabel: "System Design",
+        q: `Describe a time your tech system design skills were tested at work. What specifically did you do, and what did you learn from how it turned out?`,
+        a: `I would think about what the system needs: users, data, maybe reports. Then I would pick simple tools I already know — FastAPI, PostgreSQL, and a queue if background jobs are needed. I have not designed something that big, but I would try to split the work into clear parts and learn from the seniors on the team.`,
+        score: 6.47, tech: 6.50, comm: 7.50,
+        strengths: `Good conceptual understanding, Proper terminology, Clear structure, Good pacing, Logical flow, Honest about limits, Good coverage of basics`,
+        weaknesses: `Missing edge cases, No real-world examples, Minor rambling, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases`,
+      },
+      {
+        phase: "technical",
+        comp: "tech_deployment",
+        compLabel: "Deployment",
+        q: `Imagine you need to roll out a new feature to production, but it requires changes to multiple services and databases. Walk me through the steps you would take to ensure a smooth and reliable deployment, and what kind of testing or validation you would do to minimize downtime and risks.`,
+        a: `Most of my experience is on smaller projects where one person does the deploy. I would make sure the code is tested locally before pushing, and I have used Docker a bit. I know AWS exists and I have seen the console once. I would probably follow whatever steps the team already uses so I do not break anything.`,
+        score: 6.59, tech: 6.70, comm: 7.00,
+        strengths: `Good conceptual understanding, Proper terminology, Clear explanation flow, Good pacing, Logical flow, Honest about limits, Good coverage of basics`,
+        weaknesses: `Missing edge cases, No real-world examples, Limited knowledge of testing, Minor rambling, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Limited confidence in testing, Missing edge cases`,
+      },
+      {
+        phase: "technical",
+        comp: "tech_event_driven",
+        compLabel: "Event-Driven",
+        q: `How would you handle a scenario where a Kafka topic is producing a high volume of data, and you need to design a system to efficiently process and handle this data in real-time, ensuring that your system can scale with the increasing volume?`,
+        a: `I have not used Kafka much, but I understand the idea of queues and background jobs. I have used Celery for a few tasks. For high volumes I would add more workers, I guess, or maybe batch things together. I am still learning about event-driven systems.`,
+        score: 6.00, tech: 6.00, comm: 8.00,
+        strengths: `Good conceptual understanding, Proper terminology, Clear structure, Good pacing, Logical flow, Honest about limits, Good coverage of basics`,
+        weaknesses: `Missing edge cases, No real-world examples, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases`,
+      },
+      {
+        phase: "technical",
+        comp: "tech_data_modeling",
+        compLabel: "Data Modeling",
+        q: `Can you describe a situation where you had to design a complex data model for a PostgreSQL database, including how you used SQLAlchemy to define the relationships between tables and what considerations you took into account for performance and scalability?`,
+        a: `I have worked with databases mainly by writing queries. I know tables can be linked with foreign keys and I have used SQLAlchemy a little. For a complex model I would probably start simple and add columns as they are needed, and ask a senior if I am unsure.`,
+        score: 4.06, tech: 4.00, comm: 5.00,
+        strengths: `Basic understanding of databases and SQLAlchemy, Attempted to explain complex concepts`,
+        weaknesses: `No real-world examples, No tradeoff considerations, Limited depth of knowledge, Rambling, Unclear explanation flow, Lack of structure, No logical flow, No consideration of alternatives, Shallow analysis, Lacked certainty, Avoided discussing unknowns, Failed to fully answer the question, Skipped important details and edge cases`,
+      },
+      {
+        phase: "technical",
+        comp: "tech_event_driven",
+        compLabel: "Event-Driven",
+        q: `Walk me through a difficult tech event driven problem you solved recently in your Senior Python Developer work. What made it hard, and how did you decide between the options?`,
+        a: `Events are something I have only seen in tutorials. I know a message queue decouples producers and consumers, which sounds useful. If I had to handle a burst of messages I would increase the workers and check that the database can keep up. I would probably need to read up on the details before building it.`,
+        score: 4.41, tech: 5.50, comm: 5.00,
+        strengths: `Mentioned some tools, Proper terminology, Attempted to explain concepts`,
+        weaknesses: `Missing edge cases, No real-world examples, Limited depth, Rambled, Unclear structure, No logical reasoning, Shallow analysis, Missed alternatives, Hesitated on all topics, Bluffing, Missing edge cases, Failed to cover basics`,
+      },
+      {
+        phase: "technical",
+        comp: "tech_caching",
+        compLabel: "Caching & Redis",
+        q: `In a high-traffic web application using FastAPI and PostgreSQL, how would you design a caching layer using Redis to improve performance and reduce database queries, and what considerations would you take into account for cache invalidation and expiration?`,
+        a: `I have used Redis for simple caching with a TTL, but I have not handled cache invalidation myself. I know caching can speed things up, but I would be careful about stale data. I would set a short expiry to keep it safe.`,
+        score: 4.81, tech: 5.00, comm: 6.00,
+        strengths: `Familiarity with FastAPI and PostgreSQL, Candidate was able to explain their thought process, Acknowledged knowledge gaps`,
+        weaknesses: `Lack of experience with Redis and cache invalidation, Lacked concrete examples and details, No consideration of edge cases or trade-offs, Overly cautious and lacking in confidence, Failed to address key aspects of the question`,
+      },
+      {
+        phase: "behavioral",
+        comp: "tech_event_driven",
+        compLabel: "Event-Driven",
+        q: `You've used PostgreSQL in one job; walk me through a situation where you had to handle a high volume of concurrent requests to a PostgreSQL database, and how you would ensure data consistency and integrity in that scenario.`,
+        a: `I know the basics of event-driven from a course I took: producers send messages, consumers handle them asynchronously. I have not built it in production. If I needed to, I would set up a queue, keep the consumer logic simple, and monitor how fast messages are processed so we can scale workers when needed.`,
+        score: 5.06, tech: 5.00, comm: 5.00,
+        strengths: `Familiarity with PostgreSQL, Tried to explain concepts, Attempted to explain one approach, Confident in basic knowledge, Attempted to cover basics`,
+        weaknesses: `Lack of technical depth, No consideration of edge cases, Poor structure, Vague language, No analysis of trade-offs, Missed critical considerations, Hesitated on complex topics, Inadequate coverage`,
+      },
+      {
+        phase: "behavioral",
+        comp: "tech_deployment",
+        compLabel: "Deployment",
+        q: `In a situation where you're leading a team deploying a complex Python application to AWS, how would you ensure a smooth and reliable deployment process, and what strategies would you put in place to minimize downtime and errors?`,
+        a: `I have done a few deploys where we pushed to a staging server first and tested there before pushing to production. I would probably do the same: run the tests, deploy to staging, then repeat the steps for production. If something failed I would check the logs and try to fix it, or ask a teammate who knows the system better.`,
+        score: 6.28, tech: 6.50, comm: 7.00,
+        strengths: `Good conceptual understanding, Proper terminology, Clear structure, Good pacing, Logical flow, Honest about limits, Good coverage of basics`,
+        weaknesses: `Missing edge cases, No real-world examples, No alternative consideration, Shallow analysis, Hesitated on advanced topics, Missing edge cases`,
+      },
+      {
+        phase: "behavioral",
+        comp: "tech_deployment",
+        compLabel: "Deployment",
+        q: `Can you describe a situation where you had to collaborate with team members to resolve a complex technical issue in a Python project, and what role you played in the resolution process?`,
+        a: `I have deployed small apps with a one-line command and by uploading files to a server. I have not done a complex rollout with multiple services. I would make a checklist of steps, test each one on staging first, and keep a backup of the previous version so we can restore if something breaks.`,
+        score: 5.37, tech: 6.00, comm: 5.00,
+        strengths: `Good conceptual understanding, Honest about limits`,
+        weaknesses: `Limited real-world experience, No clear awareness of best practices, Wordy language, Difficulty explaining complex concepts, No consideration of trade-offs, Shallow analysis, Lack of confidence on advanced topics, Missing edge cases, Lack of thoroughness`,
+      },
+      {
+        phase: "behavioral",
+        comp: "tech_core",
+        compLabel: "Core Python",
+        q: `Imagine you're designing a high-traffic e-commerce platform using Python and Django, and you need to balance database performance, scalability, and costs. What are some key considerations and trade-offs you'd make, and how would you architect the system to meet the demands of this type of application?`,
+        a: `I am comfortable with the basics of Python like loops, functions and classes, and I have used Django and FastAPI on small projects. For something complex like a high-traffic system I would rely on the team's existing patterns and learn from the codebase.`,
+        score: 4.88, tech: 6.00, comm: 5.00,
+        strengths: `Familiarity with Python and Django, Some clear sentences, None, Self-aware of knowledge gaps, None`,
+        weaknesses: `Limited understanding of database performance, scalability, and costs, Wordy and rambling, No consideration of cause-effect relationships or depth of analysis, Lack of clear confidence, Missing essential parts of the question`,
+      },
+      {
+        phase: "behavioral",
+        comp: "behav_communication",
+        compLabel: "Communication",
+        q: `Can you describe a situation where you had to collaborate with team members to resolve a complex technical issue in a Python project, and what role you played in the resolution process?`,
+        a: `I get along well with teammates and I try to communicate clearly. I have helped juniors with questions and joined code reviews. When there is a difficult issue, I would describe what I tried and ask for help rather than guessing.`,
+        score: 5.25, tech: 6.00, comm: 6.00,
+        strengths: `Basic understanding of Python and Django, Clear vocabulary`,
+        weaknesses: `No real-world examples, Limited consideration of edge cases, Disorganized and wordy, Illogical flow, No consideration of alternatives, Hesitated on unfamiliar topics, Missing several key points`,
+      },
+      {
+        phase: "conclusion",
+        comp: "tech_data_modeling",
+        compLabel: "Data Modeling",
+        q: `Can you describe a situation where you had to collaborate with team members to resolve a complex technical issue in a Python project, and what role you played in the resolution process?`,
+        a: `I understand relationships like one-to-many and many-to-many from tutorials. I would draw the tables and their keys before writing code, then use SQLAlchemy to define them. I have not optimized models for performance, but I would add indexes where queries seem slow and ask for feedback on the design.`,
+        score: 5.25, tech: 6.00, comm: 6.00,
+        strengths: `Basic understanding of Python and Django, Clear vocabulary`,
+        weaknesses: `No real-world examples, Limited consideration of edge cases, Disorganized and wordy, Illogical flow, No consideration of alternatives, Hesitated on unfamiliar topics, Missing several key points`,
+      },
+    ],
+    hypotheses: [
+      {
+        status: "testing",
+        competency: "tech_core",
+        confidence: 0.5767,
+        statement: `Candidate has strong django expertise`,
+      },
+      {
+        status: "testing",
+        competency: "tech_core",
+        confidence: 0.5767,
+        statement: `Candidate has strong python fundamentals`,
+      },
+      {
+        status: "testing",
+        competency: "tech_core",
+        confidence: 0.5767,
+        statement: `Candidate has strong html knowledge`,
+      },
+      {
+        status: "testing",
+        competency: "tech_core",
+        confidence: 0.4233,
+        statement: `Candidate is weak in limited version control experience`,
+      },
+      {
+        status: "testing",
+        competency: "tech_core",
+        confidence: 0.4233,
+        statement: `Candidate is weak in no testing exposure`,
+      },
+      {
+        status: "testing",
+        competency: "behav_communication",
+        confidence: 0.6499,
+        statement: `Candidate communicates clearly and effectively`,
+      },
+      {
+        status: "confirmed",
+        competency: "tech_system_design",
+        confidence: 0.8966,
+        statement: `Candidate demonstrates System Design & Scalability`,
+      },
+      {
+        status: "testing",
+        competency: "tech_system_design",
+        confidence: 0.6951,
+        statement: `Candidate demonstrates System Design & Scalability`,
+      },
+      {
+        status: "confirmed",
+        competency: "tech_deployment",
+        confidence: 0.8307,
+        statement: `Candidate demonstrates Reliable Deployments & AWS`,
+      },
+      {
+        status: "confirmed",
+        competency: "tech_event_driven",
+        confidence: 0.816,
+        statement: `Candidate demonstrates Event-Driven Processing & Kafka`,
+      },
+      {
+        status: "untested",
+        competency: "tech_data_modeling",
+        confidence: 0.5,
+        statement: `Candidate demonstrates PostgreSQL Data Modeling & SQLAlchemy`,
+      },
+      {
+        status: "testing",
+        competency: "tech_caching",
+        confidence: 0.5767,
+        statement: `Candidate demonstrates Caching & Redis`,
+      },
+      {
+        status: "testing",
+        competency: "tech_event_driven",
+        confidence: 0.5767,
+        statement: `Candidate demonstrates Event-Driven Processing & Kafka`,
+      },
+      {
+        status: "testing",
+        competency: "tech_deployment",
+        confidence: 0.5767,
+        statement: `Candidate demonstrates Reliable Deployments & AWS`,
+      },
+    ],
+    evidence: {
+      "tech_core": { label: "Core Python", avg: 6.00, count: 1, gap: 0.50 },
+      "tech_caching": { label: "Caching & Redis", avg: 6.00, count: 1, gap: 0.00 },
+      "tech_deployment": { label: "Deployment", avg: 6.67, count: 3, gap: 0.00 },
+      "tech_event_driven": { label: "Event-Driven", avg: 6.50, count: 3, gap: 0.00 },
+      "tech_data_modeling": { label: "Data Modeling", avg: 5.00, count: 1, gap: 0.50 },
+      "tech_system_design": { label: "System Design", avg: 7.17, count: 3, gap: 0.00 },
+      "behav_communication": { label: "Communication", avg: 6.00, count: 1, gap: 0.50 },
+    },
+  },
+};
+

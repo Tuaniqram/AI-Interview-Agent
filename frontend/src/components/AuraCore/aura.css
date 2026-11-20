@@ -1,0 +1,202 @@
+/* ══════════════════════════════════════════════════════════
+   A.U.R.A Core — continuous motion is 100% CSS keyframes.
+   State only changes CSS custom-property timings + brightness,
+   which browsers retime smoothly (no restart, no blink).
+   Framer Motion is used ONLY for one-shot transitions.
+   ══════════════════════════════════════════════════════════ */
+
+.aura-root {
+  --spd-nuc: 1;
+  --spd-ring: 1;
+  --spd-part: 1;
+  --spd-wave: 1;
+  --bright: 0.9;
+  --glow-amp: 0.55;
+  --nuc-scale: 1;
+
+  --dur-nuc: 2.6s;
+  --dur-inner: 1.8s;
+  --dur-bloom: 3.4s;
+  --dur-fog: 4.4s;
+  --dur-halo: 5.5s;
+  --dur-wave: 3.2s;
+  --dur-drift: 7s;
+  --dur-shimmer: 8s;
+
+  transition: filter 1.2s ease, -webkit-filter 1.2s ease;
+  filter: brightness(var(--bright));
+}
+
+/* ── State intensity modifiers (re-time smoothly, no restart) ── */
+.aura-root[data-state='listening'] {
+  --spd-nuc: 1.3;
+  --spd-ring: 0.55;   /* outer rings slow down — focus */
+  --spd-part: 1.3;
+  --spd-wave: 1.4;
+  --bright: 1.05;
+  --glow-amp: 0.85;
+  --nuc-scale: 1.02;
+}
+.aura-root[data-state='thinking'] {
+  --spd-nuc: 2.2;
+  --spd-ring: 2.6;
+  --spd-part: 2.6;
+  --spd-wave: 2.2;
+  --bright: 1.4;
+  --glow-amp: 1.7;
+  --nuc-scale: 1.14;
+}
+.aura-root[data-state='responding'] {
+  --bright: 1.15;
+  --glow-amp: 1.1;
+  --nuc-scale: 1.05;
+}
+
+.a-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform-origin: 50% 50%; }
+
+/* SVG transform origin — center of each element's own box */
+.nucleus-core, .nucleus-inner, .nucleus-shimmer,
+.glow-bloom, .glow-fog, .glow-halo,
+.ring, .seg-ring, .mech-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* ══════════ LAYER 1 — Plasma Nucleus ══════════ */
+.nucleus-core {
+  animation: nuc-breathe calc(var(--dur-nuc) * var(--spd-nuc)) ease-in-out infinite;
+}
+@keyframes nuc-breathe {
+  0%, 100% { transform: scale(calc(0.94 * var(--nuc-scale))); opacity: 0.8; }
+  50%      { transform: scale(calc(1.06 * var(--nuc-scale))); opacity: 1; }
+}
+
+.nucleus-inner {
+  animation: inner-breathe calc(var(--dur-inner) * var(--spd-nuc)) ease-in-out infinite;
+}
+@keyframes inner-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50%      { transform: scale(1.12); opacity: 1; }
+}
+
+.hotspot {
+  animation: hotspot-wander 4.5s ease-in-out infinite;
+}
+@keyframes hotspot-wander {
+  0%   { transform: translate(155px, 155px); opacity: 0.5; }
+  25%  { transform: translate(162px, 149px); opacity: 0.8; }
+  50%  { transform: translate(150px, 159px); opacity: 0.55; }
+  75%  { transform: translate(157px, 151px); opacity: 0.75; }
+  100% { transform: translate(155px, 155px); opacity: 0.5; }
+}
+
+.nucleus-shimmer {
+  animation: rot-lin calc(var(--dur-shimmer) * var(--spd-nuc)) linear infinite;
+}
+
+/* ══════════ LAYER 2 — Glow layers ══════════ */
+.glow-bloom, .glow-fog, .glow-halo {
+}
+.glow-bloom { animation: glow-breathe var(--dur-bloom) ease-in-out infinite; }
+.glow-fog   { animation: glow-breathe var(--dur-fog) ease-in-out infinite; }
+.glow-halo  { animation: glow-breathe var(--dur-halo) ease-in-out infinite; }
+@keyframes glow-breathe {
+  0%, 100% { transform: scale(1);   opacity: calc(0.7 * var(--glow-amp)); }
+  50%      { transform: scale(1.06); opacity: var(--glow-amp); }
+}
+
+/* ══════════ LAYER 3 — Orbital + segment rings ══════════ */
+.ring {
+  animation: rot-lin calc(var(--dur-r, 20s) * var(--spd-ring)) linear infinite;
+}
+.ring.reverse { animation-direction: reverse; }
+@keyframes rot-lin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.seg-ring {
+  animation:
+    rot-lin calc(var(--dur-seg, 24s) * var(--spd-ring)) linear infinite,
+    seg-dash 14s linear infinite;
+}
+@keyframes seg-dash {
+  to { stroke-dashoffset: -160; }
+}
+
+.mech-ring {
+  animation:
+    rot-lin calc(var(--dur-mech, 18s) * var(--spd-ring)) linear infinite,
+    mech-dash 22s linear infinite;
+}
+@keyframes mech-dash {
+  to { stroke-dashoffset: -120; }
+}
+
+/* ══════════ LAYER 4 — Particles ══════════ */
+.particle {
+  animation: drift calc(var(--dur-drift) * var(--spd-part)) ease-in-out infinite alternate;
+}
+@keyframes drift {
+  from { transform: translate(0, 0); opacity: 0.35; }
+  to   { transform: translate(var(--dx), var(--dy)); opacity: 0.75; }
+}
+.particle.twin { animation-name: twinkle; }
+@keyframes twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.85); }
+  50%      { opacity: 0.9;  transform: scale(1.15); }
+}
+
+/* ══════════ Responding flash — one-shot, Framer-compatible ══════════ */
+.aura-response-flash {
+  animation: respond-flash 0.7s ease-out forwards;
+}
+@keyframes respond-flash {
+  0%   { transform: scale(1); opacity: 0.9; }
+  100% { transform: scale(3.4); opacity: 0; }
+}
+
+/* ══════════ Listening — focus ring (tightens toward core) ══════════ */
+.focus-ring {
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+.aura-root[data-state='listening'] .focus-ring {
+  opacity: 0.4;
+  animation: focus-tighten 3.4s ease-in-out infinite;
+}
+.aura-root[data-state='thinking'] .focus-ring {
+  opacity: 0;
+}
+@keyframes focus-tighten {
+  0%   { transform: scale(1.18); opacity: 0.35; }
+  50%  { transform: scale(0.98); opacity: 0.55; }
+  100% { transform: scale(1.18); opacity: 0.35; }
+}
+
+/* ══════════ Thinking — surge ring (outer flare) ══════════ */
+.surge-ring {
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+.aura-root[data-state='thinking'] .surge-ring {
+  opacity: 0.5;
+  animation: surge-flare 1.6s ease-in-out infinite;
+}
+@keyframes surge-flare {
+  0%   { transform: scale(1); opacity: 0.4; }
+  50%  { transform: scale(1.12); opacity: 0.7; }
+  100% { transform: scale(1); opacity: 0.4; }
+}
+
+/* ══════════ Responding — settle ring (brief outward kiss) ══════════ */
+.settle-ring {
+  opacity: 0;
+}
+.aura-root[data-state='responding'] .settle-ring {
+  animation: settle-out 1s ease-out forwards;
+}
+@keyframes settle-out {
+  0%   { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.2); opacity: 0; }
+}

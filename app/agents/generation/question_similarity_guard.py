@@ -75,6 +75,9 @@ class QuestionSimilarityGuard:
             from app.rag.pinecone_store import get_embedding
 
             embedder = get_embedding()
+            if not getattr(embedder, "calibrated_for_similarity", True):
+                # The 0.85 threshold was tuned on all-MiniLM-L6-v2 scores; another model's scores mean something else.
+                return None, ""
             new_vec = embedder.embed_query(new_question)
             candidate_vecs = embedder.embed_documents(list(questions))
             best = 0.0

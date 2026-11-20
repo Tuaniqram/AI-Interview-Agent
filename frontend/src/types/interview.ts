@@ -1,0 +1,279 @@
+/**
+ * BACKEND-DRIVEN INTERVIEW DATA CONTRACTS
+ * All values come from backend API responses (app/api/interview_agent.py)
+ * 
+ * API endpoints:
+ *   POST /interviews                          → InterviewSession
+ *   POST /interviews/{session_id}/questions/next → Question
+ *   POST /interviews/{session_id}/answers     → AnswerSubmitResponse
+ *   GET  /interviews/{session_id}/status      → InterviewStatusResponse
+ *   GET  /interviews/{session_id}/summary     → InterviewReport
+ */
+
+export type InterviewMode = 'typing' | 'voice' | 'avatar' | 'realtime';
+
+/** Backend session status values */
+export type SessionStatus = 'initiating' | 'active' | 'completed' | 'initialized';
+
+/**
+ * Full frontend interview state machine (10 states)
+ * Maps backend status + UI transitions into a single state for components.
+ */
+export type InterviewStatus =
+  | 'initiating'        // Session being created, loading
+  | 'intro'             // First question displayed (phase: intro)
+  | 'answering'         // Question visible, user typing
+  | 'evaluating'        // Answer submitted, waiting for evaluation
+  | 'evaluation_display'// Score + feedback shown
+  | 'preparing_next'    // Next question generating in background
+  | 'question_ready'    // New question arrived, displayed
+  | 'avatar_speaking'   // Avatar delivering question via TTS
+  | 'avatar_listening'  // Avatar waiting, mic open
+  | 'completed'         // Interview finished
+  | 'active'            // Legacy backend session status
+  | 'initialized';      // Legacy backend session status
+
+/**
+ * POST /interviews Response
+ * {
+ *   session_id, status, current_phase, question_number, total_questions,
+ *   difficulty_level, start_time
+ * }
+ */
+export interface InterviewSession {
+  session_id: string;
+  status: InterviewStatus;
+  current_phase: string;
+  question_number: number;
+  total_questions: number;
+  difficulty_level?: number;
+  start_time?: string;
+  interaction_mode?: InterviewMode;
+  /** AURA/v4 metadata returned by the engine */
+  job_role?: string;
+  /** Present for organization interviews (invited / public); absent for practice. */
+  org_id?: string | null;
+}
+
+/**
+ * POST /interviews/{session_id}/questions/next Response
+ * {
+ *   session_id, question, question_number, phase, difficulty_level,
+ *   next_action, suggested_follow_up, rag_context_available, nodes_executed, rag_metadata
+ * }
+ */
+export interface Question {
+  session_id: string;
+  question: string;
+  question_number: number;
+  phase: string;
+  difficulty_level: number;
+  next_action: string;
+  suggested_follow_up?: string;
+  rag_context_available?: boolean;
+  nodes_executed?: string[];
+  rag_metadata?: Record<string, unknown>;
+  /** Anti-cheat policy from the session-start payload (contract §4.3) */
+  integrity_policy?: IntegrityPolicy;
+}
+
+/**
+ * Anti-cheat policy surfaced on the session-start payload. Present on every
+ * start/question response; `enabled: false` means the guard is off and no
+ * flag limit applies.
+ */
+export interface IntegrityPolicy {
+  enabled: boolean;
+  max_flags: number;
+  flagged_count: number;
+  /** Hard per-answer window in seconds (0 = no UI countdown) */
+  answer_time_limit_s: number;
+}
+
+/** Live flag-gauge data in the per-turn evaluation payload (contract §4.4) */
+export interface LiveIntegrity {
+  flagged_count: number;
+  max_flags: number;
+  score: number | null;
+}
+
+/**
+ * Nested evaluation object inside POST /interviews/{session_id}/answers response
+ */
+export interface EvaluationDetail {
+  score: number;
+  technical_score?: number;
+  communication_score?: number;
+  strengths: string[];
+  weaknesses: string[];
+  feedback: string;
+}
+
+/**
+ * POST /interviews/{session_id}/answers Raw Response
+ * {
+ *   session_id, question_number,
+ *   evaluation: { score, technical_score, communication_score, strengths, weaknesses, feedback },
+ *   next_phase, next_difficulty, next_action, rag_context_used, nodes_executed
+ * }
+ */
+export interface AnswerSubmitResponse {
+  session_id: string;
+  question_number: number;
+  evaluation: EvaluationDetail;
+  next_phase: string;
+  next_difficulty: number;
+  next_action: string;
+  inquisitor_action?: string;
+  probe_angle?: string;
+  is_follow_up?: boolean;
+  evaluation_failed?: boolean;
+  rag_context_used?: boolean;
+  nodes_executed?: string[];
+}
+
+export interface EvaluationHistoryEntry {
+  questionNumber: number;
+  question: string;
+  answer: string;
+  /** null = the answer could not be scored (shown as "Not scored") */
+  score: number | null;
+  technicalScore?: number;
+  communicationScore?: number;
+  strengths: string[];
+  weaknesses: string[];
+  feedback: string;
+  /** AURA conductor spoken turn: acknowledgement + bridge + question */
+  conversationTurn?: string;
+}
+
+/**
+ * AnswerEvaluation - Parsed frontend-friendly version of AnswerSubmitResponse
+ * This is what the controller returns to the store/UI
+ */
+export interface AnswerEvaluation {
+  evaluation: string;
+  /** null when the answer could not be scored (shown as "Not scored", never as 0). */
+  score: number | null;
+  technical_score?: number;
+  communication_score?: number;
+  strengths: string[];
+  weaknesses: string[];
+  phase: string;
+  question_number: number;
+  difficulty_level: number;
+  interview_status: InterviewStatus;
+  is_follow_up?: boolean;
+  probe_angle?: string;
+  probing_active?: boolean;
+  /** AURA conductor spoken turn: acknowledgement + bridge + question */
+  conversationTurn?: string;
+  /** Live anti-cheat flag gauge (contract §4.4) */
+  integrity?: LiveIntegrity;
+  /** Set on the completion payload when the session ended on integrity flags */
+  integrity_terminated?: boolean;
+}
+
+/**
+ * GET /interviews/{session_id}/status Response
+ * {
+ *   session_id, status, current_phase, question_number, total_questions,
+ *   difficulty_level, elapsed_time, messages_count
+ * }
+ */
+export interface InterviewStatusResponse {
+  session_id: string;
+  status: InterviewStatus;
+  current_phase: string;
+  question_number: number;
+  total_questions: number;
+  difficulty_level: number;
+  elapsed_time?: string;
+  messages_count?: number;
+}
+
+/**
+ * GET /interviews/{session_id}/summary Response
+ * {
+ *  session_id, org_id, job_role, status, current_phase, question_number,
+ *   total_questions, final_score, answered_ratio, total_questions_answered,
+ *   messages_count, evaluations_count, interview_complete, messages, evaluations
+ * }
+ */
+export interface InterviewReport {
+  session_id: string;
+  org_name?: string | null;
+  candidate_name?: string | null;
+  candidate_email?: string | null;
+  job_role?: string;
+  status: InterviewStatus;
+  final_score: number | null;
+  technical_score?: number | null;
+  communication_score?: number | null;
+  strengths?: string[];
+  weaknesses?: string[];
+  total_questions_answered: number;
+  answered_ratio: number;
+  total_questions: number;
+  interview_complete: boolean;
+  started_at?: string;
+  ended_at?: string;
+  messages: Array<Record<string, unknown>>;
+  evaluations: Array<Record<string, unknown>>;
+  messages_count: number;
+  evaluations_count: number;
+  /** Integrity section (contract §4.2) — absent = no signals recorded */
+  integrity?: {
+    score: number;
+    flagged: boolean;
+    signals: Array<Record<string, unknown>>;
+  };
+  /** True when the session was terminated for reaching the flag limit */
+  integrity_terminated?: boolean;
+  integrity_termination_reason?: string;
+  /** The engine's final seven-point decision and why (absent for interviews that never reached one). */
+  final_decision?: FinalDecision | null;
+  v4_evidence_count?: number;
+  /** What each score rests on, per answer: competency, score and the supporting words. */
+  evidence_items?: EvidenceItem[];
+  v4_competency_summary?: Record<string, { average_score: number; evidence_count: number; gap: number }>;
+  /** Weighted scorecard result (custom rubric or AURA's built-in summary). */
+  scorecard?: {
+    template_name?: string | null;
+    weighted_score?: number | null;
+    scores: Record<string, {
+      name?: string;
+      normalized?: number;
+      weighted?: number;
+      score?: number;
+      evidence_count?: number;
+      [key: string]: unknown;
+    }>;
+  } | null;
+}
+
+export interface EvidenceItem {
+  question_number: number;
+  competency: string | null;
+  dimension: string | null;
+  score: number | null;
+  /** The supporting words; highlighted in the answer only where they appear word for word. */
+  quote: string;
+}
+
+export type DecisionVerdict =
+  | 'strong_hire' | 'hire' | 'lean_hire' | 'insufficient_evidence' | 'lean_no_hire' | 'no_hire' | 'strong_no_hire';
+
+export interface FinalDecision {
+  verdict: DecisionVerdict | string;
+  /** The label before any caps lowered it. */
+  draft_verdict?: DecisionVerdict | string | null;
+  score?: number | null;
+  confidence?: number | null;
+  /** True when a person should look at this result before acting on it. */
+  flag_review: boolean;
+  rationale?: string | null;
+  adjustments: Array<{ rule?: string | null; from?: string | null; to?: string | null; reason: string }>;
+  next_steps: string[];
+  contradiction_count: number;
+}

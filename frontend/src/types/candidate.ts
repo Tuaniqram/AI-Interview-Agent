@@ -1,0 +1,120 @@
+export interface CandidateProfile {
+  id: string;
+  email: string;
+  name: string;
+  phone: string | null;
+  resume_url: string | null;
+  is_registered: boolean;
+  is_verified: boolean;
+  skills: string | null;
+  created_at: string | null;
+  /** Only present on the response of POST /candidates/me/resume. */
+  resume_document_id?: string | null;
+}
+
+/** Returned by register when the email already has guest activity: finish via the emailed link. */
+export interface CandidateClaimPending {
+  claim_pending: true;
+  message: string;
+}
+
+export function isClaimPending(res: CandidateAuthResponse | CandidateClaimPending): res is CandidateClaimPending {
+  return (res as CandidateClaimPending).claim_pending === true;
+}
+
+export interface CandidateTokens {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+}
+
+export interface CandidateAuthResponse {
+  candidate: CandidateProfile;
+  tokens: CandidateTokens;
+}
+
+export interface CandidateLoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface CandidateRegisterRequest {
+  email: string;
+  password: string;
+  name: string;
+}
+
+export interface CandidateUpdateRequest {
+  name?: string;
+  phone?: string;
+  resume_url?: string;
+  skills?: string;
+}
+
+export interface CandidateInterview {
+  id: string;
+  job_role: string;
+  session_type: string;
+  interaction_mode: string | null;
+  status: string | null;
+  final_score: number | null;
+  started_at: string | null;
+  ended_at: string | null;
+  org_name: string | null;
+}
+
+export interface CandidateInterviewDetail {
+  id: string;
+  job_role: string;
+  session_type: string;
+  interaction_mode: string | null;
+  status: string | null;
+  final_score: number | null;
+  final_feedback: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  org_name: string | null;
+}
+
+export interface CandidateStats {
+  total_interviews: number;
+  completed_interviews: number;
+  active_interviews: number;
+  average_score: number | null;
+}
+
+export interface CompetencyScore {
+  competency: string;
+  name: string;
+  category: string;
+  average_score: number;
+  evidence_count: number;
+}
+
+export interface PracticeStartRequest {
+  job_role: string;
+  difficulty: string;
+  tech_stack?: string;
+  num_questions: number;
+  interview_style?: string;
+}
+
+export interface PracticeStartResponse {
+  session_id: string;
+  job_role: string;
+  total_questions: number;
+  interview_style: string;
+}
+
+export interface SavedListing {
+  id: number;
+  title: string;
+  org_name: string;
+  org_slug: string;
+  interview_mode: string;
+  description: string | null;
+  skills_required: string | null;
+  starts_at: string | null;
+  expires_at: string | null;
+  is_open: boolean;
+}

@@ -1,0 +1,398 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.25s ease-out;
+  }
+  .animate-stagger {
+    animation: staggerIn 0.35s ease-out both;
+  }
+  .animate-stagger-1 { animation-delay: 0.05s; }
+  .animate-stagger-2 { animation-delay: 0.1s; }
+  .animate-stagger-3 { animation-delay: 0.15s; }
+  .animate-stagger-4 { animation-delay: 0.2s; }
+  .animate-stagger-5 { animation-delay: 0.25s; }
+  .animate-stagger-6 { animation-delay: 0.3s; }
+  .card-hover {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes staggerIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@layer base {
+  html {
+    background: var(--bg-page);
+  }
+
+  :root {
+    /* ── Background hierarchy ── */
+    --bg-page:            #f6f7f4;
+    --bg-section:         #ffffff;
+    --bg-elevated:        #ffffff;
+    --bg-input:           #f0f0f2;
+    --bg-hover:           #e8e8ec;
+    --bg-overlay:         rgba(0, 0, 0, 0.3);
+
+    /* ── Text ── */
+    --text-primary:       #1a1a1e;
+    --text-secondary:     #54545c;
+    --text-tertiary:      #6f6f7a;
+    --text-muted:         #646b78;  /* AA (4.7:1+) on the page, section and input surfaces; #6b7280 was 4.25:1 on inputs */
+    --text-inverse:       #ffffff;
+
+    /* ── Divider + Borders ── */
+    --divider:            #eaeaf0;
+    --border-color:       #e2e2e8;
+    --border-strong:      #d4d4db;
+
+    /* ── Action system ── */
+    --action-primary:           #0c6b58;
+    --action-primary-hover:     #085244;
+    --action-primary-text:      #ffffff;
+    --action-secondary:         #e8e8ec;
+    --action-secondary-hover:   #dcdce2;
+    --action-secondary-text:    #1a1a1e;
+    --action-ghost-text:        #54545c;
+    --action-ghost-hover:       #e8e8ec;
+    --action-danger:            #dc2626;
+    --action-danger-hover:      #b91c1c;
+    --action-danger-text:       #ffffff;
+    --action-disabled:          #e2e2e8;
+    --action-disabled-text:     #8a8a94;
+
+    /* ── Status ── */
+    --status-success:           #059669;
+    --status-success-bg:        #ecfdf5;
+    --status-success-text:      #065f46;
+    --status-warning:           #d97706;
+    --status-warning-bg:        #fffbeb;
+    --status-warning-text:      #92400e;
+    --status-error:             #dc2626;
+    --status-error-bg:          #fef2f2;
+    --status-error-text:        #991b1b;
+    --status-info:              #2563eb;
+    --status-info-bg:           #eff6ff;
+    --status-info-text:         #1e40af;
+
+    /* ── Focus ── */
+    --focus-ring:               rgba(12, 107, 88, 0.28);
+
+    /* The one accent besides the green primary: the words in an answer that a score rests on. */
+    --highlight-evidence:       #fde9b8;
+    --highlight-evidence-text:  #5c3d00;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+
+    /* ── Shadows ── */
+    --shadow-sm:                0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md:                0 4px 12px rgba(0, 0, 0, 0.06);
+    --shadow-lg:                0 8px 24px rgba(0, 0, 0, 0.08);
+  }
+
+  *::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  *::-webkit-scrollbar-track {
+    background: var(--bg-page);
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--text-muted);
+    border-radius: 4px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--text-muted) transparent;
+  }
+
+  [data-theme="dark"] {
+    --bg-page:            #0c1210;
+    --bg-section:         #131a17;
+    --bg-elevated:        #1a231f;
+    --bg-input:           #232d29;
+    --bg-hover:           #2d3833;
+    --bg-overlay:         rgba(0, 0, 0, 0.6);
+
+    --text-primary:       #eef2ef;
+    --text-secondary:     #a3b0aa;
+    --text-tertiary:      #6f7d76;
+    --text-muted:         #8a978f;
+    --text-inverse:       #101713;
+
+    --divider:            #1f2925;
+    --border-color:       #2a352f;
+    --border-strong:      #3c4842;
+
+    --action-primary:           #2fbf9a;
+    --action-primary-hover:     #27a888;
+    --action-primary-text:      #06251e;
+    --action-secondary:         #2f2f33;
+    --action-secondary-hover:   #3a3a40;
+    --action-secondary-text:    #f2f2f5;
+    --action-ghost-text:        #a8a8b3;
+    --action-ghost-hover:       #2f2f33;
+    --action-danger:            #f87171;
+    --action-danger-hover:      #fca5a5;
+    --action-danger-text:       #ffffff;
+    --action-disabled:          #26302b;
+    --action-disabled-text:     #6f7d76;
+
+    --status-success:           #34d399;
+    --status-success-bg:        rgba(52, 211, 153, 0.15);
+    --status-success-text:      #a7f3d0;
+    --status-warning:           #fbbf24;
+    --status-warning-bg:        rgba(251, 191, 36, 0.15);
+    --status-warning-text:      #fde68a;
+    --status-error:             #f87171;
+    --status-error-bg:          rgba(248, 113, 113, 0.15);
+    --status-error-text:        #fecaca;
+    --status-info:              #60a5fa;
+    --status-info-bg:           rgba(96, 165, 250, 0.15);
+    --status-info-text:         #bfdbfe;
+
+    --focus-ring:               rgba(47, 191, 154, 0.35);
+
+    --highlight-evidence:       rgba(251, 191, 36, 0.18);
+    --highlight-evidence-text:  #fde68a;
+
+    --shadow-sm:                0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md:                0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg:                0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+}
+
+@layer utilities {
+  .card-shadow {
+    box-shadow: var(--shadow-lg);
+  }
+
+  .input-glow:focus {
+    box-shadow: 0 0 0 3px var(--focus-ring);
+  }
+
+  .fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+}
+
+/* ──── NEW: Ripple Effect Utility ──── */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.6s ease-out, height 0.6s ease-out;
+  opacity: 0;
+}
+
+.ripple:active::after {
+  width: 200px;
+  height: 200px;
+  opacity: 0;
+  transition: width 0s ease-in, height 0s ease-in;
+}
+
+/* ──── NEW: Glass Effect Utility ──── */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .glass {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ──── Text accent utility ──── */
+.text-accent {
+  color: var(--action-primary);
+}
+
+/* ──── NEW: Shimmer Loading Effect ──── */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-section) 0%,
+    var(--bg-elevated) 50%,
+    var(--bg-section) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+[data-theme="dark"] .shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-section) 0%,
+    var(--bg-elevated) 50%,
+    var(--bg-section) 100%
+  );
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ──── NEW: Pulse Ring Animation ──── */
+.pulse-ring {
+  animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  80%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* ──── NEW: Scroll Progress Indicator ──── */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0%;
+  background: var(--action-primary);
+  z-index: 9999;
+  transition: width 0.1s ease-out;
+}
+
+/* ──── NEW: Tooltip Utility ──── */
+.tooltip {
+  position: relative;
+}
+
+.tooltip::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+}
+
+.tooltip::after {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  border: 6px solid transparent;
+  border-top-color: var(--bg-elevated);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s ease;
+  z-index: 100;
+}
+
+.tooltip:hover::before,
+.tooltip:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(4px);
+}
+
+/* ──── NEW: Toast Animation ──── */
+.toast-enter {
+  animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast-exit {
+  animation: slide-out 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* ──── NEW: Fade In Up Reveal ──── */
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ──── Evidence: the phrase in a candidate's answer that a score is based on ──── */
+.evidence-mark {
+  background: var(--highlight-evidence);
+  color: var(--highlight-evidence-text);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+/* ──── Display headings for the marketing pages (expanded, heavy). The product keeps .font-heading as is. ──── */
+.font-display {
+  font-family: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-stretch: 125%;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}

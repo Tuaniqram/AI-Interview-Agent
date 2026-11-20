@@ -1,0 +1,95 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useOrg } from '../../contexts/OrgContext';
+import { PageHeader } from '../../components/shared/PageHeader';
+import { MetricCard } from '../../components/shared/MetricCard';
+import { Card } from '../../components/shared/Card';
+import { CardSkeleton } from '../../components/shared/Skeleton';
+import { analyticsService, type OverviewData } from '../../services/analyticsService';
+import { marketplaceService } from '../../services/marketplaceService';
+import { ListChecks, Store, TrendingUp, Target, Building2, ArrowRight, Inbox } from 'lucide-react';
+import { useToast } from '../../components/shared/Toast';
+
+export default function OrgDashboard() {
+  const { activeOrg } = useOrg();
+  const navigate = useNavigate();
+  const [overview, setOverview] = useState<OverviewData | null>(null);
+  const [listingCount, setListingCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const toast = useToast();
+
+  useEffect(() => {
+    if (!activeOrg?.id) return;
+    setLoading(true);
+    Promise.allSettled([
+      analyticsService.getOverview(),
+      marketplaceService.listOrgListings(activeOrg.id),
+    ]).then(([o, l]) => {
+      if (o.status === 'fulfilled') setOverview(o.value);
+      else toast.error('Failed to load analytics');
+      if (l.status === 'fulfilled') setListingCount(l.value.length);
+    }).finally(() => setLoading(false));
+  }, [activeOrg?.id]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title={activeOrg?.name || 'Organization'} description="Loading..." />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1,2,3,4].map(i => <CardSkeleton key={i} />)}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title={activeOrg?.name || 'Organization'}
+        description="Overview of your organization"
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard label="Total Sessions" value={overview?.total_sessions ?? 0} icon={<ListChecks className="w-4 h-4" />}
+          onClick={() => navigate('/sessions')} />
+        <MetricCard label="Active Sessions" value={overview?.active_sessions ?? 0} icon={<Target className="w-4 h-4" />} />
+        <MetricCard label="Avg Score" value={overview?.average_score != null ? overview.average_score.toFixed(1) : '—'} icon={<TrendingUp className="w-4 h-4" />} />
+        <MetricCard label="IT Roles" value={overview?.total_it_roles ?? 0} icon={<Building2 className="w-4 h-4" />}
+          onClick={() => navigate('/org/company')} />
+        <MetricCard label="Completion Rate" value={`${overview?.completion_rate ?? 0}%`} icon={<Target className="w-4 h-4" />} />
+        <MetricCard label="Marketplace Listings" value={listingCount} icon={<Store className="w-4 h-4" />}
+          onClick={() => navigate('/org/company')} />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card hover onClick={() => navigate('/org/company')}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-primary flex items-center gap-2"><Building2 className="w-4 h-4" /> Company</h3>
+              <p className="text-xs text-muted mt-1">Documents, listings and interview settings</p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-muted" />
+          </div>
+        </Card>
+        <Card hover onClick={() => navigate('/org/applications')}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-primary flex items-center gap-2"><Inbox className="w-4 h-4" /> Applications</h3>
+              <p className="text-xs text-muted mt-1">Review applicants and invitations</p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-muted" />
+          </div>
+        </Card>
+        <Card hover onClick={() => navigate('/settings')}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium text-primary flex items-center gap-2"><TrendingUp className="w-4 h-4" /> Settings</h3>
+              <p className="text-xs text-muted mt-1">Organization profile and config</p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-muted" />
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}

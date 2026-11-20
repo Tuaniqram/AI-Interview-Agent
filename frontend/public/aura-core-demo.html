@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>A.U.R.A Core — React Component Demo</title>
+<style>
+  :root { --bg: #050816; --text: #c8cdd8; --text-dim: #5a6272; --accent: #7C5CFF; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-height: 100vh;
+  }
+  h1 { font-size: 14px; font-weight: 500; color: var(--text-dim); margin-bottom: 40px; letter-spacing: 0.05em; }
+  #root { width: 320px; height: 320px; }
+  .controls { display: flex; gap: 10px; margin-top: 40px; }
+  .btn {
+    font-family: monospace; font-size: 11px; letter-spacing: 0.06em;
+    padding: 10px 20px; border-radius: 8px;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+    color: var(--text-dim); cursor: pointer; transition: all 0.25s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.active { border-color: var(--accent); color: #fff; background: rgba(124,92,255,0.15); }
+</style>
+</head>
+<body>
+<h1>A.U.R.A Core — React Component (build frontend to test)</h1>
+<div id="root"></div>
+<div class="controls">
+  <button class="btn active" onclick="set('idle')">Idle</button>
+  <button class="btn" onclick="set('listening')">Listening</button>
+  <button class="btn" onclick="set('thinking')">Thinking</button>
+  <button class="btn" onclick="set('responding')">Responding</button>
+</div>
+<script type="module">
+  import React from 'https://esm.sh/react@18';
+  import ReactDOM from 'https://esm.sh/react-dom@18/client';
+  import { AuraCore } from './src/components/AuraCore/index.ts';
+</script>
+</body>
+</html>

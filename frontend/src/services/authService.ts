@@ -1,0 +1,37 @@
+import { apiClient } from './apiClient';
+import type { AuthResponse, LoginRequest, MeResponse, RegisterRequest, Tokens } from '../types/auth';
+
+export const authService = {
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    return apiClient.post<{ message: string }>('/api/v1/auth/forgot-password', { email });
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    return apiClient.post<{ message: string }>('/api/v1/auth/reset-password', { token, new_password: newPassword });
+  },
+
+
+  async register(data: RegisterRequest): Promise<AuthResponse> {
+    return apiClient.post<AuthResponse>('/api/v1/auth/register', data);
+  },
+
+  async login(data: LoginRequest): Promise<AuthResponse> {
+    return apiClient.post<AuthResponse>('/api/v1/auth/login', data);
+  },
+
+  async googleLogin(credential: string): Promise<AuthResponse> {
+    return apiClient.post<AuthResponse>('/api/v1/auth/google', { credential });
+  },
+
+  async refresh(refreshToken: string): Promise<Tokens> {
+    return apiClient.post<Tokens>('/api/v1/auth/refresh', { refresh_token: refreshToken });
+  },
+
+  async logout(refreshToken: string): Promise<void> {
+    await apiClient.post<void>('/api/v1/auth/logout', { refresh_token: refreshToken });
+  },
+
+  async me(): Promise<MeResponse> {
+    return apiClient.get<MeResponse>('/api/v1/auth/me');
+  },
+};

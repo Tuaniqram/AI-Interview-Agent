@@ -1,4 +1,4 @@
-# Render Blueprint for the AI Interview Agent backend (branch: prod).
+# Render Blueprint for the AI Interview Agent backend (branch: prod, which also carries the frontend for Vercel).
 #
 # Secrets are NOT stored here. Every `sync: false` variable is asked for in the Render dashboard when the
 # Blueprint is created. Fill them from your own .env (see .env.example for what each one is).
@@ -9,6 +9,16 @@ services:
     runtime: python
     branch: prod
     autoDeploy: true
+
+    # prod carries the frontend too (Vercel builds that). Redeploy this service only when backend files change.
+    buildFilter:
+      paths:
+        - app/**
+        - prompts/**
+        - alembic/**
+        - alembic.ini
+        - requirements.txt
+        - runtime.txt
 
     # Render has no Mumbai region; Singapore is the closest to the Mumbai database.
     region: singapore

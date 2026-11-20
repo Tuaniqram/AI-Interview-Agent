@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>AURA · Hiring pipeline</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f7f5;
+      --surface: #ffffff;
+      --surface-2: #f8faf9;
+      --ink: #12211b;
+      --ink-2: #33453d;
+      --muted: #6a7b73;
+      --line: #e1e8e4;
+      --line-strong: #b6c8bf;
+      --green: #0f7a5a;
+      --green-ink: #0a5b43;
+      --green-soft: #e7f5ef;
+      --amber: #a66b12;
+      --amber-soft: #fdf5e4;
+      --shadow: 0 1px 2px rgba(18, 33, 27, 0.04), 0 12px 30px rgba(18, 33, 27, 0.045);
+      --radius: 16px;
+      --gap: clamp(14px, 1.6vw, 26px);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    .page {
+      height: 100vh;
+      height: 100svh;
+      max-width: 1640px;
+      margin: 0 auto;
+      padding: clamp(16px, 2.2vh, 28px) clamp(20px, 3vw, 48px);
+      display: flex;
+      flex-direction: column;
+      gap: clamp(14px, 2.2vh, 24px);
+    }
+
+    /* ── header ─────────────────────────────────────────────── */
+    .header {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: clamp(16px, 2vw, 34px);
+    }
+    .brand { display: flex; align-items: center; gap: 11px; min-width: 170px; }
+    .mark {
+      width: 36px; height: 36px; border-radius: 11px;
+      display: grid; place-items: center;
+      background: var(--green); color: #fff;
+      font-size: 15px; font-weight: 750; letter-spacing: -0.05em;
+      box-shadow: 0 5px 14px rgba(15, 122, 90, 0.2);
+    }
+    .brand-name { font-size: 14px; font-weight: 720; letter-spacing: 0.02em; line-height: 1.1; }
+    .brand-sub { margin-top: 3px; font-size: 10px; color: var(--muted); }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(22px, 2vw, 31px);
+      line-height: 1.06;
+      letter-spacing: -0.035em;
+      font-weight: 680;
+    }
+    .subtitle {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: clamp(10px, 0.82vw, 12px);
+      line-height: 1.35;
+    }
+
+    .legend {
+      display: flex; align-items: center; gap: 14px;
+      color: var(--muted); font-size: 9px; white-space: nowrap;
+      font-family: var(--mono);
+    }
+    .legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+    .dot.green { background: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+    .dot.line { border: 1.5px solid var(--line-strong); background: transparent; }
+    .dot.amber { background: #d4a03b; box-shadow: 0 0 0 3px var(--amber-soft); }
+
+    /* ── main flow: five nodes + arrows ─────────────────────── */
+    .flow {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+    .node {
+      position: relative;
+      overflow: hidden;
+      flex: 1 1 0;
+      min-width: 0;
+      max-width: 260px;
+      min-height: clamp(240px, 44vh, 400px);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: clamp(16px, 1.7vw, 22px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .node.core {
+      border-color: #b9ddce;
+      background: linear-gradient(180deg, #ffffff 0%, #f5fbf8 100%);
+    }
+    .node-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .node-no {
+      width: 26px; height: 26px; border-radius: 50%;
+      display: grid; place-items: center;
+      background: var(--green-soft); color: var(--green-ink);
+      font-family: var(--mono); font-size: 10px; font-weight: 750;
+    }
+    .node-tag {
+      color: var(--green);
+      font-family: var(--mono);
+      font-size: 8.5px;
+      font-weight: 720;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+    .node h2 {
+      margin: 0;
+      font-size: clamp(16px, 1.2vw, 20px);
+      line-height: 1.14;
+      letter-spacing: -0.025em;
+      font-weight: 680;
+    }
+    .node-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--ink-2);
+      font-family: var(--mono);
+      font-size: 9px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .node.core .chip { background: #fff; border-color: #cfe8dc; }
+    .node-out {
+      margin-top: auto;
+      padding-top: 10px;
+      border-top: 1px dashed var(--line);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 8.5px;
+      line-height: 1.3;
+    }
+    .node-out strong { color: var(--green-ink); font-weight: 700; }
+    .node-watermark {
+      position: absolute;
+      right: 12px;
+      bottom: 40px;
+      color: rgba(15, 122, 90, 0.06);
+      font-family: var(--mono);
+      font-size: clamp(54px, 5.2vw, 88px);
+      font-weight: 750;
+      letter-spacing: -0.08em;
+      line-height: 1;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    /* clean line arrows between nodes */
+    .arrow {
+      position: relative;
+      flex: 0 0 clamp(24px, 3.4vw, 52px);
+      height: 2px;
+      background: var(--line-strong);
+    }
+    .arrow::after {
+      content: "";
+      position: absolute;
+      top: 50%; right: -1px;
+      width: 8px; height: 8px;
+      border-top: 2px solid var(--line-strong);
+      border-right: 2px solid var(--line-strong);
+      transform: translateY(-50%) rotate(45deg);
+    }
+
+    /* ── lower panels ───────────────────────────────────────── */
+    .lower {
+      flex: 0 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+      gap: var(--gap);
+    }
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: clamp(14px, 1.5vw, 19px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+    .panel h3 { margin: 0; font-size: clamp(11px, 0.85vw, 13px); font-weight: 700; letter-spacing: -0.01em; }
+    .panel-note { color: var(--muted); font-family: var(--mono); font-size: 8px; white-space: nowrap; }
+
+    .loop-row { display: flex; align-items: center; gap: 0; }
+    .loop-node {
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 10px 8px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--surface-2);
+      color: var(--ink-2);
+      font-size: clamp(9px, 0.7vw, 10.5px);
+      font-weight: 680;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .loop-node.first { border-color: #cfe8dc; background: var(--green-soft); color: var(--green-ink); }
+    .loop-arrow {
+      position: relative;
+      flex: 0 0 clamp(10px, 1.3vw, 20px);
+      height: 1.5px;
+      background: var(--line-strong);
+    }
+    .loop-arrow::after {
+      content: "";
+      position: absolute;
+      top: 50%; right: 0;
+      width: 5px; height: 5px;
+      border-top: 1.5px solid var(--line-strong);
+      border-right: 1.5px solid var(--line-strong);
+      transform: translateY(-50%) rotate(45deg);
+    }
+    .loop-foot {
+      color: var(--muted);
+      font-size: 8.5px;
+      line-height: 1.4;
+    }
+    .loop-foot b { color: var(--green-ink); font-weight: 700; }
+
+    .verdicts { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+    .verdict {
+      padding: 6px 2px;
+      border-radius: 6px;
+      text-align: center;
+      font-size: clamp(7px, 0.55vw, 8.5px);
+      font-weight: 680;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+    }
+    .v-strong-hire { background: #dff4e9; color: #096649; }
+    .v-hire { background: #e9f7ef; color: #137a57; }
+    .v-lean-hire { background: #f0f8e8; color: #4e7b22; }
+    .v-insufficient { background: #fdf6e2; color: #8a6913; }
+    .v-lean-no { background: #fdf0e4; color: #9b5818; }
+    .v-no { background: #fde9e6; color: #9f3b30; }
+    .v-strong-no { background: #f9dedb; color: #7c2a22; }
+
+    .guards { display: flex; align-items: center; gap: 0; }
+    .guard-node {
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 7px 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-2);
+      text-align: center;
+      color: var(--ink-2);
+      font-size: 9px;
+      font-weight: 680;
+      line-height: 1.2;
+    }
+    .guard-arrow {
+      position: relative;
+      flex: 0 0 clamp(10px, 1.3vw, 20px);
+      height: 1.5px;
+      background: var(--line-strong);
+    }
+    .guard-arrow::after {
+      content: "";
+      position: absolute;
+      top: 50%; right: 0;
+      width: 5px; height: 5px;
+      border-top: 1.5px solid var(--line-strong);
+      border-right: 1.5px solid var(--line-strong);
+      transform: translateY(-50%) rotate(45deg);
+    }
+    .verdict-note { color: var(--muted); font-size: 8.5px; line-height: 1.4; }
+    .verdict-note b { color: var(--green-ink); font-weight: 700; }
+
+    @media (max-height: 760px) {
+      .page { padding: 12px 28px; gap: 12px; }
+      .node { min-height: 300px; gap: 9px; padding: 14px; }
+      .node-out { padding-top: 7px; }
+      .panel { gap: 7px; padding: 12px; }
+    }
+    @media (max-width: 1120px) {
+      .legend span:last-child { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">A</div>
+        <div>
+          <div class="brand-name">AURA</div>
+          <div class="brand-sub">AI Interview Agent</div>
+        </div>
+      </div>
+
+      <div>
+        <h1>How the hiring pipeline works</h1>
+        <p class="subtitle">CV → evidence → verdict.</p>
+      </div>
+
+      <div class="legend" aria-label="System principles">
+        <span><span class="dot green"></span>Python decides</span>
+        <span><span class="dot line"></span>LLM reads &amp; writes</span>
+        <span><span class="dot amber"></span>Review flags</span>
+      </div>
+    </header>
+
+    <main class="flow" aria-label="Hiring pipeline stages">
+      <section class="node">
+        <div class="node-top"><span class="node-no">01</span><span class="node-tag">Apply</span></div>
+        <h2>Apply &amp; screen</h2>
+        <div class="node-chips"><span class="chip">CV intake</span><span class="chip">Fit score</span><span class="chip">Invite</span></div>
+        <span class="node-watermark" aria-hidden="true">01</span>
+        <div class="node-out">→ <strong>session</strong> · 12h access</div>
+      </section>
+
+      <div class="arrow" aria-hidden="true"></div>
+
+      <section class="node">
+        <div class="node-top"><span class="node-no">02</span><span class="node-tag">Prepare</span></div>
+        <h2>Build the plan</h2>
+        <div class="node-chips"><span class="chip">Competencies</span><span class="chip">Company brain</span><span class="chip">Blueprint</span></div>
+        <span class="node-watermark" aria-hidden="true">02</span>
+        <div class="node-out">→ <strong>plan</strong> · hypotheses</div>
+      </section>
+
+      <div class="arrow" aria-hidden="true"></div>
+
+      <section class="node core">
+        <div class="node-top"><span class="node-no">03</span><span class="node-tag">Interview</span></div>
+        <h2>Evidence loop</h2>
+        <div class="node-chips"><span class="chip">Question</span><span class="chip">Answer</span><span class="chip">Evidence</span><span class="chip">Route</span></div>
+        <span class="node-watermark" aria-hidden="true">03</span>
+        <div class="node-out">→ <strong>evidence</strong> · beliefs</div>
+      </section>
+
+      <div class="arrow" aria-hidden="true"></div>
+
+      <section class="node">
+        <div class="node-top"><span class="node-no">04</span><span class="node-tag">Decide</span></div>
+        <h2>Make the call</h2>
+        <div class="node-chips"><span class="chip">Synthesize</span><span class="chip">7-point</span><span class="chip">Caps</span></div>
+        <span class="node-watermark" aria-hidden="true">04</span>
+        <div class="node-out">→ <strong>verdict</strong> · adjustments</div>
+      </section>
+
+      <div class="arrow" aria-hidden="true"></div>
+
+      <section class="node">
+        <div class="node-top"><span class="node-no">05</span><span class="node-tag">Report</span></div>
+        <h2>Share the result</h2>
+        <div class="node-chips"><span class="chip">Scorecard</span><span class="chip">Report</span><span class="chip">Feedback</span></div>
+        <span class="node-watermark" aria-hidden="true">05</span>
+        <div class="node-out">→ <strong>scorecard</strong> · report</div>
+      </section>
+    </main>
+
+    <section class="lower" aria-label="Core loop and verdict">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Core loop</h3>
+          <span class="panel-note">repeats up to 14×</span>
+        </div>
+        <div class="loop-row">
+          <div class="loop-node first">Ask</div>
+          <div class="loop-arrow" aria-hidden="true"></div>
+          <div class="loop-node">Answer</div>
+          <div class="loop-arrow" aria-hidden="true"></div>
+          <div class="loop-node">Evaluate</div>
+          <div class="loop-arrow" aria-hidden="true"></div>
+          <div class="loop-node">Evidence</div>
+          <div class="loop-arrow" aria-hidden="true"></div>
+          <div class="loop-node">Route</div>
+          <div class="loop-arrow" aria-hidden="true"></div>
+          <div class="loop-node">Next</div>
+        </div>
+        <div class="loop-foot">↺ <b>Every answer updates the same brain.</b> Clarifications are free; a finished interview never re-runs.</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Verdict</h3>
+          <span class="panel-note">7-point · demotions only</span>
+        </div>
+        <div class="verdicts" aria-label="Seven-point verdict scale">
+          <div class="verdict v-strong-hire">strong hire</div>
+          <div class="verdict v-hire">hire</div>
+          <div class="verdict v-lean-hire">lean hire</div>
+          <div class="verdict v-insufficient">insufficient</div>
+          <div class="verdict v-lean-no">lean no</div>
+          <div class="verdict v-no">no hire</div>
+          <div class="verdict v-strong-no">strong no</div>
+        </div>
+        <div class="guards">
+          <div class="guard-node">Score</div>
+          <div class="guard-arrow" aria-hidden="true"></div>
+          <div class="guard-node">Caps</div>
+          <div class="guard-arrow" aria-hidden="true"></div>
+          <div class="guard-node">Review</div>
+        </div>
+        <div class="verdict-note"><b>Python decides.</b> The LLM explains; every score keeps a quote.</div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

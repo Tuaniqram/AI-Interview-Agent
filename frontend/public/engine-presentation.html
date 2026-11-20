@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Interview Agent — Engine</title>
+<meta name="description" content="Evidence-driven, field-agnostic AI interview engine — typing, voice and avatar modes." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-page: #0a0a0b;
+    --bg-section: #141416;
+    --bg-elevated: #1c1c1f;
+    --bg-hover: #2f2f33;
+    --text-primary: #f2f2f5;
+    --text-secondary: #a8a8b3;
+    --text-muted: #8a8a94;
+    --border: #2d2d32;
+    --accent: #8b6ff5;
+    --accent-hover: #a08aff;
+    --accent-soft: rgba(139, 111, 245, 0.14);
+    --success: #34d399;
+    --warning: #fbbf24;
+    --error: #f87171;
+    --info: #60a5fa;
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --radius: 14px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; background: var(--bg-page); }
+  body {
+    font-family: 'Open Sans', system-ui, sans-serif;
+    background: var(--bg-page);
+    color: var(--text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { font-family: 'Poppins', sans-serif; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hover); }
+
+  /* ── Background glow ── */
+  .bg-glow {
+    position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(600px 320px at 12% -5%, rgba(139,111,245,0.16), transparent 65%),
+      radial-gradient(700px 380px at 90% 15%, rgba(96,165,250,0.08), transparent 65%),
+      radial-gradient(800px 500px at 50% 110%, rgba(139,111,245,0.10), transparent 60%);
+  }
+  .bg-grid {
+    position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.35;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, #000 30%, transparent 75%);
+  }
+
+  /* ── Nav ── */
+  header.nav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(12px);
+    background: rgba(10, 10, 11, 0.8);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    max-width: 1160px; margin: 0 auto; padding: 0 24px;
+    height: 60px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+  .brand-mark {
+    width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), #a78bfa);
+    color: #fff; font-size: 13px; font-weight: 800;
+  }
+  .nav-links { display: flex; gap: 22px; }
+  .nav-links a { color: var(--text-secondary); font-size: 13px; font-weight: 500; transition: color .15s; }
+  .nav-links a:hover, .nav-links a.active { color: var(--text-primary); }
+  @media (max-width: 720px) { .nav-links { display: none; } }
+
+  main { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Hero ── */
+  .hero { padding: 96px 0 72px; text-align: center; }
+  .kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent-hover);
+    border: 1px solid rgba(139,111,245,0.35); background: var(--accent-soft);
+    padding: 6px 14px; border-radius: 999px; margin-bottom: 26px;
+  }
+  .kicker-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-hover); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+  .hero h1 {
+    font-size: clamp(34px, 5.4vw, 60px); font-weight: 800; line-height: 1.08; letter-spacing: -0.02em;
+    background: linear-gradient(100deg, #fff 30%, #c9b9ff 75%, var(--accent-hover));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p.sub { max-width: 640px; margin: 22px auto 0; color: var(--text-secondary); font-size: 16.5px; }
+  .hero-chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 30px; }
+  .chip {
+    font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
+    border: 1px solid var(--border); background: var(--bg-elevated);
+    padding: 7px 14px; border-radius: 999px;
+  }
+  .chip.hl { color: var(--accent-hover); border-color: rgba(139,111,245,0.4); background: var(--accent-soft); }
+  .hero-cta { display: flex; gap: 14px; justify-content: center; margin-top: 38px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 14px;
+    padding: 12px 26px; border-radius: 12px; cursor: pointer; transition: transform .15s, box-shadow .15s, background .15s;
+    border: 1px solid transparent;
+  }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), #a78bfa); color: #fff; box-shadow: 0 6px 22px rgba(139,111,245,0.35); }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(139,111,245,0.45); color: #fff; }
+  .btn-ghost { border-color: var(--border); color: var(--text-secondary); background: var(--bg-elevated); }
+  .btn-ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+  /* ── Sections ── */
+  section.block { padding: 64px 0; }
+  .sec-head { max-width: 680px; margin-bottom: 40px; }
+  .sec-tag { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-hover); }
+  .sec-head h2 { font-size: clamp(24px, 3.4vw, 34px); font-weight: 700; letter-spacing: -0.015em; margin-top: 8px; }
+  .sec-head p { color: var(--text-secondary); font-size: 14.5px; margin-top: 12px; }
+  .sec-head.center { margin-left: auto; margin-right: auto; text-align: center; }
+
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.visible { opacity: 1; transform: none; }
+
+  /* ── Pipeline diagram ── */
+  .pipe { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .lane {
+    width: 100%;
+    background: var(--bg-section); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 22px 20px;
+  }
+  .lane-label {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+  .lane-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .flow { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: stretch; }
+  .node {
+    flex: 1 1 150px; min-width: 150px; max-width: 180px;
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 12px;
+    padding: 13px 14px; position: relative; transition: border-color .2s, transform .2s, box-shadow .2s;
+  }
+  .node:hover { transform: translateY(-2px); border-color: rgba(139,111,245,0.5); box-shadow: var(--shadow-lg); }
+  .node.arrow::after {
+    content: ''; position: absolute; top: 50%; right: -11px; width: 12px; height: 2px;
+    background: var(--text-muted); opacity: 0.55;
+  }
+  .node.arrow::before {
+    content: ''; position: absolute; top: calc(50% - 4px); right: -15px;
+    border: 4px solid transparent; border-left-color: var(--text-muted); opacity: 0.55;
+  }
+  .node .n-tag { font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
+  .node .n-name { font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600; margin-top: 3px; }
+  .node .n-desc { font-size: 11.5px; color: var(--text-secondary); margin-top: 4px; }
+  .node.loop { border-color: rgba(251,191,36,0.4); }
+  .node.loop .n-tag { color: var(--warning); }
+  .node.finish { border-color: rgba(52,211,153,0.4); }
+  .node.finish .n-tag { color: var(--success); }
+  .node.active-demo {
+    border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 26px rgba(139,111,245,0.35);
+    transform: translateY(-2px);
+  }
+  .pipe-arrow-down { color: var(--text-muted); font-size: 20px; opacity: 0.6; line-height: 1; }
+  @media (max-width: 640px) { .node { flex: 1 1 120px; min-width: 120px; } .node.arrow::before, .node.arrow::after { display: none; } }
+
+  /* ── Live demo ── */
+  .demo {
+    display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start;
+  }
+  .demo-main {
+    background: var(--bg-section); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 26px; display: flex; flex-direction: column; gap: 20px; min-height: 460px;
+  }
+  .demo-main.step-2, .demo-main.step-3, .demo-main.step-4, .demo-main.step-5 { min-height: 460px; }
+  .demo-step-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .phase-chip {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--info); background: rgba(96,165,250,0.14);
+    border: 1px solid rgba(96,165,250,0.35); padding: 4px 12px; border-radius: 999px;
+  }
+  .comp-chip {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent-hover); background: var(--accent-soft);
+    border: 1px solid rgba(139,111,245,0.35); padding: 4px 12px; border-radius: 999px;
+  }
+  .step-count { margin-left: auto; font-size: 12px; color: var(--text-muted); font-weight: 600; }
+  .demo-q {
+    font-family: 'Poppins', sans-serif; font-size: 17px; font-weight: 500; line-height: 1.5; color: var(--text-primary);
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px;
+  }
+  .demo-q::before { content: 'Q'; display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 7px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; margin-right: 10px; vertical-align: 2px; }
+  .demo-a {
+    background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.3); border-radius: 12px; padding: 18px 20px;
+    font-size: 13.5px; color: var(--text-secondary); display: none;
+  }
+  .demo-a.show { display: block; animation: fadeIn .4s ease; }
+  .demo-a::before { content: 'A'; display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 7px; background: var(--success); color: #0a0a0b; font-size: 12px; font-weight: 700; margin-right: 10px; vertical-align: 2px; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .demo-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .demo-bar { flex: 1; min-width: 200px; height: 6px; border-radius: 999px; background: var(--bg-hover); overflow: hidden; }
+  .demo-bar-fill { height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), #a78bfa); transition: width .6s ease; }
+  .demo-hint { font-size: 12px; color: var(--text-muted); }
+  .verdict {
+    display: none; align-items: center; gap: 12px;
+    border: 1px solid rgba(52,211,153,0.4); background: rgba(52,211,153,0.1); border-radius: 12px; padding: 16px 18px;
+  }
+  .verdict.show { display: flex; animation: fadeIn .5s ease; }
+  .verdict .v-label { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 16px; color: var(--success); }
+  .verdict .v-sub { font-size: 12.5px; color: var(--text-secondary); }
+
+  /* ── Side panels ── */
+  .demo-side { display: flex; flex-direction: column; gap: 14px; }
+  .side-card { background: var(--bg-section); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+  .side-card h4 { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; }
+  .dim-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; font-size: 12.5px; }
+  .dim-row .dim-name { flex: 0 0 108px; color: var(--text-secondary); }
+  .dim-track { flex: 1; height: 5px; border-radius: 999px; background: var(--bg-hover); overflow: hidden; }
+  .dim-fill { height: 100%; width: 0%; border-radius: 999px; transition: width .7s ease; }
+  .dim-row .dim-score { flex: 0 0 30px; text-align: right; color: var(--text-primary); font-weight: 600; }
+  .hypo { display: flex; gap: 9px; align-items: flex-start; font-size: 12.5px; color: var(--text-secondary); margin-bottom: 9px; }
+  .hypo-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 5px; flex: none; }
+  .hypo .st { font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-top: 2px; display: block; }
+  .st.confirmed { color: var(--success); } .st.refuted { color: var(--error); } .st.testing { color: var(--warning); }
+
+  /* ── Agent grid ── */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+  .agent-card {
+    background: var(--bg-section); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; transition: transform .18s, border-color .18s, box-shadow .18s;
+  }
+  .agent-card:hover { transform: translateY(-3px); border-color: rgba(139,111,245,0.45); box-shadow: var(--shadow-lg); }
+  .agent-icon {
+    width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center;
+    font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 13px; color: #fff;
+    background: linear-gradient(135deg, var(--accent), #a78bfa); margin-bottom: 14px;
+  }
+  .agent-icon.i2 { background: linear-gradient(135deg, #60a5fa, #818cf8); }
+  .agent-icon.i3 { background: linear-gradient(135deg, #34d399, #60a5fa); }
+  .agent-card h3 { font-size: 14.5px; font-weight: 600; }
+  .agent-card .a-tag { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin: 4px 0 8px; }
+  .agent-card p { font-size: 12.5px; color: var(--text-secondary); }
+
+  /* ── Evaluation model ── */
+  .eval-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 860px) { .eval-grid { grid-template-columns: 1fr; } }
+  .eval-card {
+    background: var(--bg-section); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px;
+  }
+  .eval-card .e-num { font-family: 'Poppins', sans-serif; font-size: 22px; font-weight: 800; color: var(--accent-hover); }
+  .eval-card h3 { font-size: 14px; font-weight: 600; margin: 4px 0 8px; }
+  .eval-card p { font-size: 12.5px; color: var(--text-secondary); }
+  .lifecycle { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 26px; align-items: center; }
+  .lc-node {
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 999px;
+    padding: 9px 18px; font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
+  }
+  .lc-node.done { color: var(--success); border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.08); }
+  .lc-node.dead { color: var(--error); border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.08); }
+  .lc-arrow { color: var(--text-muted); font-size: 15px; }
+
+  /* ── Styles / personas ── */
+  .style-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .style-card { background: var(--bg-section); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .style-card h3 { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .style-card .s-desc { font-size: 12.5px; color: var(--text-secondary); margin-top: 8px; }
+  .style-card .s-meta { font-size: 11px; color: var(--text-muted); margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .persona-chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 30px; }
+  .persona-chips .chip { background: var(--bg-elevated); }
+  .persona-chips .chip:hover { border-color: rgba(139,111,245,0.5); color: var(--text-primary); }
+
+  /* ── Competency resolution ── */
+  .resolve { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; margin: 26px 0; }
+  .resolve .node { flex: 1 1 200px; max-width: 250px; }
+  .resolve .node.req { border-color: rgba(52,211,153,0.4); }
+  .resolve .node.req .n-tag { color: var(--success); }
+  .resolve-arrow { color: var(--text-muted); font-size: 20px; }
+  .cat-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .cat {
+    font-size: 12px; font-weight: 600; padding: 7px 14px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text-secondary);
+  }
+  .cat:nth-child(1) { color: #fbbf24; border-color: rgba(251,191,36,0.35); }
+  .cat:nth-child(2) { color: #60a5fa; border-color: rgba(96,165,250,0.35); }
+  .cat:nth-child(3) { color: #34d399; border-color: rgba(52,211,153,0.35); }
+  .cat:nth-child(4) { color: #f472b6; border-color: rgba(244,114,182,0.35); }
+  .cat:nth-child(5) { color: #a08aff; border-color: rgba(139,111,245,0.35); }
+
+  /* ── Stack ── */
+  .stack-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+  .stack-card { background: var(--bg-section); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+  .stack-card .stk-name { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 13.5px; }
+  .stack-card .stk-use { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+  /* ── Footer ── */
+  footer { border-top: 1px solid var(--border); margin-top: 60px; }
+  .foot-inner { max-width: 1160px; margin: 0 auto; padding: 34px 24px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .foot-inner p { font-size: 12.5px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+<div class="bg-grid"></div>
+
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand">
+      <span class="brand-mark">AI</span>
+      AI Interview Agent
+    </div>
+    <nav class="nav-links" id="navLinks">
+      <a href="#pipeline">Pipeline</a>
+      <a href="#demo">Live Demo</a>
+      <a href="#agents">Agents</a>
+      <a href="#evaluation">Evaluation</a>
+      <a href="#styles">Styles</a>
+      <a href="#competencies">Competencies</a>
+      <a href="#stack">Stack</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ── HERO ── -->
+  <section class="hero">
+    <span class="kicker"><span class="kicker-dot"></span> Evidence-driven interview engine</span>
+    <h1>An AI interviewer that<br/>thinks like a hiring manager</h1>
+    <p class="sub">A LangGraph-powered agentic system that forms hypotheses about every candidate, probes them with targeted questions, extracts evidence from every answer, and reflects until it can defend a hiring decision.</p>
+    <div class="hero-chips">
+      <span class="chip hl">Field-agnostic</span>
+      <span class="chip">6-dimension evaluation</span>
+      <span class="chip">Hypothesis engine</span>
+      <span class="chip">RAG department context</span>
+      <span class="chip">Typing · Voice · Avatar</span>
+      <span class="chip">Public interview marketplace</span>
+    </div>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="#demo">Watch the engine work</a>
+      <a class="btn btn-ghost" href="#pipeline">Explore the architecture</a>
+    </div>
+  </section>
+
+  <!-- ── PIPELINE ── -->
+  <section class="block" id="pipeline">
+    <div class="sec-head center">
+      <div class="sec-tag">Architecture</div>
+      <h2>The v4 evidence-driven pipeline</h2>
+      <p>Two lanes. On start, the engine builds a plan and a strategy. On every answer, it evaluates, extracts evidence, and reflects — looping until the evidence is sufficient.</p>
+    </div>
+
+    <div class="pipe reveal">
+      <div class="lane">
+        <div class="lane-label">Session start — plan, strategy &amp; first question</div>
+        <div class="flow" id="flowStart">
+          <div class="node arrow"><div class="n-tag">Init</div><div class="n-name">Session Init</div><div class="n-desc">Seed state, timeline, mode</div></div>
+          <div class="node arrow"><div class="n-tag">RAG</div><div class="n-name">Department Context</div><div class="n-desc">Inject org knowledge base</div></div>
+          <div class="node arrow"><div class="n-tag">Profile</div><div class="n-name">Candidate Profile</div><div class="n-desc">Load strengths, history</div></div>
+          <div class="node arrow"><div class="n-tag">Plan</div><div class="n-name">Competency Planner</div><div class="n-desc">Rank gaps, pick target</div></div>
+          <div class="node arrow"><div class="n-tag">Strategy</div><div class="n-name">Strategy Brain</div><div class="n-desc">LLM strategy + persona</div></div>
+          <div class="node arrow"><div class="n-tag">Thesis</div><div class="n-name">Hypothesis Engine</div><div class="n-desc">Form candidate beliefs</div></div>
+          <div class="node"><div class="n-tag">Ask</div><div class="n-name">Question Generator</div><div class="n-desc">Targeted question #1</div></div>
+        </div>
+      </div>
+
+      <div class="pipe-arrow-down">↓</div>
+
+      <div class="lane">
+        <div class="lane-label">Answer loop — evaluate · extract · reflect (repeat)</div>
+        <div class="flow" id="flowLoop">
+          <div class="node arrow loop"><div class="n-tag">Evaluate</div><div class="n-name">Unified Evaluator</div><div class="n-desc">6 dimensions, 0-10</div></div>
+          <div class="node arrow loop"><div class="n-tag">Extract</div><div class="n-name">Evidence Extractor</div><div class="n-desc">Score, cite, persist</div></div>
+          <div class="node arrow loop"><div class="n-tag">Reflect</div><div class="n-name">Reflection Engine</div><div class="n-desc">Sufficiency, contradictions, verdict</div></div>
+          <div class="node arrow loop"><div class="n-tag">Replan</div><div class="n-name">Planner + Hypotheses</div><div class="n-desc">Next competency, next thesis</div></div>
+          <div class="node"><div class="n-tag">Ask</div><div class="n-name">Question Generator</div><div class="n-desc">Follow-up or new angle</div></div>
+        </div>
+      </div>
+
+      <div class="pipe-arrow-down">↓</div>
+
+      <div class="lane">
+        <div class="flow">
+          <div class="node finish" style="flex: 1 1 260px; max-width: 340px;">
+            <div class="n-tag">Finish</div>
+            <div class="n-name">Synthesis</div>
+            <div class="n-desc">Final report — weighted score, evidence map, hiring verdict with confidence</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── LIVE DEMO ── -->
+  <section class="block" id="demo">
+    <div class="sec-head center">
+      <div class="sec-tag">Interactive demo</div>
+      <h2>A real session, simulated</h2>
+      <p>Watch the engine interview a <b>Senior Marketing Manager</b> — a non-technical role, driven by a custom competency taxonomy. The pipeline below lights up as it runs.</p>
+    </div>
+
+    <div class="demo reveal">
+      <div class="demo-main" id="demoMain">
+        <div class="demo-step-head">
+          <span class="phase-chip" id="demoPhase">Intro</span>
+          <span class="comp-chip" id="demoComp">Campaign Strategy</span>
+          <span class="step-count" id="demoStep">Step 1 / 5</span>
+        </div>
+        <div class="demo-q" id="demoQ">Walk me through a campaign you ran in the last year that you're most proud of. What were you trying to move, and how did you structure the plan?</div>
+        <div class="demo-a" id="demoA"></div>
+        <div class="demo-actions">
+          <button class="btn btn-primary" id="demoBtn" style="min-width:170px; justify-content:center;">Reveal candidate answer</button>
+          <div class="demo-bar"><div class="demo-bar-fill" id="demoBar"></div></div>
+          <span class="demo-hint" id="demoHint">Engine: evaluating…</span>
+        </div>
+        <div class="verdict" id="demoVerdict">
+          <div>
+            <div class="v-label" id="verdictLabel">Hire — confidence 0.82</div>
+            <div class="v-sub" id="verdictSub">Coverage 0.90 · 5 competencies covered · 2 hypotheses confirmed, 0 refuted · no contradictions</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo-side">
+        <div class="side-card">
+          <h4>Live evidence</h4>
+          <div class="dim-row"><span class="dim-name">Domain Knowledge</span><div class="dim-track"><div class="dim-fill" data-fill="#8b6ff5" data-score="8.5"></div></div><span class="dim-score">0.0</span></div>
+          <div class="dim-row"><span class="dim-name">Communication</span><div class="dim-track"><div class="dim-fill" data-fill="#34d399" data-score="8.0"></div></div><span class="dim-score">0.0</span></div>
+          <div class="dim-row"><span class="dim-name">Reasoning</span><div class="dim-track"><div class="dim-fill" data-fill="#60a5fa" data-score="7.5"></div></div><span class="dim-score">0.0</span></div>
+          <div class="dim-row"><span class="dim-name">Behavioral</span><div class="dim-track"><div class="dim-fill" data-fill="#fbbf24" data-score="7.0"></div></div><span class="dim-score">0.0</span></div>
+          <div class="dim-row"><span class="dim-name">Confidence</span><div class="dim-track"><div class="dim-fill" data-fill="#f472b6" data-score="8.0"></div></div><span class="dim-score">0.0</span></div>
+          <div class="dim-row"><span class="dim-name">Completeness</span><div class="dim-track"><div class="dim-fill" data-fill="#a08aff" data-score="7.5"></div></div><span class="dim-score">0.0</span></div>
+        </div>
+        <div class="side-card">
+          <h4>Hypothesis engine</h4>
+          <div class="hypo"><span class="hypo-dot" style="background:var(--warning)"></span><div><span class="st testing">testing</span>Strong in full-funnel campaign strategy</div></div>
+          <div class="hypo"><span class="hypo-dot" style="background:var(--warning)"></span><div><span class="st testing">testing</span>Weak in data-driven decision making</div></div>
+          <div class="hypo"><span class="hypo-dot" style="background:var(--warning)"></span><div><span class="st testing">testing</span>Communicates clearly under pressure</div></div>
+        </div>
+        <div class="side-card">
+          <h4>Reflection</h4>
+          <div style="font-size:12.5px; color:var(--text-secondary)" id="demoReflection">Action: probe — evidence still insufficient on 2 competencies</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── AGENTS ── -->
+  <section class="block" id="agents">
+    <div class="sec-head">
+      <div class="sec-tag">Agentic core</div>
+      <h2>Specialist nodes, one shared memory</h2>
+      <p>Every node reads and writes a single <b>InterviewState</b> — the shared blackboard — so planning, evidence and reflection always agree with each other.</p>
+    </div>
+    <div class="grid reveal">
+      <div class="agent-card">
+        <div class="agent-icon">CB</div>
+        <div class="a-tag">Context</div>
+        <h3>Candidate Profile Node</h3>
+        <p>Loads the candidate's history, accumulates strengths, weaknesses and risk flags from evidence across sessions.</p>
+      </div>
+      <div class="agent-card">
+        <div class="agent-icon i2">DC</div>
+        <div class="a-tag">Context</div>
+        <h3>Department Context Node</h3>
+        <p>Retrieves org documents (RAG) so questions are grounded in the role's actual requirements.</p>
+      </div>
+      <div class="agent-card">
+        <div class="agent-icon i3">CP</div>
+        <div class="a-tag">Planning</div>
+        <h3>Competency Planner</h3>
+        <p>Builds the coverage plan: gap per competency, priority, evidence required — picks the next target.</p>
+      </div>
+      <div class="agent-card">
+        <div class="agent-icon">SB</div>
+        <div class="a-tag">Planning</div>
+        <h3>Strategy Brain</h3>
+        <p>LLM-driven interview strategy: question approach, persona, difficulty curve and early-termination thresholds.</p>
+      </div>
+      <div class="agent-card">
+        <div class="agent-icon i2">HY</div>
+        <div class="a-tag">Memory</div>
+        <h3>Hypothesis Engine</h3>
+        <p>Forms beliefs about the candidate, updates confidence from evidence, confirms or refutes them.</p>
+      </div>
+      <div class="agent-card">
+        <div class="agent-icon i3">QG</div>
+        <div class="a-tag">Asking</div>
+        <h3>Question Generator</h3>
+        <p>Deterministic question templates per competency, difficulty-aware, follow-up aware, persona-aware.</p>
+      </div>
+      <div class="agent-card">
+        <div class="agent-icon">EV</div>
+        <div class="a-tag">Judging</div>
+        <h3>Unified Evaluator</h3>
+        <p>Scores every answer on 6 dimensions with cited evidence — unified or parallel LLM mode.</p>
+      </div>
+      <div class="agent-card">
+        <div class="agent-icon i2">EX</div>
+        <div class="a-tag">Memory</div>
+        <h3>Evidence Extractor</h3>
+        <p>Converts evaluations into persisted evidence records and live competency summaries.</p>
+      </div>
+      <div class="agent-card">
+        <div class="agent-icon i3">RF</div>
+        <div class="a-tag">Judging</div>
+        <h3>Reflection Engine</h3>
+        <p>Detects contradictions, weighs coverage, decides: probe deeper, change competency, or finish.</p>
+      </div>
+      <div class="agent-card">
+        <div class="agent-icon">SY</div>
+        <div class="a-tag">Output</div>
+        <h3>Synthesis Node</h3>
+        <p>Produces the final report: composite score, hiring verdict, confidence and evidence map.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── EVALUATION ── -->
+  <section class="block" id="evaluation">
+    <div class="sec-head">
+      <div class="sec-tag">Judgment</div>
+      <h2>Six dimensions, one composite score</h2>
+      <p>Every answer is scored 0-10 with evidence citations, then weighted into a composite. The dimension label adapts to the field — <b>Technical Knowledge</b> for engineering, <b>Domain Knowledge</b> for anything else.</p>
+    </div>
+    <div class="eval-grid reveal">
+      <div class="eval-card"><div class="e-num">01</div><h3>Domain / Technical Knowledge</h3><p>Correctness of concepts, depth, terminology, awareness of trade-offs.</p></div>
+      <div class="eval-card"><div class="e-num">02</div><h3>Communication</h3><p>Clarity, structure, conciseness, ability to explain complex ideas simply.</p></div>
+      <div class="eval-card"><div class="e-num">03</div><h3>Reasoning</h3><p>Logical structure, alternatives considered, cause-effect analysis.</p></div>
+      <div class="eval-card"><div class="e-num">04</div><h3>Behavioral</h3><p>Teamwork, ownership, self-awareness, STAR-style evidence.</p></div>
+      <div class="eval-card"><div class="e-num">05</div><h3>Confidence</h3><p>Certainty, honest unknowns, no false expertise.</p></div>
+      <div class="eval-card"><div class="e-num">06</div><h3>Completeness</h3><p>Full coverage of the question, sub-parts, missing elements.</p></div>
+    </div>
+    <div class="lifecycle reveal">
+      <span class="lc-node">Hypothesis: untested</span>
+      <span class="lc-arrow">→</span>
+      <span class="lc-node">testing</span>
+      <span class="lc-arrow">→</span>
+      <span class="lc-node done">confirmed</span>
+      <span class="lc-arrow">or</span>
+      <span class="lc-node dead">refuted</span>
+      <span class="lc-arrow">→</span>
+      <span class="lc-node done">Hiring verdict + confidence</span>
+    </div>
+  </section>
+
+  <!-- ── STYLES ── -->
+  <section class="block" id="styles">
+    <div class="sec-head">
+      <div class="sec-tag">Personality</div>
+      <h2>Styles and personas</h2>
+      <p>Each style tunes the difficulty curve, question mix and persona — the same evidence engine underneath.</p>
+    </div>
+    <div class="style-grid reveal">
+      <div class="style-card"><h3>STANDARD</h3><p class="s-desc">Balanced evidence-driven interview with a warm, structured flow.</p><div class="s-meta"><span>Persona: friendly</span><span>· max 10-20 Q</span></div></div>
+      <div class="style-card"><h3>CONVERSATIONAL</h3><p class="s-desc">Natural back-and-forth, lighter probing, high rapport.</p><div class="s-meta"><span>Persona: conversational</span></div></div>
+      <div class="style-card"><h3>TECHNICAL_DEEP</h3><p class="s-desc">Depth-first technical probes, hard difficulty curve, tighter evidence thresholds.</p><div class="s-meta"><span>Persona: strict</span></div></div>
+      <div class="style-card"><h3>BEHAVIORAL</h3><p class="s-desc">STAR-heavy sessions targeting behavioral competencies.</p><div class="s-meta"><span>Persona: empathetic</span></div></div>
+      <div class="style-card"><h3>CASE_STUDY</h3><p class="s-desc">Scenario-driven questions with staged difficulty progression.</p><div class="s-meta"><span>Persona: analytical</span></div></div>
+    </div>
+    <div class="persona-chips reveal">
+      <span class="chip">friendly</span><span class="chip">formal</span><span class="chip">strict</span><span class="chip">mentor</span><span class="chip">conversational</span><span class="chip">empathetic</span><span class="chip">analytical</span><span class="chip">faang</span><span class="chip">stress</span>
+    </div>
+  </section>
+
+  <!-- ── COMPETENCIES ── -->
+  <section class="block" id="competencies">
+    <div class="sec-head">
+      <div class="sec-tag">Field-agnostic by design</div>
+      <h2>Competencies come from the org, not the code</h2>
+      <p>At session start, the engine resolves the competency taxonomy in priority order. No schema changes, no retraining — a marketing department, a nursing team and a data org all get their own competency model.</p>
+    </div>
+    <div class="resolve reveal">
+      <div class="node req"><div class="n-tag">1 · Highest priority</div><div class="n-name">Scorecard template</div><div class="n-desc">Org-curated competencies with weights</div></div>
+      <div class="resolve-arrow">→</div>
+      <div class="node req"><div class="n-tag">2</div><div class="n-name">Interview template</div><div class="n-desc">Department-level competency definitions</div></div>
+      <div class="resolve-arrow">→</div>
+      <div class="node"><div class="n-tag">3 · Fallback</div><div class="n-name">Default taxonomy</div><div class="n-desc">22-engineer-built competencies</div></div>
+    </div>
+    <div class="cat-row reveal">
+      <span class="cat">technical</span>
+      <span class="cat">behavioral</span>
+      <span class="cat">cognitive</span>
+      <span class="cat">experience</span>
+      <span class="cat">custom — e.g. campaign_strategy</span>
+    </div>
+  </section>
+
+  <!-- ── STACK ── -->
+  <section class="block" id="stack">
+    <div class="sec-head">
+      <div class="sec-tag">Platform</div>
+      <h2>Built to ship</h2>
+      <p>A production-grade stack behind the engine.</p>
+    </div>
+    <div class="stack-grid reveal">
+      <div class="stack-card"><div class="stk-name">LangGraph</div><div class="stk-use">Agent state machine — question, evaluation &amp; reflection subgraphs</div></div>
+      <div class="stack-card"><div class="stk-name">FastAPI</div><div class="stk-use">Typing, voice and avatar APIs over WebSockets + REST</div></div>
+      <div class="stack-card"><div class="stk-name">PostgreSQL + Supabase</div><div class="stk-use">Sessions, evidence store, scorecards, org data</div></div>
+      <div class="stack-card"><div class="stk-name">Pinecone RAG</div><div class="stk-use">Department documents → grounded interview context</div></div>
+      <div class="stack-card"><div class="stk-name">Groq / OpenRouter / OpenAI</div><div class="stk-use">Swappable LLM providers with configurable model chain</div></div>
+      <div class="stack-card"><div class="stk-name">ElevenLabs</div><div class="stk-use">Streamed TTS with viseme timestamps for the avatar</div></div>
+      <div class="stack-card"><div class="stk-name">React + Vite</div><div class="stk-use">Typing, voice and avatar interview rooms</div></div>
+      <div class="stack-card"><div class="stk-name">Alembic</div><div class="stk-use">Versioned migrations — indexed, production-safe schema</div></div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="foot-inner">
+    <p>AI Interview Agent — evidence-driven, field-agnostic interview engine</p>
+    <p>Presentation page · v4 engine</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  /* ── Scroll reveal ── */
+  const revealEls = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  revealEls.forEach(el => io.observe(el));
+  document.querySelectorAll('.reveal').forEach(el => { if (el.getBoundingClientRect().top < innerHeight * 0.85) el.classList.add('visible'); });
+
+  /* ── Nav scrollspy ── */
+  const links = document.querySelectorAll('#navLinks a');
+  const sections = Array.from(links).map(l => document.querySelector(l.getAttribute('href')));
+  const spy = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + e.target.id));
+      }
+    });
+  }, { rootMargin: '-40% 0px -55% 0px' });
+  sections.forEach(s => s && spy.observe(s));
+
+  /* ── Demo pipeline highlighting ── */
+  const startNodes = document.querySelectorAll('#flowStart .node');
+  const loopNodes = document.querySelectorAll('#flowLoop .node');
+  const allNodes = [...startNodes, ...loopNodes];
+  function light(nodes) {
+    allNodes.forEach(n => n.classList.remove('active-demo'));
+    const list = nodes && nodes.forEach ? nodes : [nodes];
+    list.forEach(n => n && n.classList.add('active-demo'));
+  }
+
+  /* ── Demo data (canned marketing interview) ── */
+  const steps = [
+    {
+      phase: 'Intro', comp: 'General',
+      q: "Thanks for joining, Maya. To start — walk me through a campaign you ran in the last year that you're most proud of. What were you trying to move, and how did you structure the plan?",
+      a: "The Q3 full-funnel launch for our new SaaS tier. I owned strategy end to end: persona mapping across 4 segments, a 6-week channel plan — paid social, search, email nurture, and a webcast partnership. We hit 142% of qualified demo target with a CAC 18% below plan, and I cut the underperforming display budget at week 2 the moment blended CPMs doubled.",
+      scores: [8.5, 8.0, 7.5, 6.5, 8.0, 8.0],
+      hypo: [[0, 'Strong in full-funnel campaign strategy'], [1, 'Weak in data-driven decision making'], [2, 'Communicates clearly under pressure']],
+      reflection: 'Action: probe — hypothesis "strong in full-funnel strategy" gaining confidence',
+      nodes: startNodes
+    },
+    {
+      phase: 'Competency probe', comp: 'Campaign Strategy',
+      q: "You mentioned cutting display at week 2. Walk me through that decision — what signals did you look at, and how did you reallocate the budget without hurting upper-funnel awareness?",
+      a: "I tracked a daily scorecard: CPM, CPC, conversion rate by segment, and SQL contribution share. Display was driving 60% of spend but only 12% of SQLs. I shifted 70% of it into search and email where intent was proven, and used the remaining 30% for a retargeting pool. Awareness dipped 4% but qualified volume rose 19% the following week.",
+      scores: [9.0, 8.5, 8.5, 7.0, 8.5, 8.5],
+      hypo: [[0, 'Strong in full-funnel campaign strategy'], [1, 'Weak in data-driven decision making'], [2, 'Communicates clearly under pressure']],
+      reflection: 'Action: probe — "strong in campaign strategy" CONFIRMED (0.84). Weak-in-data hypothesis weakening',
+      nodes: loopNodes[0]
+    },
+    {
+      phase: 'Deep probe', comp: 'Analytical Thinking',
+      q: "How did you measure incrementality on that retargeting pool, and what would you do differently if you ran it again?",
+      a: "Honestly, incrementality was the weak spot — we ran geo holdouts on search only. Retargeting attribution was last-click, so I know some of it was duplication. Next time I'd set up an exclusion audience from the start and measure conversion lift against a 10% holdout before scaling spend.",
+      scores: [7.0, 8.0, 9.0, 6.5, 7.5, 8.0],
+      hypo: [[0, 'Strong in full-funnel campaign strategy'], [1, 'Weak in data-driven decision making'], [2, 'Communicates clearly under pressure']],
+      reflection: 'Action: change_competency — contradiction detected in analytical depth; switching target to Behavioral',
+      nodes: loopNodes[1]
+    },
+    {
+      phase: 'Behavioral', comp: 'Stakeholder Management',
+      q: "Tell me about a time a stakeholder disagreed with your channel plan. What was the conflict, and how did you resolve it?",
+      a: "Our CMO wanted to double down on brand video; I had data showing it wouldn't move pipeline. I didn't dismiss it — I ran a small 2-week test against the objection, presented the results with the revenue impact spelled out, and proposed a compromise: 20% brand, 80% performance. She approved it, and that trust carried into the next quarter.",
+      scores: [7.5, 9.0, 8.0, 9.0, 8.5, 8.5],
+      hypo: [[0, 'Strong in full-funnel campaign strategy'], [1, 'Weak in data-driven decision making'], [2, 'Communicates clearly under pressure']],
+      reflection: 'Action: probe — "communicates clearly" CONFIRMED. Coverage 0.80, one gap remains',
+      nodes: loopNodes[2]
+    },
+    {
+      phase: 'Conclusion', comp: 'Synthesis',
+      q: "Final question — if you had a 12-month budget horizon in this role, what would your first 90 days look like?",
+      a: "First 30 days: audit attribution, inventory the stack, and meet the sales team to understand what 'qualified' actually means. Days 30-60: fix the measurement baseline and run 3 controlled experiments. Days 60-90: scale the winners and align the channel mix to pipeline contribution — not vanity metrics.",
+      scores: [8.5, 8.5, 8.5, 8.0, 8.0, 9.0],
+      hypo: [[0, 'Strong in full-funnel campaign strategy'], [1, 'Weak in data-driven decision making'], [2, 'Communicates clearly under pressure']],
+      reflection: 'Sufficiency reached (coverage 0.90) — Action: FINISH → synthesis',
+      nodes: loopNodes[3]
+    }
+  ];
+
+  const phaseEl = document.getElementById('demoPhase');
+  const compEl = document.getElementById('demoComp');
+  const stepEl = document.getElementById('demoStep');
+  const qEl = document.getElementById('demoQ');
+  const aEl = document.getElementById('demoA');
+  const btn = document.getElementById('demoBtn');
+  const bar = document.getElementById('demoBar');
+  const hint = document.getElementById('demoHint');
+  const verdict = document.getElementById('demoVerdict');
+  const reflectionEl = document.getElementById('demoReflection');
+  const dimFills = document.querySelectorAll('.dim-fill');
+  const hypoEls = document.querySelectorAll('#demoMain ~ .demo-side .hypo, .demo-side .hypo');
+  let step = 0;
+  let answered = false;
+
+  function paintScores(scores) {
+    dimFills.forEach((f, i) => {
+      f.style.width = '0%';
+      const scoreEl = f.closest('.dim-row').querySelector('.dim-score');
+      scoreEl.textContent = '0.0';
+      setTimeout(() => {
+        f.style.width = (scores[i] * 10) + '%';
+        f.style.background = f.dataset.fill;
+        scoreEl.textContent = scores[i].toFixed(1);
+      }, 120);
+    });
+  }
+
+  function paintHypotheses(statuses) {
+    hypoEls.forEach((el, i) => {
+      const dot = el.querySelector('.hypo-dot');
+      const st = el.querySelector('.st');
+      const status = statuses[i];
+      st.textContent = status;
+      st.className = 'st ' + status;
+      dot.style.background = status === 'confirmed' ? 'var(--success)' : status === 'refuted' ? 'var(--error)' : 'var(--warning)';
+    });
+  }
+
+  function renderStep() {
+    const s = steps[step];
+    phaseEl.textContent = s.phase;
+    compEl.textContent = s.comp;
+    stepEl.textContent = 'Step ' + (step + 1) + ' / ' + steps.length;
+    qEl.textContent = s.q;
+    aEl.textContent = s.a;
+    aEl.classList.remove('show');
+    answered = false;
+    bar.style.width = '0%';
+    btn.textContent = step < 4 ? 'Reveal candidate answer' : 'Reveal final answer';
+    hint.textContent = 'Engine: ' + (step === 0 ? 'planning, strategy, first question…' : 'evaluating…');
+    verdict.classList.remove('show');
+    reflectionEl.textContent = 'Initial hypotheses seeded from profile & role…';
+    paintScores(s.scores.map(() => 0));
+    paintHypotheses(['testing', 'testing', 'testing']);
+    light(s.nodes);
+    dimFills.forEach(f => { f.style.background = '#3a3a40'; });
+    btn.disabled = false;
+    if (step === 0) {
+      light(startNodes);
+      hint.textContent = 'Engine: planning, strategy, first question…';
+    }
+  }
+
+  btn.addEventListener('click', function () {
+    if (answered) {
+      step += 1;
+      if (step >= steps.length) { renderStep(); btn.disabled = true; return; }
+      renderStep();
+      return;
+    }
+    answered = true;
+    const s = steps[step];
+    aEl.classList.add('show');
+    btn.textContent = step >= 4 ? 'Finish interview' : 'Next question →';
+    bar.style.width = '100%';
+    paintScores(s.scores);
+    paintHypotheses(s.hypo.map(h => h[0] === 0 && step >= 2 ? 'confirmed' : h[0] === 1 && step >= 3 ? 'refuted' : h[0] === 2 && step >= 3 ? 'confirmed' : 'testing'));
+    hint.textContent = 'Engine: scored 6 dimensions · extracted evidence · reflected';
+    reflectionEl.textContent = s.reflection;
+    if (step === 4) {
+      setTimeout(() => {
+        verdict.classList.add('show');
+        hint.textContent = 'Session complete — report generated';
+      }, 600);
+    }
+  });
+
+  renderStep();
+})();
+</script>
+</body>
+</html>

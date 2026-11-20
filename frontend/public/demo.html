@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AURA Interview Agent — End-to-End Demo</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --panel2: #1c2333; --border: #2d333b;
+    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; --green: #3fb950;
+    --yellow: #d29922; --red: #f85149; --purple: #bc8cff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.5 "Segoe UI", system-ui, sans-serif; }
+  header {
+    display: flex; align-items: center; gap: 16px; padding: 10px 18px;
+    border-bottom: 1px solid var(--border); background: var(--panel); position: sticky; top: 0; z-index: 5;
+  }
+  header h1 { font-size: 15px; margin: 0; }
+  header .note { color: var(--muted); font-size: 12px; }
+  header button { margin-left: auto; }
+  button {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 12.5px;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+  main { display: grid; grid-template-columns: minmax(440px, 5fr) minmax(480px, 6fr); gap: 0; height: calc(100vh - 51px); }
+  section { overflow-y: auto; padding: 16px 18px; }
+  section.right { border-left: 1px solid var(--border); background: var(--bg); }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 12px; }
+  .setup {
+    border: 1px solid var(--border); border-radius: 8px; background: var(--panel);
+    padding: 12px; margin-bottom: 14px;
+  }
+  .setup .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .setup label { display: flex; flex-direction: column; gap: 3px; color: var(--muted); font-size: 11.5px; }
+  .setup input, .setup select {
+    background: #0b0f14; color: var(--text); border: 1px solid var(--border);
+    border-radius: 5px; padding: 6px 8px; font-size: 12.5px;
+  }
+  .setup .wide { grid-column: 1 / -1; }
+  .step {
+    border: 1px solid var(--border); border-radius: 8px; background: var(--panel);
+    margin-bottom: 10px; padding: 10px 12px;
+  }
+  .step .row { display: flex; align-items: center; gap: 10px; }
+  .step .title { font-weight: 600; font-size: 13px; }
+  .step .desc { color: var(--muted); font-size: 12px; margin-top: 3px; }
+  .step .status { margin-left: auto; font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+  .step.pending .status { color: var(--muted); }
+  .step.running .status { color: var(--yellow); border-color: var(--yellow); animation: pulse 1s infinite; }
+  .step.ok .status { color: var(--green); border-color: var(--green); }
+  .step.err .status { color: var(--red); border-color: var(--red); }
+  .step .extra { margin-top: 8px; }
+  @keyframes pulse { 50% { opacity: .4; } }
+  .pill { display: inline-block; font: 11px/1.6 ui-monospace, Consolas, monospace; color: var(--accent); background: var(--panel2); border: 1px solid var(--border); border-radius: 4px; padding: 0 6px; margin: 2px 4px 0 0; }
+  .jsonbox {
+    margin-top: 8px; background: #0b0f14; border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 10px; font: 11px/1.55 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-word;
+    max-height: 260px; overflow-y: auto; color: #c9d1d9;
+  }
+  .jsonbox.ok { border-color: #2ea04366; }
+  textarea {
+    width: 100%; min-height: 74px; background: #0b0f14; color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 8px; font: 12px/1.5 ui-monospace, Consolas, monospace; resize: vertical;
+  }
+  .log-entry { border-bottom: 1px solid var(--border); padding: 8px 10px; font-size: 12px; }
+  .log-entry .line { display: flex; gap: 8px; align-items: baseline; font: 12px/1.5 ui-monospace, Consolas, monospace; }
+  .log-entry .tag { font-size: 10px; padding: 1px 6px; border-radius: 4px; border: 1px solid; white-space: nowrap; }
+  .tag.req { color: var(--accent); border-color: var(--accent); }
+  .tag.resp { color: var(--green); border-color: var(--green); }
+  .tag.ws-out { color: var(--purple); border-color: var(--purple); }
+  .tag.ws-in { color: #79c0ff; border-color: #79c0ff; }
+  .tag.info { color: var(--muted); border-color: var(--muted); }
+  .tag.err { color: var(--red); border-color: var(--red); }
+  .log-entry .path { font-weight: 600; }
+  .log-entry .meta { color: var(--muted); font-size: 11px; }
+  .log-entry details { margin-top: 4px; }
+  .log-entry summary { color: var(--muted); cursor: pointer; font-size: 11px; }
+  .log-entry pre { background: #0b0f14; border: 1px solid var(--border); border-radius: 5px; padding: 6px 8px; font: 11px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-word; margin: 4px 0 0; }
+  .statusbar { position: sticky; bottom: 0; background: var(--panel); border-top: 1px solid var(--border); padding: 6px 12px; font-size: 11px; color: var(--muted); }
+  .filters { margin-bottom: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .filters label { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 4px; }
+  #log { padding-bottom: 40px; }
+
+  /* ── Output cards (easy-to-read) ─────────────────────────────────── */
+  .step-out { margin-top: 8px; }
+  .card { border: 1px solid var(--border); border-radius: 6px; background: #0b0f14; padding: 10px 12px; margin-top: 8px; }
+  .card:first-child { margin-top: 0; }
+  .card > h4 { margin: 0 0 6px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); }
+  .kv { display: grid; grid-template-columns: 150px 1fr; gap: 2px 12px; font-size: 12px; margin: 4px 0; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; word-break: break-word; }
+  .kv dd ul { margin: 2px 0 0; padding-left: 16px; }
+  .kv dd li { margin: 1px 0; }
+  .badge { display: inline-block; font-size: 10px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--border); vertical-align: 1px; }
+  .badge.green { color: var(--green); border-color: var(--green); }
+  .badge.yellow { color: var(--yellow); border-color: var(--yellow); }
+  .badge.red { color: var(--red); border-color: var(--red); }
+  .badge.blue { color: var(--accent); border-color: var(--accent); }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+  .chip { font-size: 11px; color: var(--text); background: var(--panel2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 7px; }
+  table.mini { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-top: 4px; }
+  table.mini th, table.mini td { border: 1px solid var(--border); padding: 3px 6px; text-align: left; vertical-align: top; }
+  table.mini th { color: var(--muted); font-weight: 600; background: var(--panel2); }
+  table.mini td pre { margin: 0; font: 10.5px/1.45 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+  details.collapse { margin-top: 6px; border-top: 1px dashed var(--border); padding-top: 6px; }
+  details.collapse summary { color: var(--muted); cursor: pointer; font-size: 11.5px; }
+  details.collapse pre { background: #0d1117; border: 1px solid var(--border); border-radius: 5px; padding: 6px 8px; font: 10.5px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-word; margin: 6px 0 0; }
+  .note-ok { color: var(--green); font-size: 12px; margin-top: 6px; }
+  .note-muted { color: var(--muted); font-size: 12px; margin-top: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>AURA Interview Agent — End-to-End Demo</h1>
+  <span class="note">Reuses your existing Supabase org / candidate / department / Pinecone docs &middot; page on 3000, backend on 8000 (<code>/api</code>, <code>/interviews</code>, <code>/ws</code> proxied)</span>
+  <button id="refreshDb" style="margin-left:0;border-color:var(--red);color:var(--red)">Refresh demo DB</button>
+  <button id="runAll" class="primary">Run All</button>
+  <button id="clearLog">Clear log</button>
+</header>
+
+<main>
+  <section class="left">
+    <div class="setup">
+      <h2 style="margin-bottom:8px">Existing data (Supabase)</h2>
+      <div class="grid">
+        <label>Nova org email
+          <input id="cfgOrgEmail" value="nova@test.com" autocomplete="off" />
+        </label>
+        <label>Nova org password
+          <input id="cfgOrgPass" type="password" value="Admin123!" autocomplete="off" />
+        </label>
+        <label>Candidate email
+          <input id="cfgCandEmail" value="candidate@test.com" autocomplete="off" />
+        </label>
+        <label>Candidate password
+          <input id="cfgCandPass" type="password" value="Test123!" autocomplete="off" />
+        </label>
+        <label class="wide">Department to interview for
+          <select id="cfgDept" disabled>
+            <option value="">— loaded after org login —</option>
+          </select>
+        </label>
+        <div class="wide" style="color:var(--muted);font-size:11.5px;line-height:1.6">
+          • An <b style="color:var(--text)">existing listing is always reused</b> — the demo never creates duplicates, it just shows the listing info.<br />
+          • If a <b style="color:var(--text)">resume was already uploaded</b>, the resume step's Run button stays disabled and the parsed profile is displayed.<br />
+          • The interview is <b style="color:var(--text)">manual</b> — you type each answer; the question appears in real time in the WS panel below.
+        </div>
+      </div>
+    </div>
+
+    <h2>Flow steps</h2>
+    <div id="steps"></div>
+
+    <h2 style="margin-top:20px">Live interview (WebSocket — manual, real-time)</h2>
+    <div class="step" id="wsPanel">
+      <div class="row">
+        <span class="title">WS /ws/interview/{session_id}</span>
+        <span class="status" id="wsStatus">not connected</span>
+      </div>
+      <div class="extra">
+        <button id="btnWsStart" disabled>start_interview</button>
+        <button id="btnReqQuestion" disabled>request_question</button>
+        <button id="btnGetStatus" disabled>get_status</button>
+        <button id="btnPing" disabled>ping</button>
+        <label style="margin-left:12px"><input type="checkbox" id="autopilot" /> Autopilot answers</label>
+      </div>
+      <div class="extra" id="questionBox" style="display:none">
+        <div style="font-weight:600;margin-bottom:4px">Question <span id="qNumber"></span> — <span id="qCompetency" class="pill"></span></div>
+        <div id="qText" class="jsonbox" style="max-height:180px"></div>
+        <textarea id="answerInput" placeholder="Type your answer…"></textarea>
+        <div style="margin-top:6px;display:flex;gap:8px;align-items:center">
+          <button id="btnSubmitAnswer" class="primary" disabled>Submit answer</button>
+          <span id="evalBrief" style="color:var(--muted)"></span>
+        </div>
+      </div>
+      <div class="extra" id="reportBox" style="display:none">
+        <div style="font-weight:600;color:var(--green);margin-bottom:4px">Interview complete — report</div>
+        <div id="reportBody" class="jsonbox ok"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="right">
+    <h2>Call log</h2>
+    <div class="filters">
+      <label><input type="checkbox" id="fReq" checked> REST req</label>
+      <label><input type="checkbox" id="fResp" checked> REST resp</label>
+      <label><input type="checkbox" id="fWs" checked> WS</label>
+      <label><input type="checkbox" id="fInfo" checked> info</label>
+    </div>
+    <div id="log"></div>
+    <div class="statusbar" id="statusbar">Ready.</div>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+/* ── State ─────────────────────────────────────────────────────────── */
+const S = {
+  orgToken: null, orgId: null, orgSlug: null,
+  deptId: null, deptName: null, departments: [],
+  listingId: null, listingToken: null, jobRole: null,
+  candToken: null, candId: null, candName: null, candEmail: null, candParsed: null,
+  sessionId: null,
+  ws: null, wsStepDone: null, resolveStartFrame: null, startFrame: null,
+  question: null, autopilot: false, interviewing: false, report: null,
+};
+
+const RESUME_FILE = "jordan_rivera_resume.pdf";
+
+const AUTOPILOT_ANSWER =
+  "I have 8 years of Python backend experience. Most recently I designed an LLM evaluation service " +
+  "that scores candidate responses on competency dimensions: each answer is extracted for evidence, " +
+  "scored per dimension, and reconciled into a composite score. I built a document knowledge base " +
+  "pipeline that ingests PDFs, chunks them, embeds them, and stores them in per-department Pinecone " +
+  "namespaces so retrieval stays isolated per tenant. On the API side I favour FastAPI with async " +
+  "SQLAlchemy sessions, versioned routes, JWT auth with refresh rotation, structured logging, and " +
+  "pytest coverage above 85 percent. I lead by pairing with juniors, reviewing designs early, and " +
+  "preferring incremental migrations over rewrites.";
+
+/* ── Tiny DOM helpers ──────────────────────────────────────────────── */
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+};
+const fmt = (v) => (typeof v === "string" ? v : JSON.stringify(v, null, 2));
+
+/* ── Output card builders (easy to read) ───────────────────────────── */
+const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+}[c]));
+const chips = (arr) => (Array.isArray(arr) && arr.length)
+  ? '<div class="chips">' + arr.map((x) => '<span class="chip">' + esc(x) + "</span>").join("") + "</div>"
+  : '<span style="color:var(--muted)">—</span>';
+const kv = (pairs) => "<dl class=\"kv\">" + pairs.map(([k, v]) => "<dt>" + esc(k) + "</dt><dd>" + v + "</dd>").join("") + "</dl>";
+const card = (title, inner, badge) =>
+  '<div class="card"><h4>' + esc(title) + (badge ? " <span class=\"badge " + badge.cls + "\">" + esc(badge.text) + "</span>" : "") + "</h4>" + inner + "</div>";
+const badge = (text, cls) => '<span class="badge ' + (cls || "blue") + '">' + esc(text) + "</span>";
+const table = (head, rows) => {
+  if (!rows.length) return '<span style="color:var(--muted)">—</span>';
+  return "<table class=\"mini\"><tr>" + head.map((h) => "<th>" + esc(h) + "</th>").join("") + "</tr>" +
+    rows.map((r) => "<tr>" + r.map((c) => "<td>" + c + "</td>").join("") + "</tr>").join("") + "</table>";
+};
+const details = (title, json) =>
+  "<details class=\"collapse\"><summary>" + esc(title) + "</summary><pre>" + esc(fmt(json)) + "</pre></details>";
+
+/* ── Call log ──────────────────────────────────────────────────────── */
+let logCount = 0;
+function appendLog(kind, tag, title, meta, body) {
+  const entry = el("div", "log-entry");
+  const line = el("div", "line");
+  line.appendChild(el("span", "tag " + tag, tag));
+  line.appendChild(el("span", "path", title));
+  if (meta) line.appendChild(el("span", "meta", meta));
+  entry.appendChild(line);
+  if (body !== undefined) {
+    const det = el("details");
+    det.appendChild(el("summary", null, "body"));
+    det.appendChild(el("pre", null, fmt(body)));
+    entry.appendChild(det);
+  }
+  const types = { req: "fReq", resp: "fResp", info: "fInfo" };
+  if (types[kind]) {
+    entry.dataset.filter = types[kind];
+    $(types[kind]).addEventListener("change", () => {
+      entry.style.display = $(types[kind]).checked ? "" : "none";
+    });
+  }
+  if ((kind === "ws-in" || kind === "ws-out") && !$("fWs").checked) entry.style.display = "none";
+  $("log").appendChild(entry);
+  entry.scrollIntoView({ block: "end" });
+  logCount++;
+  $("statusbar").textContent = logCount + " events · " + (S.sessionId ? "session " + S.sessionId : "no session");
+  return entry;
+}
+const logInfo = (title, body) => appendLog("info", "info", title, undefined, body);
+const logErr = (title, body) => appendLog("err", "err", title, undefined, body);
+
+/* ── HTTP client (all paths relative → Vite proxy → :8000) ─────────── */
+async function api(method, path, opts = {}) {
+  const headers = {};
+  if (opts.json !== undefined) headers["Content-Type"] = "application/json";
+  if (opts.token) headers["Authorization"] = "Bearer " + opts.token;
+  Object.assign(headers, opts.headers || {});
+  const body = opts.form
+    ? opts.form
+    : opts.json !== undefined ? JSON.stringify(opts.json) : undefined;
+  const t0 = performance.now();
+  appendLog("req", "req", method + " " + path,
+    JSON.stringify({ headers: Object.fromEntries(Object.entries(headers).map(([k, v]) => [k, /Bearer/.test(v) ? "Bearer ***" : v])) }), opts.json);
+  let resp;
+  try {
+    resp = await fetch(path, { method, headers, body });
+  } catch (e) {
+    logErr(method + " " + path + " — network error: " + e.message);
+    throw new Error("Network error: " + e.message);
+  }
+  const text = await resp.text();
+  let data = text;
+  try { data = JSON.parse(text); } catch { /* keep raw */ }
+  const tag = resp.ok ? "resp" : "err";
+  appendLog(resp.ok ? "resp" : "info", tag,
+    (resp.ok ? "→ " : "✗ ") + resp.status + "  " + method + " " + path,
+    Math.round(performance.now() - t0) + " ms", data);
+  if (!resp.ok) throw new Error(method + " " + path + " → " + resp.status + ": " + text.slice(0, 400));
+  return data;
+}
+
+async function fetchAsset(name) {
+  const resp = await fetch("/demo-assets/" + name);
+  if (!resp.ok) throw new Error("Asset not found: " + name);
+  return { blob: await resp.blob(), name };
+}
+
+/* ── Steps ─────────────────────────────────────────────────────────── */
+const steps = [];
+function defineStep(key, title, desc, run) {
+  const box = el("div", "step pending");
+  const row = el("div", "row");
+  const txt = el("div", null);
+  txt.appendChild(el("div", "title", title));
+  if (desc) txt.appendChild(el("div", "desc", desc));
+  const status = el("span", "status", "pending");
+  row.appendChild(txt); row.appendChild(status);
+  const btn = el("button", null, "Run");
+  btn.addEventListener("click", () => runStep(key));
+  row.appendChild(btn);
+  const out = el("div", "step-out");
+  box.appendChild(row);
+  box.appendChild(out);
+  $("steps").appendChild(box);
+  steps.push({ key, box, status, btn, run, out });
+}
+async function runStep(key) {
+  const st = steps.find((s) => s.key === key);
+  if (!st) return;
+  if (runningKey) return;
+  runningKey = key;
+  let keepDisabled = false;
+  st.btn.disabled = true;
+  st.box.className = "step running"; st.status.textContent = "running…";
+  st.out.innerHTML = ""; // only the current run's output is shown
+  try {
+    const result = await st.run();
+    const label = result === "skipped" ? "skipped" : (result && result.label) || "OK";
+    st.box.className = "step ok";
+    st.status.textContent = label;
+    if (result && result.html) st.out.innerHTML = result.html;
+    if (result && result.disableBtn) keepDisabled = true;
+  } catch (e) {
+    st.box.className = "step err"; st.status.textContent = "FAILED";
+    logErr("Step «" + key + "» failed: " + e.message);
+    $("statusbar").textContent = "Aborted: " + e.message;
+  } finally {
+    runningKey = null;
+    if (!keepDisabled) st.btn.disabled = false;
+  }
+}
+let runningKey = null;
+
+function cfgRequired() {
+  const orgE = $("cfgOrgEmail").value.trim(), orgP = $("cfgOrgPass").value;
+  const candE = $("cfgCandEmail").value.trim(), candP = $("cfgCandPass").value;
+  if (!orgE || !orgP) throw new Error("Org email/password are required in the setup panel");
+  if (!candE || !candP) throw new Error("Candidate email/password are required in the setup panel");
+  return { orgE, orgP, candE, candP };
+}
+
+function require(cond, msg) {
+  if (!cond) throw new Error(msg);
+}
+
+$("runAll").addEventListener("click", async () => {
+  $("runAll").disabled = true;
+  for (const s of steps) {
+    await runStep(s.key);
+    if (s.box.className.includes("err")) break;
+  }
+  $("runAll").disabled = false;
+});
+$("clearLog").addEventListener("click", () => { $("log").innerHTML = ""; logCount = 0; });
+$("refreshDb").addEventListener("click", async () => {
+  if (!confirm("Wipe all interview/V5 runtime data + listings?\nOrg / departments / docs / candidates / templates are kept.")) return;
+  $("refreshDb").disabled = true;
+  try {
+    const res = await api("POST", "/api/v1/demo/refresh-db");
+    const wiped = Object.values(res.deleted || {}).reduce((a, b) => a + b, 0);
+    S.sessionId = null;
+    logInfo("Demo DB refreshed", res);
+    $("statusbar").textContent = "Demo DB refreshed — " + wiped + " rows wiped, demo data kept";
+  } catch (e) {
+    logErr("Refresh failed: " + e.message);
+  } finally {
+    $("refreshDb").disabled = false;
+  }
+});
+
+/* Step 1 — health */
+defineStep("health", "1 · Health check", "GET /api/v1/health", async () => {
+  const res = await api("GET", "/api/v1/health");
+  return { html: card("Backend health", kv([["status", esc(res.status || "ok")]])) };
+});
+
+/* Step 2 — org login */
+defineStep("orgLogin", "2 · Login as Nova org user", "POST /api/v1/auth/login → org token + org_id", async () => {
+  const { orgE, orgP } = cfgRequired();
+  const res = await api("POST", "/api/v1/auth/login", { json: { email: orgE, password: orgP } });
+  S.orgToken = res.tokens.access_token;
+  const m = (res.memberships || [])[0];
+  if (!m) throw new Error("User has no org membership");
+  S.orgId = m.org_id; S.orgSlug = m.org_slug;
+  logInfo("logged in as " + res.user.email + " · org_id=" + S.orgId + " slug=" + S.orgSlug + " role=" + m.role);
+  return { html: card("Logged in", kv([
+    ["user", esc(res.user.email)],
+    ["org", esc(m.org_name || m.org_slug)],
+    ["org_id", '<code style="font-size:11px">' + esc(S.orgId) + "</code>"],
+    ["role", badge(esc(m.role), "green")],
+  ])) };
+});
+
+/* Step 3 — departments */
+defineStep("depts", "3 · List departments", "GET /api/v1/departments (X-Org-Id) → pick Nova department", async () => {
+  if (!S.orgToken) throw new Error("Run step 2 first");
+  const list = await api("GET", "/api/v1/departments", { token: S.orgToken, headers: { "X-Org-Id": S.orgId } });
+  S.departments = list;
+  const sel = $("cfgDept");
+  sel.innerHTML = "";
+  sel.disabled = false;
+  for (const d of list) {
+    const opt = el("option", null, d.name);
+    opt.value = d.id;
+    sel.appendChild(opt);
+  }
+  if (!list.length) throw new Error("No departments found for this org");
+  sel.selectedIndex = 0;
+  S.deptId = list[0].id; S.deptName = list[0].name;
+  logInfo(list.length + " department(s): " + list.map((d) => d.id + ":" + d.name).join(", "));
+  return { html: card("Departments (" + list.length + ")", table(
+    ["id", "name"],
+    list.map((d) => ["<code>" + esc(d.id) + "</code>", esc(d.name)]),
+  )) };
+});
+
+$("cfgDept").addEventListener("change", (e) => {
+  S.deptId = Number(e.target.value);
+  S.deptName = (S.departments.find((d) => d.id === S.deptId) || {}).name || S.deptId;
+  logInfo("selected department: " + S.deptId + ":" + S.deptName);
+});
+
+/* Step 4 — verify existing docs */
+defineStep("docs", "4 · Verify existing department docs", "GET /api/v1/departments/{id}/documents → confirms Pinecone namespace department_{id}", async () => {
+  if (!S.deptId) throw new Error("Select a department first (step 3)");
+  const list = await api("GET", "/api/v1/departments/" + S.deptId + "/documents", {
+    token: S.orgToken, headers: { "X-Org-Id": S.orgId },
+  });
+  logInfo("department «" + S.deptName + "» (id=" + S.deptId + ") has " + list.length + " doc(s): " +
+    list.map((d) => d.filename).join(", "));
+  return { html: card("Documents for department " + S.deptId, kv([
+    ["count", badge(list.length, list.length ? "green" : "yellow")],
+    ["files", chips(list.map((d) => d.filename))],
+  ]) + '<div class="note-muted">Vectors live in Pinecone namespace <code>department_' + esc(S.deptId) + "</code> — the company brain is built from these at interview start (only when documents are retrieved).</div>") };
+});
+
+/* Step 5 — marketplace listing (reuse existing, never duplicate) */
+defineStep("listing", "5 · Marketplace listing (reuses existing)", "GET /api/v1/marketplace/org/{org_id}/interviews → reuse latest; only creates a listing if none exist", async () => {
+  const existing = await api("GET", "/api/v1/marketplace/org/" + S.orgId + "/interviews", {
+    token: S.orgToken, headers: { "X-Org-Id": S.orgId },
+  });
+  let listing;
+  if (existing.length) {
+    listing = existing[0];
+    logInfo("reusing latest listing «" + listing.title + "» (id=" + listing.id + ") — " + existing.length +
+      " listing(s) exist, no new listing created");
+  } else {
+    listing = await api("POST", "/api/v1/marketplace/interviews", {
+      json: {
+        title: "Senior Python Developer",
+        department_id: S.deptId,
+        interview_mode: "typing",
+        style_name: "AURA",
+        description: "Hiring a senior python developer for the Nova Engineering department. Evaluated against the company knowledge base.",
+        skills_required: "Python, FastAPI, PostgreSQL, RAG",
+        max_candidates: 50,
+      },
+      token: S.orgToken,
+      headers: { "X-Org-Id": S.orgId },
+    });
+    logInfo("no existing listing — created " + listing.id);
+  }
+  S.listingId = listing.id; S.listingToken = listing.token; S.jobRole = listing.title || "Software Engineer";
+  let html = card("Listing «" + listing.title + "»" + (existing.length ? " <span class=\"badge green\">reused</span>" : " <span class=\"badge blue\">created</span>"),
+    kv([
+      ["id", '<code style="font-size:11px">' + esc(listing.id) + "</code>"],
+      ["department", esc(listing.department_name || S.deptName) + " (id " + esc(listing.department_id) + ")"],
+      ["mode", esc(listing.interview_mode)],
+      ["style", esc(listing.style_name || "STANDARD")],
+      ["open", listing.is_open ? badge("OPEN", "green") : badge("CLOSED", "red")],
+      ["token", '<code style="font-size:11px">' + esc(listing.token) + "</code>"],
+      ["template_id", listing.template_id ? '<code style="font-size:11px">' + esc(listing.template_id) + "</code>" : "—"],
+      ["created_at", esc(listing.created_at || "—")],
+    ]) + '<div class="note-muted">The engine sets the session role from the listing title («' + esc(S.jobRole) + '») at start.</div>');
+  html += await templateChainCard(listing);
+  return { html };
+});
+
+async function templateChainCard(listing) {
+  try {
+    if (listing.template_id) {
+      const t = await api("GET", "/api/v1/departments/" + S.deptId + "/templates/" + listing.template_id, {
+        token: S.orgToken, headers: { "X-Org-Id": S.orgId },
+      });
+      let html = card("Linked department template", kv([
+        ["name", esc(t.name)],
+        ["job_role", esc(t.job_role || "—")],
+        ["interview_style", esc(t.interview_style || "—")],
+        ["competencies", (t.competencies || []).length ? (t.competencies || []).length + " defined" : "not set"],
+        ["scorecard_template_id", t.scorecard_template_id ? '<code style="font-size:11px">' + esc(t.scorecard_template_id) + "</code>" : "—"],
+      ]) + ((t.competencies || []).length ? kv([["competencies", chips(t.competencies.map((c) => c.name || c.id))]]) : ""));
+      if (t.scorecard_template_id) {
+        const sc = await api("GET", "/api/v1/orgs/" + S.orgId + "/scorecards/" + t.scorecard_template_id, { token: S.orgToken });
+        html += card("Scorecard «" + sc.name + "»", table(
+          ["name", "category", "weight", "max_score"],
+          (sc.competencies || []).map((c) => [esc(c.name || c.id), esc(c.category || "general"), c.weight != null ? c.weight : "1.0", c.max_score != null ? c.max_score : "10"]),
+        ));
+      }
+      html += '<div class="note-muted">At <code>start_interview</code>, resolve_competencies walks: scorecard template → department template → default taxonomy. Every answer is scored against these competencies.</div>';
+      return html;
+    }
+    const list = await api("GET", "/api/v1/departments/" + S.deptId + "/templates", {
+      token: S.orgToken, headers: { "X-Org-Id": S.orgId },
+    });
+    if (list.length) {
+      return card("No template linked to listing", "The engine will resolve the latest department template instead: «" + esc(list[0].name) + "» (" + esc(list[0].job_role || "") + ").") +
+        card("Available department templates", table(["name", "job_role", "competencies"], list.map((t) => [
+          esc(t.name), esc(t.job_role || "—"), (t.competencies || []).length ? t.competencies.length + " defined" : "—",
+        ])));
+    }
+    return card("No template linked to listing", "No department templates exist — the engine falls back to the default taxonomy.");
+  } catch (e) {
+    logErr("Template/scorecard chain lookup failed (non-fatal): " + e.message);
+    return card("Template/scorecard chain", "Could not resolve the linked template/scorecard — " + esc(e.message));
+  }
+}
+
+/* Step 6 — public listing view */
+defineStep("publicView", "6 · View public listing", "GET /api/v1/marketplace/interviews/{id} (no auth)", async () => {
+  require(S.listingId, "Run step 5 (listing) first — no listing loaded");
+  const res = await api("GET", "/api/v1/marketplace/interviews/" + S.listingId);
+  logInfo("public view: " + res.title + " (" + res.interview_mode + ", style " + res.style_name + ", dept " + res.department_name + ")");
+  return { html: card("Public view of listing", kv([
+    ["title", esc(res.title)],
+    ["org", esc(res.org_name || "—")],
+    ["department", esc(res.department_name || "—")],
+    ["mode", esc(res.interview_mode)],
+    ["style", esc(res.style_name || "—")],
+    ["skills_required", esc(res.skills_required || "—")],
+  ]) + details("full response", res)) };
+});
+
+/* Step 7 — candidate login */
+defineStep("candLogin", "7 · Login as existing candidate", "POST /api/v1/candidates/login → candidate token + profile", async () => {
+  const { candE, candP } = cfgRequired();
+  const res = await api("POST", "/api/v1/candidates/login", { json: { email: candE, password: candP } });
+  S.candId = res.candidate.id;
+  S.candToken = res.tokens.access_token;
+  S.candName = res.candidate.name || "Candidate";
+  S.candEmail = res.candidate.email;
+  S.candParsed = (res.candidate.profile_data || {}).resume_parsed || null;
+  logInfo("candidate_id=" + S.candId + " name=" + S.candName + " verified=" + res.candidate.is_verified +
+    " · resume_parsed=" + (S.candParsed ? "yes (" + (S.candParsed.skills || []).length + " skills)" : "NO"));
+  return { html: card("Logged in as candidate", kv([
+    ["name", esc(S.candName)],
+    ["email", esc(S.candEmail)],
+    ["verified", res.candidate.is_verified ? badge("YES", "green") : badge("NO — some candidate endpoints are locked", "yellow")],
+    ["resume on file", S.candParsed ? badge("YES (" + (S.candParsed.skills || []).length + " skills)", "green") : badge("NO", "yellow")],
+    ["id", '<code style="font-size:11px">' + esc(S.candId) + "</code>"],
+  ])) };
+});
+
+function resumeCard(parsed, profile) {
+  const p = parsed || {};
+  const exps = (p.experience || []).map((e) =>
+    "<li><b>" + esc(e.role || "") + "</b> @ " + esc(e.company || "") + " · " + esc(e.duration || "") +
+    (e.description ? "<br /><span style=\"color:var(--muted)\">" + esc(e.description) + "</span>" : "") + "</li>").join("");
+  const edus = (p.education || []).map((e) =>
+    "<li>" + esc(e.institution || "") + " — " + esc(e.degree || "") + (e.year ? " (" + esc(e.year) + ")" : "") + "</li>").join("");
+  return card("Resume on file (resume_parsed)", kv([
+    ["headline", esc(p.headline || "—")],
+    ["years_of_experience", p.years_of_experience != null ? p.years_of_experience : "—"],
+    ["skills", chips(p.skills || [])],
+    ["experience", exps ? "<ul>" + exps + "</ul>" : "—"],
+    ["education", edus ? "<ul>" + edus + "</ul>" : "—"],
+  ]) + '<div class="note-muted">At <code>start_interview</code> the engine turns this into candidate intelligence: LLM analysis (only when resume text exists), initial hypotheses seeded from strengths/weaknesses, and a role-match assessment — visible in step 9.</div>');
+}
+
+/* Step 8 — resume upload (disabled when already on file) */
+defineStep("resume", "8 · Resume (already uploaded → Run disabled)", "POST /api/v1/candidates/me/resume — only when no resume_parsed on file", async () => {
+  require(S.candToken, "Run step 7 (candidate login) first");
+  const profile = await api("GET", "/api/v1/candidates/me", { token: S.candToken });
+  const parsed = (profile.profile_data || {}).resume_parsed;
+  if (parsed) {
+    logInfo("resume already on file (resume_parsed present) — no upload; Run button stays disabled");
+    return { html: resumeCard(parsed, profile) + '<div class="note-ok">✔ Already uploaded — skipped, and the Run button stays disabled.</div>', label: "already on file", disableBtn: true };
+  }
+  const { blob, name } = await fetchAsset(RESUME_FILE);
+  const form = new FormData();
+  form.append("file", blob, name);
+  const res = await api("POST", "/api/v1/candidates/me/resume", { form, token: S.candToken });
+  const p2 = (res.profile_data || {}).resume_parsed || {};
+  S.candParsed = p2;
+  logInfo("uploaded " + name + " → resume_url=" + res.resume_url + " skills=" + JSON.stringify(p2.skills || []));
+  return { html: resumeCard(p2, res) + '<div class="note-ok">✔ Uploaded — Run button stays disabled from now on.</div>', label: "uploaded", disableBtn: true };
+});
+
+function buildResumeText(parsed) {
+  const p = parsed || {};
+  const parts = [];
+  if (p.headline) parts.push(p.headline);
+  for (const e of p.experience || []) parts.push([e.role, e.company, e.duration, e.description].filter(Boolean).join(" — "));
+  for (const ed of p.education || []) parts.push([ed.institution, ed.degree, ed.year].filter(Boolean).join(" — "));
+  return parts.length ? parts.join("\n") : null;
+}
+
+/* Step 9 — intelligence bundle (company brain + candidate brain + hypotheses) */
+defineStep("brain", "9 · Intelligence bundle (what the engine injects at start)", "POST /api/v1/intelligence/build → company brain + blueprint + candidate brain + hypotheses + assessment", async () => {
+  if (!S.deptId) throw new Error("Select a department first (step 3)");
+  const req = {
+    job_role: S.jobRole || "Software Engineer",
+    department_id: S.deptId,
+    candidate_id: S.candId || "",
+    candidate_profile: S.candParsed ? { full_name: S.candName || "Candidate", headline: S.candParsed.headline || "" } : null,
+    resume_text: S.candParsed ? buildResumeText(S.candParsed) : null,
+    use_rag: true,
+    use_llm: true,
+  };
+  logInfo("building intelligence bundle — RAG + LLM can take ~30s");
+  const res = await api("POST", "/api/v1/intelligence/build", { json: req });
+  return { html: renderBundle(res.intelligence || {}) };
+});
+
+function renderBundle(b) {
+  const cb = b.company_brain || {};
+  const rm = cb.rag_metadata || {};
+  const blueprint = b.interview_blueprint || {};
+  const cand = b.candidate_brain || {};
+  const hyps = b.initial_hypotheses || [];
+  const assess = b.candidate_assessment || {};
+  const reqs = b.evidence_requirements || [];
+  let html = "";
+
+  const srcBadge = cb.source === "llm"
+    ? badge("LLM-enriched", "green")
+    : cb.source === "fallback" ? badge("fallback (no docs retrieved)", "yellow") : badge("n/a", "yellow");
+  html += card("Company brain (injected into every agent)", kv([
+    ["source", srcBadge],
+    ["documents_retrieved", rm.documents_retrieved != null ? badge(rm.documents_retrieved, rm.documents_retrieved ? "green" : "yellow") : "—"],
+    ["documents_analyzed", cb.documents_analyzed != null ? cb.documents_analyzed : "—"],
+    ["rag_metadata", esc(rm.reason ? rm.reason : (rm.success ? "ok" : "failed"))],
+    ["summary", esc(cb.summary || "—")],
+    ["mission", esc(cb.mission || "—")],
+    ["tech_stack", chips(cb.tech_stack || [])],
+    ["process", chips(cb.process || [])],
+    ["culture", chips(cb.culture || [])],
+    ["role_context", esc(cb.role_context || "—")],
+  ]) + ((cb.challenges || []).length ? kv([["challenges", "<ul>" + cb.challenges.map((c) => "<li>" + esc(c) + "</li>").join("") + "</ul>"]]) : "") +
+    '<div class="note-muted">RAG pulls the top 5 chunks from Pinecone namespace <code>department_' + esc(S.deptId) + "</code>; the LLM pass runs only when documents were retrieved. The session itself uses the 24h cached copy of this.</div>");
+
+  html += card("Interview blueprint", kv([
+    ["objectives", (blueprint.objectives || []).length],
+    ["phases", (blueprint.phases || []).length],
+    ["scorecard_competencies", (blueprint.scorecard_competencies || []).length],
+    ["evidence_requirements", (blueprint.evidence_requirements || []).length],
+    ["required_level", blueprint.required_level != null ? blueprint.required_level : "—"],
+  ]) + ((blueprint.phases || []).length ? details("phases", blueprint.phases) : ""));
+
+  html += card("Candidate brain", kv([
+    ["resume_summary", esc(cand.resume_summary || cand.headline || "—")],
+    ["skills", chips(cand.skills || [])],
+    ["strengths", chips(cand.strengths || [])],
+    ["weaknesses", chips(cand.weaknesses || [])],
+    ["inferred_seniority", esc(cand.inferred_seniority || "—")],
+    ["work_history", (cand.work_history || []).length],
+  ]));
+
+  html += card("Initial hypotheses (" + hyps.length + ") — seed the probing strategy", table(
+    ["competency", "hypothesis", "probability", "source"],
+    hyps.map((h) => [esc(h.competency || "—"), esc(h.statement || "—"), h.probability != null ? h.probability.toFixed(2) : "—", esc(h.source || "—")]),
+  ) + '<div class="note-muted">The engine targets the top hypothesis with its first question.</div>');
+
+  if (Object.keys(assess).length) {
+    html += card("Candidate ↔ role assessment", kv([
+      ["match_score", assess.match_score != null ? assess.match_score.toFixed(2) : "—"],
+      ["signal_strength", esc(assess.signal_strength || "—")],
+      ["strong_areas", chips(assess.strong_areas || [])],
+      ["gap_areas", chips(assess.gap_areas || [])],
+      ["recommended_probes", chips((assess.recommended_probes || []).map((p) => typeof p === "string" ? p : p.competency || p.label || JSON.stringify(p)))],
+      ["risk_signals", chips((assess.risk_signals || []).map((r) => typeof r === "string" ? r : r.signal || r.label || JSON.stringify(r)))],
+      ["competency_coverage", details("coverage", assess.competency_coverage || {})],
+    ]));
+  }
+
+  html += card("Evidence requirements (" + reqs.length + ")", table(
+    ["competency", "dimension", "evidence_level", "required_probes"],
+    reqs.map((r) => [esc(r.competency || "—"), esc(r.dimension || "—"), esc(r.evidence_level || "—"), (r.required_probes || []).length]),
+  ) + details("full bundle JSON", b));
+
+  return html;
+}
+
+/* Step 10 — start from listing */
+defineStep("start", "10 · Candidate starts interview from listing", "POST /api/v1/marketplace/interviews/{id}/start (no auth) → creates the session row", async () => {
+  require(S.listingId, "Run step 5 (listing) first — no listing loaded");
+  require(S.candEmail, "Run step 7 (candidate login) first");
+  const res = await api("POST", "/api/v1/marketplace/interviews/" + S.listingId + "/start", {
+    json: { candidate_email: S.candEmail, candidate_name: S.candName },
+  });
+  S.sessionId = res.session_id;
+  logInfo("session_id=" + S.sessionId + " submission_token=" + res.token);
+  $("wsStatus").textContent = "session " + S.sessionId + " — open WS & press start_interview";
+  $("btnWsStart").disabled = false;
+  return { html: card("Session created", kv([
+    ["session_id", '<code style="font-size:11px">' + esc(S.sessionId) + "</code>"],
+    ["role (from listing title)", esc(S.jobRole || "—")],
+  ]) + '<div class="note-muted">The session row links the candidate profile by email — the engine will pick up the resume at start_interview.</div>') };
+});
+
+/* Step 11 — WS connect + start_interview */
+defineStep("wsConnect", "11 · Open WebSocket + start interview", "ws://localhost:3000/ws/interview/{session_id}?token=… (proxied to :8000)", async () => {
+  require(S.sessionId, "Run step 10 (start from listing) first");
+  require(S.candToken, "Run step 7 (candidate login) first");
+  if (S.ws) { logInfo("WS already connected"); return { html: '<div class="note-ok">✔ Already connected.</div>' }; }
+  await new Promise((resolve, reject) => {
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const ws = new WebSocket(proto + "://" + location.host + "/ws/interview/" + S.sessionId + "?token=" + S.candToken);
+    S.ws = ws;
+    ws.onopen = () => { logInfo("WS connected"); $("wsStatus").textContent = "connected"; resolve(); };
+    ws.onerror = (e) => { logErr("WS error: " + (e.message || "connection failed")); reject(new Error("WS connection failed")); };
+    ws.onclose = () => {
+      logInfo("WS closed");
+      if (S.ws === ws) S.ws = null;
+      $("wsStatus").textContent = "disconnected";
+      if (S.wsStepDone) { S.wsStepDone.reject(new Error("WS closed before interview completed")); S.wsStepDone = null; }
+    };
+    ws.onmessage = (ev) => { try { handleFrame(JSON.parse(ev.data)); } catch (e) { logErr("Bad frame: " + e.message); } };
+  });
+  S.startFrame = new Promise((resolve) => { S.resolveStartFrame = resolve; });
+  wsSend({ type: "start_interview", session_id: S.sessionId });
+  await S.startFrame; // resolves when the first question frame arrives
+});
+
+/* Step 12 — answer loop (manual, real-time questions; resolves on report frame) */
+defineStep("interview", "12 · Answer loop (manual)", "You answer in the WS panel above — each submit_answer → evaluation → next question, in real time, until the report frame", async () => {
+  if (S.report) { logInfo("Interview already completed"); return { html: '<div class="note-ok">✔ Completed — report is in the WS panel.</div>' }; }
+  if (!S.ws) throw new Error("WebSocket not connected — run step 11 first");
+  S.interviewing = true;
+  await new Promise((resolve, reject) => {
+    S.wsStepDone = { resolve, reject };
+    setTimeout(() => {
+      if (S.wsStepDone) {
+        logInfo("Waiting for you — answer the current question in the interview panel (Autopilot is OFF). " +
+          "Each answer triggers submit_answer → evaluation → next question in real time. The interview ends with a report frame, then steps 13-15 run.");
+      }
+    }, 4000);
+  });
+  S.interviewing = false;
+});
+
+/* Step 13 — summary */
+defineStep("summary", "13 · Interview summary", "GET /interviews/{session_id}/summary", async () => {
+  require(S.sessionId, "Run steps 10-12 first — there is no session yet");
+  const res = await api("GET", "/interviews/" + S.sessionId + "/summary");
+  const box = $("reportBox");
+  box.style.display = "block";
+  $("reportBody").textContent = fmt(res);
+  logInfo("summary keys: " + Object.keys(res).join(", "));
+  return { html: renderSummary(res) };
+});
+
+function renderSummary(res) {
+  const rec = res.hiring_recommendation || {};
+  const cs = res.competency_summary || {};
+  const verdict = rec.verdict || "—";
+  const vBadge = /hire|strong/i.test(verdict) ? badge(verdict, "green") : /no|weak|insufficient/i.test(verdict) ? badge(verdict, "red") : badge(verdict, "yellow");
+  let html = card("Hiring recommendation", kv([
+    ["verdict", vBadge],
+    ["confidence", rec.confidence != null ? rec.confidence.toFixed(2) : "—"],
+    ["composite_score", rec.composite_score != null ? rec.composite_score.toFixed(2) : "—"],
+    ["coverage_ratio", rec.coverage_ratio != null ? rec.coverage_ratio.toFixed(2) : "—"],
+  ]));
+  const rows = Object.entries(cs).map(([c, s]) => [
+    esc(c),
+    s.average_score != null ? s.average_score.toFixed(2) : "—",
+    s.evidence_count != null ? s.evidence_count : "—",
+    s.gap != null ? s.gap.toFixed(2) : "—",
+  ]);
+  if (rows.length) html += card("Competency scores", table(["competency", "avg score", "evidence", "gap"], rows));
+  html += details("full summary JSON", res);
+  return html;
+}
+
+/* Step 14 — engine internals (persisted brain + timeline) */
+defineStep("brainView", "14 · Engine internals (persisted brain + timeline)", "GET /api/v1/intelligence/brain/{session_id} → what the engine stored", async () => {
+  require(S.sessionId, "Run steps 10-12 first — there is no session yet");
+  const res = await api("GET", "/api/v1/intelligence/brain/" + S.sessionId);
+  return { html: renderBrainView(res) };
+});
+
+function renderBrainView(res) {
+  const brain = res.interview_brain || {};
+  const graph = res.evidence_graph || {};
+  const timeline = res.timeline || [];
+  const nothing = !brain.version && !Object.keys(brain.competency_scores || {}).length && !timeline.length;
+  if (nothing) {
+    return card("Engine internals", "No persisted brain rows for this session yet (V5 persistence is best-effort). Re-run after the interview completes.");
+  }
+  let html = "";
+  const scores = brain.competency_scores || {};
+  const scoreRows = Object.entries(scores).map(([c, s]) => [
+    esc(c),
+    esc(typeof s === "object" ? JSON.stringify(s) : s),
+  ]);
+  if (scoreRows.length) html += card("Competency scores (persisted)", table(["competency", "score"], scoreRows));
+  const hyps = brain.current_hypotheses || [];
+  if (hyps.length) html += card("Current hypotheses (" + hyps.length + ")", table(
+    ["competency", "status", "probability", "statement"],
+    hyps.map((h) => [esc(h.competency || h.id || "—"), badge(h.status || "—", h.status === "confirmed" ? "green" : h.status === "refuted" ? "red" : "yellow"), h.probability != null ? h.probability.toFixed(2) : "—", esc(h.statement || "—")]),
+  ));
+  if (brain.decision_state && Object.keys(brain.decision_state).length) {
+    html += card("Decision state", kv(Object.entries(brain.decision_state).map(([k, v]) => [k, esc(typeof v === "object" ? JSON.stringify(v) : v)])));
+  }
+  if (timeline.length) {
+    html += card("Event timeline (" + timeline.length + ")", table(
+      ["#", "event", "data"],
+      timeline.map((t) => [
+        t.question_number != null ? t.question_number : "—",
+        esc(t.event_type || "—"),
+        "<pre>" + esc(fmt(t.event_data || {})) + "</pre>",
+      ]),
+    ));
+  }
+  const nNodes = Object.keys(graph.nodes || {}).length, nEdges = Object.keys(graph.edges || {}).length;
+  if (nNodes || nEdges) html += card("Evidence graph", kv([["nodes", nNodes], ["edges", nEdges]]) + details("graph", graph));
+  return html + details("full brain JSON", res);
+}
+
+/* Step 15 — candidate view */
+defineStep("candView", "15 · Candidate interviews list", "GET /api/v1/candidates/interviews — requires a verified candidate email", async () => {
+  require(S.candToken, "Run step 7 (candidate login) first");
+  try {
+    const res = await api("GET", "/api/v1/candidates/interviews", { token: S.candToken });
+    logInfo("candidate sessions: " + res.length + " — " + res.map((s) => s.session_id || s.id).join(", "));
+    return { html: card("Candidate sessions", table(
+      ["id", "role", "score", "status"],
+      (res || []).map((s) => [
+        '<code style="font-size:11px">' + esc(s.session_id || s.id) + "</code>",
+        esc(s.job_role || s.title || "—"),
+        s.score != null ? s.score : "—",
+        esc(s.status || "—"),
+      ]),
+    )) };
+  } catch (e) {
+    return { html: card("Candidate interviews — not shown", "This endpoint requires a <b>verified</b> candidate email (" + badge("is_verified=false", "yellow") + "). The interview itself is unaffected — verify the email in Supabase (<code>candidate_profiles.is_verified = true</code>) to enable it.") };
+  }
+});
+
+/* ── WebSocket frames ──────────────────────────────────────────────── */
+let frameId = 0;
+function wsSend(msg) {
+  if (!S.ws || S.ws.readyState !== 1) { logErr("WS not open — cannot send " + msg.type); return; }
+  if (!msg._id) msg._id = "c" + (++frameId);
+  appendLog("ws", "ws-out", "→ WS " + msg.type, "_id " + msg._id, msg);
+  S.ws.send(JSON.stringify(msg));
+}
+
+function handleFrame(f) {
+  appendLog("ws", "ws-in", "← WS " + f.type, f._id ? "_id " + f._id : "push", f);
+  if (f.type === "question") {
+    if (S.resolveStartFrame) { S.resolveStartFrame(); S.resolveStartFrame = null; S.startFrame = null; }
+    S.question = f;
+    const q = f.question || {};
+    $("questionBox").style.display = "block";
+    $("qNumber").textContent = q.number || "?";
+    $("qCompetency").textContent = (q.target_competency || "").replace(/[_.]/g, " ").toUpperCase() || "GENERAL";
+    $("qText").textContent = f.conversation_turn || q.text || "(no question text)";
+    $("answerInput").value = "";
+    $("btnSubmitAnswer").disabled = false;
+    $("evalBrief").textContent = "";
+    if (S.autopilot && S.interviewing) {
+      setTimeout(() => { $("answerInput").value = AUTOPILOT_ANSWER; submitAnswer(); }, 600);
+    }
+  } else if (f.type === "status") {
+    $("statusbar").textContent = "phase: " + (f.phase || "");
+  } else if (f.type === "evaluation") {
+    const sc = (f.evaluation && f.evaluation.scores) || {};
+    const n = Object.keys(sc).length;
+    $("evalBrief").textContent = "evaluated " + n + " dimension(s) · composite " +
+      (f.evaluation && f.evaluation.composite != null ? f.evaluation.composite.toFixed(2) : "—");
+    if (S.interviewing) wsSend({ type: "request_question" });
+  } else if (f.type === "report") {
+    S.report = f;
+    $("questionBox").style.display = "none";
+    $("reportBox").style.display = "block";
+    $("reportBody").textContent = fmt(f);
+    const verdict = (f.hiring_recommendation || {}).verdict || "?";
+    $("wsStatus").textContent = "completed — verdict: " + verdict;
+    if (S.wsStepDone) { S.wsStepDone.resolve(); S.wsStepDone = null; }
+  } else if (f.type === "error") {
+    logErr("WS error frame: " + (f.detail || ""));
+    if (S.wsStepDone && /completed|Session not found/.test(f.detail || "")) { S.wsStepDone.reject(new Error(f.detail)); S.wsStepDone = null; }
+  }
+}
+
+$("btnWsStart").addEventListener("click", () => wsSend({ type: "start_interview", session_id: S.sessionId }));
+$("btnReqQuestion").addEventListener("click", () => { $("answerInput").value = ""; wsSend({ type: "request_question" }); });
+$("btnGetStatus").addEventListener("click", () => wsSend({ type: "get_status" }));
+$("btnPing").addEventListener("click", () => wsSend({ type: "ping" }));
+$("autopilot").addEventListener("change", (e) => { S.autopilot = e.target.checked; logInfo("autopilot " + (S.autopilot ? "ON" : "OFF")); });
+$("btnSubmitAnswer").addEventListener("click", submitAnswer);
+function submitAnswer() {
+  const answer = $("answerInput").value.trim();
+  if (!answer) return;
+  $("btnSubmitAnswer").disabled = true;
+  wsSend({ type: "submit_answer", candidate_answer: answer });
+}
+
+logInfo("Demo page loaded. Enter your existing Nova org + candidate credentials, press Run All.");
+</script>
+</body>
+</html>
