@@ -46,7 +46,6 @@ async def main() -> None:
         await db.execute(text("DELETE FROM public_interview_submissions"))
         await db.execute(text("DELETE FROM audit_log"))
         await db.execute(text("DELETE FROM refresh_tokens"))
-        await db.execute(text("DELETE FROM candidate_refresh_tokens"))
         await db.execute(text("DELETE FROM candidate_documents"))
         await db.execute(text("DELETE FROM interview_templates WHERE org_id = :org_id"), {"org_id": org.id})
         await db.execute(text("DELETE FROM scorecard_templates WHERE org_id = :org_id"), {"org_id": org.id})

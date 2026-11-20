@@ -73,6 +73,7 @@ scripts/*
 !scripts/reset_db.py
 !scripts/unify_users_dry_run.py
 !scripts/unify_users_access_matrix.py
+!scripts/unify_users_cleanup_dry_run.py
 !scripts/unify_users_backup.py
 !scripts/sync_prod.sh
 

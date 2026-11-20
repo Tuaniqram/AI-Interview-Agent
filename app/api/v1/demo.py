@@ -31,8 +31,6 @@ KEPT_TABLES = [
     "competencies",
     "role_competencies",
     "candidate_profiles",
-    "candidate_refresh_tokens",
-    "candidate_password_reset_tokens",
     "candidate_documents",
     "candidate_invitations",
     "public_interviews",
