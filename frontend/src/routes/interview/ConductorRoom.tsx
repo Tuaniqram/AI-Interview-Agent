@@ -232,35 +232,55 @@ export function ConductorRoom() {
 
   return (
     <div className="flex-1 h-full bg-page flex flex-col min-h-0" data-theme="dark">
-      {/* AURA stage */}
-      <div className="shrink-0 flex flex-col items-center justify-center px-6 pt-8 pb-4 min-h-0">
-        <AuraCore state={auraState} size={300} />
-        <div className="mt-4 flex items-center gap-3">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-muted flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-action-primary" />
+      {/* Compact AURA bar: status, voice, integrity and progress stay in view without taking the screen */}
+      <div className="shrink-0 flex items-center gap-4 px-4 py-3 border-b border-[var(--border-color)]/50">
+        <AuraCore state={auraState} size={72} className="shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-secondary flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-action-primary shrink-0" />
             {state.wsPhase === 'reconnecting'
               ? 'Reconnecting...'
               : auraState === 'thinking'
-                ? 'AURA is evaluating...'
+                ? 'AURA is evaluating your answer...'
                 : voice.isSpeaking
                   ? 'AURA is speaking...'
-                  : 'AURA Conductor'}
+                  : isPractice ? 'Practice interview' : 'AURA Conductor'}
           </p>
-          <button
-            onClick={toggleVoice}
-            title={voiceEnabled ? 'Mute AURA voice' : 'Enable AURA voice'}
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all shrink-0 ${
-              voiceEnabled ? 'bg-action-primary/10 text-action-primary hover:bg-action-primary/20' : 'bg-input text-muted hover:bg-hover'
-            }`}
-          >
-            {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-          </button>
-          <FlagGauge
-            count={state.flaggedCount}
-            max={state.integrityPolicy?.enabled ? state.integrityPolicy?.max_flags ?? 0 : 0}
-            className="ml-2"
-          />
+          {(state.session?.total_questions ?? 0) > 0 && state.currentQuestion && (
+            <div className="mt-2 flex items-center gap-3">
+              <div
+                className="h-1.5 flex-1 max-w-xs rounded-full bg-border overflow-hidden"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={state.session?.total_questions}
+                aria-valuenow={Math.max(0, state.currentQuestion.question_number - 1)}
+                aria-label="Interview progress"
+              >
+                <div
+                  className="h-full bg-action-primary transition-all"
+                  style={{ width: `${Math.min(100, ((state.currentQuestion.question_number - 1) / (state.session?.total_questions || 1)) * 100)}%` }}
+                />
+              </div>
+              <span className="text-xs text-muted tabular-nums">
+                {state.currentQuestion.question_number} / {state.session?.total_questions}
+              </span>
+            </div>
+          )}
         </div>
+        <button
+          onClick={toggleVoice}
+          title={voiceEnabled ? 'Mute AURA voice' : 'Enable AURA voice'}
+          aria-label={voiceEnabled ? 'Mute AURA voice' : 'Enable AURA voice'}
+          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0 ${
+            voiceEnabled ? 'bg-action-primary/10 text-action-primary hover:bg-action-primary/20' : 'bg-input text-muted hover:bg-hover'
+          }`}
+        >
+          {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+        </button>
+        <FlagGauge
+          count={state.flaggedCount}
+          max={state.integrityPolicy?.enabled ? state.integrityPolicy?.max_flags ?? 0 : 0}
+        />
       </div>
 
       {/* Conversation */}
