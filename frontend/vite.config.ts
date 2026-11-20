@@ -21,6 +21,8 @@ export default defineConfig({
       },
     }
   },
+  // `vite preview` serves the production build on instabox; the public hostname changes, so do not pin it.
+  preview: { host: true, port: 5173, allowedHosts: true },
   build: {
     rollupOptions: {
       output: {
