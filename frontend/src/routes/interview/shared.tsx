@@ -151,55 +151,10 @@ export function EvaluationFeedback({ entry }: { entry: { strengths: string[]; we
   );
 }
 
-function scoreTone(s: number | null) {
-  if (s === null) return 'text-muted';
-  return s >= 7 ? 'text-success-text' : s >= 5 ? 'text-warning-text' : 'text-error-text';
-}
-
 type HistoryEntry = ReturnType<typeof useInterviewStore>['state']['evaluationHistory'][number];
 
-/** Full feedback for one answer: score, summary, then strengths / improvements side by side. */
-function FeedbackPanel({ entry }: { entry: HistoryEntry }) {
-  return (
-    <div className="rounded-xl bg-elevated/70 p-4 space-y-3">
-      <div className="flex items-baseline gap-1.5">
-        {entry.score === null ? (
-          <span className="text-base font-semibold text-muted">Not scored</span>
-        ) : (
-          <>
-            <span className={`text-3xl font-bold leading-none ${scoreTone(entry.score)}`}>{entry.score.toFixed(1)}</span>
-            <span className="text-sm text-muted">/ 10</span>
-          </>
-        )}
-        <span className="ml-2 text-sm text-muted">Feedback on your answer</span>
-      </div>
-      {entry.feedback && <p className="text-base text-secondary leading-relaxed">{entry.feedback}</p>}
-      {(entry.strengths.length > 0 || entry.weaknesses.length > 0) && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {entry.strengths.length > 0 && (
-            <div>
-              <p className="text-sm font-semibold text-success-text mb-1">Did well</p>
-              <ul className="space-y-1 text-sm text-secondary leading-relaxed list-disc list-inside">
-                {entry.strengths.map((s, i) => <li key={i}>{s}</li>)}
-              </ul>
-            </div>
-          )}
-          {entry.weaknesses.length > 0 && (
-            <div>
-              <p className="text-sm font-semibold text-warning-text mb-1">To improve</p>
-              <ul className="space-y-1 text-sm text-secondary leading-relaxed list-disc list-inside">
-                {entry.weaknesses.map((w, i) => <li key={i}>{w}</li>)}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** One earlier question: a single readable row that opens to the question, the answer and the feedback. */
-function EarlierAnswer({ entry, showEvaluation }: { entry: HistoryEntry; showEvaluation: boolean }) {
+/** One earlier question: a single readable row that opens to the question and your answer. Scores live in the corner card. */
+function EarlierAnswer({ entry }: { entry: HistoryEntry }) {
   const [open, setOpen] = React.useState(false);
   return (
     <div className="rounded-xl border border-[var(--border-color)]/60 overflow-hidden">
@@ -210,11 +165,6 @@ function EarlierAnswer({ entry, showEvaluation }: { entry: HistoryEntry; showEva
       >
         <span className="text-sm font-semibold text-action-primary shrink-0">Q{entry.questionNumber}</span>
         <span className="flex-1 min-w-0 text-sm text-secondary truncate">{entry.question || entry.conversationTurn}</span>
-        {showEvaluation && (
-          <span className={`text-sm font-semibold shrink-0 ${scoreTone(entry.score)}`}>
-            {entry.score === null ? '—' : entry.score.toFixed(1)}
-          </span>
-        )}
         {open ? <ChevronUp className="w-4 h-4 text-muted shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted shrink-0" />}
       </button>
       {open && (
@@ -224,7 +174,6 @@ function EarlierAnswer({ entry, showEvaluation }: { entry: HistoryEntry; showEva
             <p className="text-xs uppercase tracking-wide text-muted mb-1">Your answer</p>
             <p className="text-base text-secondary leading-relaxed whitespace-pre-wrap">{entry.answer}</p>
           </div>
-          {showEvaluation && <FeedbackPanel entry={entry} />}
         </div>
       )}
     </div>
@@ -232,15 +181,13 @@ function EarlierAnswer({ entry, showEvaluation }: { entry: HistoryEntry; showEva
 }
 
 /**
- * The current question comes first so it is always on screen; feedback on the latest answer sits right under it,
- * and everything earlier is a collapsed row (newest first). No scrolling to find where you are.
+ * The current question is first so it is always on screen; earlier questions are collapsed rows (newest first).
+ * Evaluations never appear here: they open from the "Realtime Evaluation" button in the corner card.
  */
-export function ConversationThread({ showEvaluation = true }: { showEvaluation?: boolean }) {
+export function ConversationThread() {
   const { state } = useInterviewStore();
   const topRef = useRef<HTMLDivElement>(null);
-  const history = state.evaluationHistory;
-  const latest = history[history.length - 1];
-  const earlier = history.slice(0, -1).reverse();
+  const earlier = [...state.evaluationHistory].reverse();
   const q = state.currentQuestion;
   const total = state.session?.total_questions ?? 0;
 
@@ -263,25 +210,11 @@ export function ConversationThread({ showEvaluation = true }: { showEvaluation?:
           </section>
         )}
 
-        {showEvaluation && latest && (
-          <section aria-label={`Feedback on question ${latest.questionNumber}`} className="space-y-2">
-            <p className="text-sm text-muted">Your answer to Q{latest.questionNumber}</p>
-            <p className="text-base text-secondary leading-relaxed whitespace-pre-wrap pl-3 border-l-2 border-action-primary/40">
-              {latest.answer}
-            </p>
-            <FeedbackPanel entry={latest} />
-          </section>
-        )}
-
-        {!showEvaluation && latest && (
-          <EarlierAnswer entry={latest} showEvaluation={false} />
-        )}
-
         {earlier.length > 0 && (
           <section aria-label="Earlier questions" className="space-y-2">
             <p className="text-sm text-muted pt-2">Earlier questions</p>
             {earlier.map((entry) => (
-              <EarlierAnswer key={entry.questionNumber} entry={entry} showEvaluation={showEvaluation} />
+              <EarlierAnswer key={entry.questionNumber} entry={entry} />
             ))}
           </section>
         )}

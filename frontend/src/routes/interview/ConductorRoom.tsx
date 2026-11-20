@@ -284,7 +284,7 @@ export function ConductorRoom() {
       </div>
 
       {/* Conversation */}
-      <ConversationThread showEvaluation={isPractice} />
+      <ConversationThread />
 
       <InputBar
         input={voice.interimText || input}
