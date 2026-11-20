@@ -71,6 +71,8 @@ scripts/*
 !scripts/index_org_documents.py
 !scripts/generate_demo_assets.py
 !scripts/reset_db.py
+!scripts/unify_users_dry_run.py
+!scripts/unify_users_backup.py
 !scripts/sync_prod.sh
 
 # Frontend build artifacts
@@ -102,3 +104,5 @@ docs/*
 tools/interview_sim/out/
 # Grim Prompter threat-model output
 threat-model/
+# unify-accounts backups contain password and token hashes: never commit
+backups/
