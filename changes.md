@@ -232,6 +232,58 @@ Single-owner organizations, department removal, UI standardization, and supporti
 - The prompt warm-up now passes `company_context` instead of `department_context`.
 - Renamed the prompt helper parameter that feeds `company_context`-adjacent RAG text to `organization_context`.
 
+## 17. One `users` table for every account (applied to production 2026-11-20)
+
+- Candidates and hiring users are now rows of `users`. `candidate_profiles` keeps only candidate data (phone, resume, skills,
+  profile data) with `candidate_profiles.id` = `users.id` (foreign key, cascade). `candidate.email` / `.name` still work through
+  association proxies. Plan: `docs/UNIFIED_USER_ACCOUNTS_PLAN.md`.
+- Migrations (all applied to the production database; each proven first on the real data in a rolled-back transaction):
+  `d4a5b6c7e8f9` (identity columns on `users`, `refresh_tokens.actor`), `e5b6c7d8f9a0` (idempotent copy of candidates),
+  `f6c7d8e9a0b1` (legacy columns optional), `a7d8e9f0b1c2` (reconcile + foreign key), `b8e9f0a1b2c3` (drops
+  `candidate_refresh_tokens`, `candidate_password_reset_tokens` and the legacy identity columns). Downgrades rebuild the old shape
+  from `users`. Backup before the cutover: `backups/unify-users-<UTC>.json` (git-ignored; contains hashes).
+- New `app/auth/accounts.py`: case-insensitive email lookup, constant-effort password check, refresh tokens bound to the kind of
+  session (`actor` = `org` | `candidate`, checked on every refresh together with the owning user, expiry and `is_active`), password
+  reset that signs the account out everywhere.
+- Hiring sign-in only for admins / organization owners; candidate sign-in only for accounts with a candidate profile; guests
+  (no password, unclaimed) cannot sign in anywhere. Every failure returns the same "Invalid email or password".
+- Google sign-in fails closed: needs `GOOGLE_CLIENT_ID` (audience), a Google issuer and `email_verified`; an existing account must match
+  the Google id it was first linked to. **`GOOGLE_CLIENT_ID` must be set on every backend (Render, instabox).**
+- Admin user list / count show hiring accounts only. A first version failed in production ("returned no FROM clauses due to
+  auto-correlation"); fixed with an aliased `EXISTS`, covered by `tests/test_admin_user_queries.py`.
+- Tests: `tests/test_unified_accounts.py` (cross-access matrix, actor mismatch, Google checks, reset). Scripts:
+  `unify_users_dry_run.py`, `unify_users_cleanup_dry_run.py`, `unify_users_access_matrix.py` (real schema, always rolled back),
+  `unify_users_backup.py`.
+- Open: marketplace `start_public_interview` still links a guest's session to an existing registered candidate by email (privacy leak);
+  not changed, needs a decision.
+
+## 18. Practice interview room
+
+- The 300px orb is a compact header (orb, status, voice toggle, integrity gauge, progress bar). The current question is first, in
+  larger text; earlier questions are collapsed rows (newest first). Evaluations never appear inline: they open only from the
+  "Realtime Evaluation" corner card.
+- Breadcrumb fix: the "Candidate" crumb and the home icon go to `/candidate/dashboard` (`/candidate` alone has no page); the home
+  icon used to always go to `/org`.
+
+## 19. instabox as a third deployment target (Vercel and Render unchanged)
+
+- `.github/workflows/sync-prod.yml` has a "Deploy to instabox" step that runs only when the sync pushed to `prod` and the
+  `INSTABOX_API_KEY` repository secret exists (a push made with the built-in token cannot start a `push: [prod]` workflow).
+- `deploy/instabox/` (copied to the host by hand; not synced to `prod`): `deploy.sh` (pull `prod`, install, build the frontend,
+  restart, health checks), `start.sh`, `aura-backend.service`, `aura-frontend.service` (systemd user units), `README.md`.
+- The frontend on instabox is a static build served by `vite preview` (`preview.allowedHosts: true` in `vite.config.ts`), never
+  `npm run dev` (the dev server's stale dependency cache caused a blank screen). Host settings: `REDIS_URL`,
+  `SESSION_STORE_BACKEND=redis`, `APP_URL`, `CORS_ORIGINS`, `TRUSTED_PROXY_COUNT=1`, and `frontend/.env.production.local` with
+  `VITE_API_URL`.
+
+## 20. Practice question wording (`prompts/interview/question_generation.md`, mirrored in `docs/PROMPTS.md`)
+
+- Found in real practice sessions: 8 of 9 questions opened "Can/Could you walk me through", several chained 3-4 asks, and they read
+  CV figures back at the candidate. The prompt itself asked for "about 30-50 words" and "1-3 sentences".
+- Now: about 20-30 words, 1-2 sentences, a "Question Shape" block (exactly one ask, plain spoken words, "walk me through" at most once,
+  name the CV project but do not quote its figures unless VERIFIER / RECONCILER). Prompt-only; no engine logic changed.
+- Verification with the interview simulator is pending (see Follow-ups).
+
 ## Verification
 
 - Backend tests: `1020 passed` (default suite, integration excluded), including:
@@ -276,6 +328,10 @@ Single-owner organizations, department removal, UI standardization, and supporti
 - Optional: give the awkward persona a second valid simulation run when the LLM provider is stable. The rerun was stopped on request to save time.
 - Optional: update the static demo interview text in `frontend/src/data/realInterviews.ts` that still mentions departments.
 - Keep demo/test data separate from production data before a real launch.
+- Run the interview simulator (`-q 14`, at least 2 runs per persona) to confirm the new question wording (section 20) does not
+  change scoring or verdicts, and compare question length / "walk me through" count against the last runs.
+- Decide on the marketplace guest-session email link (section 17, "Open").
+- Optional: a graceful, zero-downtime restart on instabox (a deploy currently drops open interview connections; Redis keeps the state).
 
 ## Deploy branches (2026-11-19, updated 2026-11-20)
 
