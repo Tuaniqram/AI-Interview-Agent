@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     # Number of reverse proxies in front of the app (ngrok, a load balancer, a platform router). 0 = none. The rate
     # limiter keys on the real client address behind them instead of treating every user as the proxy.
     TRUSTED_PROXY_COUNT: int = 0
+    # Swagger UI (/docs), ReDoc (/redoc) and /openapi.json publish every route and request shape, a free map for an attacker.
+    # Unset: on for a local APP_URL, off on a deployed one. true / false forces it either way.
+    ENABLE_API_DOCS: bool | None = None
 
     # Anti-cheat integrity guard (contract: docs/anti-cheat-guard.md).
     # Master switch is OFF by default so developers can keep testing with AI.
@@ -69,6 +72,13 @@ class Settings(BaseSettings):
     ANTI_CHEAT_TAMPER_DIVERGENCE_S: float = 0.5
 
     model_config = {"env_file": ".env", "extra": "ignore"}
+
+    @property
+    def api_docs_enabled(self) -> bool:
+        """Whether the interactive API documentation is served (see ENABLE_API_DOCS)."""
+        if self.ENABLE_API_DOCS is not None:
+            return self.ENABLE_API_DOCS
+        return "localhost" in self.APP_URL or "127.0.0.1" in self.APP_URL
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

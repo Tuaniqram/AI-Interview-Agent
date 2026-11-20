@@ -135,7 +135,16 @@ async def lifespan(app: FastAPI):
     await get_cache().close()
 
 
-app = FastAPI(lifespan=lifespan)
+def docs_urls(enabled: bool) -> dict:
+    """FastAPI settings for the interactive docs; None turns a URL off (the route then answers 404)."""
+    return {
+        "docs_url": "/docs" if enabled else None,
+        "redoc_url": "/redoc" if enabled else None,
+        "openapi_url": "/openapi.json" if enabled else None,
+    }
+
+
+app = FastAPI(lifespan=lifespan, **docs_urls(settings.api_docs_enabled))
 app.include_router(interview_agent)
 app.include_router(interview_ws_router)
 
