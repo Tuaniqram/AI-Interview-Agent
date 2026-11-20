@@ -42,10 +42,12 @@ jobs:
         run: bash main/scripts/sync_prod.sh main prod
 
       - name: Commit and push to prod
+        id: push
         working-directory: prod
         run: |
           if git diff --cached --quiet; then
             echo "Nothing to deploy."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           sha="$(git -C ../main rev-parse --short HEAD)"
@@ -54,3 +56,20 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -q -m "deploy: sync from main@${sha}" -m "${subject}"
           git push origin prod
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      # A push made with the built-in token does not start other workflows, so a `push: [prod]` workflow would never run
+      # after this sync. The instabox deploy therefore runs here, right after prod is updated (needs the INSTABOX_API_KEY
+      # repository secret; the host's ~/AI-Interview-Agent/deploy.sh does the pull, install, migrate and restart).
+      - name: Deploy to instabox
+        if: steps.push.outputs.pushed == 'true'
+        env:
+          INSTABOX_API_KEY: ${{ secrets.INSTABOX_API_KEY }}
+        run: |
+          if [ -z "$INSTABOX_API_KEY" ]; then
+            echo "INSTABOX_API_KEY is not set; skipping the instabox deploy."
+            exit 0
+          fi
+          curl -fsSL https://api.instabox.sh/install.sh | sh
+          export PATH="$HOME/.local/bin:$HOME/.instabox/bin:$PATH"
+          instabox exec aura -- bash -lc "~/AI-Interview-Agent/deploy.sh"
