@@ -3,13 +3,16 @@ from __future__ import annotations
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.admin.schemas import AdminOrgResponse, AdminUserResponse, PlatformStatsResponse
 from app.database.deps import get_db
 from app.models.db import InterviewSession, Organization, User
 
 # Candidates are rows of `users` too. The admin pages are about hiring-side accounts: an admin, or the owner of an organization.
-_HIRING_ACCOUNT = or_(User.is_admin.is_(True), exists().where(Organization.owner_user_id == User.id))
+# An alias, so the check does not collapse into the `organizations` that list_users already joins.
+_OWNED_ORG = aliased(Organization)
+_HIRING_ACCOUNT = or_(User.is_admin.is_(True), exists().where(_OWNED_ORG.owner_user_id == User.id))
 
 
 async def get_platform_stats(db: AsyncSession) -> PlatformStatsResponse:
