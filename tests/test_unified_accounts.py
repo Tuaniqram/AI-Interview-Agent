@@ -245,3 +245,32 @@ async def test_password_reset_with_bad_token_or_inactive_account_is_the_same_err
         with pytest.raises(HTTPException) as exc:
             await accounts.finish_password_reset(db, "tok", "a-new-password-1")
         assert exc.value.status_code == 400
+
+
+async def test_purge_expired_refresh_tokens_deletes_only_long_expired_rows():
+    from sqlalchemy.dialects import postgresql
+
+    class _DB:
+        stmt = None
+        committed = False
+
+        async def execute(self, stmt):
+            self.stmt = stmt
+            return SimpleNamespace(rowcount=3)
+
+        async def commit(self):
+            self.committed = True
+
+    db = _DB()
+    assert await accounts.purge_expired_refresh_tokens(db) == 3
+    assert db.committed
+    sql = str(db.stmt.compile(dialect=postgresql.dialect()))
+    assert sql.startswith("DELETE FROM refresh_tokens")
+    assert "expires_at <" in sql and "revoked" not in sql
+
+
+async def test_token_cleanup_never_raises_when_the_database_is_missing(monkeypatch):
+    from app.auth import token_cleanup
+
+    monkeypatch.setattr("app.database.session.get_session_factory", lambda: None)
+    assert await token_cleanup.purge_once() == 0

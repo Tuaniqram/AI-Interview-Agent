@@ -106,7 +106,15 @@ async def lifespan(app: FastAPI):
 
     app.state.warmup_task = asyncio.create_task(_warm_up())
 
+    # Daily delete of refresh tokens that expired more than a week ago (rotation only marks them revoked).
+    from app.auth.token_cleanup import cleanup_loop
+    app.state.token_cleanup_task = asyncio.create_task(cleanup_loop()) if eng else None
+
     yield
+
+    token_cleanup = getattr(app.state, "token_cleanup_task", None)
+    if token_cleanup is not None:
+        token_cleanup.cancel()
 
     # Shutdown: stop the warm-up if it is still running
     warmup = getattr(app.state, "warmup_task", None)
