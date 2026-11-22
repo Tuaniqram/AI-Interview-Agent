@@ -14,7 +14,7 @@ from typing import Awaitable, Callable, Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt import create_refresh_token, decode_token
@@ -25,6 +25,8 @@ ACTOR_ORG = "org"
 ACTOR_CANDIDATE = "candidate"
 
 REFRESH_TTL = timedelta(days=7)
+# Expired refresh tokens are kept this long after they expire (support/debugging), then deleted.
+REFRESH_PURGE_GRACE = timedelta(days=7)
 RESET_TTL = timedelta(hours=1)
 
 _dummy_hash: Optional[str] = None
@@ -136,6 +138,15 @@ async def revoke_all_sessions(db: AsyncSession, user_id: UUID, actor: Optional[s
     if actor is not None:
         stmt = stmt.where(RefreshToken.actor == actor)
     await db.execute(stmt.values(revoked=True))
+
+
+async def purge_expired_refresh_tokens(db: AsyncSession, grace: timedelta = REFRESH_PURGE_GRACE) -> int:
+    """Delete refresh tokens that expired more than ``grace`` ago. Rotation only marks old tokens revoked, so without this
+    the table grows by a row on every login and refresh. Live tokens are never touched. Returns the number of rows deleted."""
+    cutoff = datetime.now(timezone.utc) - grace
+    result = await db.execute(delete(RefreshToken).where(RefreshToken.expires_at < cutoff))
+    await db.commit()
+    return int(result.rowcount or 0)
 
 
 # ---------------------------------------------------------------------------------------------- password reset
