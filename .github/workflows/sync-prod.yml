@@ -72,4 +72,30 @@ jobs:
           fi
           curl -fsSL https://api.instabox.sh/install.sh | sh
           export PATH="$HOME/.local/bin:$HOME/.instabox/bin:$PATH"
-          instabox exec aura -- bash -lc "~/AI-Interview-Agent/deploy.sh"
+          # deploy.sh (pip install, frontend build, restart, health checks) outlasts one `instabox exec` call, which was
+          # killed with exit 124 while the deploy itself was fine. So: start it detached on the host (it writes the exit
+          # code to its log), then poll with short calls until it reports the commit we pushed, or fails, or times out.
+          expected="$(git -C prod rev-parse --short HEAD)"
+          log='~/deploy.log'
+          instabox exec aura -- bash -lc "rm -f $log; setsid nohup bash -c '(flock -n 9 || { echo \"another deploy is running\"; exit 75; }; ~/AI-Interview-Agent/deploy.sh) 9>~/deploy.lock; echo \"DEPLOY_EXIT:\$?\"' > $log 2>&1 < /dev/null & echo started"
+          for i in $(seq 1 60); do
+            sleep 15
+            out="$(instabox exec aura -- bash -lc "tail -n 40 $log 2>/dev/null" || true)"
+            if echo "$out" | grep -q "^DEPLOY_EXIT:0"; then
+              echo "$out" | tail -n 5
+              if echo "$out" | grep -q "Deployed $expected"; then
+                echo "instabox is running $expected"
+                exit 0
+              fi
+              echo "Deploy finished but did not report $expected"
+              exit 1
+            fi
+            if echo "$out" | grep -q "^DEPLOY_EXIT:"; then
+              echo "$out"
+              echo "instabox deploy failed"
+              exit 1
+            fi
+          done
+          echo "instabox deploy did not finish within 15 minutes"
+          instabox exec aura -- bash -lc "tail -n 40 $log" || true
+          exit 1
