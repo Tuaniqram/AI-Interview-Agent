@@ -1,8 +1,9 @@
-import { Outlet, useLocation, Link } from 'react-router-dom';
-import { Sidebar } from './Sidebar';
+import { Outlet, useLocation } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Store, Shield } from 'lucide-react';
+import { Sidebar, visibleItems } from './Sidebar';
 import { TopBar } from './TopBar';
-import { useState, Fragment } from 'react';
-import { ChevronRight, Home } from 'lucide-react';
+import { CommandPalette } from './CommandPalette';
 import type { NavItem } from './Sidebar';
 import type { OrgRole } from '../types/org';
 
@@ -21,32 +22,61 @@ interface DashboardShellProps {
   onLogout?: () => void;
 }
 
-const ACRONYMS: Record<string, string> = { llm: 'LLM', it: 'IT', api: 'API' };
-const UUID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const COLLAPSED_KEY = 'sidebar-collapsed';
 
-/** Each area's landing page. `/candidate` on its own has no page, so its crumb must go to the dashboard. */
-const AREA_HOME: Record<string, string> = { candidate: '/candidate/dashboard', org: '/org', admin: '/admin' };
-
-/** A readable breadcrumb label for one URL segment: ids become "#1234abcd", known acronyms stay capitalised. */
-function crumbLabel(segment: string): string {
-  if (UUID_SEGMENT.test(segment)) return '#' + segment.slice(0, 8);
-  return ACRONYMS[segment.toLowerCase()] ?? segment.replace(/-/g, ' ');
+function isTyping(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  return !!el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
 }
 
+/**
+ * The app frame: the sidebar sits on the page tone and the content on a bordered panel set into it,
+ * so navigation and work never compete for attention.
+ */
 export function DashboardShell({
-  navItems, orgNavItems, brand, showMarketplace, showAdmin,
-  useOrgSelector, activeRole, user, orgs, activeOrg, onSwitchOrg, onLogout,
+  navItems, orgNavItems = [], brand, showMarketplace = false, showAdmin = false,
+  useOrgSelector, activeRole = null, user, orgs, activeOrg, onSwitchOrg, onLogout,
 }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const location = useLocation();
-  const segments = location.pathname.split('/').filter(Boolean);
-  const homePath = AREA_HOME[segments[0]] ?? '/org';
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_KEY) === '1');
+  const { pathname } = useLocation();
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed(c => { localStorage.setItem(COLLAPSED_KEY, c ? '0' : '1'); return !c; });
+  }, []);
+
+  const pages = useMemo(() => {
+    const list = [...visibleItems(navItems, activeRole), ...visibleItems(orgNavItems, activeRole)];
+    if (showMarketplace) list.push({ to: '/opportunity-hub', label: 'Opportunity Hub', icon: Store });
+    if (showAdmin) list.push({ to: '/admin', label: 'Admin', icon: Shield });
+    return list;
+  }, [navItems, orgNavItems, activeRole, showMarketplace, showAdmin]);
+
+  const labels = useMemo(() => Object.fromEntries(pages.map(p => [p.to, p.label])), [pages]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPaletteOpen(o => !o); }
+      else if (e.key === '[' && !e.ctrlKey && !e.metaKey && !isTyping(e.target)) toggleCollapsed();
+    };
+    const onOpen = () => setPaletteOpen(true);
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('open-search', onOpen);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('open-search', onOpen); };
+  }, [toggleCollapsed]);
+
+  // A new page starts at the top.
+  useEffect(() => { document.getElementById('app-content')?.scrollTo(0, 0); }, [pathname]);
 
   return (
     <div className="flex h-screen bg-page">
       <Sidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        collapsed={collapsed}
+        onToggleCollapsed={toggleCollapsed}
+        onOpenSearch={() => setPaletteOpen(true)}
         navItems={navItems}
         orgNavItems={orgNavItems}
         brand={brand}
@@ -60,30 +90,21 @@ export function DashboardShell({
         onSwitchOrg={onSwitchOrg}
         onLogout={onLogout}
       />
-      <div className="flex-1 flex flex-col min-w-0">
-        <TopBar onMenuToggle={() => setSidebarOpen(prev => !prev)} />
-        <main className="flex-1 overflow-y-auto p-6">
-          <nav className="flex items-center gap-1.5 text-xs text-muted mb-4 animate-fade-in overflow-x-auto">
-            <Link to={homePath} className="hover:text-primary transition-colors shrink-0">
-              <Home className="w-3.5 h-3.5" />
-            </Link>
-            {segments.map((seg, i) => (
-              <Fragment key={i}>
-                <ChevronRight className="w-3 h-3 shrink-0" />
-                <Link
-                  to={i === 0 ? AREA_HOME[seg] ?? '/' + seg : '/' + segments.slice(0, i + 1).join('/')}
-                  className="hover:text-primary transition-colors truncate whitespace-nowrap capitalize"
-                >
-                  {crumbLabel(seg)}
-                </Link>
-              </Fragment>
-            ))}
-          </nav>
-          <div className="animate-fade-in">
-            <Outlet />
-          </div>
-        </main>
+      <div className="flex-1 min-w-0 flex lg:py-2 lg:pr-2">
+        <div className="flex-1 min-w-0 flex flex-col bg-section lg:rounded-xl lg:border lg:border-border overflow-hidden">
+          <TopBar
+            onMenuToggle={() => setSidebarOpen(o => !o)}
+            onOpenSearch={() => setPaletteOpen(true)}
+            labels={labels}
+          />
+          <main id="app-content" className="flex-1 overflow-y-auto">
+            <div key={pathname} className="mx-auto w-full max-w-[1240px] px-4 sm:px-8 py-6 sm:py-8 animate-fade-in">
+              <Outlet />
+            </div>
+          </main>
+        </div>
       </div>
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} pages={pages} onLogout={onLogout} />
     </div>
   );
 }

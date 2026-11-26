@@ -30,7 +30,7 @@ export function OpportunityHubLayout() {
 
   return (
     <div className="h-screen bg-[var(--bg-page)] flex flex-col overflow-hidden">
-      <header className="shrink-0 z-30 h-16 glass border-b border-[var(--border-color)]">
+      <header className="shrink-0 z-30 h-14 bg-section border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center gap-4">
           {showFilters && <button
             onClick={() => setSidebarOpen(true)}
@@ -45,7 +45,7 @@ export function OpportunityHubLayout() {
             <span className="font-semibold text-primary hidden sm:inline font-heading">Opportunity Hub</span>
           </Link>
 
-          <form onSubmit={handleSearch} className="flex-1 max-w-md mx-auto hidden md:block">
+          {showFilters ? <div className="flex-1" /> : <form onSubmit={handleSearch} className="flex-1 max-w-md mx-auto hidden md:block">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
               <input
@@ -53,10 +53,10 @@ export function OpportunityHubLayout() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search organizations..."
-                className="w-full pl-9 pr-3 py-2 text-sm bg-[var(--bg-page)] text-primary rounded-lg border border-[var(--border-color)] focus:outline-none focus:ring-2 focus:ring-[#0c6b58]/30 focus:border-[#0c6b58] placeholder:text-muted transition-colors"
+                className="w-full pl-9 pr-3 py-2 text-sm bg-[var(--bg-page)] text-primary rounded-lg border border-[var(--border-color)] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:border-[var(--action-primary)] placeholder:text-muted transition-colors"
               />
             </div>
-          </form>
+          </form>}
 
           <nav className="flex items-center gap-3 ms-auto">
             {!isLoading && !isCandidateLoading && (isAuthenticated || isCandidateAuth) ? (
@@ -79,7 +79,7 @@ export function OpportunityHubLayout() {
                   </Link>
                 )}
                 <div className="flex items-center gap-2 pl-2 border-l border-[var(--border-color)]">
-                  <div className="w-6 h-6 rounded-full bg-[#0c6b58] flex items-center justify-center text-white text-xs font-medium">
+                  <div className="w-6 h-6 rounded-full bg-action-primary flex items-center justify-center text-white text-xs font-medium">
                     {(isAuthenticated ? user?.name : candidate?.name)?.charAt(0)?.toUpperCase() || '?'}
                   </div>
                   <button
@@ -109,7 +109,7 @@ export function OpportunityHubLayout() {
                 </Link>
                 <Link
                   to="/register"
-                  className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#0c6b58] text-white hover:bg-[#085244] transition-colors"
+                  className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-action-primary text-action-primary-text hover:bg-action-primary-hover transition-colors"
                 >
                   <UserPlus className="w-4 h-4" />
                   <span className="hidden sm:inline">Get Started</span>

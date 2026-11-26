@@ -8,8 +8,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Archivo', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'system-ui', 'sans-serif'],
-        heading: ['Archivo', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'system-ui', 'sans-serif'],
+        sans: ['Geist', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'system-ui', 'sans-serif'],
+        heading: ['Geist', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'system-ui', 'sans-serif'],
         mono: ['IBM Plex Mono', 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'monospace'],
         cjk: ['Noto Sans CJK SC', 'Source Han Sans', 'sans-serif'],
         arabic: ['Noto Sans Arabic', 'sans-serif'],
@@ -20,6 +20,7 @@ export default {
         elevated:  'var(--bg-elevated)',
         input:     'var(--bg-input)',
         hover:     'var(--bg-hover)',
+        subtle:    'var(--bg-subtle)',
         overlay:   'var(--bg-overlay)',
 
         primary:   'var(--text-primary)',
@@ -37,6 +38,7 @@ export default {
           primary:        'var(--action-primary)',
           'primary-hover':'var(--action-primary-hover)',
           'primary-text': 'var(--action-primary-text)',
+          'primary-soft': 'var(--action-primary-soft)',
           secondary:      'var(--action-secondary)',
           'secondary-hover':'var(--action-secondary-hover)',
           'secondary-text':'var(--action-secondary-text)',

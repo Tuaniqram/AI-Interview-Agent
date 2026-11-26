@@ -1,8 +1,10 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Store, Shield, X, Sun, Moon, Command as CommandIcon, Search as SearchIcon, Monitor as MonitorIcon } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
-import { Select } from '../components/shared/Select';
-import { useTheme } from '../contexts/ThemeContext';
+import {
+  Store, Shield, Search, ChevronsUpDown, Check, LogOut, Keyboard, PanelLeftClose, PanelLeftOpen,
+  Sun, Moon, Monitor, X,
+} from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useTheme, type ThemeMode } from '../contexts/ThemeContext';
 import type { OrgRole } from '../types/org';
 
 export interface NavItem {
@@ -18,6 +20,9 @@ export interface NavItem {
 interface SidebarProps {
   open: boolean;
   onClose: () => void;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
+  onOpenSearch: () => void;
   navItems: NavItem[];
   orgNavItems?: NavItem[];
   brand?: string;
@@ -32,337 +37,293 @@ interface SidebarProps {
   onLogout?: () => void;
 }
 
+/** Nav items the current role may see. Items without `roles` are for everyone. */
+export function visibleItems(items: NavItem[], role: OrgRole | null): NavItem[] {
+  return items.filter(item => !item.roles || (role != null && item.roles.includes(role)));
+}
+
+function initials(name?: string): string {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() || '?';
+}
+
+/** Closes a popover on an outside click or Escape. */
+function useDismiss(open: boolean, close: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) close(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [open, close]);
+  return ref;
+}
+
+function NavRow({ item, collapsed, onNavigate }: { item: NavItem; collapsed: boolean; onNavigate: () => void }) {
+  const Icon = item.icon;
+  return (
+    <NavLink
+      to={item.to}
+      end={item.end ?? item.to === '/'}
+      onClick={onNavigate}
+      title={collapsed ? item.label : undefined}
+      className={({ isActive }) =>
+        `group flex items-center gap-2.5 h-8 rounded-md text-[13px] font-medium transition-colors border
+        ${collapsed ? 'justify-center px-0' : 'px-2.5'}
+        ${isActive
+          ? 'bg-section border-border text-primary shadow-sm'
+          : 'border-transparent text-secondary hover:bg-hover hover:text-primary'}`
+      }
+    >
+      {({ isActive }) => (
+        <>
+          <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-action-primary' : 'text-tertiary group-hover:text-secondary'}`} />
+          {!collapsed && <span className="truncate">{item.label}</span>}
+        </>
+      )}
+    </NavLink>
+  );
+}
+
+function Group({ label, collapsed, children }: { label?: string; collapsed: boolean; children: React.ReactNode }) {
+  return (
+    <div className="space-y-px">
+      {label && (collapsed
+        ? <div className="mx-auto my-2 h-px w-5 bg-border" />
+        : <p className="px-2.5 pt-4 pb-1.5 text-xs font-medium text-tertiary">{label}</p>)}
+      {children}
+    </div>
+  );
+}
+
+const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { mode: 'light', label: 'Light', icon: Sun },
+  { mode: 'dark', label: 'Dark', icon: Moon },
+  { mode: 'system', label: 'System', icon: Monitor },
+];
+
 export function Sidebar({
-  open, onClose, navItems, orgNavItems = [], brand = 'AI Interview',
+  open, onClose, collapsed, onToggleCollapsed, onOpenSearch,
+  navItems, orgNavItems = [], brand = 'AI Interview',
   showMarketplace = true, showAdmin = false, useOrgSelector = false,
-  activeRole = null as OrgRole | null, user = null,
-  orgs = [], activeOrg = null, onSwitchOrg, onLogout,
+  activeRole = null, user = null, orgs = [], activeOrg = null, onSwitchOrg, onLogout,
 }: SidebarProps) {
   const navigate = useNavigate();
+  const { mode, setMode } = useTheme();
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [orgMenu, setOrgMenu] = useState(false);
+  const [userMenu, setUserMenu] = useState(false);
+  const orgRef = useDismiss(orgMenu, () => setOrgMenu(false));
+  const userRef = useDismiss(userMenu, () => setUserMenu(false));
 
-  const filteredNavItems = (() => {
-    return navItems.filter((item: NavItem) => {
-      if (!item.roles) return true;
-      if (!activeRole) return false;
-      return item.roles.includes(activeRole);
-    });
-  })();
+  // On a phone the drawer always shows labels.
+  const rail = collapsed && !open;
+  const main = visibleItems(navItems, activeRole);
+  const hiring = visibleItems(orgNavItems, activeRole);
 
-  const filteredOrgNavItems = (() => {
-    return orgNavItems.filter((item: NavItem) => {
-      if (!item.roles) return true;
-      if (!activeRole) return false;
-      return item.roles.includes(activeRole);
-    });
-  })();
-
-  const showOrgSection = filteredOrgNavItems.length > 0;
-
-  // Keyboard shortcuts
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+K or Cmd+K for global search
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        window.dispatchEvent(new CustomEvent('open-search'));
-      }
-      // Ctrl+/ or Cmd+/ for shortcuts
-      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
-        e.preventDefault();
-        setShowShortcuts(true);
-      }
-      // Escape to close sidebar (mobile)
-      if (e.key === 'Escape' && open) {
-        onClose();
-      }
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') { e.preventDefault(); setShowShortcuts(s => !s); }
+      if (e.key === 'Escape') { if (open) onClose(); setShowShortcuts(false); }
     };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose, setShowShortcuts]);
-
-  const { isDark, toggle } = useTheme();
-
-  const getIcon = (icon: React.ComponentType<{ className?: string }>, isActive: boolean) => {
-    return React.createElement(icon, { 
-      className: isActive ? 'text-action-primary' : '' 
-    });
-  };
+  const orgList = orgs.length > 0 ? orgs : activeOrg ? [activeOrg] : [];
 
   return (
     <>
-      {open && (
-        <div 
-          className="fixed inset-0 bg-overlay/50 z-40 lg:hidden"
-          onClick={onClose}
-        />
-      )}
+      {open && <div className="fixed inset-0 bg-overlay z-40 lg:hidden" onClick={onClose} />}
 
-      <aside 
-        className={`h-screen shrink-0 bg-section border-r border-border flex flex-col w-52 fixed lg:static z-50 lg:z-auto
-          ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        `}
+      <aside
+        className={`h-screen shrink-0 bg-page flex flex-col fixed lg:static z-50 lg:z-auto transition-[width,transform] duration-200
+          ${rail ? 'lg:w-[60px]' : 'lg:w-60'} w-64
+          ${open ? 'translate-x-0 shadow-lg lg:shadow-none' : '-translate-x-full lg:translate-x-0'}`}
       >
-        <div 
-          className="h-14 flex items-center gap-2 px-4 shrink-0"
-          onClick={onClose}
-        >
-          <img src="/favicon.svg" className="w-6 h-6 shrink-0" alt="" />
-          <span className="text-sm font-semibold text-primary truncate">{brand}</span>
-        </div>
-
-        {useOrgSelector && activeOrg && (
-          <div className="px-3 py-1.5 shrink-0">
-            <Select
-              value={String(activeOrg.id)}
-              onChange={(v) => { onSwitchOrg?.(v); navigate('/dashboard'); }}
-              options={orgs.length > 0
-                ? orgs.map(o => ({ value: String(o.id), label: o.name }))
-                : [{ value: String(activeOrg.id), label: activeOrg.name }]
-              }
-            />
-          </div>
-        )}
-
-        <nav className="flex-1 py-2 space-y-0.5 px-2 overflow-y-auto">
-          {filteredNavItems.map((item: NavItem) => {
-            const NavLinkButton = () => (
-              <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors group relative overflow-hidden bg-action-primary/10 text-action-primary">
-                <span className="absolute inset-0 bg-gradient-to-r from-transparent via-action-primary/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500" />
-                {getIcon(item.icon, true)}
-                <span className="relative z-10 flex-1 min-w-0">{item.label}</span>
-              </div>
-            );
-
-            const NavLinkButtonDefault = () => (
-              <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors group relative overflow-hidden text-secondary hover:bg-hover hover:text-primary">
-                <span className="absolute inset-0 bg-gradient-to-r from-transparent via-action-primary/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500" />
-                {getIcon(item.icon, false)}
-                <span className="relative z-10 flex-1 min-w-0">{item.label}</span>
-                {item.shortcut && (
-                  <kbd className="hidden sm:inline-flex absolute right-3 text-[10px] font-medium text-muted bg-bg-input px-1.5 py-0.5 rounded border border-border">
-                    {item.shortcut}
-                  </kbd>
-                )}
-              </div>
-            );
-
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end ?? item.to === '/'}
-                onClick={onClose}
+        {/* Workspace */}
+        <div className={`pt-3 pb-2 ${rail ? 'px-2' : 'px-3'}`}>
+          {useOrgSelector && activeOrg ? (
+            <div ref={orgRef} className="relative">
+              <button
+                onClick={() => setOrgMenu(o => !o)}
+                title={rail ? activeOrg.name : undefined}
+                aria-haspopup="menu"
+                aria-expanded={orgMenu}
+                className={`w-full flex items-center gap-2.5 h-10 rounded-lg hover:bg-hover transition-colors ${rail ? 'justify-center' : 'px-2'}`}
               >
-                {({ isActive }) => isActive ? <NavLinkButton /> : <NavLinkButtonDefault />}
-              </NavLink>
-            );
-          })}
-
-          {showOrgSection && (
-            <div className="pt-3 mt-3">
-              <div className="h-px bg-border mb-2" />
-              <p className="px-3 text-[10px] font-semibold text-muted uppercase tracking-wider mb-1.5">
-                Organization
-              </p>
-              {filteredOrgNavItems.map((item: NavItem) => {
-                const NavLinkButton = () => (
-                  <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors group relative overflow-hidden bg-action-primary/10 text-action-primary">
-                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-action-primary/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500" />
-                    {getIcon(item.icon, true)}
-                    <span className="relative z-10 flex-1 min-w-0">{item.label}</span>
-                  </div>
-                );
-
-                const NavLinkButtonDefault = () => (
-                  <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors group relative overflow-hidden text-secondary hover:bg-hover hover:text-primary">
-                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-action-primary/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500" />
-                    {getIcon(item.icon, false)}
-                    <span className="relative z-10 flex-1 min-w-0">{item.label}</span>
-                  </div>
-                );
-
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    onClick={onClose}
-                  >
-                    {({ isActive }) => isActive ? <NavLinkButton /> : <NavLinkButtonDefault />}
-                  </NavLink>
-                );
-              })}
+                <span className="w-7 h-7 rounded-md bg-action-primary text-action-primary-text flex items-center justify-center text-xs font-semibold shrink-0">
+                  {initials(activeOrg.name)}
+                </span>
+                {!rail && (
+                  <>
+                    <span className="flex-1 min-w-0 text-left">
+                      <span className="block text-[13px] font-semibold text-primary truncate">{activeOrg.name}</span>
+                      {activeRole && <span className="block text-[11px] text-tertiary capitalize leading-tight">{activeRole}</span>}
+                    </span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-tertiary shrink-0" />
+                  </>
+                )}
+              </button>
+              {orgMenu && (
+                <div role="menu" className="absolute left-0 top-11 z-50 w-full min-w-[13rem] rounded-lg border border-border bg-elevated shadow-lg p-1">
+                  <p className="px-2 pt-1.5 pb-1 text-xs text-tertiary">Organizations</p>
+                  {orgList.map(o => (
+                    <button
+                      key={o.id}
+                      role="menuitem"
+                      onClick={() => { setOrgMenu(false); onSwitchOrg?.(String(o.id)); navigate('/dashboard'); onClose(); }}
+                      className="w-full flex items-center gap-2.5 px-2 h-8 rounded-md text-[13px] text-primary hover:bg-hover"
+                    >
+                      <span className="w-5 h-5 rounded bg-hover text-secondary flex items-center justify-center text-[10px] font-semibold">{initials(o.name)}</span>
+                      <span className="flex-1 truncate text-left">{o.name}</span>
+                      {String(o.id) === String(activeOrg.id) && <Check className="w-3.5 h-3.5 text-action-primary" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className={`flex items-center gap-2.5 h-10 ${rail ? 'justify-center' : 'px-2'}`}>
+              <img src="/favicon.svg" className="w-7 h-7 shrink-0" alt="" />
+              {!rail && <span className="text-[13px] font-semibold text-primary truncate">{brand}</span>}
             </div>
           )}
+        </div>
 
-          {showMarketplace && (
-            <>
-              <div className="h-px bg-border my-3" />
-              <NavLink
-                to="/opportunity-hub"
-                onClick={onClose}
-                className={({ isActive }) => (
-                  `flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors group relative overflow-hidden ${
-                    isActive
-                      ? 'bg-action-primary/10 text-action-primary'
-                      : 'text-secondary hover:bg-hover group hover:text-primary'
-                  }`
-                )}
-              >
-                <span className="absolute inset-0 bg-gradient-to-r from-transparent via-action-primary/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500" />
-                <Store className="shrink-0" />
-                <span className="relative z-10 flex-1">Opportunity Hub</span>
-              </NavLink>
-            </>
+        {/* Search */}
+        <div className={rail ? 'px-2 pb-1' : 'px-3 pb-1'}>
+          <button
+            onClick={() => { onClose(); onOpenSearch(); }}
+            title={rail ? 'Search (Ctrl K)' : undefined}
+            className={`w-full flex items-center gap-2 h-8 rounded-md border border-border bg-section text-[13px] text-tertiary hover:border-border-strong hover:text-secondary transition-colors ${rail ? 'justify-center' : 'px-2.5'}`}
+          >
+            <Search className="w-3.5 h-3.5 shrink-0" />
+            {!rail && (
+              <>
+                <span className="flex-1 text-left">Search</span>
+                <kbd className="text-[11px] font-sans text-tertiary">Ctrl K</kbd>
+              </>
+            )}
+          </button>
+        </div>
+
+        <nav className={`flex-1 overflow-y-auto pb-3 ${rail ? 'px-2' : 'px-3'}`} aria-label="Main">
+          <Group collapsed={rail}>
+            <div className="pt-2" />
+            {main.map(item => <NavRow key={item.to} item={item} collapsed={rail} onNavigate={onClose} />)}
+          </Group>
+
+          {hiring.length > 0 && (
+            <Group label="Hiring" collapsed={rail}>
+              {hiring.map(item => <NavRow key={item.to} item={item} collapsed={rail} onNavigate={onClose} />)}
+            </Group>
           )}
 
-          {showAdmin && (
-            <NavLink
-              to="/admin"
-              onClick={onClose}
-              className={({ isActive }) => (
-                `flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors group relative overflow-hidden ${isActive ? 'bg-action-primary/10 text-action-primary' : 'text-secondary hover:bg-hover group hover:text-primary'}`
+          {(showMarketplace || showAdmin) && (
+            <Group label="More" collapsed={rail}>
+              {showMarketplace && (
+                <NavRow item={{ to: '/opportunity-hub', label: 'Opportunity Hub', icon: Store }} collapsed={rail} onNavigate={onClose} />
               )}
-            >
-              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-action-primary/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500" />
-              <Shield className="shrink-0" />
-              <span className="relative z-10 flex-1">Admin</span>
-            </NavLink>
+              {showAdmin && (
+                <NavRow item={{ to: '/admin', label: 'Admin', icon: Shield }} collapsed={rail} onNavigate={onClose} />
+              )}
+            </Group>
           )}
         </nav>
 
-        <div className="p-3 shrink-0">
-          <button
-            onClick={toggle}
-            className="flex items-center gap-3 w-full px-3 py-1.5 rounded-lg text-xs text-muted bg-bg-input hover:bg-hover mb-2 border border-border hover:border-action-primary transition-colors"
-            aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-          >
-            {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-            <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
-          </button>
-          <div
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-muted bg-bg-input hover:bg-hover cursor-pointer mb-2 border border-border hover:border-action-primary transition-colors"
-            onClick={() => setShowShortcuts(true)}
-          >
-            <kbd className="bg-bg-elevated px-1.5 py-0.5 rounded text-[10px] font-medium">Ctrl+</kbd>
-            <span className="text-[10px]">Shortcuts</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-action-primary/10 text-action-primary flex items-center justify-center text-xs font-semibold shrink-0">
-              {user?.name?.charAt(0)?.toUpperCase() || '?'}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-primary truncate">{user?.name || 'User'}</p>
-              <p className="text-[10px] text-muted truncate">{user?.email || ''}</p>
-            </div>
-            {onLogout && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onLogout();
-                }}
-                className="text-xs text-muted hover:text-error transition-colors ml-auto p-1 rounded hover:bg-error/10"
-                title="Sign Out (Ctrl+Shift+Q)"
-              >
-                <X className="w-4 h-4" />
-              </button>
+        {/* Account */}
+        <div className={`pb-3 pt-2 border-t border-border ${rail ? 'px-2' : 'px-3'}`}>
+          <div ref={userRef} className="relative">
+            <button
+              onClick={() => setUserMenu(m => !m)}
+              aria-haspopup="menu"
+              aria-expanded={userMenu}
+              title={rail ? user?.name || 'Account' : undefined}
+              className={`w-full flex items-center gap-2.5 h-10 rounded-lg hover:bg-hover transition-colors ${rail ? 'justify-center' : 'px-2'}`}
+            >
+              <span className="w-7 h-7 rounded-full bg-hover border border-border text-secondary flex items-center justify-center text-[11px] font-semibold shrink-0">
+                {initials(user?.name)}
+              </span>
+              {!rail && (
+                <span className="flex-1 min-w-0 text-left">
+                  <span className="block text-[13px] font-medium text-primary truncate">{user?.name || 'Account'}</span>
+                  <span className="block text-[11px] text-tertiary truncate leading-tight">{user?.email || ''}</span>
+                </span>
+              )}
+            </button>
+
+            {userMenu && (
+              <div role="menu" className="absolute bottom-12 left-0 z-50 w-full min-w-[13rem] rounded-lg border border-border bg-elevated shadow-lg p-1">
+                <div className="px-2 py-1.5">
+                  <p className="text-xs text-tertiary mb-1.5">Theme</p>
+                  <div className="grid grid-cols-3 gap-0.5 p-0.5 rounded-md bg-hover">
+                    {THEME_OPTIONS.map(({ mode: m, label, icon: Icon }) => (
+                      <button
+                        key={m}
+                        onClick={() => setMode(m)}
+                        aria-pressed={mode === m}
+                        className={`flex items-center justify-center gap-1 h-7 rounded text-xs transition-colors
+                          ${mode === m ? 'bg-section text-primary shadow-sm' : 'text-secondary hover:text-primary'}`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />{label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="h-px bg-border my-1" />
+                <button role="menuitem" onClick={() => { setUserMenu(false); setShowShortcuts(true); }}
+                  className="w-full flex items-center gap-2.5 px-2 h-8 rounded-md text-[13px] text-primary hover:bg-hover">
+                  <Keyboard className="w-4 h-4 text-tertiary" /> <span className="flex-1 text-left">Keyboard shortcuts</span>
+                  <kbd className="text-[11px] font-sans text-tertiary">Ctrl /</kbd>
+                </button>
+                <button role="menuitem" onClick={() => { setUserMenu(false); onToggleCollapsed(); }}
+                  className="hidden lg:flex w-full items-center gap-2.5 px-2 h-8 rounded-md text-[13px] text-primary hover:bg-hover">
+                  {collapsed ? <PanelLeftOpen className="w-4 h-4 text-tertiary" /> : <PanelLeftClose className="w-4 h-4 text-tertiary" />}
+                  <span className="flex-1 text-left">{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</span>
+                  <kbd className="text-[11px] font-sans text-tertiary">[</kbd>
+                </button>
+                {onLogout && (
+                  <>
+                    <div className="h-px bg-border my-1" />
+                    <button role="menuitem" onClick={() => { setUserMenu(false); onLogout(); }}
+                      className="w-full flex items-center gap-2.5 px-2 h-8 rounded-md text-[13px] text-primary hover:bg-hover">
+                      <LogOut className="w-4 h-4 text-tertiary" /> Sign out
+                    </button>
+                  </>
+                )}
+              </div>
             )}
           </div>
         </div>
       </aside>
 
-      {/* Global Shortcuts Modal */}
       {showShortcuts && (
-        <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center"
-          onClick={() => setShowShortcuts(false)}
-        >
-          <div 
-            className="fixed inset-0 bg-overlay/50 backdrop-blur-sm"
-            onClick={() => setShowShortcuts(false)}
-          />
-          <div className="relative bg-section rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border border-border">
-            <div className="p-5 border-b border-border">
-              <h3 className="text-lg font-semibold text-primary">
-                <div className="flex items-center gap-2">
-                  <CommandIcon className="w-5 h-5 text-action-primary" />
-                  Keyboard Shortcuts
-                </div>
-                <p className="text-sm text-muted mt-1">Ctrl+ / Close modal</p>
-              </h3>
-            </div>
-            
-            <div className="divide-y divide-border">
-              <div className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-action-primary/10 flex items-center justify-center">
-                    <SearchIcon className="w-5 h-5 text-action-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-primary">Search</p>
-                    <p className="text-xs text-muted">Quick find anything</p>
-                  </div>
-                </div>
-                <kbd className="bg-bg-input px-2.5 py-1 rounded border border-border text-xs font-medium text-muted">
-                  ⌘ K
-                </kbd>
-              </div>
-
-              <div className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-action-primary/10 flex items-center justify-center">
-                    <CommandIcon className="w-5 h-5 text-action-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-primary">Toggle Shortcuts</p>
-                    <p className="text-xs text-muted">Show this menu</p>
-                  </div>
-                </div>
-                <kbd className="bg-bg-input px-2.5 py-1 rounded border border-border text-xs font-medium text-muted">
-                  ⎋ /
-                </kbd>
-              </div>
-
-              <div className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-action-primary/10 flex items-center justify-center">
-                    <X className="w-5 h-5 text-action-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-primary">Close Sidebar</p>
-                    <p className="text-xs text-muted">Hide navigation</p>
-                  </div>
-                </div>
-                <kbd className="bg-bg-input px-2.5 py-1 rounded border border-border text-xs font-medium text-muted">
-                  Esc
-                </kbd>
-              </div>
-
-              <div className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-action-primary/10 flex items-center justify-center">
-                    <MonitorIcon className="w-5 h-5 text-action-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-primary">Log Out</p>
-                    <p className="text-xs text-muted">Sign out of your account</p>
-                  </div>
-                </div>
-                <kbd className="bg-bg-input px-2.5 py-1 rounded border border-border text-xs font-medium text-muted">
-                  ⌘⇧Q
-                </kbd>
-              </div>
-            </div>
-
-            <div className="p-4 bg-bg-input border-t border-border flex justify-end">
-              <button
-                onClick={() => setShowShortcuts(false)}
-                className="px-4 py-2 text-sm font-medium text-primary bg-bg-elevated rounded-lg hover:bg-hover transition-colors"
-              >
-                Close
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
+          <div className="fixed inset-0 bg-overlay" onClick={() => setShowShortcuts(false)} />
+          <div className="relative w-full max-w-sm rounded-xl border border-border bg-elevated shadow-lg">
+            <div className="flex items-center justify-between px-4 h-12 border-b border-border">
+              <h3 id="shortcuts-title" className="text-sm font-semibold text-primary">Keyboard shortcuts</h3>
+              <button onClick={() => setShowShortcuts(false)} className="p-1 rounded-md text-tertiary hover:bg-hover hover:text-primary" aria-label="Close">
+                <X className="w-4 h-4" />
               </button>
             </div>
+            <dl className="p-2">
+              {[
+                ['Search and jump to a page', 'Ctrl K'],
+                ['Collapse or expand the sidebar', '['],
+                ['Show this list', 'Ctrl /'],
+                ['Close a menu or dialog', 'Esc'],
+              ].map(([what, key]) => (
+                <div key={what} className="flex items-center justify-between px-2 h-9 text-[13px]">
+                  <dt className="text-secondary">{what}</dt>
+                  <dd><kbd className="px-1.5 py-0.5 rounded border border-border bg-section text-xs font-sans text-primary">{key}</kbd></dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </div>
       )}

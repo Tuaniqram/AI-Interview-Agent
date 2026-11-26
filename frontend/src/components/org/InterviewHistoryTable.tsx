@@ -30,7 +30,7 @@ export function InterviewHistoryTable({ sessions }: { sessions: SessionRecord[] 
       <span className="text-xs">{modeIcon(s.interaction_mode)} {s.interaction_mode ? s.interaction_mode.charAt(0).toUpperCase() + s.interaction_mode.slice(1) : '—'}</span>
     ) },
     { key: 'status', header: 'Status', render: s => <StatusBadge status={s.status} /> },
-    { key: 'final_score', header: 'Score', render: s => <ScoreDisplay score={s.final_score} size="sm" showLabel={false} /> },
+    { key: 'final_score', header: 'Score', render: s => <ScoreDisplay score={s.final_score} size="inline" /> },
     { key: 'started_at', header: 'Date', render: s => new Date(s.started_at).toLocaleDateString(), className: 'text-secondary' },
   ], []);
 

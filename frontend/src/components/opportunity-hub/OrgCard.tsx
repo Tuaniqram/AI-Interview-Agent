@@ -10,11 +10,11 @@ export function OrgCard({ org }: OrgCardProps) {
   return (
     <Link
       to={`/opportunity-hub/organizations/${org.slug}`}
-      className="block p-5 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[#0c6b58]/40 card-hover group"
+      className="block p-5 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-border-strong card-hover group"
     >
       <div className="flex items-start gap-4">
-        <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-white font-bold text-lg"
-          style={{ background: `linear-gradient(135deg, #0c6b58, #2fbf9a)` }}>
+        <div className="w-12 h-12 rounded-xl bg-action-primary flex items-center justify-center shrink-0 text-action-primary-text font-semibold text-lg"
+          >
           {org.name.charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">

@@ -16,7 +16,8 @@ import {
   type RoleData,
 } from '../services/analyticsService';
 
-const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+// Categorical series: the accent first, then hues that stay apart in both themes.
+const COLORS = ['var(--action-primary)', '#3b6fd8', '#c27a12', '#8a56c2', '#0e8a9e', '#c8463f'];
 
 export function Analytics() {
   const toast = useToast();
@@ -138,7 +139,7 @@ export function Analytics() {
                 <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
                 <Tooltip contentStyle={{ background: 'var(--bg-section)', borderRadius: 8, fontSize: 12 }} />
                 <Legend wrapperStyle={{ fontSize: 10, paddingTop: 8 }} />
-                <Line yAxisId="left" type="monotone" dataKey="avg_score" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} name="Avg Score" />
+                <Line yAxisId="left" type="monotone" dataKey="avg_score" stroke="var(--action-primary)" strokeWidth={2} dot={{ r: 3 }} name="Avg Score" />
                 <Line yAxisId="right" type="monotone" dataKey="count" stroke="#22c55e" strokeWidth={2} dot={{ r: 3 }} name="Sessions" />
               </LineChart>
             </ResponsiveContainer>
@@ -157,7 +158,7 @@ export function Analytics() {
                 <XAxis dataKey="range" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
                 <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
                 <Tooltip contentStyle={{ background: 'var(--bg-section)', borderRadius: 8, fontSize: 12 }} />
-                <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" fill="var(--action-primary)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}

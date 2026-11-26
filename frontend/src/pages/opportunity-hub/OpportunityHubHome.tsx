@@ -68,6 +68,11 @@ export default function OpportunityHubHome() {
     setSearchParams({}, { replace: true });
   };
 
+  // Only categories that have something in them; an empty strip is noise.
+  const categories = CATEGORIES
+    .map(cat => ({ cat, count: orgs.filter(o => o.description?.toLowerCase().includes(cat.keywords[0])).length }))
+    .filter(entry => entry.count > 0);
+
   const expiryLabel = activeExpiry === '7d' ? 'Within 7 days' : activeExpiry === '30d' ? 'Within 30 days' : '';
 
   return (
@@ -86,17 +91,17 @@ export default function OpportunityHubHome() {
         <div className="flex items-center gap-2 flex-wrap animate-fade-in">
           <span className="text-xs text-muted font-medium">Active filters:</span>
           {search && (
-            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-[#0c6b58]/10 text-[var(--action-primary)] font-medium">
+            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-action-primary-soft text-[var(--action-primary)] font-medium">
               Search: &ldquo;{search}&rdquo;
-              <button onClick={() => clearFilter('search')} className="hover:bg-[#0c6b58]/20 rounded-full p-0.5 -mr-0.5" aria-label="Clear search">
+              <button onClick={() => clearFilter('search')} className="hover:bg-action-primary/20 rounded-full p-0.5 -mr-0.5" aria-label="Clear search">
                 <X className="w-3 h-3" />
               </button>
             </span>
           )}
           {expiryLabel && (
-            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-[#0c6b58]/10 text-[var(--action-primary)] font-medium">
+            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-action-primary-soft text-[var(--action-primary)] font-medium">
               {expiryLabel}
-              <button onClick={() => clearFilter('expiry')} className="hover:bg-[#0c6b58]/20 rounded-full p-0.5 -mr-0.5" aria-label="Clear expiry">
+              <button onClick={() => clearFilter('expiry')} className="hover:bg-action-primary/20 rounded-full p-0.5 -mr-0.5" aria-label="Clear expiry">
                 <X className="w-3 h-3" />
               </button>
             </span>
@@ -107,19 +112,11 @@ export default function OpportunityHubHome() {
         </div>
       )}
 
-      {!hasFilters && orgs.length > 0 && (
+      {!hasFilters && categories.length > 0 && (
         <section>
-          <h2 className="text-lg font-semibold text-primary mb-4 font-heading">Browse by Category</h2>
-          <Carousel autoPlay interval={6000}>
-            {CATEGORIES
-              .map(cat => ({
-                cat,
-                count: orgs.filter(o =>
-                  o.description?.toLowerCase().includes(cat.keywords[0])
-                ).length,
-              }))
-              .filter(entry => entry.count > 0)
-              .map(({ cat, count }) => (
+          <h2 className="text-sm font-semibold text-primary mb-3">Browse by category</h2>
+          <Carousel>
+            {categories.map(({ cat, count }) => (
                 <div key={cat.name} className="w-48 sm:w-52">
                   <CategoryCard
                     name={cat.name}
@@ -135,8 +132,8 @@ export default function OpportunityHubHome() {
 
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-primary font-heading">
-            {search ? `Results for "${search}"` : hasFilters ? 'Filtered Results' : 'All Organizations'}
+          <h2 className="text-sm font-semibold text-primary">
+            {search ? `Results for "${search}"` : hasFilters ? 'Filtered results' : 'Organizations hiring now'}
           </h2>
           <span className="text-xs text-muted">{orgs.length} found</span>
         </div>

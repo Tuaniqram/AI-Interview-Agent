@@ -48,11 +48,11 @@ export default function OrgManagement() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-page">
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Organization</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Owner</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Interviews</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Status</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Actions</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-secondary">Organization</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-secondary">Owner</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-secondary">Interviews</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-secondary">Status</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-secondary">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">

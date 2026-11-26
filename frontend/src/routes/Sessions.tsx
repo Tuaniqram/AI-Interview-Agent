@@ -48,12 +48,12 @@ export function Sessions() {
   };
 
   const columns = useMemo<Column<SessionRecord>[]>(() => [
-    { key: 'job_role', header: 'Role' },
+    { key: 'job_role', header: 'Role', render: s => <span className="font-medium">{s.job_role}</span> },
     { key: 'interaction_mode', header: 'Mode', render: s => (
-      <span className="text-xs">{modeIcon(s.interaction_mode)} {s.interaction_mode ? s.interaction_mode.charAt(0).toUpperCase() + s.interaction_mode.slice(1) : '-'}</span>
+      <span className="inline-flex items-center gap-1.5 text-secondary">{modeIcon(s.interaction_mode)} {s.interaction_mode ? s.interaction_mode.charAt(0).toUpperCase() + s.interaction_mode.slice(1) : '-'}</span>
     ) },
     { key: 'status', header: 'Status', render: s => <StatusBadge status={s.status} /> },
-    { key: 'final_score', header: 'Score', render: s => <ScoreDisplay score={s.final_score} size="sm" showLabel={false} /> },
+    { key: 'final_score', header: 'Score', render: s => <ScoreDisplay score={s.final_score} size="inline" /> },
     { key: 'started_at', header: 'Date', render: s => new Date(s.started_at).toLocaleDateString(), className: 'text-secondary' },
   ], []);
 
@@ -67,7 +67,7 @@ export function Sessions() {
 
   return (
     <div>
-      <PageHeader title="Interview Sessions" description="All interview sessions for your organization" />
+      <PageHeader title="Sessions" description="Every interview in your organization, newest first. Open a finished one to read its report." />
 
       {error && (
         <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded-lg bg-error-bg text-error">
@@ -87,7 +87,7 @@ export function Sessions() {
           />
         </Card>
       ) : (
-        <Card padding="sm">
+        <Card padding="none" className="overflow-hidden">
           <DataTable columns={columns} data={sessions} keyField="id" onRowClick={handleRowClick} />
         </Card>
       )}

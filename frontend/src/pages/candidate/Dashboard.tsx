@@ -66,8 +66,8 @@ export default function CandidateDashboard() {
       )}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Welcome, {candidate?.name}</h1>
-          <p className="text-[var(--text-secondary)] mt-1">Your interview dashboard</p>
+          <h1 className="text-[22px] leading-7 font-semibold tracking-[-0.015em] text-primary">Welcome back, {candidate?.name}</h1>
+          <p className="text-sm text-secondary mt-1">Your interviews, scores and the skills they show.</p>
         </div>
         <Link to="/candidate/profile"
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
@@ -92,7 +92,7 @@ export default function CandidateDashboard() {
 
       {/* Skill Progression: real scores only; a new candidate sees how to get started */}
       <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Skill Progression</h2>
+        <h2 className="text-sm font-semibold text-primary mb-3">Skill progression</h2>
         {competencyScores.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {competencyScores.slice(0, 4).map(skill => <SkillCard key={skill.name} name={skill.name} score={skill.average_score} />)}
@@ -215,7 +215,7 @@ function SkillCard({ name, score }: { name: string; score: number }) {
         </div>
       </div>
       <div className="h-1.5 rounded-full bg-[var(--bg-page)] overflow-hidden">
-        <div className="h-full rounded-full bg-gradient-to-r from-action-primary to-action-primary-hover transition-all duration-500"
+        <div className="h-full rounded-full bg-action-primary transition-all duration-500"
           style={{ width: `${pct}%` }} />
       </div>
       <p className="text-[10px] text-muted mt-1.5">{score.toFixed(1)}/10 — {pct < 100 ? `${100 - pct}% to next level` : 'Mastered'}</p>

@@ -24,8 +24,8 @@ export function CompetencyRadar({ scores }: CompetencyRadarProps) {
         <RadarChart data={data}>
           <PolarGrid stroke="var(--border-color)" />
           <PolarAngleAxis dataKey="category" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} />
-          <PolarRadiusAxis domain={[0, 10]} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickCount={6} />
-          <Radar name="Score" dataKey="score" stroke="#7C3AED" fill="#7C3AED" fillOpacity={0.15} strokeWidth={2} />
+          <PolarRadiusAxis domain={[0, 10]} tick={false} axisLine={false} tickCount={6} />
+          <Radar name="Score" dataKey="score" stroke="var(--action-primary)" fill="var(--action-primary)" fillOpacity={0.14} strokeWidth={2} />
           <Tooltip
             contentStyle={{
               background: 'var(--bg-section)',

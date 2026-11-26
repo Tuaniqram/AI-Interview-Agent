@@ -42,9 +42,9 @@ export default function OrgProfile() {
         Back to opportunities
       </Link>
 
-      <div className="rounded-2xl bg-gradient-to-br from-[#0c6b58]/5 to-[#2fbf9a]/5 border border-[#0c6b58]/10 p-6 sm:p-8">
+      <div className="rounded-xl bg-subtle border border-border p-6 sm:p-8">
         <div className="flex items-start gap-5">
-          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-[#0c6b58] to-[#2fbf9a] flex items-center justify-center shrink-0 text-white font-bold text-2xl">
+          <div className="w-16 h-16 rounded-xl bg-action-primary flex items-center justify-center shrink-0 text-white font-bold text-2xl">
             {org.name.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -85,7 +85,7 @@ export default function OrgProfile() {
                 : null;
 
               return (
-                <div key={interview.id} className="relative p-5 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[#0c6b58]/40 hover:shadow-lg hover:shadow-[#0c6b58]/5 transition-all group">
+                <div key={interview.id} className="relative p-5 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-border-strong transition-colors group">
                   <div className="absolute top-3 right-3">
                     <BookmarkButton
                       listingId={Number(interview.id)}
@@ -106,7 +106,7 @@ export default function OrgProfile() {
                     <p className="text-sm text-secondary mt-1.5 line-clamp-2">{interview.description}</p>
                   )}
                   <div className="flex items-center gap-2 flex-wrap mt-3">
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-[#0c6b58]/10 text-[var(--action-primary)] font-medium">
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-action-primary-soft text-[var(--action-primary)] font-medium">
                       {interview.interview_mode}
                     </span>
                     {skills.slice(0, 3).map(skill => (

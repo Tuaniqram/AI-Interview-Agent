@@ -477,7 +477,7 @@ export function Company() {
                             </span>
                           )}
                           {listing.style_name && listing.style_name !== 'STANDARD' && (
-                            <span className="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-500">
+                            <span className="text-xs px-2 py-0.5 rounded bg-info-bg text-info-text">
                               {listing.style_name}
                             </span>
                           )}

@@ -34,7 +34,7 @@ export function OpportunityHubSidebar({
         <div className="fixed inset-0 bg-overlay/50 z-40 lg:hidden" onClick={onClose} />
       )}
 
-      <aside className={`w-56 shrink-0 h-full glass border-r border-[var(--border-color)] overflow-y-auto
+      <aside className={`w-56 shrink-0 h-full bg-page border-r border-border overflow-y-auto
         ${open ? 'fixed left-0 top-16 z-50' : 'hidden'}
         lg:static lg:block lg:z-auto
       `}>
@@ -46,7 +46,7 @@ export function OpportunityHubSidebar({
         </div>
 
         <nav className="p-3 space-y-1">
-          <p className="px-3 text-xs font-medium text-muted uppercase tracking-wider mb-2 mt-1">
+          <p className="px-3 text-xs font-medium text-tertiary mb-2 mt-1">
             Browse
           </p>
 
@@ -55,7 +55,7 @@ export function OpportunityHubSidebar({
             onClick={onClose}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
               isActive('/opportunity-hub')
-                ? 'bg-[#0c6b58]/15 text-[var(--action-primary)]'
+                ? 'bg-action-primary-soft text-[var(--action-primary)]'
                 : 'text-secondary hover:bg-hover hover:text-primary'
             }`}
           >
@@ -66,7 +66,7 @@ export function OpportunityHubSidebar({
           {isAuthenticated && (
             <>
               <div className="h-px bg-[var(--border-color)] my-3" />
-              <p className="px-3 text-xs font-medium text-muted uppercase tracking-wider mb-2">
+              <p className="px-3 text-xs font-medium text-tertiary mb-2">
                 Account
               </p>
               <Link
@@ -82,7 +82,7 @@ export function OpportunityHubSidebar({
 
           <div className="h-px bg-[var(--border-color)] my-3" />
 
-          <p className="px-3 text-xs font-medium text-muted uppercase tracking-wider mb-2">
+          <p className="px-3 text-xs font-medium text-tertiary mb-2">
             Filters
           </p>
 
@@ -98,7 +98,7 @@ export function OpportunityHubSidebar({
 
           <button
             onClick={() => { onApply(); onClose(); }}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-[#0c6b58] text-white hover:bg-[#085244] transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-action-primary text-action-primary-text hover:bg-action-primary-hover transition-colors"
           >
             <Search className="w-3.5 h-3.5" />
             Apply Filters
