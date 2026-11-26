@@ -457,7 +457,7 @@ def api(monkeypatch):
     async def _db():
         yield holder.db
 
-    async def _record_evaluation(application_id):
+    async def _record_evaluation(application_id, fresh=False):
         holder.evaluations.append(application_id)  # never run the real LLM/DB evaluation
 
     monkeypatch.setattr("app.api.v1.marketplace.run_application_fit_evaluation", _record_evaluation)

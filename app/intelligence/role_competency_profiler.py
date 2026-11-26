@@ -25,6 +25,7 @@ from collections import OrderedDict
 from typing import Optional
 
 from app.data.competency_taxonomy import COMPETENCY_TAXONOMY, NON_IT_COMPETENCY_IDS, SKILL_TO_COMPETENCY
+from app.services import content_cache
 
 logger = logging.getLogger(__name__)
 
@@ -355,6 +356,13 @@ async def suggest_competencies(
         _cache_put(key, entries, "ai:deterministic", "")
         return entries, "ai:deterministic", ""
 
+    # Shared by all workers: the same role context (and declared competencies) gives the same profile.
+    shared_key = content_cache.key("roleprofile", role_context, existing_competencies)
+    shared = await content_cache.get(shared_key)
+    if shared is not None:
+        _cache_put(key, shared["entries"], "ai:llm", shared["rationale"])
+        return list(shared["entries"]), "cache:shared", shared["rationale"]
+
     try:
         from app.intelligence._helpers import parse_llm_json_with_retry
         from app.services.llm_service import get_llm_service
@@ -388,6 +396,7 @@ async def suggest_competencies(
             _cache_put(key, entries, "ai:deterministic", "")
             return entries, "ai:deterministic", ""
         _cache_put(key, entries, "ai:llm", rationale)
+        await content_cache.put(shared_key, {"entries": entries, "rationale": rationale}, content_cache.ORG_TTL_S)
         return entries, "ai:llm", rationale
     except Exception as exc:  # noqa: BLE001 - profiler is best-effort
         logger.warning("Role profiler LLM failed (%s), using deterministic", exc)

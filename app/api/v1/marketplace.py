@@ -225,7 +225,7 @@ async def evaluate_application(
 ):
     """Re-run the automatic fit evaluation (e.g. after a failure)."""
     application = await queue_application_evaluation(str(application_id), org_id, db)
-    background_tasks.add_task(run_application_fit_evaluation, str(application_id))
+    background_tasks.add_task(run_application_fit_evaluation, str(application_id), True)  # skip the cache
     return application
 
 

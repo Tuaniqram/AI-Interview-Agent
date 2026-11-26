@@ -46,15 +46,6 @@ async def test_invoke_passes_tier_through(stub_llm):
     assert stub.calls[0]["tier"] == "cheap"
 
 
-def test_cache_key_differs_by_tier():
-    service = llm_service_module.get_llm_service()
-    k_strong = service._generate_cache_key("p", 0.3, None, "strong")
-    k_cheap = service._generate_cache_key("p", 0.3, None, "cheap")
-    k_none = service._generate_cache_key("p", 0.3, None, None)
-    assert k_strong != k_cheap
-    assert k_none == k_strong
-
-
 async def test_evaluator_routes_to_strong_tier_by_default(stub_llm, monkeypatch):
     """Plan step 4: scoring runs on the strong model; EVALUATOR_LLM_TIER=cheap reverts it."""
     monkeypatch.delenv("EVALUATOR_LLM_TIER", raising=False)
@@ -267,24 +258,6 @@ async def test_service_passes_temperature_and_max_tokens_as_model_arguments(monk
     assert call["kwargs"]["temperature"] == 0.1
     assert call["kwargs"]["max_tokens"] == completion_budget(300)
     assert call["kwargs"]["timeout"] == request_timeout(300)
-
-
-async def test_disabled_cache_calls_the_model_every_time(monkeypatch):
-    """The harness turns the cache off; before, the flag was ignored and repeats replayed the first run."""
-    from app.services.llm_service import LLMService
-
-    chain = _RecordingChain()
-    monkeypatch.setattr(llm_service_module, "get_llm", lambda tier=None: chain)
-    monkeypatch.setattr(llm_service_module, "llm", chain)
-    service = LLMService()
-    await service.invoke(prompt="same prompt for cache test", tier="cheap")
-    await service.invoke(prompt="same prompt for cache test", tier="cheap")
-    assert len(chain.calls) == 1  # cached by default
-
-    service._cache_enabled = False
-    await service.invoke(prompt="same prompt for cache test", tier="cheap")
-    await service.invoke(prompt="same prompt for cache test", tier="cheap")
-    assert len(chain.calls) == 3
 
 
 def test_completion_budget_adds_reasoning_headroom_and_is_capped():

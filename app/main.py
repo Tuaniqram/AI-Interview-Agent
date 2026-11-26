@@ -46,10 +46,6 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("DATABASE_URL not set — async DB features disabled")
 
-    # Startup: initialize Redis cache
-    from app.services.cache import get_cache
-    await get_cache().init()
-
     # Pre-load prompt templates into cache
     from app.services.prompt_loader import load_prompt as _warm
     _warm("interview", "question_generation.md", job_role="warmup", phase="intro", difficulty_level=1,
@@ -137,10 +133,6 @@ async def lifespan(app: FastAPI):
     if eng:
         await eng.dispose()
         logger.info("Async SQLAlchemy engine disposed")
-
-    # Shutdown: close Redis connection
-    from app.services.cache import get_cache
-    await get_cache().close()
 
 
 def docs_urls(enabled: bool) -> dict:

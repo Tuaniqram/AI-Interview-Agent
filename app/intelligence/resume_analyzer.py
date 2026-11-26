@@ -10,7 +10,7 @@ import re
 
 from app.exceptions import LLMBudgetExceeded
 from app.intelligence._helpers import dedupe
-from app.services import llm_budget
+from app.services import content_cache, llm_budget
 
 logger = logging.getLogger(__name__)
 
@@ -64,15 +64,19 @@ async def analyze_resume(
         return result
 
     try:
-        if _use_dspy_backend():
-            from app.intelligence.dspy_modules import run_resume_analysis
+        cache_key = content_cache.key("cv-analysis", _use_dspy_backend(), job_role, text)
+        data = await content_cache.get(cache_key)
+        if data is None:
+            if _use_dspy_backend():
+                from app.intelligence.dspy_modules import run_resume_analysis
 
-            # DSPy talks to its model directly, so it asks the interview's LLM budget itself.
-            if not await llm_budget.consume():
-                raise LLMBudgetExceeded()
-            data = await run_resume_analysis(text, job_role)
-        else:
-            data = await _legacy_llm_parse(text, job_role)
+                # DSPy talks to its model directly, so it asks the interview's LLM budget itself.
+                if not await llm_budget.consume():
+                    raise LLMBudgetExceeded()
+                data = await run_resume_analysis(text, job_role)
+            else:
+                data = await _legacy_llm_parse(text, job_role)
+            await content_cache.put(cache_key, data, content_cache.CANDIDATE_TTL_S)
         for key in ("skills", "experience", "education", "strengths", "weaknesses"):
             if isinstance(data.get(key), list):
                 result[key] = dedupe(data[key])

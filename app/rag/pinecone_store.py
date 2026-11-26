@@ -10,6 +10,8 @@ from langchain_core.embeddings import Embeddings
 from pinecone import Pinecone
 from langchain_pinecone import PineconeVectorStore
 
+from app.services import content_cache
+
 load_dotenv()
 logger = logging.getLogger(__name__)
 
@@ -68,6 +70,32 @@ def physical_namespace(org_id) -> str:
     return org_namespace(org_id) + embedding_namespace_suffix()
 
 
+class CachedEmbeddings(Embeddings):
+    """Document vectors kept by content hash, so re-indexing unchanged text is not paid for again."""
+
+    def __init__(self, inner: Embeddings):
+        self.inner = inner
+
+    def _key(self, text: str) -> str:
+        from app.rag.embeddings import embedding_namespace_suffix
+
+        return content_cache.key("embedding", type(self.inner).__name__, embedding_namespace_suffix(), text)
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        keys = [self._key(t) for t in texts]
+        vectors = content_cache.get_many_sync(keys)
+        missing = [i for i, v in enumerate(vectors) if v is None]
+        if missing:
+            fresh = self.inner.embed_documents([texts[i] for i in missing])
+            for i, vector in zip(missing, fresh):
+                vectors[i] = [float(x) for x in vector]
+            content_cache.put_many_sync({keys[i]: vectors[i] for i in missing}, content_cache.ORG_TTL_S)
+        return vectors
+
+    def embed_query(self, text: str) -> list[float]:
+        return self.inner.embed_query(text)
+
+
 def store_org_knowledge(chunks, org_id, doc_id=None):
     namespace = physical_namespace(org_id)
     if doc_id:
@@ -75,7 +103,7 @@ def store_org_knowledge(chunks, org_id, doc_id=None):
             chunk.metadata["doc_id"] = str(doc_id)
     vector_store = PineconeVectorStore.from_documents(
         documents=chunks,
-        embedding=get_embedding(),
+        embedding=CachedEmbeddings(get_embedding()),
         index_name=INDEX_NAME,
         namespace=namespace
     )
