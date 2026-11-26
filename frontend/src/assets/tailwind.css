@@ -408,3 +408,13 @@
   font-weight: 800;
   letter-spacing: -0.02em;
 }
+
+/* ──── Print: the page content only, on white, without the app frame ──── */
+@media print {
+  :root, [data-theme="dark"] { color-scheme: light; }
+  html, body { background: #fff !important; }
+  aside[class*="h-screen"], header.h-12, .print\:hidden { display: none !important; }
+  .h-screen { height: auto !important; }
+  #app-content, #app-content * { overflow: visible !important; }
+  .lg\:rounded-xl { border: 0 !important; }
+}

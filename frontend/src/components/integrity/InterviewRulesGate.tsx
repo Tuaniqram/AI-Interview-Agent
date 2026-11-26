@@ -17,20 +17,20 @@ export function InterviewRulesGate({ maxFlags, integrityEnabled, starting, onSta
   return (
     <div className="flex-1 h-full bg-page flex items-center justify-center overflow-y-auto" data-theme="dark">
       <div className="w-full max-w-md mx-4 my-8">
-        <div className="rounded-2xl bg-overlay border border-border p-8 space-y-6 shadow-xl">
+        <div className="rounded-xl bg-section border border-border p-6 sm:p-8 space-y-6 shadow-lg">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-action-primary/15 text-action-primary flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-action-primary-soft text-action-primary flex items-center justify-center shrink-0">
               <ShieldAlert className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-primary leading-tight">Interview conduct &amp; integrity</h2>
-              <p className="text-secondary text-xs mt-1">
+              <p className="text-secondary text-[13px] mt-1">
                 Please read these rules before your interview begins.
               </p>
             </div>
           </div>
 
-          <ul className="space-y-3 text-sm text-secondary">
+          <ul className="space-y-3.5 text-sm text-secondary leading-relaxed">
             <li className="flex items-start gap-2.5">
               <Mic className="w-4 h-4 text-muted mt-0.5 shrink-0" />
               <span>
@@ -55,9 +55,9 @@ export function InterviewRulesGate({ maxFlags, integrityEnabled, starting, onSta
           </ul>
 
           {integrityEnabled && maxFlags != null && maxFlags > 0 && (
-            <div className="rounded-xl bg-warning/10 border border-warning/25 px-4 py-3">
-              <p className="text-xs text-warning font-medium">Integrity flags</p>
-              <p className="text-secondary text-xs mt-1">
+            <div className="rounded-lg bg-warning-bg px-4 py-3">
+              <p className="text-[13px] text-warning-text font-medium">Integrity flags</p>
+              <p className="text-secondary text-[13px] mt-1 leading-relaxed">
                 This session is monitored. Each suspicious answer receives an
                 integrity flag. If you reach{' '}
                 <span className="text-primary font-semibold">{maxFlags} flags</span>,
@@ -70,7 +70,7 @@ export function InterviewRulesGate({ maxFlags, integrityEnabled, starting, onSta
           <button
             onClick={onStart}
             disabled={starting}
-            className="w-full py-3 rounded-xl bg-action-primary text-inverse text-sm font-medium hover:bg-action-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full h-10 rounded-md bg-action-primary text-action-primary-text text-sm font-medium hover:bg-action-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {starting ? 'Preparing your interview...' : 'I understand — start my interview'}
           </button>

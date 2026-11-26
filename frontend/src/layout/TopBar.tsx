@@ -26,7 +26,9 @@ interface TopBarProps {
 /** The content panel's header: where you are, as a breadcrumb trail. The last crumb is the current page. */
 export function TopBar({ onMenuToggle, onOpenSearch, labels = {} }: TopBarProps) {
   const segments = useLocation().pathname.split('/').filter(Boolean);
-  const crumbs = segments.map((seg, i) => {
+  // A report lives at /interview/:id/report, but /interview/:id is the live room: never link there from here.
+  const isReport = segments[0] === 'interview' && segments[segments.length - 1] === 'report';
+  const crumbs = isReport ? [{ to: '/sessions', label: labels['/sessions'] ?? 'Sessions' }, { to: '#report', label: 'Report' }] : segments.map((seg, i) => {
     const path = '/' + segments.slice(0, i + 1).join('/');
     const to = i === 0 ? AREA_HOME[seg] ?? path : path;
     const label = labels[path] ?? (i === 0 ? AREA_LABEL[seg] : undefined) ?? crumbLabel(seg);
