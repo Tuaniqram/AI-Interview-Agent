@@ -44,3 +44,16 @@ def test_two_workers_share_one_session(sid):
         a.set(sid, old)
     assert b.get(sid)["question_number"] == 2
     assert 0 < a._client.ttl(f"{REDIS_KEY_PREFIX}{sid}") <= 24 * 3600
+
+
+async def test_lock_across_workers(url):
+    from app.engine.session_lock import DistributedSessionLocks, SessionBusy
+
+    sid = f"it-{uuid.uuid4()}"
+    a, b = DistributedSessionLocks(ttl_s=30), DistributedSessionLocks(ttl_s=30)
+    async with a.lock(sid):
+        with pytest.raises(SessionBusy):
+            async with b.lock(sid):
+                pass
+    async with b.lock(sid):
+        pass

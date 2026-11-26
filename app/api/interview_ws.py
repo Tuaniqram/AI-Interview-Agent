@@ -30,7 +30,6 @@ from app.auth.jwt import decode_token
 from app.engine.guards import (
     IDLE_TIMEOUT_S,
     MessageRateLimiter,
-    SessionLocks,
     clean_message_id,
     parse_frame,
     validate_answer,
@@ -44,6 +43,7 @@ from app.exceptions import SessionNotFoundException
 from app.engine.engine import InterviewEngine
 from app.engine.store_io import store_get
 from app.engine.builders import build_start_response, build_state_response
+from app.engine.session_lock import DistributedSessionLocks, SessionBusy
 from app.config.interview_styles import get_style
 from app.data.competency_resolver import (
     default_taxonomy,
@@ -64,13 +64,16 @@ _connection_timestamps: dict[str, float] = {}
 
 _cleanup_task = None
 
-# One lock per session: start / answer steps for the same interview never run concurrently
-# (two tabs, a double click, a reconnect racing a slow evaluation).
-_session_locks = SessionLocks()
-
 # Upper bound for one answer evaluation (LLM chain included); beyond it the client is told to retry.
 ANSWER_TIMEOUT_S = 300
 START_TIMEOUT_S = 300
+
+# One lock per session, across all workers: start / answer steps for the same interview never run
+# concurrently (two tabs, a double click, a reconnect racing a slow evaluation). The TTL outlasts both
+# timeouts above.
+_session_locks = DistributedSessionLocks(ttl_s=max(ANSWER_TIMEOUT_S, START_TIMEOUT_S) + 30)
+
+BUSY_DETAIL = "Your previous answer is still being processed. Please wait a moment."
 
 def start_cleanup_task():
     global _cleanup_task
@@ -463,7 +466,7 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                     await websocket.send_json({"type": "status", "phase": phase})
 
                 try:
-                    async with _session_locks.lock(sid):
+                    async with _session_locks.lock(sid, wait=START_TIMEOUT_S):
                         response = await asyncio.wait_for(
                             _start_engine(sid, notify=push_progress), timeout=START_TIMEOUT_S
                         )
@@ -527,6 +530,10 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                         )
                 except SessionNotFoundException:
                     await reply({"type": "error", "detail": "Session not found"}, data)
+                    continue
+                except SessionBusy:
+                    logger.info(f"WS answer refused, session {sid} is busy")
+                    await reply({"type": "error", "code": "busy", "detail": BUSY_DETAIL}, data)
                     continue
                 except asyncio.TimeoutError:
                     logger.error(f"WS answer timed out for session {sid}")

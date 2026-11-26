@@ -109,6 +109,10 @@ class SessionLocks:
         else:
             self._users[session_id] = left
 
+    def locked(self, session_id: str) -> bool:
+        lock = self._locks.get(session_id)
+        return lock is not None and lock.locked()
+
     def __len__(self) -> int:
         return len(self._locks)
 
