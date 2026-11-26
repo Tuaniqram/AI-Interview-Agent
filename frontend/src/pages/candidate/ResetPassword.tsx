@@ -38,7 +38,7 @@ export default function CandidateResetPassword() {
     return (
       <AuthLayout role="candidate">
         <div className="text-center space-y-3">
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">Invalid link</h1>
+          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-primary">Invalid link</h1>
           <p className="text-sm text-[var(--text-secondary)]">This reset link is missing its token.</p>
           <Link to="/candidate/forgot-password" className="text-[var(--action-primary)] hover:underline text-sm">Request a new link</Link>
         </div>
@@ -48,9 +48,9 @@ export default function CandidateResetPassword() {
 
   return (
     <AuthLayout role="candidate">
-      <div className="space-y-4">
-        <div className="text-center">
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">Choose a new password</h1>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-primary">Choose a new password</h1>
         </div>
         {done ? (
           <div className="glass-card text-sm text-[var(--text-secondary)]" role="status">
@@ -59,14 +59,14 @@ export default function CandidateResetPassword() {
         ) : (
           <form onSubmit={handleSubmit} className="glass-card space-y-3">
             {error && (
-              <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400" role="alert">
+              <div className="rounded-md bg-error-bg px-3 py-2.5 text-[13px] text-error-text" role="alert">
                 {error}{' '}
                 <Link to="/candidate/forgot-password" className="underline">Request a new link</Link>
               </div>
             )}
             <Input label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
             <Input label="Confirm password" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required minLength={8} autoComplete="new-password" />
-            <Button type="submit" loading={loading} className="w-full">Update password</Button>
+            <Button type="submit" size="lg" loading={loading} className="w-full">Update password</Button>
           </form>
         )}
       </div>

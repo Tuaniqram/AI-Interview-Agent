@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { ListChecks } from 'lucide-react';
 import { candidateService } from '../../services/candidateService';
 import { Button } from '../../components/shared/Button';
+import { Card } from '../../components/shared/Card';
+import { PageHeader } from '../../components/shared/PageHeader';
 import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { EmptyState } from '../../components/shared/EmptyState';
+import { InterviewList } from '../../components/candidate/InterviewList';
 import { useToast } from '../../components/shared/Toast';
 import type { CandidateInterview } from '../../types/candidate';
 
 const PAGE_SIZE = 10;
 
 export default function CandidateInterviews() {
+  const navigate = useNavigate();
   const [interviews, setInterviews] = useState<CandidateInterview[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -18,7 +23,7 @@ export default function CandidateInterviews() {
   useEffect(() => {
     candidateService.getInterviews()
       .then(setInterviews)
-      .catch(() => toast.error('Failed to load interviews'))
+      .catch(() => toast.error('Could not load your interviews. Reload the page to try again.'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -30,60 +35,28 @@ export default function CandidateInterviews() {
   const hasMore = visible.length < interviews.length;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">My Interviews</h1>
-        <p className="text-[var(--text-secondary)] mt-1">All interviews you've taken</p>
-      </div>
+    <div>
+      <PageHeader
+        title="My interviews"
+        description="Every interview you have taken, practice and real. Open one to see its score and feedback."
+        actions={<Button variant="secondary" onClick={() => navigate('/candidate/practice')}>New practice interview</Button>}
+      />
 
       {interviews.length === 0 ? (
-        <EmptyState
-          title="No interviews yet"
-          description="Take a practice interview or apply to one from the marketplace"
-        />
+        <Card>
+          <EmptyState
+            icon={<ListChecks />}
+            title="No interviews yet"
+            description="Take a practice interview, or apply to an open interview in the Opportunity Hub."
+            action={<Button onClick={() => navigate('/candidate/practice')}>Start a practice interview</Button>}
+          />
+        </Card>
       ) : (
-        <div className="space-y-3">
-          {visible.map((interview) => (
-            <Link
-              key={interview.id}
-              to={`/candidate/interviews/${interview.id}`}
-              className="block p-4 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[var(--action-primary)] transition-colors"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-[var(--text-primary)]">{interview.job_role}</h3>
-              {interview.org_name && (
-                <p className="text-sm text-[var(--text-secondary)]">{interview.org_name}</p>
-                  )}
-                </div>
-                <div className="text-right">
-                  {interview.final_score != null && (
-                    <span className="text-lg font-bold text-[var(--action-primary)]">{interview.final_score}/10</span>
-                  )}
-                  <div className="text-xs text-[var(--text-secondary)] mt-1">
-                    {interview.started_at ? new Date(interview.started_at).toLocaleDateString() : ''}
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-2 mt-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  interview.status === 'completed'
-                    ? 'bg-green-100 dark:bg-green-900/20 text-green-600'
-                    : interview.status === 'active'
-                    ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600'
-                    : 'bg-gray-100 dark:bg-gray-900/20 text-gray-600'
-                }`}>
-                  {interview.status}
-                </span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--action-primary)]/10 text-[var(--action-primary)]">
-                  {interview.session_type}
-                </span>
-              </div>
-            </Link>
-          ))}
+        <div className="space-y-4">
+          <InterviewList interviews={visible} />
           {hasMore && (
-            <div className="flex justify-center pt-2">
-              <Button variant="ghost" onClick={loadMore}>Load More</Button>
+            <div className="flex justify-center">
+              <Button variant="secondary" onClick={loadMore}>Show more</Button>
             </div>
           )}
         </div>

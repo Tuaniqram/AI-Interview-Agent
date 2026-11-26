@@ -6,7 +6,7 @@ import { LayoutDashboard, ListChecks, PlayCircle, User, Briefcase } from 'lucide
 const navItems = [
   { to: '/candidate/dashboard', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { to: '/candidate/applications', icon: Briefcase, label: 'Applications' },
-  { to: '/candidate/interviews', icon: ListChecks, label: 'My Interviews' },
+  { to: '/candidate/interviews', icon: ListChecks, label: 'My interviews' },
   { to: '/candidate/practice', icon: PlayCircle, label: 'Practice' },
   { to: '/candidate/profile', icon: User, label: 'Profile' },
 ];

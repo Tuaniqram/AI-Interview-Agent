@@ -29,19 +29,19 @@ export default function Login() {
 
   return (
     <AuthLayout role="org">
-      <div className="space-y-4">
-        <div className="text-center">
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">Welcome Back</h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-primary">Welcome back</h1>
+          <p className="mt-1.5 text-sm text-secondary">
             Sign in to your account to continue
           </p>
         </div>
         <div className="glass-card space-y-3">
           <button
             onClick={() => handleGoogleLogin()}
-            className="w-full flex items-center justify-center gap-3 px-4 py-1.5 rounded-lg border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-page)] transition-colors"
+            className="w-full h-10 flex items-center justify-center gap-2.5 px-4 rounded-md border border-border-strong bg-section text-sm font-medium text-primary shadow-sm hover:bg-hover transition-colors"
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden>
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -49,19 +49,19 @@ export default function Login() {
             </svg>
             Sign in with Google
           </button>
-          <div className="relative">
+          <div className="relative py-1">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[var(--border-color)]" /></div>
-            <div className="relative flex justify-center text-xs"><span className="glass-or px-2 text-[var(--text-secondary)]">or</span></div>
+            <div className="relative flex justify-center text-xs"><span className="glass-or px-3 text-tertiary">or</span></div>
           </div>
           <LoginForm />
         </div>
-        <p className="text-center text-sm text-[var(--text-secondary)]">
+        <p className="text-sm text-secondary">
           Don't have an account?{' '}
           <Link to="/register" className="text-[var(--action-primary)] hover:underline">
             Create one
           </Link>
         </p>
-        <p className="mt-1 text-center text-sm text-[var(--text-secondary)]">
+        <p className="mt-1 text-sm text-secondary">
           Are you a candidate?{' '}
           <Link to="/candidate/login" className="text-[var(--action-primary)] hover:underline">
             Sign in here

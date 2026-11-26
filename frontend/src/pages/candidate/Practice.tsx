@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { candidateService } from '../../services/candidateService';
 import { Button } from '../../components/shared/Button';
+import { Card } from '../../components/shared/Card';
+import { Input } from '../../components/shared/Input';
 import { Select } from '../../components/shared/Select';
 import { Slider } from '../../components/shared/Slider';
 import { PageHeader } from '../../components/shared/PageHeader';
@@ -10,9 +12,22 @@ import { useToast } from '../../components/shared/Toast';
 const ROLES = ['Software Engineer', 'Frontend Developer', 'Backend Developer', 'Data Scientist', 'Product Manager', 'DevOps Engineer', 'ML Engineer', 'Designer'];
 const DIFFICULTIES = [
   { value: 'junior', label: 'Junior' },
-  { value: 'mid', label: 'Mid-Level' },
+  { value: 'mid', label: 'Mid-level' },
   { value: 'senior', label: 'Senior' },
 ];
+
+/** A labelled field row: the label and its help on the left, the control on the right (stacked on phones). */
+function Field({ label, help, htmlFor, children }: { label: string; help?: string; htmlFor?: string; children: React.ReactNode }) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-6 py-5 first:pt-0 last:pb-0">
+      <div>
+        <label htmlFor={htmlFor} className="block text-[13px] font-medium text-primary">{label}</label>
+        {help && <p className="text-xs text-tertiary mt-0.5">{help}</p>}
+      </div>
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
 
 export default function CandidatePractice() {
   const navigate = useNavigate();
@@ -34,69 +49,60 @@ export default function CandidatePractice() {
         num_questions: numQuestions,
       });
       navigate(`/interview/${res.session_id}`);
-    } catch (err) {
-      toast.error('Failed to start practice interview');
+    } catch {
+      toast.error('Could not start the practice interview. Try again in a moment.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-3xl">
       <PageHeader
-        title="Practice Interview"
-        description="Create a mock interview to practice with AI"
+        title="Practice interview"
+        description="A mock interview with AURA, to warm up for a real one and see feedback on every answer."
       />
 
-      <form onSubmit={handleStart} className="bg-[var(--bg-section)] rounded-xl p-6 border border-[var(--border-color)] space-y-5">
-        <div>
-          <Select
-            label="Job Role"
-            value={jobRole}
-            onChange={setJobRole}
-            options={ROLES.map(r => ({ value: r, label: r }))}
-          />
-        </div>
+      <form onSubmit={handleStart}>
+        <Card padding="lg">
+          <div className="divide-y divide-[var(--divider)]">
+            <Field label="Role" help="The job you want to practise for.">
+              <Select value={jobRole} onChange={setJobRole} options={ROLES.map(r => ({ value: r, label: r }))} />
+            </Field>
 
-        <div>
-          <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Difficulty</label>
-          <div className="flex gap-2">
-            {DIFFICULTIES.map((d) => (
-              <button
-                key={d.value}
-                type="button"
-                onClick={() => setDifficulty(d.value)}
-                className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  difficulty === d.value
-                    ? 'bg-[var(--action-primary)] text-white border-[var(--action-primary)]'
-                    : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--action-primary)]'
-                }`}
-              >
-                {d.label}
-              </button>
-            ))}
+            <Field label="Level" help="How senior the questions should be.">
+              <div role="radiogroup" aria-label="Level" className="inline-grid grid-cols-3 gap-0.5 p-0.5 rounded-lg bg-hover w-full sm:w-auto">
+                {DIFFICULTIES.map(d => (
+                  <button
+                    key={d.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={difficulty === d.value}
+                    onClick={() => setDifficulty(d.value)}
+                    className={`h-7 px-4 rounded-md text-[13px] font-medium transition-colors ${
+                      difficulty === d.value ? 'bg-section text-primary shadow-sm' : 'text-secondary hover:text-primary'
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="Tech stack" help="Optional. Questions lean towards these." htmlFor="tech-stack">
+              <Input id="tech-stack" value={techStack} onChange={e => setTechStack(e.target.value)} placeholder="e.g. Python, React, AWS" />
+            </Field>
+
+            <Field label="Questions" help="More questions take longer but give a fuller picture.">
+              <Slider value={numQuestions} onChange={setNumQuestions} min={3} max={20} step={1} />
+            </Field>
           </div>
-        </div>
+        </Card>
 
-        <div>
-          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Tech Stack (optional)</label>
-          <input
-            type="text"
-            value={techStack}
-            onChange={(e) => setTechStack(e.target.value)}
-            placeholder="e.g. Python, React, AWS"
-            className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)] transition-colors"
-          />
+        <div className="mt-4 flex items-center justify-end gap-3">
+          <p className="text-xs text-tertiary hidden sm:block">You can end a practice interview at any time.</p>
+          <Button type="submit" size="lg" loading={loading}>Start practice interview</Button>
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Number of Questions</label>
-          <Slider value={numQuestions} onChange={setNumQuestions} min={3} max={20} step={1} />
-        </div>
-
-        <Button type="submit" loading={loading} className="w-full">
-          Start Practice Interview
-        </Button>
       </form>
     </div>
   );

@@ -36,11 +36,11 @@ export function ChipInput({ value, onChange, placeholder = 'Type and press Enter
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)] focus-within:border-[var(--action-primary)] transition-colors min-h-[42px] cursor-text" onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget.querySelector('input') as HTMLInputElement)?.focus() }}>
+    <div className="flex flex-wrap items-center gap-1.5 px-2 py-1.5 rounded-md border border-[var(--border-strong)] bg-input shadow-sm focus-within:ring-[3px] focus-within:ring-[var(--focus-ring)] focus-within:border-[var(--action-primary)] transition-colors min-h-[36px] cursor-text" onClick={(e) => { if (e.target === e.currentTarget) (e.currentTarget.querySelector('input') as HTMLInputElement)?.focus() }}>
       {chips.map((chip, i) => (
-        <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--action-primary)]/10 text-[var(--action-primary)]">
+        <span key={i} className="inline-flex items-center gap-1 h-6 pl-2 pr-1 text-xs font-medium rounded-md bg-hover text-primary">
           {chip}
-          <button type="button" onClick={() => removeChip(i)} className="hover:text-red-500 transition-colors" aria-label={`Remove ${chip}`}>&times;</button>
+          <button type="button" onClick={() => removeChip(i)} className="w-4 h-4 rounded flex items-center justify-center text-tertiary hover:text-primary hover:bg-border transition-colors" aria-label={`Remove ${chip}`}>&times;</button>
         </span>
       ))}
       <input
@@ -51,7 +51,7 @@ export function ChipInput({ value, onChange, placeholder = 'Type and press Enter
         onBlur={() => { if (input) { addChip(input); setInput(''); } }}
         placeholder={chips.length === 0 ? placeholder : ''}
         disabled={disabled}
-        className="flex-1 min-w-[80px] bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+        className="flex-1 min-w-[80px] h-6 px-1 bg-transparent text-[13px] text-primary outline-none placeholder:text-tertiary"
       />
     </div>
   );

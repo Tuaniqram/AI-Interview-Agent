@@ -5,6 +5,7 @@ import { PageHeader } from '../../components/shared/PageHeader';
 import { Card } from '../../components/shared/Card';
 import { Button } from '../../components/shared/Button';
 import { Skeleton } from '../../components/shared/Skeleton';
+import { StatStrip, type Stat } from '../../components/shared/StatStrip';
 import { DataTable, type Column } from '../../components/shared/DataTable';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScoreDisplay } from '../../components/shared/ScoreDisplay';
@@ -14,34 +15,6 @@ import { marketplaceService } from '../../services/marketplaceService';
 import { orgContentService, type SessionRecord } from '../../services/orgContentService';
 import { Building2, ChevronRight, Inbox, ListChecks, Settings, Trophy } from 'lucide-react';
 import { useToast } from '../../components/shared/Toast';
-
-interface Stat { label: string; value: string; hint?: string; to?: string }
-
-/** The figures as one strip: read left to right, no card per number. */
-function StatStrip({ stats, loading }: { stats: Stat[]; loading: boolean }) {
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-px rounded-xl border border-border bg-border overflow-hidden">
-      {stats.map(s => {
-        const body = (
-          <>
-            <p className="text-[13px] text-secondary truncate">{s.label}</p>
-            {loading
-              ? <Skeleton width="40%" height="1.75rem" className="mt-2" />
-              : (
-                <p className="mt-1 flex items-baseline gap-1">
-                  <span className="text-2xl font-semibold tracking-[-0.02em] text-primary tabular">{s.value}</span>
-                  {s.hint && <span className="text-[13px] text-tertiary">{s.hint}</span>}
-                </p>
-              )}
-          </>
-        );
-        return s.to
-          ? <Link key={s.label} to={s.to} className="bg-section px-4 py-3.5 hover:bg-subtle transition-colors">{body}</Link>
-          : <div key={s.label} className="bg-section px-4 py-3.5">{body}</div>;
-      })}
-    </div>
-  );
-}
 
 const SHORTCUTS = [
   { to: '/org/applications', icon: Inbox, title: 'Review applications', text: 'Applicants waiting for an invitation' },
