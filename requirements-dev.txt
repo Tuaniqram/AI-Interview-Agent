@@ -1,0 +1,5 @@
+# Test-only dependencies (the app itself does not need them).
+-r requirements.txt
+pytest>=9.0
+pytest-asyncio>=1.4
+fakeredis[lua]>=2.41

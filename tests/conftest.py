@@ -7,6 +7,11 @@ import os
 if os.environ.get("PYTEST_USE_DB") != "1":
     os.environ["DATABASE_URL"] = ""
 
+# Same for Redis: `.env` may point at a real, shared instance (it did: unit runs wrote session keys to it).
+# Tests use fakeredis; the one real-Redis integration test reads TEST_REDIS_URL, never REDIS_URL.
+os.environ["REDIS_URL"] = ""
+os.environ["SESSION_STORE_BACKEND"] = "memory"
+
 import pytest
 
 from app.config.interview_styles import get_style
