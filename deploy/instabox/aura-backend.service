@@ -1,7 +1,8 @@
 # ~/.config/systemd/user/aura-backend.service
 [Unit]
 Description=AURA backend (uvicorn)
-After=network.target redis-server.service
+After=network.target aura-redis.service redis-server.service
+Wants=aura-redis.service
 
 [Service]
 WorkingDirectory=%h/AI-Interview-Agent

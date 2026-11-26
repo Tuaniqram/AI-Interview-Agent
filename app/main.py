@@ -262,8 +262,14 @@ def home():
 
 @app.get("/health")
 @app.post("/health")
-def health_check():
+async def health_check():
+    from app.services.redis_client import redis_status
+    from app.services.v4_session_store import RedisV4SessionStore, get_v4_session_store
+
+    # Always 200: without Redis the app still works (degraded), so this must not fail a deploy.
     return {
+        "redis": await redis_status(),
+        "session_store": "redis" if isinstance(get_v4_session_store(), RedisV4SessionStore) else "memory",
         "status": "✅ API is working",
         "message": "You can now access the API from your HTML file",
         "timestamp": str(__import__('datetime').datetime.now()),

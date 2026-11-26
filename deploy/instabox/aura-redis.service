@@ -1,0 +1,15 @@
+# ~/.config/systemd/user/aura-redis.service
+[Unit]
+Description=AURA Redis (shared state of the backend workers)
+After=network.target
+
+[Service]
+WorkingDirectory=%h/AI-Interview-Agent
+# redis.env (not in git, chmod 600) holds REDIS_PASSWORD=...
+EnvironmentFile=%h/AI-Interview-Agent/redis.env
+ExecStart=/usr/bin/redis-server %h/AI-Interview-Agent/redis.conf --dir %h/AI-Interview-Agent/redis-data --requirepass ${REDIS_PASSWORD}
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

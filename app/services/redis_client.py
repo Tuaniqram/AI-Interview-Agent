@@ -111,3 +111,19 @@ class AsyncLink:
 
     def failed(self, exc: Exception) -> None:
         self.breaker.failed(exc)
+
+
+_health_link = AsyncLink("health check")
+
+
+async def redis_status() -> str:
+    """``ok`` / ``unreachable`` / ``not_configured``, asked fresh each time."""
+    if not redis_url():
+        return "not_configured"
+    _health_link.breaker.reset()
+    try:
+        await _health_link.client().ping()
+        return "ok"
+    except Exception as exc:  # noqa: BLE001
+        _health_link.failed(exc)
+        return "unreachable"
