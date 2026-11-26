@@ -246,6 +246,23 @@ def build_answer_response(session_id: str, state: StateLike) -> dict:
     }
 
 
+def build_report_pending_response(state: StateLike) -> dict:
+    """``{type: report_pending}``: the interview is over, the report follows."""
+    s = _as_dict(state)
+    response = {
+        "type": "report_pending",
+        "session_id": s.get("session_id", ""),
+        "status": "completed",
+        "interview_complete": True,
+        "report_pending": True,
+    }
+    report = build_report_response(s)
+    for key in ("integrity", "integrity_terminated", "integrity_termination_reason"):
+        if key in report:
+            response[key] = report[key]
+    return response
+
+
 def build_state_response(session_id: str, state: StateLike) -> dict:
     """Build the ``{type: status_snapshot}`` payload for get_status."""
     s = _as_dict(state)
@@ -259,6 +276,8 @@ def build_state_response(session_id: str, state: StateLike) -> dict:
         "conversation_turn": compose_conversation_turn(s),
         "current_question": s.get("current_question", ""),
         "interview_complete": bool(s.get("reflection_action") == "finish"),
+        "report_pending": bool(s.get("report_pending")),
+        "finalized": bool(s.get("finalized")),
         "difficulty": s.get("difficulty_level", 1),
         "evidence_count": len(s.get("evidence_store", [])),
         "competency_coverage": {

@@ -56,6 +56,13 @@ async def lifespan(app: FastAPI):
     from app.api.interview_ws import start_cleanup_task
     cleanup_handle = start_cleanup_task()
 
+    # Final reports are built by background jobs when Redis is there (every worker consumes).
+    from app.engine.report_jobs import get_report_queue
+    from app.services.v4_session_store import RedisV4SessionStore, get_v4_session_store
+
+    if isinstance(get_v4_session_store(), RedisV4SessionStore):
+        get_report_queue().start()
+
     async def _warm_up():
         """Slow, best-effort warm-up that runs AFTER the server is listening.
 
@@ -107,6 +114,8 @@ async def lifespan(app: FastAPI):
     app.state.token_cleanup_task = asyncio.create_task(cleanup_loop()) if eng else None
 
     yield
+
+    await get_report_queue().stop()
 
     token_cleanup = getattr(app.state, "token_cleanup_task", None)
     if token_cleanup is not None:

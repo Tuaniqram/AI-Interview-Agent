@@ -152,6 +152,8 @@ export interface EvaluationHistoryEntry {
  * This is what the controller returns to the store/UI
  */
 export interface AnswerEvaluation {
+  /** The interview is over and the report is still being built. */
+  report_pending?: boolean;
   evaluation: string;
   /** null when the answer could not be scored (shown as "Not scored", never as 0). */
   score: number | null;

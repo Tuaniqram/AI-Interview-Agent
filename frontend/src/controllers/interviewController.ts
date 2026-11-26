@@ -237,7 +237,7 @@ export class InterviewController {
     return { session, firstQuestion: question, conversationTurn: data.conversation_turn || '' };
   }
 
-  async initInterviewViaWS(sessionId: string): Promise<{ session: InterviewSession; firstQuestion: Question; conversationTurn: string; resumed: boolean }> {
+  async initInterviewViaWS(sessionId: string): Promise<{ session: InterviewSession; firstQuestion: Question; conversationTurn: string; resumed: boolean; reportPending?: boolean }> {
     await interviewWebSocket.connect(sessionId);
 
     // Resume if the engine already has state for this session
@@ -253,6 +253,11 @@ export class InterviewController {
           question: { text: snapshot.current_question, number: snapshot.question_number, target_competency: '' },
           conversation_turn: snapshot.conversation_turn,
         });
+        // Back after the last answer: show the completion screen, not the last question again.
+        if (snapshot.report_pending || snapshot.finalized) {
+          mapped.session.status = 'completed';
+          return { ...mapped, resumed: true, reportPending: !!snapshot.report_pending };
+        }
         return { ...mapped, resumed: true };
       }
     } catch (error: any) {
@@ -311,6 +316,7 @@ export class InterviewController {
           question_number: this.currentQuestion.question_number,
           difficulty_level: this.session.difficulty_level ?? 1,
           interview_status: 'completed',
+          report_pending: response.type === 'report_pending',
           strengths: [],
           weaknesses: [],
           conversationTurn: response.conversation_turn || '',

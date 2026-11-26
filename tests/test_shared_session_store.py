@@ -217,7 +217,7 @@ def test_pop_removes_both_copies(cluster):
 async def test_engine_turns_alternate_between_workers(
     cluster, stub_llm, fake_evidence_repo, fake_repos
 ):
-    turn = [EVALUATOR_JSON, GOVERNOR_JSON, CONDUCTOR_TURN_JSON]
+    turn = [json.dumps(EVALUATOR_JSON), GOVERNOR_JSON, CONDUCTOR_TURN_JSON]
     stub_llm(responses=[STRATEGY_JSON, "Question: First question?", *turn, *turn, *turn])
     a, b = cluster.worker(), cluster.worker()
     await InterviewEngine(store=a).start_session(make_v4_state(session_id="e1"))

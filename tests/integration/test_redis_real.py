@@ -96,3 +96,32 @@ async def test_provider_breaker_across_workers(url):
     assert (await b.inspect([model]))[0] == [0]
     redis = a._link.client()
     await redis.delete(*[k async for k in redis.scan_iter(f"{PREFIX}errors:{name}*", count=1000)] or [f"{PREFIX}none"])
+
+
+async def test_report_queue_and_events(url, monkeypatch):
+    import asyncio
+
+    from app.engine import report_jobs
+
+    unique = f"it-{uuid.uuid4()}"
+    monkeypatch.setattr(report_jobs, "STREAM", f"aura:events:{unique}:jobs")  # never the live queue
+    done = []
+
+    async def build(sid):
+        done.append(sid)
+
+    class Store:
+        def get(self, sid):
+            return {"finalized": bool(done)}
+
+    producer, consumer = report_jobs.ReportQueue(builder=build), report_jobs.ReportQueue(builder=build)
+    waiting = asyncio.create_task(producer.wait_for_report(unique, Store(), timeout=30, check_every=25))
+    await asyncio.sleep(1)
+    assert await producer.enqueue(unique) is True
+    assert await consumer.run_once() is True  # creates the group
+    assert await consumer.run_once() is True
+    assert done == [unique]
+    assert (await asyncio.wait_for(waiting, timeout=10))["finalized"]  # woken by the event
+    redis = consumer._redis.client()
+    assert await redis.ttl(report_jobs.STREAM) > 0
+    await redis.delete(report_jobs.STREAM, report_jobs.QUEUED_PREFIX + unique)

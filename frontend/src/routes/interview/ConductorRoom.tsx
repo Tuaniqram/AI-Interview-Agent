@@ -197,6 +197,8 @@ export function ConductorRoom() {
               {state.integrityTerminated
                 ? state.integrityTerminationReason ||
                   'This session was stopped because repeated integrity violations were detected. Contact the interviewer to discuss next steps.'
+                : state.reportPending
+                  ? 'Your report is being prepared.'
                 : isPractice
                   ? 'Nice work. Review your performance or try another practice round.'
                   : 'AURA has finished evaluating your interview. Your results are ready.'}
@@ -210,7 +212,7 @@ export function ConductorRoom() {
               >
                 Try another practice
               </button>
-            ) : (
+            ) : state.reportPending ? null : (
               <button
                 onClick={() => session && navigate(`/interview/${session.session_id}/report`)}
                 className="px-4 py-2 rounded-lg bg-action-primary text-inverse text-xs hover:bg-action-primary-hover transition-colors"

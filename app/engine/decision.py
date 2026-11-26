@@ -181,10 +181,34 @@ def flag_budget_exceeded(hiring_decision: dict | None) -> dict:
     return decision
 
 
+async def defer_report(engine, brain: InterviewBrain) -> dict | None:
+    """Hand the report to a background job; None when that is not possible (build it now).
+
+    The state is stored first, so the job sees the last answer; queueing the same session again
+    is harmless.
+    """
+    queue = getattr(engine, "report_queue", None)
+    if queue is None:
+        return None
+    from app.engine.builders import build_report_pending_response
+
+    if not brain.report_pending:
+        brain.report_pending = True
+        await persist_answer_turn(brain.session_id, brain)
+        await store_commit(engine._get_store(), brain.session_id, brain)
+    if not await queue.enqueue(brain.session_id):
+        return None
+    return build_report_pending_response(brain)
+
+
 async def finalize_session(engine, brain: InterviewBrain) -> dict:
     store = engine._get_store()
     events = engine._get_events()
     session_id = brain.session_id
+
+    pending = await defer_report(engine, brain)
+    if pending is not None:
+        return pending
 
     from app.engine.builders import (
         build_report_response,
@@ -273,6 +297,7 @@ async def finalize_session(engine, brain: InterviewBrain) -> dict:
         brain.hiring_decision = flag_budget_exceeded(brain.hiring_decision)
 
     brain.finalized = True
+    brain.report_pending = False
     await persist_answer_turn(session_id, brain)
     await persist_completion(session_id, brain)
     await store_commit(store, session_id, brain)

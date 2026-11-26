@@ -28,10 +28,12 @@ _V5_FLOW_TYPES = {"v5_evidence_driven", "v5_company_context", "difficulty_probin
 class InterviewEngine:
     """V5 orchestrator. Injects V4-style dicts into agents, manages brains."""
 
-    def __init__(self, store=None, event_log=None, v5_persister=None):
+    def __init__(self, store=None, event_log=None, v5_persister=None, report_queue=None):
         self._store = store
         self._events = event_log
         self._v5_persister = v5_persister
+        # With a ``ReportQueue`` the final report is built by a background job; without, inline.
+        self.report_queue = report_queue
 
     # ------------------------------------------------------------------ #
     # Store / event helpers

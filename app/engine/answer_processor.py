@@ -42,6 +42,13 @@ async def _process_turn(
         report["interview_complete"] = True
         return report
 
+    # The report is being built: a repeated submit is not another answer. (Queueing again covers a
+    # job that was lost; without a queue the report is built now.)
+    if getattr(brain, "report_pending", False):
+        from app.engine.decision import finalize_session
+
+        return await finalize_session(engine, brain)
+
     from app.utils.input_sanitizer import (
         detect_prompt_injection,
         sanitize_user_input,

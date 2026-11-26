@@ -39,7 +39,7 @@ async def test_only_one_of_two_workers_runs_the_turn(server, monkeypatch, fake_e
             await asyncio.sleep(0.02)  # the turn is in progress while the second request arrives
             return await super().invoke(prompt, **kwargs)
 
-    turn = [EVALUATOR_JSON, GOVERNOR_JSON, CONDUCTOR_TURN_JSON]
+    turn = [json.dumps(EVALUATOR_JSON), GOVERNOR_JSON, CONDUCTOR_TURN_JSON]
     llm = SlowLLM(responses=[STRATEGY_JSON, "Question: First question?", *turn, *turn])
     monkeypatch.setattr("app.services.llm_service.get_llm_service", lambda: llm)
 
