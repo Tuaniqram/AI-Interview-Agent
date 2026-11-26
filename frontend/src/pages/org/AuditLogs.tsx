@@ -41,41 +41,45 @@ export default function AuditLogs() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Audit Logs" description="Track actions across every organization" />
+      <PageHeader title="Audit logs" description="Who did what, across every organization. Newest first." />
 
-      <Select
-        value={actionFilter}
-        onChange={setActionFilter}
-        placeholder="All Actions"
-        options={actions.map(a => ({ value: a, label: humanizeAction(a) }))}
-      />
+      <div className="flex items-center gap-3">
+        <Select
+          className="w-64"
+          value={actionFilter}
+          onChange={setActionFilter}
+          placeholder="All actions"
+          options={[{ value: '', label: 'All actions' }, ...actions.map(a => ({ value: a, label: humanizeAction(a) }))]}
+        />
+        <span className="text-[13px] text-tertiary tabular">{filtered.length} {filtered.length === 1 ? 'entry' : 'entries'}</span>
+      </div>
 
       {filtered.length === 0 ? (
-        <EmptyState title="No audit logs" description="Actions will be recorded here" />
+        <EmptyState title="Nothing recorded yet" description="Actions such as creating a listing or inviting a member are recorded here." />
       ) : (
-        <div className="space-y-1">
+        <ul className="rounded-xl border border-border bg-section divide-y divide-[var(--divider)]">
           {filtered.map(log => (
-            <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg bg-section border border-border text-xs">
-              <span className="px-2 py-0.5 rounded bg-action-primary/10 text-action-primary font-medium shrink-0">{humanizeAction(log.action)}</span>
+            <li key={log.id} className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4 px-4 py-3 text-[13px]">
+              <span className="sm:w-48 shrink-0 font-medium text-primary">{humanizeAction(log.action)}</span>
               <div className="flex-1 min-w-0">
-                <p className="text-primary">
-                  {log.org_name && <span className="text-secondary font-medium">{log.org_name} </span>}
-                  {log.resource_type && <span className="text-muted">{humanizeName(log.resource_type)} </span>}
-                  {log.resource_id && <span className="font-mono text-[10px] text-muted">#{log.resource_id.slice(0, 8)}</span>}
+                <p className="text-secondary">
+                  {log.org_name && <span className="text-primary">{log.org_name} </span>}
+                  {log.resource_type && <span>{humanizeName(log.resource_type)} </span>}
+                  {log.resource_id && <span className="text-tertiary tabular">#{log.resource_id.slice(0, 8)}</span>}
                 </p>
                 {log.details && (typeof log.details === 'string' || Object.keys(log.details).length > 0) && (
-                  <p className="text-muted mt-0.5 break-all">
+                  <p className="text-xs text-tertiary mt-0.5 break-all">
                     {summarizeDetails(log.details)}
                   </p>
                 )}
               </div>
-              <div className="text-right shrink-0">
-                <p className="text-muted">{log.created_at ? new Date(log.created_at).toLocaleString() : ''}</p>
-                {log.ip_address && <p className="text-muted">{log.ip_address}</p>}
+              <div className="sm:text-right shrink-0 text-xs text-tertiary tabular">
+                <p>{log.created_at ? new Date(log.created_at).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</p>
+                {log.ip_address && <p>{log.ip_address}</p>}
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

@@ -72,7 +72,7 @@ export default function CandidateRanking() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Candidate Rankings" description="Ranked interview results across your organization"
+      <PageHeader title="Candidates" description="Everyone who finished an interview, best score first, grouped by role."
         actions={
           <Button variant="secondary" onClick={() => {
             if (!activeOrg?.id) return;
@@ -126,7 +126,7 @@ export default function CandidateRanking() {
 
       {/* Ranking List */}
       {filtered.length === 0 ? (
-        <EmptyState title="No completed interviews" description="Completed interviews with scores will appear here" />
+        <EmptyState title="No completed interviews" description="Candidates appear here once they finish an interview and it is scored." />
       ) : (
         <div className="space-y-2">
           {filtered.map(r => (
@@ -135,7 +135,7 @@ export default function CandidateRanking() {
               onClick={() => navigate(`/interview/${r.session_id}/report`)}>
               {/* Rank Badge */}
               <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                r.rank === 1 ? 'bg-amber-500/20 text-amber-500' :
+                r.rank === 1 ? 'bg-amber-500/20 text-warning-text' :
                 r.rank === 2 ? 'bg-slate-400/20 text-slate-400' :
                 r.rank === 3 ? 'bg-orange-600/20 text-orange-600' :
                 'bg-hover text-muted'
@@ -156,7 +156,7 @@ export default function CandidateRanking() {
                 {r.skills && (
                   <div className="flex gap-1 mt-1.5">
                     {r.skills.split(',').slice(0, 3).map(s => (
-                      <span key={s.trim()} className="text-[10px] px-1.5 py-0.5 rounded bg-page text-secondary">{s.trim()}</span>
+                      <span key={s.trim()} className="text-[11px] px-1.5 py-0.5 rounded bg-page text-secondary">{s.trim()}</span>
                     ))}
                   </div>
                 )}
@@ -166,7 +166,7 @@ export default function CandidateRanking() {
               <div className="shrink-0 text-right">
                 <ScoreDisplay score={r.final_score} size="sm" />
                 {r.weighted_score != null && (
-                  <p className="text-[10px] text-muted mt-0.5">weighted: {r.weighted_score.toFixed(1)}</p>
+                  <p className="text-[11px] text-muted mt-0.5">weighted: {r.weighted_score.toFixed(1)}</p>
                 )}
               </div>
 
@@ -178,7 +178,7 @@ export default function CandidateRanking() {
                     window.open(`/api/v1/candidates/${r.candidate_id}/resume`, '_blank');
                   }}
                   className="p-2 rounded-lg text-muted hover:text-action-primary hover:bg-action-primary/10 transition-colors"
-                  title="Download Resume"
+                  title="Download CV"
                 >
                   <Download className="w-4 h-4" />
                 </button>

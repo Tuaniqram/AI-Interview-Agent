@@ -42,9 +42,9 @@ const isStale = (a: Application) =>
   isInFlight(a) && !!a.updated_at && Date.now() - new Date(a.updated_at).getTime() > STALE_AFTER_MS;
 
 function scoreTone(score: number): string {
-  if (score >= 7) return 'bg-green-500/15 text-green-600';
-  if (score >= 4) return 'bg-amber-500/15 text-amber-600';
-  return 'bg-red-500/15 text-red-600';
+  if (score >= 7) return 'bg-green-500/15 text-success-text';
+  if (score >= 4) return 'bg-amber-500/15 text-warning-text';
+  return 'bg-red-500/15 text-error-text';
 }
 
 function BulletList({ title, items }: { title: string; items: string[] }) {
@@ -225,18 +225,17 @@ export default function OrgApplications() {
                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-primary">{application.candidate_name}</h3>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-action-primary/10 text-action-primary">
+                      <h3 className="text-sm font-semibold text-primary">{application.candidate_name}</h3>
+                      <span className="text-xs h-5 px-1.5 rounded-md flex items-center font-medium bg-hover text-secondary">
                         {status}
                       </span>
                       {application.fit_score != null && application.fit_status === 'completed' && (
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${scoreTone(application.fit_score)}`}>
-                          Fit {application.fit_score.toFixed(1)}/10
+                        <span className={`text-xs font-medium h-5 px-1.5 rounded-md flex items-center tabular ${scoreTone(application.fit_score)}`}>
+                          Fit {application.fit_score.toFixed(1)} / 10
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-secondary mt-1 break-all">{application.candidate_email}</p>
-                    <p className="text-sm text-primary mt-2">{application.public_title || 'IT Interview'}</p>
+                    <p className="text-[13px] text-tertiary mt-0.5 break-all">{application.candidate_email}<span className="text-border-strong mx-2" aria-hidden>/</span><span className="text-secondary">{application.public_title || 'IT Interview'}</span></p>
 
                     <div className="mt-2 flex items-center gap-2 flex-wrap text-xs" aria-live="polite">
                       {inFlight && (
@@ -246,13 +245,13 @@ export default function OrgApplications() {
                         </span>
                       )}
                       {application.fit_status === 'failed' && (
-                        <span className="inline-flex items-center gap-1 text-red-600">
+                        <span className="inline-flex items-center gap-1 text-error-text">
                           <AlertTriangle className="w-3.5 h-3.5" />
                           {FIT_STATUS_LABELS.failed} — you can still invite, or re-run it
                         </span>
                       )}
                       {isStale(application) && (
-                        <span className="inline-flex items-center gap-1 text-amber-600">
+                        <span className="inline-flex items-center gap-1 text-warning-text">
                           <AlertTriangle className="w-3.5 h-3.5" /> Evaluation seems stuck — re-run it
                         </span>
                       )}
@@ -277,59 +276,60 @@ export default function OrgApplications() {
                     {showDetails && open && <FitBreakdownPanel application={application} />}
                   </div>
 
+                  {/* Tools first, then the decision; the step the page is for is the one filled button. */}
                   <div className="flex flex-wrap items-center gap-2 shrink-0">
                     {application.has_resume ? (
-                      <Button size="sm" variant="outline" loading={busy} onClick={() => handleDownloadCv(application)}
+                      <Button size="sm" variant="ghost" icon={<FileText />} loading={busy} onClick={() => handleDownloadCv(application)}
                         title={application.resume_filename || 'Download CV'}>
-                        <FileText className="w-4 h-4 mr-1" /> CV
+                        CV
                       </Button>
                     ) : (
-                      <span className="text-xs text-muted">No CV</span>
+                      <span className="text-xs text-tertiary px-2">No CV</span>
                     )}
                     {canRerun && (
-                      <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleReevaluate(application)}>
-                        <RefreshCw className="w-4 h-4 mr-1" />
+                      <Button size="sm" variant="ghost" icon={<RefreshCw />} disabled={busy} onClick={() => handleReevaluate(application)}>
                         {application.fit_status === 'failed' ? 'Re-run evaluation' : 'Re-evaluate'}
                       </Button>
-                    )}
-                    {!closed && application.org_decision !== 'invited' && (
-                      <Button size="sm" disabled={busy} onClick={() => handleInvite(application)}>
-                        <Mail className="w-4 h-4 mr-1" /> Invite
-                      </Button>
-                    )}
-                    {!closed && application.org_decision === 'invited' && application.status === 'interview_offered' && (
-                      <>
-                        <span className="text-xs text-secondary">Invitation sent — awaiting reply</span>
-                        <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleInvite(application)}>
-                          <Mail className="w-4 h-4 mr-1" /> Resend
-                        </Button>
-                      </>
-                    )}
-                    {!closed && (
-                      <Button size="sm" variant="danger" disabled={busy} onClick={() => handleOutcome(application, 'rejected')}>
-                        <XCircle className="w-4 h-4 mr-1" /> Reject
-                      </Button>
-                    )}
-                    {application.outcome === 'hired' && (
-                      <span className="inline-flex items-center gap-1 text-sm text-success">
-                        <CheckCircle className="w-4 h-4" /> Hired
-                      </span>
-                    )}
-                    {application.outcome === 'rejected' && (
-                      <span className="text-sm text-secondary">Rejected</span>
                     )}
                     {application.session_id && application.status === 'interview_accepted' && (
                       <Link
                         to={`/interview/${application.session_id}/report`}
-                        className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-primary hover:bg-hover"
+                        className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium text-secondary hover:bg-hover hover:text-primary"
                       >
-                        <ClipboardList className="w-4 h-4" /> View report
+                        <ClipboardList className="w-4 h-4" /> Report
                       </Link>
                     )}
-                    {!closed && application.status === 'interview_accepted' && (
-                      <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleOutcome(application, 'hired')}>
-                        <CheckCircle className="w-4 h-4 mr-1" /> Hire
+                    {(!closed || application.outcome) && <span className="hidden sm:block w-px h-5 bg-border mx-1" aria-hidden />}
+                    {!closed && application.org_decision === 'invited' && application.status === 'interview_offered' && (
+                      <>
+                        <span className="text-xs text-tertiary">Invitation sent, awaiting reply</span>
+                        <Button size="sm" variant="secondary" icon={<Mail />} disabled={busy} onClick={() => handleInvite(application)}>
+                          Resend
+                        </Button>
+                      </>
+                    )}
+                    {!closed && (
+                      <Button size="sm" variant="secondary" icon={<XCircle />} disabled={busy} onClick={() => handleOutcome(application, 'rejected')}>
+                        Reject
                       </Button>
+                    )}
+                    {!closed && application.org_decision !== 'invited' && (
+                      <Button size="sm" icon={<Mail />} disabled={busy} onClick={() => handleInvite(application)}>
+                        Invite to interview
+                      </Button>
+                    )}
+                    {!closed && application.status === 'interview_accepted' && (
+                      <Button size="sm" icon={<CheckCircle />} disabled={busy} onClick={() => handleOutcome(application, 'hired')}>
+                        Hire
+                      </Button>
+                    )}
+                    {application.outcome === 'hired' && (
+                      <span className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-success-bg text-xs font-medium text-success-text">
+                        <CheckCircle className="w-3.5 h-3.5" /> Hired
+                      </span>
+                    )}
+                    {application.outcome === 'rejected' && (
+                      <span className="inline-flex items-center h-7 px-2 rounded-md bg-hover text-xs font-medium text-secondary">Rejected</span>
                     )}
                   </div>
                 </div>

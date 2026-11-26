@@ -120,16 +120,17 @@ export default function EmailTemplates() {
   const preview = withSampleValues(content);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div>
       <PageHeader
-        title="Email Templates"
-        description="Edit and preview the emails the platform sends. Changes apply to every outgoing email."
+        title="Emails"
+        description="The messages the platform sends. A saved change applies to every email sent after it."
       />
 
       {templates.length === 0 ? (
-        <EmptyState title="No templates" description="Templates will appear here when the email folder is available." />
+        <Card><EmptyState title="No templates found" description="Templates appear here once the email folder is available to the API." /></Card>
       ) : (
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Choose an email template">
+      <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] items-start">
+        <nav className="lg:sticky lg:top-4 flex lg:flex-col gap-0.5 overflow-x-auto" aria-label="Email templates">
           {templates.map((t) => {
             const active = selected?.name === t.name;
             return (
@@ -138,20 +139,18 @@ export default function EmailTemplates() {
                 type="button"
                 onClick={() => openTemplate(t)}
                 aria-pressed={active}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action-primary/40 ${
-                  active
-                    ? 'border-action-primary/30 bg-action-primary/10 text-action-primary'
-                    : 'border-border bg-section text-secondary hover:border-action-primary/40 hover:text-primary'
+                className={`flex items-center gap-2 h-8 px-2.5 rounded-md text-[13px] text-left whitespace-nowrap transition-colors ${
+                  active ? 'bg-hover text-primary font-medium' : 'text-secondary hover:bg-hover hover:text-primary'
                 }`}
               >
-                <FileText className="h-3.5 w-3.5" />
+                <FileText className={`h-3.5 w-3.5 shrink-0 ${active ? 'text-action-primary' : 'text-tertiary'}`} />
                 {humanizeName(t.name)}
               </button>
             );
           })}
-        </div>
-      )}
+        </nav>
 
+      <div className="min-w-0">
       {selected ? (
         <Card padding="lg" className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -172,8 +171,8 @@ export default function EmailTemplates() {
                   <Eye className="h-3.5 w-3.5" /> Preview
                 </button>
               </div>
-              <Button size="sm" onClick={handleSave} loading={saving} disabled={!dirty}>
-                <Save className="h-3.5 w-3.5 mr-1" /> Save changes
+              <Button size="sm" icon={<Save />} onClick={handleSave} loading={saving} disabled={!dirty}>
+                Save changes
               </Button>
             </div>
           </div>
@@ -185,16 +184,16 @@ export default function EmailTemplates() {
                 onChange={(e) => setContent(e.target.value)}
                 spellCheck={false}
                 aria-label="Email template HTML"
-                className="h-[62vh] min-h-[420px] w-full resize-y rounded-xl border border-border bg-page px-4 py-3 font-mono text-[13px] leading-relaxed text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action-primary/30"
+                className="h-[62vh] min-h-[420px] w-full resize-y rounded-lg border border-border bg-subtle px-4 py-3 font-mono text-[13px] leading-relaxed text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action-primary/30"
               />
-              <p className="mt-2 text-[11px] text-muted">
+              <p className="mt-2 text-xs text-tertiary">
                 Placeholders are replaced with real values when the email is sent. Switch to Preview to see sample data.
               </p>
             </div>
           ) : (
             <div>
               {isText ? (
-                <pre className="h-[62vh] min-h-[420px] overflow-auto whitespace-pre-wrap rounded-xl border border-border bg-page px-4 py-3 font-mono text-[13px] leading-relaxed text-primary">
+                <pre className="h-[62vh] min-h-[420px] overflow-auto whitespace-pre-wrap rounded-lg border border-border bg-subtle px-4 py-3 font-mono text-[13px] leading-relaxed text-primary">
                   {preview}
                 </pre>
               ) : (
@@ -202,17 +201,20 @@ export default function EmailTemplates() {
                   title="Email template preview"
                   srcDoc={preview}
                   sandbox=""
-                  className="h-[62vh] min-h-[420px] w-full rounded-xl border border-border bg-white"
+                  className="h-[62vh] min-h-[420px] w-full rounded-lg border border-border bg-white"
                 />
               )}
-              <p className="mt-2 text-[11px] text-muted">
+              <p className="mt-2 text-xs text-tertiary">
                 Preview uses sample values. Actual emails use the candidate's and organization's details.
               </p>
             </div>
           )}
         </Card>
       ) : (
-        <EmptyState title="Select a template" description="Choose a template above to edit or preview it." />
+        <Card><EmptyState icon={<FileText />} title="Choose an email" description="Pick one from the list to edit its text or preview it with sample values." /></Card>
+      )}
+      </div>
+      </div>
       )}
     </div>
   );

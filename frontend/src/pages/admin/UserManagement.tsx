@@ -25,8 +25,8 @@ export default function UserManagement() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Users" description="Manage all platform users" />
-      <SearchInput value={search} onChange={setSearch} placeholder="Search users..." />
+      <PageHeader title="Users" description="Every account on the platform, with its organization and role." />
+      <SearchInput className="max-w-sm" value={search} onChange={setSearch} placeholder="Search users by name or email" />
       {users.length === 0 ? (
         <EmptyState title="No users found" />
       ) : (
