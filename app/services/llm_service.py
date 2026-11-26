@@ -11,7 +11,8 @@ import time
 import hashlib
 
 from app.models.llm import llm, get_llm
-from app.exceptions import LLMServiceError, LLMTimeoutError, LLMRateLimitError
+from app.exceptions import LLMBudgetExceeded, LLMServiceError, LLMTimeoutError, LLMRateLimitError
+from app.services import llm_budget
 from app.services.cache import get_cache
 
 logger = logging.getLogger(__name__)
@@ -134,6 +135,9 @@ class LLMService:
                 logger.debug(f"Memory cache hit for prompt: {prompt[:50]}...")
                 return cached_result['content']
         
+        if not await llm_budget.consume():
+            raise LLMBudgetExceeded()
+
         # ``attempts``: whole-chain retries (plan step 10: 2 for calls made during an interview turn).
         max_retries = max(1, int(attempts or 3))
 
@@ -221,6 +225,8 @@ class LLMService:
         messages.append({"role": "user", "content": prompt})
 
         target_llm = get_llm(tier) if tier else llm
+        if not await llm_budget.consume():
+            raise LLMBudgetExceeded()
 
         async with self._rate_limiter:
             async for token in target_llm.astream(

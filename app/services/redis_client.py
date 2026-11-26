@@ -7,6 +7,7 @@ Every feature built on this has to keep working when Redis is down, so the rules
 * after a failure the feature skips Redis for ``RETRY_AFTER_S`` and uses its fallback, then tries
   again (a Redis that was down at startup is picked up as soon as it is back).
 """
+import asyncio
 import logging
 import os
 import time
@@ -85,3 +86,28 @@ class Breaker:
 
     def reset(self) -> None:
         self._down_until = 0.0
+
+
+class AsyncLink:
+    """One feature's async Redis connection plus its breaker.
+
+    A ``redis.asyncio`` client belongs to the event loop that created it, so it is made per loop.
+    ``client`` is an injection point for tests.
+    """
+
+    def __init__(self, feature: str, client=None):
+        self._injected = client
+        self.last_client = client
+        self._loop = None
+        self.breaker = Breaker(feature)
+
+    def client(self):
+        """The client, or None when there is no Redis or it just failed."""
+        if self._injected is None:
+            loop = asyncio.get_running_loop()
+            if self._loop is not loop:
+                self._loop, self.last_client = loop, create_async_client()
+        return self.last_client if self.breaker.allows() else None
+
+    def failed(self, exc: Exception) -> None:
+        self.breaker.failed(exc)

@@ -9,6 +9,8 @@ run the blocking calls on a worker thread instead.
 import asyncio
 from typing import Any
 
+from app.services import llm_budget
+
 
 async def store_get(store, session_id: str) -> Any:
     return await asyncio.to_thread(store.get, session_id)
@@ -33,6 +35,8 @@ async def store_commit(store, session_id: str, brain) -> None:
     against this one. ``StaleSessionError`` (another worker wrote first) propagates: the turn is
     lost, never merged over a newer one.
     """
+    if llm_budget.exceeded():
+        brain.llm_budget_exceeded = True
     version = await store_set(store, session_id, brain.to_dict())
     if isinstance(version, int):
         brain.store_version = version

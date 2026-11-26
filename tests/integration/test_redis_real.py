@@ -57,3 +57,23 @@ async def test_lock_across_workers(url):
                 pass
     async with b.lock(sid):
         pass
+
+
+async def test_rate_limit_and_budget_scripts(url, monkeypatch):
+    from app.middleware.rate_limit import RateLimitMiddleware
+    from app.services import llm_budget
+    from app.services.redis_client import create_async_client
+
+    unique = uuid.uuid4().hex
+    a = RateLimitMiddleware(None, max_requests=3, window_seconds=30, name=f"it-{unique}")
+    b = RateLimitMiddleware(None, max_requests=3, window_seconds=30, name=f"it-{unique}")
+    assert [await (a, b)[i % 2]._allow_shared("ip") for i in range(5)] == [True, True, True, False, False]
+
+    monkeypatch.setenv("LLM_BUDGET_SESSION_CALLS", "2")
+    budget = llm_budget.Budget()
+    assert [await budget.take(f"it-{unique}", None) for _ in range(3)] == [0, 0, 1]
+
+    redis = create_async_client()
+    await redis.delete(f"{llm_budget.KEY_PREFIX}session:it-{unique}",
+                       *[k async for k in redis.scan_iter(f"aura:rl:it-{unique}:*", count=1000)])
+    await redis.aclose()

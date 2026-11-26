@@ -34,6 +34,13 @@ class LLMServiceError(AppException):
         super().__init__(detail=detail, status_code=502)
 
 
+class LLMBudgetExceeded(LLMServiceError):
+    """This interview (or its organization today) has used up its LLM calls."""
+
+    def __init__(self, scope: str = "session"):
+        super().__init__(detail=f"LLM call budget used up ({scope})")
+
+
 class LLMTimeoutError(AppException):
     def __init__(self, detail: str = "LLM request timed out"):
         super().__init__(detail=detail, status_code=504)

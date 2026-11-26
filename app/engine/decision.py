@@ -9,6 +9,7 @@ import logging
 
 from app.core.interview_brain import InterviewBrain
 from app.engine.store_io import store_commit
+from app.services import llm_budget
 from app.core.interview_state import brain_to_dict, sync_brain
 from app.engine.persistence import (
     persist_answer_turn,
@@ -168,6 +169,18 @@ def finalize_verdict_outputs(state: dict) -> dict:
     return {**state, "hiring_decision": decision}
 
 
+def flag_budget_exceeded(hiring_decision: dict | None) -> dict:
+    """A report written without its full LLM reading needs a human; the verdict itself is not changed."""
+    decision = dict(hiring_decision or {})
+    label = decision.get("decision")
+    decision["flag_review"] = True
+    decision["adjustments"] = list(decision.get("adjustments") or []) + [{
+        "rule": "llm_budget", "from": label, "to": label,
+        "reason": "The automated reading stopped partway through this interview, so please review it manually.",
+    }]
+    return decision
+
+
 async def finalize_session(engine, brain: InterviewBrain) -> dict:
     store = engine._get_store()
     events = engine._get_events()
@@ -254,6 +267,10 @@ async def finalize_session(engine, brain: InterviewBrain) -> dict:
     except Exception as exc:  # noqa: BLE001 - the explanation is optional
         logger.warning(f"Decision explanation failed (non-fatal): {exc}")
     brain.hiring_decision = s.get("hiring_decision")
+
+    if llm_budget.exceeded() or brain.llm_budget_exceeded:
+        brain.llm_budget_exceeded = True
+        brain.hiring_decision = flag_budget_exceeded(brain.hiring_decision)
 
     brain.finalized = True
     await persist_answer_turn(session_id, brain)

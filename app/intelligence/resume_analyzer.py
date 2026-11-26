@@ -8,7 +8,9 @@ import logging
 import os
 import re
 
+from app.exceptions import LLMBudgetExceeded
 from app.intelligence._helpers import dedupe
+from app.services import llm_budget
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +67,9 @@ async def analyze_resume(
         if _use_dspy_backend():
             from app.intelligence.dspy_modules import run_resume_analysis
 
+            # DSPy talks to its model directly, so it asks the interview's LLM budget itself.
+            if not await llm_budget.consume():
+                raise LLMBudgetExceeded()
             data = await run_resume_analysis(text, job_role)
         else:
             data = await _legacy_llm_parse(text, job_role)

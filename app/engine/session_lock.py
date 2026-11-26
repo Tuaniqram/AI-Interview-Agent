@@ -11,7 +11,7 @@ import uuid
 from contextlib import asynccontextmanager
 
 from app.engine.guards import SessionLocks
-from app.services.redis_client import Breaker, create_async_client
+from app.services.redis_client import AsyncLink
 
 logger = logging.getLogger(__name__)
 
@@ -39,17 +39,7 @@ class DistributedSessionLocks:
     def __init__(self, ttl_s: float, client=None):
         self.ttl_ms = int(ttl_s * 1000)
         self._local = SessionLocks()
-        self._injected = client
-        self._client = client
-        self._loop = None
-        self._breaker = Breaker("session locks")
-
-    def _redis(self):
-        if self._injected is None:  # a redis.asyncio client belongs to the event loop that created it
-            loop = asyncio.get_running_loop()
-            if self._loop is not loop:
-                self._loop, self._client = loop, create_async_client()
-        return self._client if self._client is not None and self._breaker.allows() else None
+        self._redis = AsyncLink("session locks", client)
 
     @asynccontextmanager
     async def lock(self, session_id: str, wait: float = 0.0):
@@ -70,14 +60,14 @@ class DistributedSessionLocks:
     async def _acquire(self, key: str, token: str, deadline: float) -> bool:
         """True = we hold the Redis lock; False = Redis unavailable, the local lock alone applies."""
         while True:
-            client = self._redis()
+            client = self._redis.client()
             if client is None:
                 return False
             try:
                 if await client.set(key, token, nx=True, px=self.ttl_ms):
                     return True
             except Exception as exc:  # noqa: BLE001
-                self._breaker.failed(exc)
+                self._redis.failed(exc)
                 return False
             if time.monotonic() >= deadline:
                 raise SessionBusy(key.removeprefix(LOCK_KEY_PREFIX))
@@ -86,6 +76,6 @@ class DistributedSessionLocks:
     async def _release(self, key: str, token: str) -> None:
         # Try even if the breaker is open: a lock left behind blocks the candidate until its TTL.
         try:
-            await self._client.eval(_RELEASE_LUA, 1, key, token)
+            await self._redis.last_client.eval(_RELEASE_LUA, 1, key, token)
         except Exception as exc:  # noqa: BLE001
-            self._breaker.failed(exc)
+            self._redis.failed(exc)

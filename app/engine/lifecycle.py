@@ -8,6 +8,7 @@ import logging
 
 from app.core.interview_state import brain_to_dict, dict_to_brain, sync_brain
 from app.engine.store_io import store_commit, store_get
+from app.services import llm_budget
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,11 @@ async def start_session(engine, state: dict, build_intelligence: bool = False, i
 
     Returns the ``{type: question}`` response dict.
     """
+    with llm_budget.scope(state["session_id"], state.get("org_id")):
+        return await _start_session(engine, state, build_intelligence, intelligence)
+
+
+async def _start_session(engine, state: dict, build_intelligence: bool, intelligence: dict | None) -> dict:
     store = engine._get_store()
     events = engine._get_events()
     session_id = state["session_id"]

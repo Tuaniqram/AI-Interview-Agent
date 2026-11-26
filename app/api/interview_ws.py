@@ -36,6 +36,7 @@ from app.engine.guards import (
     validate_session_id,
 )
 from app.database.session import get_session_factory
+from app.services import llm_budget
 from app.services.event_log import get_event_log
 from app.models.db import CandidateProfile, InterviewSession
 from app.exceptions import SessionNotFoundException
@@ -287,6 +288,12 @@ async def _start_engine(session_id: str, notify=None) -> dict:
     style = get_style("AURA")
     from app.agents.planning.difficulty_engine import role_difficulty_floor
 
+    # Preparing the interview (role profile, company brain, planning) counts against its LLM budget too.
+    with llm_budget.scope(session_id, db_session.org_id):
+        return await _prepare_and_start(session_id, store, db_session, style, role_difficulty_floor, _progress)
+
+
+async def _prepare_and_start(session_id, store, db_session, style, role_difficulty_floor, _progress) -> dict:
     org_id_str = str(db_session.org_id) if db_session.org_id else None
     job_role = db_session.job_role_snapshot or "Software Engineer"
     await _progress("loading_context")

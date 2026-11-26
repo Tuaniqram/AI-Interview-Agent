@@ -150,6 +150,8 @@ class InterviewBrain:
     state_version: int = 0
     # Version of the stored copy this brain was read from (compare-and-set between workers).
     store_version: int = 0
+    # The interview ran out of LLM calls (llm_budget): later turns are not scored; flagged for review.
+    llm_budget_exceeded: bool = False
 
     # ------------------------------------------------------------------ #
     # Serialization / compatibility
