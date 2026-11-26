@@ -109,7 +109,7 @@ async def test_healthy_models_are_preferred_over_cooling_ones():
     cooling, ok = FakeModel("cooling", HttpError(500)), FakeModel("ok")
     chain = FallbackLLM([cooling, ok], clock=Clock())
     await chain.ainvoke([])
-    order = [m.model_name for m in chain._candidates()]
+    order = [m.model_name async for m, _ in chain._candidates()]
     assert order == ["ok", "cooling"]
 
 
@@ -162,7 +162,7 @@ async def test_cooling_models_are_ordered_soonest_recovery_first():
     with pytest.raises(RuntimeError):
         await chain.ainvoke([])
     # flaky recovers in 30s, retired only in 15 min: when all are cooling, probe flaky first
-    assert [m.model_name for m in chain._candidates()] == ["flaky", "retired"]
+    assert [m.model_name async for m, _ in chain._candidates()] == ["flaky", "retired"]
 
 
 def test_concurrency_limit_comes_from_the_env(monkeypatch):

@@ -77,3 +77,22 @@ async def test_rate_limit_and_budget_scripts(url, monkeypatch):
     await redis.delete(f"{llm_budget.KEY_PREFIX}session:it-{unique}",
                        *[k async for k in redis.scan_iter(f"aura:rl:it-{unique}:*", count=1000)])
     await redis.aclose()
+
+
+async def test_provider_breaker_across_workers(url):
+    from types import SimpleNamespace
+
+    from app.models.provider_health import PREFIX, ProviderHealth
+    from app.services.redis_client import AsyncLink
+
+    name = f"it-{uuid.uuid4().hex}"  # an unknown host: its own provider, no real model is blocked
+    model = SimpleNamespace(model_name=name, openai_api_base=f"https://{name}.invalid/v1")
+    a = ProviderHealth(link=AsyncLink("it"))
+    b = ProviderHealth(link=AsyncLink("it"))
+    await a.failed(model, 404)
+    blocked, _ = await b.inspect([model])
+    assert 800 < blocked[0] <= 900
+    await b.succeeded(model, was_suspect=True)
+    assert (await b.inspect([model]))[0] == [0]
+    redis = a._link.client()
+    await redis.delete(*[k async for k in redis.scan_iter(f"{PREFIX}errors:{name}*", count=1000)] or [f"{PREFIX}none"])
