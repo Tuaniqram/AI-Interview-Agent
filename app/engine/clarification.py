@@ -11,7 +11,7 @@ import re
 
 from app.core.interview_brain import InterviewBrain
 from app.core.interview_state import brain_to_dict
-from app.engine.store_io import store_checkpoint, store_set
+from app.engine.store_io import store_commit
 
 logger = logging.getLogger(__name__)
 
@@ -120,8 +120,7 @@ async def clarification_turn(engine, brain: InterviewBrain, session_id: str, ans
     brain.clarification_counts = counts
     brain.bump_version()
     store = engine._get_store()
-    await store_set(store, session_id, brain.to_dict())  # the live state, then the durable checkpoint
-    await store_checkpoint(store, session_id, brain.to_dict())
+    await store_commit(store, session_id, brain)
     await engine._get_events().append(session_id, "clarification_requested", {
         "question_number": brain.question_number,
         "length": len(answer),

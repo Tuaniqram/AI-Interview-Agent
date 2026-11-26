@@ -6,14 +6,12 @@ codebase is unaffected by the selection:
 * ``MemoryV4SessionStore`` — in-process dict with write-behind to Postgres
   (``v4_session_state``). Used when ``SESSION_STORE_BACKEND`` is unset or
   ``memory``. Falls back to a JSON file when no DATABASE_URL is configured.
-* ``RedisV4SessionStore`` — Redis (``aura:sess:{id}``, TTL 24h) as the hot,
-  shared tier, with Postgres ``v4_session_state`` as the durable checkpoint.
-  Used when ``SESSION_STORE_BACKEND=redis``. Degrades to an in-process dict
-  if Redis is unavailable so the interview never hard-fails.
+* ``RedisV4SessionStore`` — the production path, and the only one that is correct with more than one
+  worker: Redis (``aura:sess:{id}``, TTL 24h) shared between workers with compare-and-set writes,
+  Postgres ``v4_session_state`` as the durable source of truth.
 
-``SESSION_STORE_BACKEND`` defaults to ``memory`` (no deploy change required
-to stay on the existing behavior). Redis connections use the same
-``REDIS_URL`` as ``app.services.cache`` (async); here we use the sync client.
+The backend is ``SESSION_STORE_BACKEND`` (``redis`` / ``memory``); unset, it is Redis when
+``REDIS_URL`` is set.
 """
 
 import json
@@ -23,8 +21,11 @@ from datetime import datetime, timezone
 from typing import Optional, Set
 from uuid import uuid4
 
+from redis.exceptions import ResponseError
+
 from app.core.interview_state import InterviewState
-from app.exceptions import SessionNotFoundException
+from app.exceptions import SessionNotFoundException, StaleSessionError
+from app.services.redis_client import Breaker, create_sync_client, redis_url
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,41 @@ def _state_from_json(state_json: str) -> InterviewState:
     return json.loads(state_json)
 
 
+def _version_of(state: InterviewState) -> int:
+    return int(state.get("store_version") or 0)
+
+
+def _summary(session_id: str, state: InterviewState) -> dict:
+    return {
+        "session_id": session_id,
+        "started_at": str(state.get("start_time", "")),
+        "question_number": state.get("question_number", 0),
+        "job_role": state.get("job_role", ""),
+    }
+
+
+def _create_sync_engine():
+    """Blocking SQLAlchemy engine for ``v4_session_state``, or None without DATABASE_URL."""
+    raw_url = os.environ.get("DATABASE_URL", "")
+    if not raw_url:
+        return None
+    try:
+        from sqlalchemy import create_engine
+
+        sync_url = raw_url.replace("+asyncpg", "").replace("+psycopg", "")
+        # Bounded connect: a wedged/slow remote pooler must fail fast.
+        return create_engine(
+            sync_url,
+            pool_pre_ping=True,
+            pool_size=2,
+            max_overflow=4,
+            connect_args={"connect_timeout": 3},
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Failed to create sync engine: {e}")
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Backend: in-memory + write-behind to Postgres (default / fallback)
 # ---------------------------------------------------------------------------
@@ -78,7 +114,7 @@ class MemoryV4SessionStore:
         # An explicit ``db_path`` marks a hermetic (test/local) store: file-backed
         # only, never Postgres. Only the default config (db_path=None) uses
         # DATABASE_URL, so unit tests never touch a live database.
-        self._sync_engine = None if db_path is not None else self._create_sync_engine()
+        self._sync_engine = None if db_path is not None else _create_sync_engine()
         # NOTE: the Postgres store is deliberately NOT bulk-loaded at init.
         # Loading every v4_session_state row synchronously on the event loop
         # froze the server for minutes on a slow/remote database (single
@@ -171,30 +207,6 @@ class MemoryV4SessionStore:
 
     # --- DB persistence ---
 
-    def _create_sync_engine(self):
-        raw_url = os.environ.get("DATABASE_URL", "")
-        if not raw_url:
-            return None
-        try:
-            from sqlalchemy import create_engine
-
-            sync_url = raw_url.replace("+asyncpg", "").replace("+psycopg", "")
-            # Bounded connect: a wedged/slow remote pooler must fail fast so
-            # synchronous DB calls can never block the event loop for long.
-            return create_engine(
-                sync_url,
-                pool_pre_ping=True,
-                pool_size=2,
-                max_overflow=2,
-                connect_args={"connect_timeout": 3},
-            )
-        except ImportError:
-            logger.warning("sqlalchemy not available — falling back to file persistence")
-            return None
-        except Exception as e:
-            logger.warning(f"Failed to create sync engine: {e} — falling back to file")
-            return None
-
     def _load_from_db(self) -> None:
         try:
             with self._sync_engine.connect() as conn:
@@ -254,7 +266,7 @@ class MemoryV4SessionStore:
         with self._sync_engine.begin() as conn:
             conn.execute(
                 text("DELETE FROM v4_session_state WHERE session_id = :sid"),
-                {"session_id": session_id},
+                {"sid": session_id},
             )
 
     def _evict_old(self, max_age_hours: int = 24) -> int:
@@ -318,141 +330,163 @@ class MemoryV4SessionStore:
 
 
 # ---------------------------------------------------------------------------
+# Durable tier used by the Redis backend
+# ---------------------------------------------------------------------------
+
+_VERSION_SQL = "COALESCE(CAST({column} ->> 'store_version' AS bigint), 0)"
+
+
+class PostgresCheckpoint:
+    """``v4_session_state`` as the durable source of truth.
+
+    Errors are raised, not swallowed: the store decides what a failed read or write means.
+    ``state_version`` holds the store version; comparisons read it from the JSON, so rows written
+    before versions existed count as version 0.
+    """
+
+    def __init__(self, engine):
+        self._engine = engine
+
+    def load(self, session_id: str) -> InterviewState | None:
+        return self.load_if_newer(session_id, -1)
+
+    def load_if_newer(self, session_id: str, version: int) -> InterviewState | None:
+        from sqlalchemy import text
+
+        stmt = text(
+            "SELECT CAST(state AS text) FROM v4_session_state "
+            "WHERE session_id = :sid AND " + _VERSION_SQL.format(column="state") + " > :version"
+        )
+        with self._engine.connect() as conn:
+            row = conn.execute(stmt, {"sid": session_id, "version": version}).fetchone()
+        return _state_from_json(row[0]) if row is not None else None
+
+    def upsert_if_newer(self, session_id: str, state: InterviewState, version: int) -> bool:
+        """Write unless the row already holds this or a later version. False = refused.
+
+        Writing the identical state again is accepted (a checkpoint repeats what ``set`` stored).
+        """
+        from sqlalchemy import text
+
+        stmt = text(
+            "INSERT INTO v4_session_state (session_id, state, state_version, updated_at) "
+            "VALUES (:sid, CAST(:state AS jsonb), :version, now()) "
+            "ON CONFLICT (session_id) DO UPDATE SET state = EXCLUDED.state, "
+            "state_version = EXCLUDED.state_version, updated_at = now() "
+            "WHERE " + _VERSION_SQL.format(column="v4_session_state.state") + " < :version "
+            "OR v4_session_state.state = EXCLUDED.state"
+        )
+        with self._engine.begin() as conn:
+            result = conn.execute(
+                stmt, {"sid": session_id, "state": _state_to_json(state), "version": version}
+            )
+        return result.rowcount > 0
+
+    def delete(self, session_id: str) -> None:
+        from sqlalchemy import text
+
+        with self._engine.begin() as conn:
+            conn.execute(
+                text("DELETE FROM v4_session_state WHERE session_id = :sid"), {"sid": session_id}
+            )
+
+
+# ---------------------------------------------------------------------------
 # Backend: Redis hot tier + Postgres durable checkpoint
 # ---------------------------------------------------------------------------
 
+# Compare-and-set. KEYS[1] = session key; ARGV = expected version, new version, state JSON, TTL.
+# Refused only when Redis holds a LATER version than the writer read. A Redis copy that is behind
+# (writes went to Postgres while Redis was unreachable) is simply overwritten.
+_CAS_LUA = """
+if redis.call('TYPE', KEYS[1]).ok == 'string' then redis.call('DEL', KEYS[1]) end
+local current = tonumber(redis.call('HGET', KEYS[1], 'v'))
+if current and current > tonumber(ARGV[1]) then return 0 end
+redis.call('HSET', KEYS[1], 'v', ARGV[2], 'state', ARGV[3])
+redis.call('EXPIRE', KEYS[1], ARGV[4])
+return 1
+"""
+
+# Removes a copy only if it is still the one this writer put there.
+_DROP_IF_VERSION_LUA = """
+if tonumber(redis.call('HGET', KEYS[1], 'v')) == tonumber(ARGV[1]) then return redis.call('DEL', KEYS[1]) end
+return 0
+"""
+
+
 class RedisV4SessionStore:
-    """Redis as the shared hot tier, Postgres ``v4_session_state`` as durable
-    checkpoint. Lazily hydrates a session from Postgres on miss so resume works
-    across replicas. Degrades to an in-process dict (mirroring
-    ``MemoryV4SessionStore`` semantics) if Redis is unavailable — the
-    interview pipeline never observes a store failure.
+    """Redis as the shared hot tier, Postgres ``v4_session_state`` as durable checkpoint.
+
+    * Every write is a compare-and-set on ``store_version`` (carried inside the state), so a worker
+      holding an old copy gets ``StaleSessionError`` instead of overwriting a newer turn.
+    * No session is cached in this process: a read comes from Redis (checked against Postgres for a
+      newer version) or, when Redis is down, from Postgres every time.
+    * ``_unsaved`` holds only writes that reached neither Redis nor Postgres, so an interview
+      survives with no storage at all (single process, best effort).
+
+    The calls block; async code goes through ``app.engine.store_io``.
     """
 
-    def __init__(self, redis_client=None, sync_engine=None):
-        # ``redis_client`` / ``sync_engine`` are injection points for tests;
-        # when omitted, the real Redis/DATABASE_URL wiring is used.
-        self._client = redis_client
-        self._degraded: dict[str, InterviewState] = {}
-        self._sync_engine = sync_engine if sync_engine is not None else self._create_sync_engine()
-        if redis_client is None:
-            self._init_client()
-        else:
-            self._enabled = True
+    def __init__(self, redis_client=None, sync_engine=None, durable=None):
+        # The arguments are injection points for tests; omitted, the real wiring is used.
+        self._client = redis_client if redis_client is not None else create_sync_client()
+        if self._client is None:
+            logger.warning("SESSION_STORE_BACKEND=redis but there is no usable REDIS_URL")
+        if durable is None:
+            engine = sync_engine if sync_engine is not None else _create_sync_engine()
+            durable = PostgresCheckpoint(engine) if engine is not None else None
+        self._durable = durable
+        self._breaker = Breaker("session store")
+        self._unsaved: dict[str, InterviewState] = {}
 
-    def _init_client(self):
-        raw_url = os.environ.get("REDIS_URL", "")
-        if not raw_url:
-            logger.info("REDIS_URL not set — v4 session store in degraded memory mode")
-            self._enabled = False
-            return
-        try:
-            from redis import Redis
+    # -- Redis, never raising ---------------------------------------------
 
-            self._client = Redis.from_url(raw_url, decode_responses=True)
-            self._client.ping()
-            self._enabled = True
-            logger.info("Redis v4 session store connected")
-        except Exception as e:
-            logger.warning(f"Redis unavailable, session store degraded to memory: {e}")
-            self._client = None
-            self._enabled = False
+    def _redis_up(self) -> bool:
+        return self._client is not None and self._breaker.allows()
 
-    # -- shared Postgres helpers (checkpoint / lazy hydrate / pop-delete) --
-
-    def _create_sync_engine(self):
-        raw_url = os.environ.get("DATABASE_URL", "")
-        if not raw_url:
+    def _redis_read(self, session_id: str) -> InterviewState | None:
+        if not self._redis_up():
             return None
+        key = self._key(session_id)
         try:
-            from sqlalchemy import create_engine
-
-            sync_url = raw_url.replace("+asyncpg", "").replace("+psycopg", "")
-            return create_engine(
-                sync_url,
-                pool_pre_ping=True,
-                pool_size=2,
-                max_overflow=2,
-                connect_args={"connect_timeout": 3},
-            )
-        except Exception:
+            try:
+                raw = self._client.hget(key, "state")
+            except ResponseError:  # a string written by the previous, unversioned format
+                raw = self._client.get(key)
+            return _state_from_json(raw) if raw is not None else None
+        except Exception as exc:  # noqa: BLE001
+            self._breaker.failed(exc)
             return None
 
-    def _load_from_db(self, session_id: str) -> InterviewState | None:
-        if not self._sync_engine:
+    def _redis_write(self, session_id: str, state: InterviewState, expected: int) -> bool | None:
+        """True = written, False = refused as stale, None = Redis unreachable."""
+        if not self._redis_up():
             return None
         try:
-            from sqlalchemy import text
+            return bool(self._client.eval(
+                _CAS_LUA, 1, self._key(session_id), expected, state["store_version"],
+                _state_to_json(state), SESSION_TTL_SECONDS,
+            ))
+        except Exception as exc:  # noqa: BLE001
+            self._breaker.failed(exc)
+            return None
 
-            with self._sync_engine.connect() as conn:
-                row = conn.execute(
-                    text(
-                        "SELECT state::text FROM v4_session_state WHERE session_id = :sid"
-                    ),
-                    {"sid": session_id},
-                ).fetchone()
-            if row is not None:
-                return _state_from_json(row[0])
-        except Exception as e:
-            logger.warning(f"Failed to hydrate session {session_id} from DB: {e}")
-        return None
-
-    def _upsert_db(self, session_id: str, state: InterviewState) -> None:
-        if not self._sync_engine:
-            return
-        try:
-            from sqlalchemy import text
-
-            stmt = text("""
-                INSERT INTO v4_session_state (session_id, state, state_version, updated_at)
-                VALUES (:sid, CAST(:state AS jsonb), :version, now())
-                ON CONFLICT (session_id)
-                DO UPDATE SET state = EXCLUDED.state,
-                              state_version = EXCLUDED.state_version,
-                              updated_at = now()
-            """)
-            with self._sync_engine.begin() as conn:
-                conn.execute(
-                    stmt,
-                    {
-                        "sid": session_id,
-                        "state": _state_to_json(state),
-                        "version": int(state.get("state_version", 0)) + 1,
-                    },
-                )
-        except Exception as e:
-            logger.warning(f"Failed to checkpoint session {session_id} to DB: {e}")
-
-    def _delete_from_db(self, session_id: str) -> None:
-        if not self._sync_engine:
-            return
-        try:
-            from sqlalchemy import text
-
-            with self._sync_engine.begin() as conn:
-                conn.execute(
-                    text("DELETE FROM v4_session_state WHERE session_id = :sid"),
-                    {"sid": session_id},
-                )
-        except Exception as e:
-            logger.warning(f"Failed to delete v4 session {session_id} from DB: {e}")
-
-    # -- public interface (identical to MemoryV4SessionStore) --
+    # -- public interface (same as MemoryV4SessionStore) ------------------
 
     def get(self, session_id: str) -> InterviewState | None:
-        if self._enabled:
+        state = self._redis_read(session_id)
+        if self._durable is not None:
             try:
-                raw = self._client.get(self._key(session_id))
-                if raw is not None:
-                    return _state_from_json(raw)
-            except Exception as e:
-                logger.warning(f"Redis get failed for {session_id}: {e}")
-                # fall through to lazy DB hydrate + degraded dict
-        state = self._degraded.get(session_id)
-        if state is None:
-            state = self._load_from_db(session_id)
-            if state is not None:
-                self._degraded[session_id] = state
+                if state is None:
+                    state = self._durable.load(session_id)
+                else:
+                    # Postgres wins if it moved on while Redis was unreachable.
+                    state = self._durable.load_if_newer(session_id, _version_of(state)) or state
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to read session %s from the database: %s", session_id, exc)
+        unsaved = self._unsaved.get(session_id)
+        if unsaved is not None and (state is None or _version_of(unsaved) > _version_of(state)):
+            state = _state_from_json(_state_to_json(unsaved))
         return state
 
     def get_or_raise(self, session_id: str) -> InterviewState:
@@ -461,103 +495,113 @@ class RedisV4SessionStore:
             raise SessionNotFoundException(session_id)
         return state
 
-    def set(self, session_id: str, state: InterviewState) -> None:
-        if self._enabled:
+    def set(self, session_id: str, state: InterviewState) -> int:
+        """Store the state read at ``state["store_version"]``; returns the new version.
+
+        Raises ``StaleSessionError`` when someone else wrote the session since that read.
+        """
+        expected = _version_of(state)
+        written = {**state, "store_version": expected + 1}
+        outcome = self._redis_write(session_id, written, expected)
+        if outcome is False:
+            raise StaleSessionError(session_id, expected)
+        if outcome:
+            self._unsaved.pop(session_id, None)
+        else:
+            self._write_without_redis(session_id, written)
+        return expected + 1
+
+    def _write_without_redis(self, session_id: str, state: InterviewState) -> None:
+        version = state["store_version"]
+        if self._durable is not None:
             try:
-                self._client.setex(
-                    self._key(session_id),
-                    SESSION_TTL_SECONDS,
-                    _state_to_json(state),
-                )
+                accepted = self._durable.upsert_if_newer(session_id, state, version)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Session %s saved neither to Redis nor the database: %s", session_id, exc)
+            else:
+                if not accepted:
+                    raise StaleSessionError(session_id, version - 1)
+                self._unsaved.pop(session_id, None)
                 return
-            except Exception as e:
-                logger.warning(f"Redis set failed for {session_id}: {e}")
-        self._degraded[session_id] = state
+        current = self._unsaved.get(session_id)
+        if current is not None and _version_of(current) >= version:
+            raise StaleSessionError(session_id, version - 1)
+        self._unsaved[session_id] = _state_from_json(_state_to_json(state))
+
+    def checkpoint(self, session_id: str, state: InterviewState) -> None:
+        """Durable write-through to Postgres (called after ``set`` on turn completion)."""
+        if self._durable is None:
+            return
+        version = _version_of(state)
+        try:
+            accepted = self._durable.upsert_if_newer(session_id, state, version)
+        except Exception as exc:  # noqa: BLE001 - the turn is already in Redis
+            logger.warning("Failed to checkpoint session %s to the database: %s", session_id, exc)
+            return
+        if accepted:
+            self._unsaved.pop(session_id, None)
+            return
+        # Postgres is ahead of this writer: its Redis copy must not be served.
+        if self._redis_up():
+            try:
+                self._client.eval(_DROP_IF_VERSION_LUA, 1, self._key(session_id), version)
+            except Exception as exc:  # noqa: BLE001
+                self._breaker.failed(exc)
+        raise StaleSessionError(session_id, version - 1)
 
     def pop(self, session_id: str) -> InterviewState | None:
-        state = self._degraded.pop(session_id, None)
-        if state is None and self._enabled:
-            try:
-                raw = self._client.get(self._key(session_id))
-                if raw is not None:
-                    state = _state_from_json(raw)
-            except Exception as e:
-                logger.warning(f"Redis pop failed for {session_id}: {e}")
-        if self._enabled:
+        state = self.get(session_id)
+        self._unsaved.pop(session_id, None)
+        if self._redis_up():
             try:
                 self._client.delete(self._key(session_id))
-            except Exception as e:
-                logger.warning(f"Redis delete failed for {session_id}: {e}")
-        if state is not None:
-            self._delete_from_db(session_id)
+            except Exception as exc:  # noqa: BLE001
+                self._breaker.failed(exc)
+        if state is not None and self._durable is not None:
+            try:
+                self._durable.delete(session_id)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to delete session %s from the database: %s", session_id, exc)
         return state
 
     def list_active(self) -> list[dict]:
-        if not self._enabled:
-            return [
-                {
-                    "session_id": sid,
-                    "started_at": str(s.get("start_time", "")),
-                    "question_number": s.get("question_number", 0),
-                    "job_role": s.get("job_role", ""),
-                }
-                for sid, s in self._degraded.items()
-            ]
-        out: list[dict] = []
-        try:
-            cur = self._client
-            for key in cur.scan_iter(f"{REDIS_KEY_PREFIX}*"):
-                try:
-                    raw = cur.get(key)
-                    if raw is None:
-                        continue
-                    s = _state_from_json(raw)
+        found: dict[str, InterviewState] = dict(self._unsaved)
+        if self._redis_up():
+            try:
+                for key in self._client.scan_iter(f"{REDIS_KEY_PREFIX}*"):
                     sid = key.removeprefix(REDIS_KEY_PREFIX)
-                    out.append(
-                        {
-                            "session_id": sid,
-                            "started_at": str(s.get("start_time", "")),
-                            "question_number": s.get("question_number", 0),
-                            "job_role": s.get("job_role", ""),
-                        }
-                    )
-                except Exception:
-                    continue
-        except Exception as e:
-            logger.warning(f"Redis scan failed for list_active: {e}")
-        return out
+                    state = self._redis_read(sid)
+                    if state is not None:
+                        found[sid] = state
+            except Exception as exc:  # noqa: BLE001
+                self._breaker.failed(exc)
+        return [_summary(sid, state) for sid, state in found.items()]
 
     def count(self) -> int:
-        if not self._enabled:
-            return len(self._degraded)
-        try:
-            return int(self._client.dbsize())
-        except Exception as e:
-            logger.warning(f"Redis dbsize failed: {e}")
-            return len(self._degraded)
+        return len(self.list_active())
 
     def flush(self) -> None:
-        # Redis is already durable per-key (TTL); flush here is a no-op that
-        # also drains any in-memory degraded entries to Postgres as a safety net.
-        for sid, state in list(self._degraded.items()):
-            self._upsert_db(sid, state)
-        self._degraded.clear()
-
-    def checkpoint(self, session_id: str, state: InterviewState) -> None:
-        """Force a durable write to Postgres (used on turn completion)."""
-        self._upsert_db(session_id, state)
+        """At shutdown: push anything that never reached storage."""
+        if self._durable is None:
+            return
+        for sid, state in list(self._unsaved.items()):
+            try:
+                self._durable.upsert_if_newer(sid, state, _version_of(state))
+                self._unsaved.pop(sid, None)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to flush session %s: %s", sid, exc)
 
     def _key(self, session_id: str) -> str:
         return f"{REDIS_KEY_PREFIX}{session_id}"
 
     def close(self) -> None:
-        """Close the Redis client (called at app shutdown). No-op for memory."""
+        """Close the Redis client (called at app shutdown)."""
         if self._client is not None:
             try:
                 self._client.close()
-            except Exception as e:
-                logger.warning(f"Redis close failed: {e}")
-            self._enabled = False
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Redis close failed: %s", exc)
+            self._client = None
 
     async def aclose(self) -> None:
         """Async close wrapper (kept for lifespans that await cleanup)."""
@@ -574,8 +618,9 @@ _STORE: "V4SessionStore | RedisV4SessionStore | None" = None
 def get_v4_session_store() -> V4SessionStore:
     global _STORE
     if _STORE is None:
-        backend = os.environ.get("SESSION_STORE_BACKEND", "memory").strip().lower()
-        if backend == "redis":
+        # Unset: Redis whenever there is one, because the memory store is only correct with ONE worker.
+        backend = os.environ.get("SESSION_STORE_BACKEND", "").strip().lower()
+        if backend == "redis" or (not backend and redis_url()):
             _STORE = RedisV4SessionStore()
         else:
             _STORE = MemoryV4SessionStore()

@@ -15,6 +15,15 @@ class DatabaseException(AppException):
         super().__init__(detail=detail, status_code=500)
 
 
+class StaleSessionError(Exception):
+    """A write was refused: the stored session changed after this copy was read."""
+
+    def __init__(self, session_id: str, version: int):
+        super().__init__(f"session {session_id[:12]} changed since version {version} was read")
+        self.session_id = session_id
+        self.version = version
+
+
 class SessionNotFoundException(AppException):
     def __init__(self, detail: str = "Session not found"):
         super().__init__(detail=detail, status_code=404)

@@ -148,6 +148,8 @@ class InterviewBrain:
     start_time: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     nodes_executed: list = field(default_factory=list)
     state_version: int = 0
+    # Version of the stored copy this brain was read from (compare-and-set between workers).
+    store_version: int = 0
 
     # ------------------------------------------------------------------ #
     # Serialization / compatibility
