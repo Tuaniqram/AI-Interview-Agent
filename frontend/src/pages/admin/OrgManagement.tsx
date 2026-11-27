@@ -6,12 +6,15 @@ import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Button } from '../../components/shared/Button';
 import { useToast } from '../../components/shared/Toast';
+import { ConfirmDialog } from '../../components/shared/ConfirmDialog';
 import type { AdminOrg } from '../../types/admin';
 
 export default function OrgManagement() {
   const [orgs, setOrgs] = useState<AdminOrg[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [target, setTarget] = useState<AdminOrg | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const toast = useToast();
 
   const fetchOrgs = () => {
@@ -24,13 +27,17 @@ export default function OrgManagement() {
 
   useEffect(() => { fetchOrgs(); }, [search]);
 
-  const handleToggleSuspend = async (orgId: string) => {
+  // The endpoint flips the current state, so the dialog names the state it will end in.
+  const handleToggleSuspend = async (org: AdminOrg) => {
+    setBusyId(org.id);
     try {
-      await adminService.toggleSuspend(orgId);
-      toast.success('Organization status updated');
+      await adminService.toggleSuspend(org.id);
+      toast.success(org.is_active ? `${org.name} suspended` : `${org.name} reactivated`);
       fetchOrgs();
     } catch {
-      toast.error('Failed to update organization status');
+      toast.error('Could not change the status. Reload the page and try again.');
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -89,7 +96,8 @@ export default function OrgManagement() {
                         variant="secondary"
                         className={org.is_active ? '!text-error-text' : ''}
                         size="sm"
-                        onClick={() => handleToggleSuspend(org.id)}
+                        loading={busyId === org.id}
+                        onClick={() => setTarget(org)}
                       >
                         {org.is_active ? 'Suspend' : 'Reactivate'}
                       </Button>
@@ -101,6 +109,18 @@ export default function OrgManagement() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!target}
+        title={target?.is_active ? `Suspend ${target?.name}?` : `Reactivate ${target?.name}?`}
+        message={target?.is_active
+          ? 'It disappears from the Opportunity Hub list and its hub page stops loading. Its members can still sign in and run interviews, and direct links to its listings keep working. You can reactivate it at any time.'
+          : 'It shows on the Opportunity Hub again, with any listings that are still open.'}
+        confirmLabel={target?.is_active ? 'Suspend' : 'Reactivate'}
+        variant={target?.is_active ? 'danger' : 'default'}
+        onConfirm={() => { if (target) handleToggleSuspend(target); setTarget(null); }}
+        onCancel={() => setTarget(null)}
+      />
     </div>
   );
 }
