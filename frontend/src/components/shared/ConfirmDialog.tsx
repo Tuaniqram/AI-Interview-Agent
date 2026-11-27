@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { Button } from './Button';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -12,68 +13,60 @@ interface ConfirmDialogProps {
   onCancel: () => void;
 }
 
+/**
+ * A yes/no question. For a destructive action, focus starts on Cancel, so Enter alone never deletes.
+ */
 export function ConfirmDialog({ open, title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', variant = 'default', onConfirm, onCancel }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const confirmBtnRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+  const textId = useId();
 
   useEffect(() => {
     if (!open) return;
-    confirmBtnRef.current?.focus();
+    const opener = document.activeElement as HTMLElement | null;
+    (variant === 'danger' ? cancelRef : confirmRef).current?.focus();
 
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
       if (e.key === 'Tab') {
-        const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (!focusable || focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
+        const items = dialogRef.current?.querySelectorAll<HTMLElement>('button');
+        if (!items || items.length === 0) return;
+        const first = items[0], last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
       }
     };
-
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [open, onCancel]);
+    // Capture, so Esc here does not also close a sheet underneath.
+    document.addEventListener('keydown', handleKey, true);
+    return () => {
+      document.removeEventListener('keydown', handleKey, true);
+      opener?.focus?.();
+    };
+  }, [open, onCancel, variant]);
 
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-      <div ref={dialogRef} className="bg-section border border-border rounded-xl shadow-lg max-w-sm w-full mx-4 p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-full ${variant === 'danger' ? 'bg-error-bg' : 'bg-hover'}`}>
-              <AlertTriangle className={`w-5 h-5 ${variant === 'danger' ? 'text-error' : 'text-secondary'}`} />
-            </div>
-            <h3 id="confirm-title" className="font-semibold text-primary">{title}</h3>
-          </div>
-          <button onClick={onCancel} className="text-muted hover:text-secondary" aria-label="Close"><X className="w-4 h-4" /></button>
-        </div>
-        <p className="text-sm text-secondary mb-6">{message}</p>
-        <div className="flex justify-end gap-3">
-          <button onClick={onCancel} ref={variant !== 'danger' ? confirmBtnRef : undefined}
-            className="px-4 py-2 text-sm font-medium text-action-ghost-text bg-action-ghost-hover rounded-lg hover:bg-action-secondary-hover transition-colors">
-            {cancelLabel}
-          </button>
-          <button
-            onClick={onConfirm}
-            ref={variant === 'danger' ? confirmBtnRef : undefined}
-            className={`px-4 py-2 text-sm font-medium text-inverse rounded-lg transition-colors ${
-              variant === 'danger' ? 'bg-action-danger hover:bg-action-danger-hover' : 'bg-action-primary hover:bg-action-primary-hover'
-            }`}
-          >
-            {confirmLabel}
-          </button>
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-overlay animate-fade-in" onClick={onCancel} aria-hidden />
+      <div
+        ref={dialogRef}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={textId}
+        className="relative bg-section border border-border rounded-xl shadow-xl w-full max-w-sm p-5 animate-fade-in"
+      >
+        <h2 id={titleId} className="text-base font-semibold text-primary">{title}</h2>
+        <p id={textId} className="text-[13px] text-secondary mt-1.5">{message}</p>
+        <div className="flex justify-end gap-2 mt-5">
+          <Button ref={cancelRef} variant="secondary" onClick={onCancel}>{cancelLabel}</Button>
+          <Button ref={confirmRef} variant={variant === 'danger' ? 'danger' : 'primary'} onClick={onConfirm}>{confirmLabel}</Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

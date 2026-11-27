@@ -9,6 +9,9 @@
   .animate-stagger {
     animation: staggerIn 0.35s ease-out both;
   }
+  .animate-sheet-in {
+    animation: sheetIn 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
   .animate-stagger-1 { animation-delay: 0.05s; }
   .animate-stagger-2 { animation-delay: 0.1s; }
   .animate-stagger-3 { animation-delay: 0.15s; }
@@ -26,6 +29,11 @@
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sheetIn {
+  from { transform: translateX(24px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
 }
 
 @keyframes staggerIn {

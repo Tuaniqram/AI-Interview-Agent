@@ -1,4 +1,4 @@
-import { ButtonHTMLAttributes, ReactNode } from 'react';
+import { ButtonHTMLAttributes, ReactNode, forwardRef } from 'react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
@@ -29,7 +29,7 @@ const sizes: Record<string, string> = {
   lg: 'h-10 px-4 text-sm',
 };
 
-export function Button({
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({
   variant = 'primary',
   size = 'md',
   icon,
@@ -39,11 +39,12 @@ export function Button({
   disabled,
   children,
   ...props
-}: ButtonProps) {
+}, ref) {
   const isDisabled = disabled || loading;
 
   return (
     <button
+      ref={ref}
       className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}
       disabled={isDisabled}
       aria-busy={loading || undefined}
@@ -60,4 +61,4 @@ export function Button({
       {!loading && icon && iconPosition === 'right' && icon}
     </button>
   );
-}
+});

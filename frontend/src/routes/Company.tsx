@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ExternalLink, AlertCircle, Clock, Copy, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, AlertCircle, Check, Copy, Plus, Pencil, Trash2 } from 'lucide-react';
 import { orgContentService, type Document, type SessionRecord, type Template } from '../services/orgContentService';
 import { marketplaceService } from '../services/marketplaceService';
 import { itService, type ItRole } from '../services/itService';
@@ -16,6 +16,9 @@ import { CardSkeleton } from '../components/shared/Skeleton';
 import { ConfirmDialog } from '../components/shared/ConfirmDialog';
 import { TagInput } from '../components/shared/TagInput';
 import { Select } from '../components/shared/Select';
+import { Input, Textarea } from '../components/shared/Input';
+import { Sheet, SheetSection } from '../components/shared/Sheet';
+import { EmptyState } from '../components/shared/EmptyState';
 import { useToast } from '../components/shared/Toast';
 import type { OrgPublicListing } from '../types/marketplace';
 
@@ -36,6 +39,8 @@ const INTERVIEW_STYLES = [
 ];
 
 type Tab = 'overview' | 'documents' | 'history' | 'listings';
+
+const fmtDate = (d: string) => new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 
 export function Company() {
   const navigate = useNavigate();
@@ -142,10 +147,10 @@ export function Company() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const errors: { title?: string; role?: string; dates?: string } = {};
-    if (!fTitle.trim()) errors.title = 'Title is required';
-    if (!fRoleId) errors.role = 'IT role is required';
+    if (!fTitle.trim()) errors.title = 'Give the listing a title.';
+    if (!fRoleId) errors.role = 'Choose the IT role it is for.';
     if (fStartsAt && fExpiresAt && new Date(fStartsAt) >= new Date(fExpiresAt)) {
-      errors.dates = 'Expiry must be after start date';
+      errors.dates = 'The closing date has to be after the opening date.';
     }
     setFormErrors(errors);
     if (Object.keys(errors).length > 0 || !activeOrg?.id) return;
@@ -164,7 +169,7 @@ export function Company() {
           starts_at: fStartsAt ? new Date(fStartsAt).toISOString() : undefined,
           expires_at: fExpiresAt ? new Date(fExpiresAt).toISOString() : undefined,
         });
-        toast.success('Listing updated');
+        toast.success('Listing saved');
       } else {
         await marketplaceService.createListing({
           title: fTitle.trim(),
@@ -183,7 +188,7 @@ export function Company() {
       resetForm();
       await loadListings();
     } catch (err) {
-      toast.error('Failed to save listing');
+      toast.error('Could not save the listing. Try again in a moment.');
     } finally {
       setSaving(false);
     }
@@ -195,15 +200,19 @@ export function Company() {
       toast.success(`"${listing.title}" deleted`);
       await loadListings();
     } catch (err) {
-      toast.error('Failed to delete listing');
+      toast.error('Could not delete the listing.');
     }
   };
 
-  const handleCopyLink = (token: string) => {
+  const handleCopyLink = async (token: string) => {
     const url = `${window.location.origin}/public-interview/${token}`;
-    navigator.clipboard.writeText(url);
-    setCopiedId(token);
-    setTimeout(() => setCopiedId(null), 2000);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(token);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      toast.error('Could not copy. Your browser blocked the clipboard.');
+    }
   };
 
   const tabs: { key: Tab; label: string }[] = [
@@ -335,166 +344,147 @@ export function Company() {
 
       {tab === 'listings' && (
         <div className="space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => { resetForm(); setFRoleId(roles[0]?.id ?? ''); setShowForm(true); }}>
-              <Plus className="w-4 h-4 mr-1.5" /> Create Interview Listing
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[13px] text-secondary">Roles candidates can find on the Opportunity Hub and apply to.</p>
+            <Button icon={<Plus />} onClick={() => { resetForm(); setFRoleId(roles[0]?.id ?? ''); setShowForm(true); }}>
+              New listing
             </Button>
           </div>
 
-          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${showForm ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
-            <form onSubmit={handleSave} className="bg-section rounded-xl p-6 border border-border space-y-4 mb-4">
-              <h3 className="font-semibold text-primary">
-                {editing ? 'Edit Listing' : 'New Listing'} — {activeOrg?.name}
-              </h3>
-
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">Title *</label>
-                <input type="text" value={fTitle} onChange={e => { setFTitle(e.target.value); setFormErrors(prev => ({ ...prev, title: undefined })); }}
-                  className={`w-full px-3 py-2 rounded-lg border bg-[var(--bg-page)] text-primary transition-colors focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)] ${formErrors.title ? 'border-red-500' : 'border-border'}`} />
-                {formErrors.title && <p className="text-xs text-error mt-1">{formErrors.title}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">IT Role *</label>
-                <Select label="" value={fRoleId} onChange={v => { setFRoleId(v); setFormErrors(prev => ({ ...prev, role: undefined })); }}
-                  placeholder="Select an IT role"
-                  options={[
-                    { value: '', label: 'Select an IT role' },
-                    ...roles.map(r => ({ value: r.id, label: `${r.name} (${r.family})` })),
-                  ]}
-                />
-                {formErrors.role && <p className="text-xs text-error mt-1">{formErrors.role}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">Description</label>
-                <textarea value={fDescription} onChange={e => setFDescription(e.target.value)} rows={3}
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-[var(--bg-page)] text-primary focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)] transition-colors" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">Interview Style</label>
-                <Select label="Interview Style" value={fStyle} onChange={setFStyle}
-                  options={INTERVIEW_STYLES.map(s => ({ value: s.value, label: s.label }))}
-                />
-                <p className="text-xs text-muted mt-1">{INTERVIEW_STYLES.find(s => s.value === fStyle)?.desc}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">Template (optional)</label>
-                  <Select label="" value={fTemplateId} onChange={setFTemplateId}
-                    placeholder="No template"
-                    options={[
-                      { value: '', label: 'No template' },
-                      ...templates.map(t => ({ value: t.id, label: `${t.name} (${t.job_role})` })),
-                    ]}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary mb-1">Max Candidates</label>
-                  <input type="number" value={fMaxCandidates} onChange={e => setFMaxCandidates(e.target.value)} min={1}
-                    placeholder="Unlimited"
-                    className="w-full px-3 py-2 rounded-lg border border-border bg-[var(--bg-page)] text-primary [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)] transition-colors" />
-                </div>
-              </div>
-
-              <TagInput value={fSkills} onChange={setFSkills} label="Skills Required" placeholder="e.g. Python" />
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-secondary mb-1">Starts At</label>
-                  <DateTimePicker value={fStartsAt} onChange={v => { setFStartsAt(v); setFormErrors(prev => ({ ...prev, dates: undefined })); }} placeholder="Pick start date & time" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-secondary mb-1">Expires At</label>
-                  <DateTimePicker value={fExpiresAt} onChange={v => { setFExpiresAt(v); setFormErrors(prev => ({ ...prev, dates: undefined })); }} placeholder="Pick expiry date & time" />
-                </div>
-              </div>
-              {formErrors.dates && <p className="text-xs text-error">{formErrors.dates}</p>}
-
-              <div className="flex gap-3">
-                <Button type="submit" loading={saving}>{editing ? 'Save Changes' : 'Create'}</Button>
-                <Button type="button" variant="ghost" onClick={resetForm}>Cancel</Button>
-              </div>
-            </form>
-          </div>
-
-          {listings.length === 0 && !showForm ? (
-            <Card>
-              <div className="flex flex-col items-center py-8 text-center">
-                <ExternalLink className="w-8 h-8 text-muted mb-3" />
-                <p className="text-sm text-secondary">No interview listings for this company.</p>
-              </div>
-            </Card>
+          {listings.length === 0 ? (
+            <div className="rounded-xl border border-border bg-section">
+              <EmptyState
+                icon={<ExternalLink />}
+                title="No listings yet"
+                description="Create one to put a role on the Opportunity Hub, where candidates can apply with their CV."
+              />
+            </div>
           ) : (
-            <div className="space-y-3">
+            <ul className="rounded-xl border border-border bg-section divide-y divide-[var(--divider)] overflow-hidden">
               {listings.map(listing => {
                 const skills = listing.skills_required?.split(',').map(s => s.trim()).filter(Boolean) || [];
                 const role = roles.find(r => r.id === listing.it_role_id);
                 const expired = listing.expires_at ? new Date(listing.expires_at) < new Date() : false;
                 const expiryDays = listing.expires_at ? Math.ceil((new Date(listing.expires_at).getTime() - Date.now()) / 86400000) : null;
+                const status = !listing.is_open ? 'closed' : expired ? 'expired' : 'open';
+                const meta = [
+                  role?.name,
+                  listing.style_name && listing.style_name !== 'STANDARD' ? INTERVIEW_STYLES.find(s => s.value === listing.style_name)?.label ?? listing.style_name : null,
+                  listing.starts_at ? `Opens ${fmtDate(listing.starts_at)}` : null,
+                  listing.expires_at ? `Closes ${fmtDate(listing.expires_at)}` : null,
+                ].filter(Boolean).join(' / ');
                 return (
-                  <Card key={listing.id}>
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <h3 className="font-semibold text-primary truncate">{listing.title}</h3>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${listing.is_open ? 'bg-green-500/15 text-success-text' : 'bg-red-500/15 text-error-text'}`}>
-                            {listing.is_open ? 'Open' : 'Closed'}
-                          </span>
-                          {expired && listing.is_open && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/15 text-error-text">Expired</span>
-                          )}
-                          {expiryDays !== null && expiryDays > 0 && expiryDays <= 7 && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-500">
-                              Expires in {expiryDays}d
-                            </span>
-                          )}
-                        </div>
-                        {listing.description && (
-                          <p className="text-sm text-secondary line-clamp-2 mb-2">{listing.description}</p>
+                  <li key={listing.id} className="flex items-center gap-4 px-4 py-3 hover:bg-subtle transition-colors">
+                    <button type="button" onClick={() => handleEdit(listing)} className="flex-1 min-w-0 text-left rounded">
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-primary truncate">{listing.title}</span>
+                        <span className={`shrink-0 inline-flex items-center gap-1.5 text-xs ${status === 'open' ? 'text-success-text' : 'text-tertiary'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${status === 'open' ? 'bg-success' : 'bg-[var(--border-strong)]'}`} aria-hidden />
+                          {status === 'open' ? 'Open' : status === 'expired' ? 'Expired' : 'Closed'}
+                        </span>
+                        {status === 'open' && expiryDays !== null && expiryDays > 0 && expiryDays <= 7 && (
+                          <span className="shrink-0 text-xs text-warning-text">closes in {expiryDays} {expiryDays === 1 ? 'day' : 'days'}</span>
                         )}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {role && (
-                            <span className="text-xs px-2 py-0.5 rounded bg-action-primary/10 text-action-primary">
-                              {role.name}
-                            </span>
-                          )}
-                          {listing.style_name && listing.style_name !== 'STANDARD' && (
-                            <span className="text-xs px-2 py-0.5 rounded bg-info-bg text-info-text">
-                              {listing.style_name}
-                            </span>
-                          )}
-                          {skills.map(s => (
-                            <span key={s} className="text-xs px-2 py-0.5 rounded bg-page text-muted border border-border-color">
-                              {s}
-                            </span>
-                          ))}
-                        </div>
-                        <div className="flex items-center gap-4 text-xs text-muted mt-2">
-                          {listing.starts_at && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Starts {new Date(listing.starts_at).toLocaleDateString()}</span>}
-                          {listing.expires_at && <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Expires {new Date(listing.expires_at).toLocaleDateString()}</span>}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button variant="ghost" size="sm" onClick={() => handleCopyLink(listing.token)} title="Copy link">
-                          {copiedId === listing.token ? <span className="text-success-text">Copied!</span> : <Copy className="w-4 h-4" />}
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(listing)} title="Edit">
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(listing)} title="Delete listing">
-                          <Trash2 className="w-4 h-4 text-error-text" />
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
+                      </span>
+                      {meta && <span className="block text-xs text-tertiary truncate mt-0.5">{meta}</span>}
+                      {skills.length > 0 && <span className="block text-xs text-secondary truncate mt-0.5">{skills.join(', ')}</span>}
+                    </button>
+                    <span className="flex items-center gap-0.5 shrink-0">
+                      <button
+                        onClick={() => handleCopyLink(listing.token)}
+                        className="h-8 px-2 inline-flex items-center gap-1.5 rounded-md text-xs text-secondary hover:text-primary hover:bg-hover"
+                        aria-label={`Copy the link to ${listing.title}`}
+                      >
+                        {copiedId === listing.token ? <><Check className="w-4 h-4 text-success-text" /> Copied</> : <><Copy className="w-4 h-4" /> Link</>}
+                      </button>
+                      <button onClick={() => handleEdit(listing)} className="p-1.5 rounded-md text-tertiary hover:text-primary hover:bg-hover" aria-label={`Edit ${listing.title}`}>
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => setDeleteTarget(listing)} className="p-1.5 rounded-md text-tertiary hover:text-error-text hover:bg-hover" aria-label={`Delete ${listing.title}`}>
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </span>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
         </div>
       )}
+
+      <Sheet
+        open={showForm}
+        onClose={resetForm}
+        onSubmit={handleSave}
+        width="lg"
+        title={editing ? 'Edit listing' : 'New listing'}
+        description={`A role ${activeOrg?.name ?? 'your organization'} shows on the Opportunity Hub. Candidates apply with their CV; you invite the ones you want to interview.`}
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={resetForm} disabled={saving}>Cancel</Button>
+            <Button type="submit" loading={saving}>{editing ? 'Save listing' : 'Create listing'}</Button>
+          </>
+        }
+      >
+        <SheetSection title="The role">
+          <Input
+            label="Title"
+            value={fTitle}
+            onChange={e => { setFTitle(e.target.value); setFormErrors(prev => ({ ...prev, title: undefined })); }}
+            placeholder="e.g. Senior backend developer"
+            error={formErrors.title}
+          />
+          <Select
+            label="IT role"
+            value={fRoleId}
+            onChange={v => { setFRoleId(v); setFormErrors(prev => ({ ...prev, role: undefined })); }}
+            placeholder="Choose a role"
+            options={roles.map(r => ({ value: r.id, label: `${r.name} (${r.family})` }))}
+            error={formErrors.role}
+          />
+          <Textarea label="Description" value={fDescription} onChange={e => setFDescription(e.target.value)} rows={4} hint="Shown to candidates on the listing page." />
+          <TagInput value={fSkills} onChange={setFSkills} label="Skills" placeholder="e.g. Python" />
+        </SheetSection>
+
+        <SheetSection title="The interview">
+          <div className="space-y-1.5">
+            <Select label="Interview style" value={fStyle} onChange={setFStyle} options={INTERVIEW_STYLES.map(s => ({ value: s.value, label: s.label }))} />
+            <p className="text-xs text-tertiary">{INTERVIEW_STYLES.find(s => s.value === fStyle)?.desc}</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Select
+              label="Template"
+              value={fTemplateId}
+              onChange={setFTemplateId}
+              placeholder="No template"
+              options={[{ value: '', label: 'No template' }, ...templates.map(t => ({ value: t.id, label: `${t.name} (${t.job_role})` }))]}
+            />
+            <Input
+              label="Most candidates"
+              type="number"
+              min={1}
+              value={fMaxCandidates}
+              onChange={e => setFMaxCandidates(e.target.value)}
+              placeholder="No limit"
+              className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            />
+          </div>
+        </SheetSection>
+
+        <SheetSection title="Dates" text="Leave both empty to keep the listing open until you close it.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <span className="block text-[13px] font-medium text-primary">Opens</span>
+              <DateTimePicker value={fStartsAt} onChange={v => { setFStartsAt(v); setFormErrors(prev => ({ ...prev, dates: undefined })); }} placeholder="Right away" />
+            </div>
+            <div className="space-y-1.5">
+              <span className="block text-[13px] font-medium text-primary">Closes</span>
+              <DateTimePicker value={fExpiresAt} onChange={v => { setFExpiresAt(v); setFormErrors(prev => ({ ...prev, dates: undefined })); }} placeholder="No closing date" />
+            </div>
+          </div>
+          {formErrors.dates && <p className="text-xs text-error">{formErrors.dates}</p>}
+        </SheetSection>
+      </Sheet>
 
       {tab === 'history' && (
         <Card>
@@ -504,8 +494,8 @@ export function Company() {
 
       <ConfirmDialog
         open={!!deleteTarget}
-        title="Delete listing"
-        message={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone.`}
+        title="Delete listing?"
+        message={`"${deleteTarget?.title}" will be deleted and its link will stop working. This cannot be undone.`}
         confirmLabel="Delete"
         variant="danger"
         onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget); setDeleteTarget(null); }}

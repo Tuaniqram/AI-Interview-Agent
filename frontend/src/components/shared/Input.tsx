@@ -1,4 +1,4 @@
-import { InputHTMLAttributes, ReactNode, useId } from 'react';
+import { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes, useId } from 'react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -37,6 +37,30 @@ export function Input({ label, error, hint, icon, className = '', id, ...props }
   );
 }
 
+interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label?: string;
+  error?: string;
+  hint?: string;
+}
 
-
-
+/** A multi-line field that matches Input: same border, focus ring, label and hint. */
+export function Textarea({ label, error, hint, className = '', id, rows = 4, ...props }: TextareaProps) {
+  const autoId = useId();
+  const fieldId = id ?? autoId;
+  const describedBy = error ? `${fieldId}-error` : hint ? `${fieldId}-hint` : undefined;
+  return (
+    <div className="space-y-1.5">
+      {label && <label htmlFor={fieldId} className="block text-[13px] font-medium text-primary">{label}</label>}
+      <textarea
+        id={fieldId}
+        rows={rows}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        className={`w-full px-3 py-2 text-[13px] bg-input text-primary rounded-md border border-[var(--border-strong)] shadow-sm hover:border-[var(--text-tertiary)] focus:border-[var(--action-primary)] focus:outline-none focus:ring-[3px] focus:ring-[var(--focus-ring)] placeholder:text-tertiary resize-y ${className}`}
+        {...props}
+      />
+      {error && <p id={`${fieldId}-error`} className="text-xs text-error">{error}</p>}
+      {hint && !error && <p id={`${fieldId}-hint`} className="text-xs text-tertiary">{hint}</p>}
+    </div>
+  );
+}

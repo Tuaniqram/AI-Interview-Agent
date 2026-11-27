@@ -4,16 +4,18 @@ import { apiClient } from '../../services/apiClient';
 import { orgContentService, type Template } from '../../services/orgContentService';
 import { itService, type ItRole } from '../../services/itService';
 import { PageHeader } from '../../components/shared/PageHeader';
-import { Card } from '../../components/shared/Card';
 import { Button } from '../../components/shared/Button';
 import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { Select } from '../../components/shared/Select';
 import { Slider } from '../../components/shared/Slider';
+import { Input, Textarea } from '../../components/shared/Input';
+import { Sheet, SheetSection } from '../../components/shared/Sheet';
+import { CompetencyRows } from '../../components/org/CompetencyRows';
 import { scorecardService } from '../../services/scorecardService';
 import type { ScorecardTemplate, CompetencyDef } from '../../types/scorecard';
 import { useToast } from '../../components/shared/Toast';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { FileStack, Pencil, Plus, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '../../components/shared/ConfirmDialog';
 
 interface OrgTemplate extends Template {
@@ -24,8 +26,16 @@ interface OrgTemplate extends Template {
   competencies: any[] | null;
 }
 
+type Source = 'defaults' | 'scorecard' | 'custom';
+
 const COMPETENCY_CATEGORIES = ['technical', 'behavioral', 'cognitive', 'experience', 'general'];
-const FOCUS = 'focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)]';
+const BLANK: CompetencyDef = { id: '', name: '', category: 'general', weight: 1.0, max_score: 10.0 };
+
+const SOURCES: { value: Source; label: string; text: string }[] = [
+  { value: 'defaults', label: 'Built-in', text: "AURA's standard competencies for the role. Right for most roles." },
+  { value: 'scorecard', label: 'A scorecard', text: 'The competencies and weights of one of your scorecards.' },
+  { value: 'custom', label: 'Custom', text: 'A list you write here, just for this template.' },
+];
 
 export default function Templates() {
   const { activeOrg } = useOrg();
@@ -44,9 +54,10 @@ export default function Templates() {
   const [totalQuestions, setTotalQuestions] = useState(10);
   const [scorecardTemplateId, setScorecardTemplateId] = useState('');
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<{ name?: string; role?: string; scorecard?: string }>({});
   const [scorecards, setScorecards] = useState<ScorecardTemplate[]>([]);
   const [competencies, setCompetencies] = useState<CompetencyDef[]>([]);
-  const [competencySource, setCompetencySource] = useState<'defaults' | 'scorecard' | 'custom'>('defaults');
+  const [competencySource, setCompetencySource] = useState<Source>('defaults');
 
   useEffect(() => {
     if (!activeOrg?.id) return;
@@ -59,7 +70,7 @@ export default function Templates() {
       setTemplates(t);
       setRoles(r);
       setScorecards(sc);
-    }).catch(() => toast.error('Failed to load templates'))
+    }).catch(() => toast.error('Could not load templates. Reload the page to try again.'))
     .finally(() => setLoading(false));
   }, [activeOrg?.id]);
 
@@ -71,8 +82,14 @@ export default function Templates() {
     setScorecardTemplateId('');
     setCompetencies([]);
     setCompetencySource('defaults');
+    setErrors({});
     setShowForm(false);
     setEditingId(null);
+  };
+
+  const startNew = () => {
+    resetForm();
+    setShowForm(true);
   };
 
   const startEdit = (t: OrgTemplate) => {
@@ -87,28 +104,21 @@ export default function Templates() {
         : (t.competencies && t.competencies.length) ? 'custom'
         : 'defaults'
     );
+    setErrors({});
     setEditingId(t.id);
     setShowForm(true);
   };
 
-  const addCompetency = () => {
-    setCompetencies([...competencies, { id: '', name: '', category: 'general', weight: 1.0, max_score: 10.0 }]);
-  };
+  const handleSave = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!activeOrg?.id) return;
+    const found: typeof errors = {};
+    if (!name.trim()) found.name = 'Give the template a name.';
+    if (!jobRole.trim()) found.role = 'Choose the IT role it is for.';
+    if (competencySource === 'scorecard' && !scorecardTemplateId) found.scorecard = 'Choose a scorecard, or pick another source.';
+    setErrors(found);
+    if (Object.keys(found).length) return;
 
-  const updateCompetency = (i: number, field: keyof CompetencyDef, value: any) => {
-    const updated = competencies.map((c, idx) => idx === i ? { ...c, [field]: value } : c);
-    if (field === 'name' && !competencies[i].id) {
-      updated[i] = { ...updated[i], id: value.toLowerCase().replace(/\s+/g, '_') };
-    }
-    setCompetencies(updated);
-  };
-
-  const removeCompetency = (i: number) => {
-    setCompetencies(competencies.filter((_, idx) => idx !== i));
-  };
-
-  const handleSave = async () => {
-    if (!activeOrg?.id || !name.trim() || !jobRole.trim()) return;
     const orgId = activeOrg.id;
     setSaving(true);
     const cleaned = competencies.filter(c => c.name.trim());
@@ -123,7 +133,7 @@ export default function Templates() {
     try {
       if (editingId) {
         await orgContentService.updateTemplate(orgId, editingId, payload);
-        toast.success('Template updated');
+        toast.success('Template saved');
       } else {
         await orgContentService.createTemplate(orgId, payload);
         toast.success('Template created');
@@ -132,7 +142,7 @@ export default function Templates() {
       setTemplates(updated);
       resetForm();
     } catch {
-      toast.error('Failed to save template');
+      toast.error('Could not save the template. Try again in a moment.');
     } finally {
       setSaving(false);
     }
@@ -145,187 +155,160 @@ export default function Templates() {
       setTemplates(templates.filter(tm => tm.id !== t.id));
       toast.success('Template deleted');
     } catch {
-      toast.error('Failed to delete template');
+      toast.error('Could not delete the template.');
     }
-  };
-
-  const confirmDelete = (t: OrgTemplate) => {
-    setDeleteTarget(t);
   };
 
   if (loading) return <ContentSkeleton />;
 
   const filtered = selectedRole ? templates.filter(t => t.job_role === selectedRole) : templates;
+  const scorecardName = (id?: string | null) => scorecards.find(s => s.id === id)?.name;
+  const sourceOf = (t: OrgTemplate) =>
+    t.scorecard_template_id ? `Scorecard: ${scorecardName(t.scorecard_template_id) ?? 'unknown'}`
+      : t.competencies?.length ? `${t.competencies.length} custom competencies`
+      : 'Built-in competencies';
 
   return (
     <>
       <div className="space-y-6">
-        <PageHeader title="Templates" description="Reusable interview setups: the role, how many questions, and the scorecard to use."
-          actions={<Button onClick={() => { resetForm(); setShowForm(true); }}><Plus className="w-4 h-4 mr-1" /> New template</Button>}
+        <PageHeader
+          title="Templates"
+          description="Reusable interview setups: the role, how many questions, and what the answers are scored on."
+          actions={<Button icon={<Plus />} onClick={startNew}>New template</Button>}
         />
 
-        <div className="flex items-center gap-3">
-          <Select
-            value={selectedRole}
-            onChange={setSelectedRole}
-            placeholder="All IT roles"
-            options={roles.map(r => ({ value: r.name, label: r.name }))}
-          />
-        </div>
-
-        {showForm && (
-          <Card padding="lg" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-primary">{editingId ? 'Edit Template' : 'New Template'}</h3>
-              <button onClick={resetForm}><X className="w-4 h-4 text-muted" /></button>
-            </div>
-            <div className="rounded-lg bg-page border border-border px-3 py-2.5 text-xs text-secondary space-y-1">
-              <p className="text-primary font-medium">Not sure what to fill in?</p>
-              <p>An <span className="text-primary font-medium">interview template</span> defines how the interview runs: which IT role, level, and how many questions.</p>
-              <p><span className="text-primary font-medium">Competencies</span> are the skill list AURA evaluates against — you pick the source below. Not sure? AURA defaults works for most roles.</p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">Template Name</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-                  className={`w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border transition-colors ${FOCUS}`} placeholder="e.g. Senior Frontend Interview" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">IT Role</label>
-                <Select
-                  value={jobRole}
-                  onChange={setJobRole}
-                  placeholder="Select IT role"
-                  options={roles.map(r => ({ value: r.name, label: r.name }))}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-primary mb-1">Total Questions</label>
-                <Slider value={totalQuestions} onChange={setTotalQuestions} min={1} max={50} step={1} />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-primary mb-1">Description</label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
-                className="w-full px-3 py-2 text-sm bg-input text-primary rounded-lg border border-border" placeholder="Template description..." />
-            </div>
-            <div className="space-y-3">
-              <label className="block text-sm font-medium text-primary">Competencies — what AURA evaluates</label>
-              <div className="flex gap-2">
-                {([
-                  { value: 'defaults', label: 'AURA defaults' },
-                  { value: 'scorecard', label: 'Scorecard' },
-                  { value: 'custom', label: 'Custom' },
-                ] as const).map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setCompetencySource(opt.value)}
-                    className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-                      competencySource === opt.value
-                        ? 'bg-action-primary text-inverse border-transparent'
-                        : 'bg-input text-secondary border-border hover:bg-hover'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-
-              {competencySource === 'scorecard' && (
-                <div>
-                  <Select
-                    label="Scorecard"
-                    value={scorecardTemplateId}
-                    onChange={setScorecardTemplateId}
-                    placeholder="Select a scorecard"
-                    options={scorecards.map(sc => ({ value: sc.id, label: sc.name }))}
-                  />
-                  <p className="text-xs text-muted mt-1">The scorecard's competencies and weights will drive the interview.</p>
-                </div>
-              )}
-
-              {competencySource === 'custom' && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-sm font-medium text-primary">Competencies</label>
-                    <button type="button" onClick={addCompetency}
-                      className="inline-flex items-center gap-1 text-xs text-action-primary hover:text-primary">
-                      <Plus className="w-3.5 h-3.5" /> Add competency
-                    </button>
-                  </div>
-                  <p className="text-xs text-muted">These competencies will drive interviews using this template.</p>
-                  <div className="space-y-2">
-                    {competencies.map((c, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <input type="text" value={c.name} onChange={(e) => updateCompetency(i, 'name', e.target.value)}
-                          className={`flex-1 px-3 py-1.5 text-sm bg-input text-primary rounded-lg border border-border ${FOCUS}`}
-                          placeholder="Competency name (e.g. Marketing Strategy)" />
-                        <Select
-                          value={c.category}
-                          onChange={v => updateCompetency(i, 'category', v)}
-                          options={COMPETENCY_CATEGORIES.map(cat => ({ value: cat, label: cat }))}
-                          className="w-36"
-                        />
-                        <input type="number" min={0.5} max={5} step={0.5} value={c.weight}
-                          onChange={(e) => updateCompetency(i, 'weight', Number(e.target.value))}
-                          className="w-20 px-3 py-1.5 text-sm bg-input text-primary rounded-lg border border-border" title="Weight" />
-                        <button type="button" onClick={() => removeCompetency(i)}
-                          className="p-1.5 rounded hover:bg-hover text-muted hover:text-error"><X className="w-4 h-4" /></button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {competencySource === 'defaults' && (
-                <p className="text-xs text-secondary">Uses AURA's built-in competency set — good for most roles.</p>
-              )}
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={resetForm} disabled={saving}>Cancel</Button>
-              <Button onClick={handleSave} loading={saving}>{editingId ? 'Update' : 'Create'}</Button>
-            </div>
-          </Card>
+        {templates.length > 0 && (
+          <div className="w-60">
+            <Select
+              value={selectedRole}
+              onChange={setSelectedRole}
+              placeholder="All IT roles"
+              options={[{ value: '', label: 'All IT roles' }, ...roles.map(r => ({ value: r.name, label: r.name }))]}
+            />
+          </div>
         )}
 
-        {filtered.length === 0 && !showForm ? (
-          <EmptyState title="No templates yet" description="Create one so every interview for a role asks the same number of questions and uses the same scorecard." />
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map(t => (
-              <Card key={t.id} padding="lg" className="flex flex-col">
-                <div className="flex-1">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-sm font-semibold text-primary">{t.name}</h3>
-                      <p className="text-xs text-action-primary mt-0.5">{t.job_role}</p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted mt-2">{t.level_code ? `${t.level_code} level` : 'IT role'}</p>
-                  {t.description && <p className="text-xs text-secondary mt-1 line-clamp-2">{t.description}</p>}
-                  <div className="flex items-center gap-2 mt-3">
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-action-primary/10 text-action-primary">AURA</span>
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-hover text-muted">{t.total_questions} questions</span>
-                    {t.competencies && t.competencies.length > 0 && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-hover text-muted">{t.competencies.length} competencies</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 mt-3 pt-3 border-t border-border">
-                  <button onClick={() => startEdit(t)} className="p-1.5 rounded hover:bg-hover text-muted hover:text-primary"><Pencil className="w-4 h-4" /></button>
-                  <button onClick={() => confirmDelete(t)} className="p-1.5 rounded hover:bg-hover text-muted hover:text-error"><Trash2 className="w-4 h-4" /></button>
-                </div>
-              </Card>
-            ))}
+        {filtered.length === 0 ? (
+          <div className="rounded-xl border border-border bg-section">
+            <EmptyState
+              icon={<FileStack />}
+              title={templates.length === 0 ? 'No templates yet' : 'No templates for this role'}
+              description={templates.length === 0
+                ? 'Create one so every interview for a role asks the same number of questions and is scored the same way.'
+                : 'Pick another role, or create a template for this one.'}
+              action={templates.length === 0 ? <Button icon={<Plus />} onClick={startNew}>New template</Button> : undefined}
+            />
           </div>
+        ) : (
+          <ul className="rounded-xl border border-border bg-section divide-y divide-[var(--divider)] overflow-hidden">
+            {filtered.map(t => (
+              <li key={t.id} className="group flex items-center gap-4 px-4 py-3 hover:bg-subtle transition-colors">
+                <button type="button" onClick={() => startEdit(t)} className="flex-1 min-w-0 text-left rounded">
+                  <span className="block text-sm font-medium text-primary truncate">{t.name}</span>
+                  <span className="block text-xs text-tertiary truncate mt-0.5">
+                    {[t.job_role, t.level_code ? `${t.level_code} level` : null, sourceOf(t)].filter(Boolean).join(' / ')}
+                  </span>
+                  {t.description && <span className="block text-[13px] text-secondary truncate mt-0.5">{t.description}</span>}
+                </button>
+                <span className="text-xs text-secondary tabular whitespace-nowrap">{t.total_questions} questions</span>
+                <span className="flex items-center gap-0.5">
+                  <button onClick={() => startEdit(t)} className="p-1.5 rounded-md text-tertiary hover:text-primary hover:bg-hover" aria-label={`Edit ${t.name}`}>
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setDeleteTarget(t)} className="p-1.5 rounded-md text-tertiary hover:text-error-text hover:bg-hover" aria-label={`Delete ${t.name}`}>
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
+      <Sheet
+        open={showForm}
+        onClose={resetForm}
+        onSubmit={handleSave}
+        width="lg"
+        title={editingId ? 'Edit template' : 'New template'}
+        description="How an interview for this role runs: how many questions, and what the answers are scored on."
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={resetForm} disabled={saving}>Cancel</Button>
+            <Button type="submit" loading={saving}>{editingId ? 'Save template' : 'Create template'}</Button>
+          </>
+        }
+      >
+        <SheetSection title="Basics">
+          <Input label="Name" value={name} onChange={e => { setName(e.target.value); setErrors(p => ({ ...p, name: undefined })); }} placeholder="e.g. Senior frontend interview" error={errors.name} />
+          <Select
+            label="IT role"
+            value={jobRole}
+            onChange={v => { setJobRole(v); setErrors(p => ({ ...p, role: undefined })); }}
+            placeholder="Choose a role"
+            options={roles.map(r => ({ value: r.name, label: r.name }))}
+            error={errors.role}
+          />
+          <div className="space-y-1.5">
+            <span className="block text-[13px] font-medium text-primary">Questions</span>
+            <Slider value={totalQuestions} onChange={setTotalQuestions} min={1} max={50} step={1} />
+          </div>
+          <Textarea label="Description" value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder="Optional. Who this template is for, for your team." />
+        </SheetSection>
+
+        <SheetSection title="Scored on" text="The competencies the answers are scored against.">
+          <div role="radiogroup" aria-label="Competency source" className="grid gap-2 sm:grid-cols-3">
+            {SOURCES.map(s => {
+              const on = competencySource === s.value;
+              return (
+                <button
+                  key={s.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => { setCompetencySource(s.value); setErrors(p => ({ ...p, scorecard: undefined })); }}
+                  className={`text-left rounded-lg border px-3 py-2.5 transition-colors ${
+                    on ? 'border-action-primary bg-action-primary-soft' : 'border-border hover:border-border-strong'
+                  }`}
+                >
+                  <span className={`block text-[13px] font-medium ${on ? 'text-action-primary' : 'text-primary'}`}>{s.label}</span>
+                  <span className="block text-xs text-secondary mt-0.5">{s.text}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {competencySource === 'scorecard' && (
+            scorecards.length === 0 ? (
+              <p className="text-[13px] text-secondary">You have no scorecards yet. Create one on the Scorecards page, or pick another source.</p>
+            ) : (
+              <Select
+                label="Scorecard"
+                value={scorecardTemplateId}
+                onChange={v => { setScorecardTemplateId(v); setErrors(p => ({ ...p, scorecard: undefined })); }}
+                placeholder="Choose a scorecard"
+                options={scorecards.map(sc => ({ value: sc.id, label: sc.name }))}
+                error={errors.scorecard}
+              />
+            )
+          )}
+
+          {competencySource === 'custom' && (
+            <CompetencyRows
+              rows={competencies}
+              onChange={setCompetencies}
+              categories={COMPETENCY_CATEGORIES}
+              weight={{ min: 0.5, max: 5, step: 0.5 }}
+              blank={BLANK}
+            />
+          )}
+        </SheetSection>
+      </Sheet>
+
       <ConfirmDialog
         open={!!deleteTarget}
-        title="Delete template"
-        message={`Are you sure you want to delete "${deleteTarget?.name}"? This cannot be undone.`}
+        title="Delete template?"
+        message={`"${deleteTarget?.name}" will be deleted. This cannot be undone.`}
         confirmLabel="Delete"
         variant="danger"
         onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget); setDeleteTarget(null); }}

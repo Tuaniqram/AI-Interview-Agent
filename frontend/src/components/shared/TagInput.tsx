@@ -1,4 +1,4 @@
-import { useState, KeyboardEvent } from 'react';
+import { useId, useState, KeyboardEvent } from 'react';
 import { X } from 'lucide-react';
 
 interface TagInputProps {
@@ -10,6 +10,7 @@ interface TagInputProps {
 
 export function TagInput({ value, onChange, placeholder = 'Type and press Enter', label }: TagInputProps) {
   const [input, setInput] = useState('');
+  const id = useId();
 
   const tags = value ? value.split(',').map(s => s.trim()).filter(Boolean) : [];
 
@@ -40,25 +41,26 @@ export function TagInput({ value, onChange, placeholder = 'Type and press Enter'
 
   return (
     <div className="space-y-1.5">
-      {label && <label className="block text-sm font-medium text-primary">{label}</label>}
-      <div className="flex flex-wrap gap-1.5 px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)] transition-colors min-h-[38px]">
+      {label && <label htmlFor={id} className="block text-[13px] font-medium text-primary">{label}</label>}
+      <div className="flex flex-wrap items-center gap-1.5 px-2 py-1 rounded-md border border-[var(--border-strong)] bg-input shadow-sm hover:border-[var(--text-tertiary)] focus-within:border-[var(--action-primary)] focus-within:ring-[3px] focus-within:ring-[var(--focus-ring)] transition-colors min-h-8">
         {tags.map((tag, i) => (
-          <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-md bg-[var(--action-primary)]/10 text-[var(--action-primary)]">
+          <span key={i} className="inline-flex items-center gap-1 h-6 pl-2 pr-1 text-xs rounded border border-border bg-subtle text-primary">
             {tag}
-            <button onClick={() => removeTag(i)} className="hover:opacity-70" type="button" aria-label={`Remove ${tag}`}>
+            <button onClick={() => removeTag(i)} className="p-0.5 rounded text-tertiary hover:text-primary" type="button" aria-label={`Remove ${tag}`}>
               <X className="w-3 h-3" />
             </button>
           </span>
         ))}
         <input
+          id={id}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={tags.length === 0 ? placeholder : ''}
-          className="flex-1 min-w-[80px] bg-transparent text-sm text-[var(--text-primary)] placeholder:text-muted focus:outline-none"
+          className="flex-1 min-w-[80px] h-6 px-1 bg-transparent text-[13px] text-primary placeholder:text-tertiary focus:outline-none"
         />
       </div>
-      <p className="text-xs text-muted">Type a skill and press Enter to add</p>
+      <p className="text-xs text-tertiary">Press Enter or comma after each one.</p>
     </div>
   );
 }
