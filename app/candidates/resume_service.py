@@ -79,10 +79,15 @@ Extract:
 Resume text:
 {text[:8000]}"""
 
+    from app.intelligence.cv_years import years_of_experience
+
+    # Years come from the CV's dates, never from the LLM (also overrides any older cached parse).
+    years = years_of_experience(text)
+
     cache_key = content_cache.key("cv-parse", prompt)
     cached = await content_cache.get(cache_key)
     if cached is not None:
-        return cached
+        return {**cached, "years_of_experience": years}
 
     try:
         from langchain_core.messages import HumanMessage
@@ -97,6 +102,8 @@ Resume text:
     except Exception as e:
         logger.warning("LLM resume parsing failed: %s", e)
         data = {"skills": [], "experience": [], "education": [], "headline": "", "years_of_experience": None}
+    if isinstance(data, dict):
+        data["years_of_experience"] = years
     return data
 
 

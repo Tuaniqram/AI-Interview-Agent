@@ -3,6 +3,9 @@
 Feeds ``candidate_brain``. Deterministic heuristic extraction always works;
 the LLM pass (guarded) enriches when available. Existing candidate-profile
 data is always merged in so profile-first sessions work offline.
+
+Years of experience are never taken from the LLM: they are read from the CV's dates by
+``app.intelligence.cv_years`` (falling back to the profile's value when the CV states none).
 """
 import logging
 import os
@@ -49,8 +52,11 @@ async def analyze_resume(
         "weaknesses": dedupe(list(profile.get("weaknesses", [])) + fallback["weaknesses"]),
         "experience": fallback["experience"] or list(profile.get("experience", [])) or [],
         "education": fallback["education"],
+        # The CV's own dates win; the profile's value is only used when the CV states none.
         "years_of_experience": (
-            profile.get("years_of_experience") or fallback["years_of_experience"]
+            fallback["years_of_experience"]
+            if fallback["years_of_experience"] is not None
+            else profile.get("years_of_experience")
         ),
         "source": "profile",
     }
@@ -83,25 +89,14 @@ async def analyze_resume(
         for key in ("headline", "full_name"):
             if data.get(key):
                 result[key] = data[key]
-        if data.get("years_of_experience"):
-            years = _coerce_years(data["years_of_experience"])
-            if years is not None:
-                result["years_of_experience"] = years
+        # years_of_experience stays the deterministic value from the CV's dates (see _heuristic_parse); the LLM's
+        # estimate is ignored.
         result["source"] = "resume_llm"
     except Exception as exc:  # noqa: BLE001
         logger.warning(f"Resume LLM parse failed ({exc}); using heuristics")
         result["source"] = "heuristics"
 
     return result
-
-
-def _coerce_years(value) -> int | None:
-    """The LLM often answers ``'N/A'``, ``'8+ years'`` or ``'5-7'`` — extract
-    the first integer instead of crashing the whole parse on a bad value."""
-    if isinstance(value, (int, float)):
-        return int(value)
-    match = re.search(r"\d+", str(value or ""))
-    return int(match.group(0)) if match else None
 
 
 async def _legacy_llm_parse(text: str, job_role: str) -> dict:
@@ -141,10 +136,9 @@ def _heuristic_parse(text: str, job_role: str) -> dict:
         if len(kw) > 3 and kw not in lowered:
             weaknesses.append(f"Limited exposure to {kw}")
 
-    years = None
-    m = re.search(r"(\d+)\s*\+?\s*(?:years|yrs)", lowered)
-    if m:
-        years = int(m.group(1))
+    from app.intelligence.cv_years import years_of_experience
+
+    years = years_of_experience(text)
 
     return {
         "full_name": lines[0][:60] if lines else "Candidate",

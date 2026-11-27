@@ -180,7 +180,7 @@ async def test_resume_analyzer_dspy_branch_merges_typed_output(monkeypatch):
     assert data["full_name"] == "Jane Doe"
     assert "python" in data["skills"]
     assert data["skills"].count("python") == 1  # dedupe still applies
-    assert data["years_of_experience"] == 8  # _coerce_years still applies
+    assert data["years_of_experience"] == 8  # read from the CV text, not from the LLM
 
 
 async def test_resume_analyzer_dspy_branch_falls_back_to_heuristics(monkeypatch):
@@ -443,3 +443,21 @@ async def test_persist_intelligence_bundle_maps_actual_bundle_keys():
     assert row.evidence_requirements == bundle["evidence_requirements"]
     assert row.evidence_requirements[0]["verification_probe"] == "Ask about X"
     assert row.scorecard == {"competencies": []}  # no scorecard in the bundle -> blueprint fallback
+
+
+async def test_resume_analyzer_ignores_the_llm_years_estimate(monkeypatch):
+    """Years come from the CV's dates; an LLM figure that disagrees is ignored."""
+    monkeypatch.setenv("RESUME_LLM_BACKEND", "dspy")
+
+    async def fake_run(resume_text, job_role):
+        return {"full_name": "Jane Doe", "headline": "", "skills": [], "strengths": [], "weaknesses": [],
+                "experience": [], "education": [], "years_of_experience": 20}
+
+    monkeypatch.setattr("app.intelligence.dspy_modules.run_resume_analysis", fake_run)
+    data = await analyze_resume(
+        "Jane Doe\nExperience\nBackend Engineer, Acme  Jan 2021 - Dec 2023\n",
+        job_role="Backend Engineer",
+        use_llm=True,
+    )
+    assert data["source"] == "resume_llm"
+    assert data["years_of_experience"] == 3

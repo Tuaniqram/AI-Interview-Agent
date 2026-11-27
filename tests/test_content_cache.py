@@ -42,8 +42,8 @@ async def test_same_cv_is_parsed_once(server, monkeypatch):
 
     monkeypatch.setattr(resume_service, "llm", Model())
     text = "Jane Doe, Python developer"
-    assert await resume_service.parse_resume(text) == {"skills": ["python"]}
-    assert await resume_service.parse_resume(text) == {"skills": ["python"]}
+    assert await resume_service.parse_resume(text) == {"skills": ["python"], "years_of_experience": None}
+    assert await resume_service.parse_resume(text) == {"skills": ["python"], "years_of_experience": None}
     assert len(calls) == 1
     (key,) = redis(server).keys("aura:cache:*")
     assert "Jane" not in key and 0 < redis(server).ttl(key) <= 24 * 3600
