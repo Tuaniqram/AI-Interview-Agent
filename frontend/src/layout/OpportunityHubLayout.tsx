@@ -1,118 +1,60 @@
-import { useState } from 'react';
-import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCandidateAuth } from '../contexts/CandidateAuthContext';
-import { OpportunityHubSidebar } from '../components/opportunity-hub/OpportunityHubSidebar';
-import type { HubFilters } from '../components/opportunity-hub/OpportunityHubSidebar';
-import { Menu, Search, LogIn, UserPlus, LayoutDashboard } from 'lucide-react';
 
+/**
+ * The public hub: a plain top bar (name, then account links); each page opens with a full-width banner.
+ * No sidebar: the hub has one filter, and it lives with the list it filters.
+ */
 export function OpportunityHubLayout() {
   const { isAuthenticated, isLoading, user, logout } = useAuth();
   const { isAuthenticated: isCandidateAuth, isLoading: isCandidateLoading, logout: candidateLogout, candidate } = useCandidateAuth();
   const navigate = useNavigate();
-  // Filters only make sense on the list page; listing and organization pages get the full width.
-  const showFilters = useLocation().pathname.replace(/\/+$/, '') === '/opportunity-hub';
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState<HubFilters>({ expiry: 'any' });
 
-  const applyFilters = () => {
-    const params = new URLSearchParams();
-    if (search) params.set('search', search);
-    if (filters.expiry !== 'any') params.set('expiry', filters.expiry);
-    navigate({ pathname: '/opportunity-hub', search: params.toString() });
+  const ready = !isLoading && !isCandidateLoading;
+  const signedIn = isAuthenticated || isCandidateAuth;
+  const name = isAuthenticated ? user?.name : candidate?.name;
+
+  const signOut = () => {
+    try {
+      if (isAuthenticated) logout();
+      else candidateLogout();
+    } finally {
+      navigate('/');
+    }
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    applyFilters();
-  };
+  const linkCls = 'h-8 px-3 inline-flex items-center rounded-md text-[13px] text-secondary hover:text-primary hover:bg-hover transition-colors';
 
   return (
-    <div className="h-screen bg-[var(--bg-page)] flex flex-col overflow-hidden">
-      <header className="shrink-0 z-30 h-16 glass border-b border-[var(--border-color)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center gap-4">
-          {showFilters && <button
-            onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 -ml-2 rounded-lg text-secondary hover:text-primary hover:bg-hover"
-            aria-label="Open sidebar"
-          >
-            <Menu className="w-5 h-5" />
-          </button>}
-
-          <Link to="/opportunity-hub" className="flex items-center gap-2.5 shrink-0">
-            <img src="/favicon.svg" className="w-7 h-7" alt="" />
-            <span className="font-semibold text-primary hidden sm:inline font-heading">Opportunity Hub</span>
+    <div className="min-h-screen bg-page flex flex-col">
+      <header className="sticky top-0 z-30 h-14 bg-page/95 backdrop-blur border-b border-border">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-full flex items-center gap-3">
+          <Link to="/opportunity-hub" className="flex items-center gap-2 shrink-0 rounded-md">
+            <img src="/favicon.svg" className="w-6 h-6" alt="" />
+            <span className="text-sm font-semibold text-primary">Opportunity Hub</span>
           </Link>
 
-          <form onSubmit={handleSearch} className="flex-1 max-w-md mx-auto hidden md:block">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-              <input
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search organizations..."
-                className="w-full pl-9 pr-3 py-2 text-sm bg-[var(--bg-page)] text-primary rounded-lg border border-[var(--border-color)] focus:outline-none focus:ring-2 focus:ring-[#0c6b58]/30 focus:border-[#0c6b58] placeholder:text-muted transition-colors"
-              />
-            </div>
-          </form>
-
-          <nav className="flex items-center gap-3 ms-auto">
-            {!isLoading && !isCandidateLoading && (isAuthenticated || isCandidateAuth) ? (
+          <nav className="ms-auto flex items-center gap-1" aria-label="Account">
+            {!ready ? null : signedIn ? (
               <>
-                {isAuthenticated ? (
-                  <Link
-                    to="/dashboard"
-                    className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg text-secondary hover:text-primary hover:bg-hover transition-colors"
-                  >
-                    <LayoutDashboard className="w-4 h-4" />
-                    <span className="hidden sm:inline">Dashboard</span>
-                  </Link>
-                ) : (
-                  <Link
-                    to="/candidate/dashboard"
-                    className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg text-secondary hover:text-primary hover:bg-hover transition-colors"
-                  >
-                    <LayoutDashboard className="w-4 h-4" />
-                    <span className="hidden sm:inline">Dashboard</span>
-                  </Link>
-                )}
-                <div className="flex items-center gap-2 pl-2 border-l border-[var(--border-color)]">
-                  <div className="w-6 h-6 rounded-full bg-[#0c6b58] flex items-center justify-center text-white text-xs font-medium">
-                    {(isAuthenticated ? user?.name : candidate?.name)?.charAt(0)?.toUpperCase() || '?'}
-                  </div>
-                  <button
-                    onClick={() => {
-                      try {
-                        if (isAuthenticated) logout();
-                        else candidateLogout();
-                        navigate('/');
-                      } catch {
-                        // logout failed
-                      }
-                    }}
-                    className="text-xs text-red-500 hover:text-red-600"
-                  >
-                    Sign Out
-                  </button>
-                </div>
+                <Link to={isAuthenticated ? '/dashboard' : '/candidate/dashboard'} className={linkCls}>Dashboard</Link>
+                <span className="hidden sm:inline-flex items-center gap-2 pl-3 ml-1 border-l border-border text-[13px] text-secondary">
+                  <span className="w-6 h-6 rounded-full bg-hover border border-border flex items-center justify-center text-[11px] font-medium text-primary" aria-hidden>
+                    {name?.charAt(0)?.toUpperCase() || '?'}
+                  </span>
+                  <span className="max-w-[12rem] truncate">{name}</span>
+                </span>
+                <button onClick={signOut} className={linkCls}>Sign out</button>
               </>
-            ) : isCandidateLoading || isLoading ? null : (
+            ) : (
               <>
+                <Link to="/account" className={linkCls}>Sign in</Link>
                 <Link
-                  to="/login"
-                  className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg text-secondary hover:text-primary hover:bg-hover transition-colors"
+                  to="/candidate/register"
+                  className="h-8 px-3 inline-flex items-center rounded-md text-[13px] font-medium bg-action-primary text-action-primary-text hover:bg-action-primary-hover transition-colors"
                 >
-                  <LogIn className="w-4 h-4" />
-                  <span className="hidden sm:inline">Sign In</span>
-                </Link>
-                <Link
-                  to="/register"
-                  className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#0c6b58] text-white hover:bg-[#085244] transition-colors"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span className="hidden sm:inline">Get Started</span>
+                  Create account
                 </Link>
               </>
             )}
@@ -120,22 +62,10 @@ export function OpportunityHubLayout() {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
-        {showFilters && <OpportunityHubSidebar
-          open={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-          isAuthenticated={isAuthenticated}
-          filters={filters}
-          onFiltersChange={setFilters}
-          onApply={applyFilters}
-        />}
-
-        <main className="flex-1 min-w-0 overflow-y-auto">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 animate-fade-in">
-            <Outlet context={{ search, setSearch }} />
-          </div>
-        </main>
-      </div>
+      {/* Pages draw their own full-width banner, then their body (see HubBanner / HubBody). */}
+      <main className="flex-1 animate-fade-in">
+        <Outlet />
+      </main>
     </div>
   );
 }

@@ -25,8 +25,8 @@ export default function UserManagement() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Users" description="Manage all platform users" />
-      <SearchInput value={search} onChange={setSearch} placeholder="Search users..." />
+      <PageHeader title="Users" description="Every account on the platform, with its organization and role." />
+      <SearchInput className="max-w-sm" value={search} onChange={setSearch} placeholder="Search users by name or email" />
       {users.length === 0 ? (
         <EmptyState title="No users found" />
       ) : (
@@ -35,12 +35,12 @@ export default function UserManagement() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-page">
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Name</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Email</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Organization</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Role</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Joined</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-secondary">Name</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-secondary">Email</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-secondary">Organization</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-secondary">Role</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-secondary">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-secondary">Joined</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">

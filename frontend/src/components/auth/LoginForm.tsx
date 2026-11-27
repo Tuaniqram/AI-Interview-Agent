@@ -32,7 +32,7 @@ export function LoginForm({ redirectOnSuccess }: LoginFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       {error && (
-        <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">
+        <div className="rounded-md bg-error-bg px-3 py-2.5 text-[13px] text-error-text">
           {error}
         </div>
       )}
@@ -53,10 +53,10 @@ export function LoginForm({ redirectOnSuccess }: LoginFormProps) {
         required
       />
       <div className="text-right">
-        <Link to="/forgot-password" className="text-xs text-[var(--action-primary)] hover:underline">Forgot password?</Link>
+        <Link to="/forgot-password" className="text-[13px] hover:underline">Forgot password?</Link>
       </div>
-      <Button type="submit" loading={loading} className="w-full">
-        Sign In
+      <Button type="submit" size="lg" loading={loading} className="w-full">
+        Sign in
       </Button>
     </form>
   );

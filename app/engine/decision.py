@@ -8,7 +8,8 @@ Decision Review stage is layered in on top of this module as the engine's
 import logging
 
 from app.core.interview_brain import InterviewBrain
-from app.engine.store_io import store_checkpoint
+from app.engine.store_io import store_commit
+from app.services import llm_budget
 from app.core.interview_state import brain_to_dict, sync_brain
 from app.engine.persistence import (
     persist_answer_turn,
@@ -168,10 +169,46 @@ def finalize_verdict_outputs(state: dict) -> dict:
     return {**state, "hiring_decision": decision}
 
 
+def flag_budget_exceeded(hiring_decision: dict | None) -> dict:
+    """A report written without its full LLM reading needs a human; the verdict itself is not changed."""
+    decision = dict(hiring_decision or {})
+    label = decision.get("decision")
+    decision["flag_review"] = True
+    decision["adjustments"] = list(decision.get("adjustments") or []) + [{
+        "rule": "llm_budget", "from": label, "to": label,
+        "reason": "The automated reading stopped partway through this interview, so please review it manually.",
+    }]
+    return decision
+
+
+async def defer_report(engine, brain: InterviewBrain) -> dict | None:
+    """Hand the report to a background job; None when that is not possible (build it now).
+
+    The state is stored first, so the job sees the last answer; queueing the same session again
+    is harmless.
+    """
+    queue = getattr(engine, "report_queue", None)
+    if queue is None:
+        return None
+    from app.engine.builders import build_report_pending_response
+
+    if not brain.report_pending:
+        brain.report_pending = True
+        await persist_answer_turn(brain.session_id, brain)
+        await store_commit(engine._get_store(), brain.session_id, brain)
+    if not await queue.enqueue(brain.session_id):
+        return None
+    return build_report_pending_response(brain)
+
+
 async def finalize_session(engine, brain: InterviewBrain) -> dict:
     store = engine._get_store()
     events = engine._get_events()
     session_id = brain.session_id
+
+    pending = await defer_report(engine, brain)
+    if pending is not None:
+        return pending
 
     from app.engine.builders import (
         build_report_response,
@@ -255,11 +292,15 @@ async def finalize_session(engine, brain: InterviewBrain) -> dict:
         logger.warning(f"Decision explanation failed (non-fatal): {exc}")
     brain.hiring_decision = s.get("hiring_decision")
 
+    if llm_budget.exceeded() or brain.llm_budget_exceeded:
+        brain.llm_budget_exceeded = True
+        brain.hiring_decision = flag_budget_exceeded(brain.hiring_decision)
+
     brain.finalized = True
+    brain.report_pending = False
     await persist_answer_turn(session_id, brain)
     await persist_completion(session_id, brain)
-    store.set(session_id, brain.to_dict())
-    await store_checkpoint(store, session_id, brain.to_dict())
+    await store_commit(store, session_id, brain)
     brain.bump_version()
 
     report = build_report_response(brain)

@@ -164,8 +164,8 @@ async def _process_org_document(filepath: str, org_id: str, doc_id: str, filenam
 
         documents = load_pdf(filepath)
         chunks = split_documents(documents)
-        store_org_knowledge(chunks, org_id, doc_id=doc_id)
-        _invalidate_org_brain(org_id)
+        await asyncio.to_thread(store_org_knowledge, chunks, org_id, doc_id=doc_id)
+        await asyncio.to_thread(_invalidate_org_brain, org_id)
         logger.info(f"RAG pipeline completed: {len(chunks)} chunks stored (doc_id={doc_id})")
     except Exception as e:
         logger.error(f"RAG pipeline failed for {filename} (doc_id={doc_id}): {e}")
@@ -193,7 +193,7 @@ async def delete_document(
         delete_org_knowledge(str(org_id), doc_id)
     except Exception as e:
         logger.warning(f"Pinecone delete failed (continuing): {e}")
-    _invalidate_org_brain(org_id)
+    await asyncio.to_thread(_invalidate_org_brain, org_id)
 
     filepath = os.path.join(UPLOAD_DIR, doc.filename)
     if os.path.exists(filepath):

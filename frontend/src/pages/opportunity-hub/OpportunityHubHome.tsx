@@ -1,178 +1,168 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { X } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Building2, ChevronRight, Search } from 'lucide-react';
 import { marketplaceService } from '../../services/marketplaceService';
 import { EmptyState } from '../../components/shared/EmptyState';
-import { HeroSection } from '../../components/opportunity-hub/HeroSection';
-import { CategoryCard } from '../../components/opportunity-hub/CategoryCard';
-import { OrgCard } from '../../components/opportunity-hub/OrgCard';
-import { Carousel } from '../../components/shared/Carousel';
+import { HubBanner, HubBody } from '../../components/opportunity-hub/HubBanner';
 import { useDebounce } from '../../hooks/useDebounce';
 import type { OrgListing } from '../../types/marketplace';
 
-const CATEGORIES = [
-  { name: 'Engineering', icon: 'engineering', keywords: ['engineer', 'developer', 'software', 'backend', 'frontend', 'full-stack', 'react', 'python', 'javascript', 'typescript', 'java', 'go', 'rust'] },
-  { name: 'AI & ML', icon: 'machine-learning', keywords: ['machine learning', 'ai', 'data science', 'deep learning', 'nlp', 'computer vision', 'llm', 'ml'] },
-  { name: 'Data', icon: 'data', keywords: ['data', 'analytics', 'database', 'sql', 'data engineer', 'data analyst'] },
-  { name: 'Design', icon: 'design', keywords: ['design', 'ui', 'ux', 'figma', 'product design', 'graphic'] },
-  { name: 'Product', icon: 'product', keywords: ['product', 'pm', 'product manager', 'product management'] },
-  { name: 'Security', icon: 'security', keywords: ['security', 'cyber', 'infosec', 'security engineer'] },
-  { name: 'Marketing', icon: 'marketing', keywords: ['marketing', 'growth', 'seo', 'content', 'social media'] },
-  { name: 'Writing', icon: 'writing', keywords: ['writing', 'content', 'copywriting', 'technical writer'] },
+const CLOSING = [
+  { value: '', label: 'Any time' },
+  { value: '7d', label: 'Closing in 7 days' },
+  { value: '30d', label: 'Closing in 30 days' },
 ];
+
+function OrgInitial({ name }: { name: string }) {
+  return (
+    <span className="w-9 h-9 rounded-lg border border-border bg-subtle flex items-center justify-center text-sm font-semibold text-secondary shrink-0" aria-hidden>
+      {name.charAt(0).toUpperCase()}
+    </span>
+  );
+}
 
 export default function OpportunityHubHome() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [orgs, setOrgs] = useState<OrgListing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
-  const search = searchParams.get('search') || '';
-  const activeExpiry = searchParams.get('expiry') || '';
-
-  const hasFilters = search || activeExpiry;
-
-  const debouncedSearch = useDebounce(search, 300);
+  // The box is local so typing stays smooth; the URL follows once typing pauses.
+  const [query, setQuery] = useState(searchParams.get('search') || '');
+  const search = useDebounce(query.trim(), 300);
+  const closing = searchParams.get('expiry') || '';
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams);
-    if (debouncedSearch) params.set('search', debouncedSearch);
-    else params.delete('search');
-    if (searchParams.get('expiry')) params.set('expiry', searchParams.get('expiry')!);
+    if (search) params.set('search', search); else params.delete('search');
     setSearchParams(params, { replace: true });
-  }, [debouncedSearch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    const apiParams: { search?: string; expiry?: string } = {};
-    if (debouncedSearch) apiParams.search = debouncedSearch;
-    if (activeExpiry && activeExpiry !== 'any') apiParams.expiry = activeExpiry;
-    marketplaceService.listOrganizations(Object.keys(apiParams).length ? apiParams : undefined)
-      .then(setOrgs)
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [debouncedSearch, activeExpiry]);
+    setFailed(false);
+    const params: { search?: string; expiry?: string } = {};
+    if (search) params.search = search;
+    if (closing) params.expiry = closing;
+    marketplaceService.listOrganizations(Object.keys(params).length ? params : undefined)
+      .then(data => { if (!cancelled) setOrgs(data); })
+      .catch(() => { if (!cancelled) { setOrgs([]); setFailed(true); } })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [search, closing]);
 
-  const handleCategoryClick = (keywords: string[]) => {
+  const setClosing = (v: string) => {
     const params = new URLSearchParams(searchParams);
-    params.set('search', keywords.join(' '));
+    if (v) params.set('expiry', v); else params.delete('expiry');
     setSearchParams(params, { replace: true });
   };
 
-  const clearFilter = (key: string) => {
-    const params = new URLSearchParams(searchParams);
-    params.delete(key);
-    setSearchParams(params, { replace: true });
-  };
-
-  const clearAll = () => {
-    setSearchParams({}, { replace: true });
-  };
-
-  const expiryLabel = activeExpiry === '7d' ? 'Within 7 days' : activeExpiry === '30d' ? 'Within 30 days' : '';
+  const filtered = !!search || !!closing;
+  const total = orgs.reduce((n, o) => n + o.interview_count, 0);
 
   return (
-    <div className="space-y-6">
-      <HeroSection
-        search={search}
-        onSearchChange={(v) => {
-          const params = new URLSearchParams(searchParams);
-          if (v) params.set('search', v);
-          else params.delete('search');
-          setSearchParams(params, { replace: true });
-        }}
-      />
-
-      {hasFilters && (
-        <div className="flex items-center gap-2 flex-wrap animate-fade-in">
-          <span className="text-xs text-muted font-medium">Active filters:</span>
-          {search && (
-            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-[#0c6b58]/10 text-[var(--action-primary)] font-medium">
-              Search: &ldquo;{search}&rdquo;
-              <button onClick={() => clearFilter('search')} className="hover:bg-[#0c6b58]/20 rounded-full p-0.5 -mr-0.5" aria-label="Clear search">
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          )}
-          {expiryLabel && (
-            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-[#0c6b58]/10 text-[var(--action-primary)] font-medium">
-              {expiryLabel}
-              <button onClick={() => clearFilter('expiry')} className="hover:bg-[#0c6b58]/20 rounded-full p-0.5 -mr-0.5" aria-label="Clear expiry">
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          )}
-          <button onClick={clearAll} className="text-xs text-muted hover:text-secondary underline ml-1">
-            Clear all
-          </button>
-        </div>
-      )}
-
-      {!hasFilters && orgs.length > 0 && (
-        <section>
-          <h2 className="text-lg font-semibold text-primary mb-4 font-heading">Browse by Category</h2>
-          <Carousel autoPlay interval={6000}>
-            {CATEGORIES
-              .map(cat => ({
-                cat,
-                count: orgs.filter(o =>
-                  o.description?.toLowerCase().includes(cat.keywords[0])
-                ).length,
-              }))
-              .filter(entry => entry.count > 0)
-              .map(({ cat, count }) => (
-                <div key={cat.name} className="w-48 sm:w-52">
-                  <CategoryCard
-                    name={cat.name}
-                    icon={cat.icon}
-                    count={count}
-                    onClick={() => handleCategoryClick(cat.keywords)}
-                  />
-                </div>
-              ))}
-          </Carousel>
-        </section>
-      )}
-
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-primary font-heading">
-            {search ? `Results for "${search}"` : hasFilters ? 'Filtered Results' : 'All Organizations'}
-          </h2>
-          <span className="text-xs text-muted">{orgs.length} found</span>
-        </div>
-
-        {loading ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="animate-pulse p-5 rounded-xl bg-section border border-border">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-hover" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-hover rounded w-3/4" />
-                    <div className="h-3 bg-hover rounded w-full" />
-                    <div className="h-3 bg-hover rounded w-1/2" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : orgs.length === 0 ? (
-          <div className="animate-fade-in">
-            <EmptyState
-              title="No opportunities found"
-              description={hasFilters ? 'Try adjusting your filters' : 'No organizations are currently listed'}
+    <>
+      <HubBanner
+        title="Open interviews"
+        aside={
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5b6b66] pointer-events-none" />
+            <input
+              type="search"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search organizations"
+              aria-label="Search organizations by name"
+              className="w-full h-10 pl-9 pr-3 text-sm bg-white text-[#14201c] rounded-lg border border-transparent shadow-sm focus:outline-none focus:ring-[3px] focus:ring-white/40 placeholder:text-[#6b7a75]"
             />
           </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {orgs.map((org, i) => (
-              <div key={org.id} className={`animate-stagger animate-stagger-${Math.min(i + 1, 6)}`}>
-                <OrgCard org={org} />
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
+        }
+      >
+        Organizations hiring through AI interviews. Open one to see its roles, apply with your CV, and take the interview if they invite you.
+      </HubBanner>
+
+      <HubBody>
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+        <h2 className="text-sm font-semibold text-primary">Organizations</h2>
+        <div role="radiogroup" aria-label="Closing date" className="inline-flex p-0.5 rounded-md bg-hover border border-border self-start">
+          {CLOSING.map(o => (
+            <button
+              key={o.value}
+              role="radio"
+              aria-checked={closing === o.value}
+              onClick={() => setClosing(o.value)}
+              className={`h-7 px-2.5 rounded text-xs font-medium whitespace-nowrap transition-colors ${
+                closing === o.value ? 'bg-section text-primary shadow-sm' : 'text-secondary hover:text-primary'
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {!loading && !failed && orgs.length > 0 && (
+        <p className="text-xs text-tertiary mb-2 tabular" aria-live="polite">
+          {orgs.length} {orgs.length === 1 ? 'organization' : 'organizations'}, {total} open {total === 1 ? 'role' : 'roles'}
+        </p>
+      )}
+
+      {loading ? (
+        <ul className="rounded-xl border border-border bg-section divide-y divide-[var(--divider)] overflow-hidden" aria-busy>
+          {[0, 1, 2, 3].map(i => (
+            <li key={i} className="flex items-center gap-4 px-4 py-3.5 animate-pulse">
+              <span className="w-9 h-9 rounded-lg bg-hover" />
+              <span className="flex-1 space-y-2">
+                <span className="block h-3.5 w-40 rounded bg-hover" />
+                <span className="block h-3 w-3/4 rounded bg-hover" />
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : failed ? (
+        <div className="rounded-xl border border-border bg-section">
+          <EmptyState title="Could not load the list" description="Check your connection and reload the page." />
+        </div>
+      ) : orgs.length === 0 ? (
+        <div className="rounded-xl border border-border bg-section">
+          <EmptyState
+            icon={<Building2 />}
+            title={filtered ? 'Nothing matches' : 'No open interviews right now'}
+            description={filtered
+              ? search ? `No organization named like "${search}" has an open role${closing ? ' closing in that window' : ''}.` : 'No open role closes in that window.'
+              : 'Organizations appear here when they open a role to the public.'}
+            action={filtered ? (
+              <button onClick={() => { setQuery(''); setSearchParams({}, { replace: true }); }} className="text-[13px] font-medium text-action-primary hover:underline">
+                Clear the search
+              </button>
+            ) : undefined}
+          />
+        </div>
+      ) : (
+        <ul className="rounded-xl border border-border bg-section divide-y divide-[var(--divider)] overflow-hidden">
+          {orgs.map(org => (
+            <li key={org.id}>
+              <Link
+                to={`/opportunity-hub/organizations/${org.slug}`}
+                className="group flex items-center gap-4 px-4 py-3.5 hover:bg-subtle transition-colors"
+              >
+                <OrgInitial name={org.name} />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-medium text-primary truncate">{org.name}</span>
+                  {org.description && <span className="block text-[13px] text-secondary truncate">{org.description}</span>}
+                </span>
+                <span className="text-xs text-tertiary tabular whitespace-nowrap">
+                  {org.interview_count} open {org.interview_count === 1 ? 'role' : 'roles'}
+                </span>
+                <ChevronRight className="w-4 h-4 text-tertiary group-hover:text-primary shrink-0" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      </HubBody>
+    </>
   );
 }

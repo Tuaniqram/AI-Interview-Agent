@@ -27,10 +27,10 @@ export default function CandidateForgotPassword() {
 
   return (
     <AuthLayout role="candidate">
-      <div className="space-y-4">
-        <div className="text-center">
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">Reset your password</h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">We'll email you a link to choose a new one.</p>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-primary">Reset your password</h1>
+          <p className="mt-1.5 text-sm text-secondary">We'll email you a link to choose a new one.</p>
         </div>
         {sent ? (
           <div className="glass-card space-y-3 text-sm text-[var(--text-secondary)]" role="status">
@@ -44,13 +44,13 @@ export default function CandidateForgotPassword() {
         ) : (
           <form onSubmit={handleSubmit} className="glass-card space-y-3">
             {error && (
-              <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400" role="alert">{error}</div>
+              <div className="rounded-md bg-error-bg px-3 py-2.5 text-[13px] text-error-text" role="alert">{error}</div>
             )}
             <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
-            <Button type="submit" loading={loading} className="w-full">Send reset link</Button>
+            <Button type="submit" size="lg" loading={loading} className="w-full">Send reset link</Button>
           </form>
         )}
-        <p className="text-center text-sm text-[var(--text-secondary)]">
+        <p className="text-sm text-secondary">
           <Link to="/candidate/login" className="text-[var(--action-primary)] hover:underline">Back to sign in</Link>
         </p>
       </div>

@@ -11,6 +11,7 @@ from pypdf import PdfReader
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services import content_cache
 from app.config import settings
 from app.models.db import CandidateDocument
 from app.models.llm import llm
@@ -78,6 +79,11 @@ Extract:
 Resume text:
 {text[:8000]}"""
 
+    cache_key = content_cache.key("cv-parse", prompt)
+    cached = await content_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     try:
         from langchain_core.messages import HumanMessage
         messages = [HumanMessage(content=prompt)]
@@ -87,6 +93,7 @@ Resume text:
             content = content.split("\n", 1)[1]
             content = content.rsplit("```", 1)[0]
         data = json.loads(content)
+        await content_cache.put(cache_key, data, content_cache.CANDIDATE_TTL_S)
     except Exception as e:
         logger.warning("LLM resume parsing failed: %s", e)
         data = {"skills": [], "experience": [], "education": [], "headline": "", "years_of_experience": None}

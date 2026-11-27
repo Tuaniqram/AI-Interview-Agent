@@ -18,17 +18,18 @@ export function FlagGauge({ count, max, className = '' }: FlagGaugeProps) {
 
   return (
     <div
-      className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors ${
+      className={`flex items-center gap-2 h-9 px-3 rounded-lg border transition-colors ${
         atRisk
-          ? 'bg-error/10 border-error/30 text-error'
+          ? 'bg-error-bg border-transparent text-error-text'
           : safeCount >= Math.ceil(max / 2)
-            ? 'bg-warning/10 border-warning/30 text-warning'
-            : 'bg-overlay border-border text-muted'
+            ? 'bg-warning-bg border-transparent text-warning-text'
+            : 'border-border text-secondary'
       } ${className}`}
+      role="status"
       title={atRisk ? 'Flag limit reached — session will be terminated' : `${safeCount} of ${max} integrity flags used`}
     >
       <ShieldAlert className="w-3.5 h-3.5" />
-      <span className="text-[11px] font-medium tracking-wide whitespace-nowrap">
+      <span className="text-xs font-medium whitespace-nowrap tabular">
         Integrity {safeCount}/{max}
       </span>
       <span className="flex items-center gap-1">
@@ -40,7 +41,7 @@ export function FlagGauge({ count, max, className = '' }: FlagGaugeProps) {
                 ? atRisk
                   ? 'bg-error'
                   : 'bg-warning'
-                : 'bg-border'
+                : 'bg-border-strong'
             }`}
           />
         ))}

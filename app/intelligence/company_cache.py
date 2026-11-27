@@ -8,20 +8,47 @@ specific key, every entry of one organization, or the whole cache when
 organization documents are refreshed.
 Builds whose RAG retrieval returned nothing are never cached, so a session
 re-tries retrieval instead of serving a stale fallback for the TTL window.
+
+With Redis the entries are shared by all workers (``aura:cache:company:``) and invalidation is a
+per-organization generation number in the key, so every worker stops using an old brain at once.
+Without Redis each process keeps its own copy, and only the one that handled the upload forgets it.
 """
 import copy
+import hashlib
+import json
 import logging
 import time
 from threading import Lock
 from typing import Optional
 
 from app.intelligence.company_intelligence_builder import build_company_brain
+from app.services.redis_client import AsyncLink, create_sync_client
 
 logger = logging.getLogger(__name__)
 
 TTL_SECONDS = 24 * 3600
 
 _cache: dict[tuple, tuple[float, dict]] = {}
+
+PREFIX = "aura:cache:company"
+GENERATION_TTL_S = 2 * TTL_SECONDS  # outlives every entry made under it
+_link = AsyncLink("company brain cache")
+
+
+async def _shared_get(scope_id, job_role: str) -> tuple[Optional[str], Optional[dict]]:
+    """``(key to write under, cached brain)``; ``(None, None)`` when Redis cannot be used."""
+    client = _link.client()
+    if client is None:
+        return None, None
+    try:
+        generation = await client.get(f"{PREFIX}gen:{scope_id}") or "0"
+        role = hashlib.sha256((job_role or "").encode("utf-8")).hexdigest()[:24]
+        key = f"{PREFIX}:{scope_id}:{generation}:{role}"
+        raw = await client.get(key)
+        return key, json.loads(raw) if raw is not None else None
+    except Exception as exc:  # noqa: BLE001
+        _link.failed(exc)
+        return None, None
 _lock = Lock()
 
 
@@ -42,10 +69,14 @@ async def get_or_build_company_brain(
     caching it on a miss. Always returns a fresh deep copy."""
     key = _key(org_id, job_role)
     now = time.monotonic()
-    with _lock:
-        entry = _cache.get(key)
-        if entry is not None and now - entry[0] < ttl:
-            return copy.deepcopy(entry[1])
+    shared_key, shared = await _shared_get(key[0], key[1])
+    if shared is not None:
+        return shared
+    if shared_key is None:  # no Redis: this process's own copy
+        with _lock:
+            entry = _cache.get(key)
+            if entry is not None and now - entry[0] < ttl:
+                return copy.deepcopy(entry[1])
 
     build_fn = builder or build_company_brain
     brain = await build_fn(
@@ -63,6 +94,11 @@ async def get_or_build_company_brain(
     if rag.get("success", False) or rag.get("documents_retrieved", 0) > 0:
         with _lock:
             _cache[key] = (now, brain)
+        if shared_key is not None:
+            try:
+                await _link.client().set(shared_key, json.dumps(brain, default=str), ex=int(ttl))
+            except Exception as exc:  # noqa: BLE001
+                _link.failed(exc)
     else:
         logger.warning(
             "Company brain not cached for %s: retrieval returned no documents "
@@ -85,6 +121,8 @@ def invalidate_company_brain(
     - no arguments clears the whole cache.
     """
     scope_id = org_id
+    if scope_id is not None:
+        _invalidate_shared(str(scope_id))
     with _lock:
         if scope_id is None and job_role is None:
             _cache.clear()
@@ -95,3 +133,18 @@ def invalidate_company_brain(
                 _cache.pop(key, None)
             return
         _cache.pop(_key(scope_id, job_role), None)
+
+
+def _invalidate_shared(scope_id: str) -> None:
+    """Every worker's view of the organization is dropped (blocking: call from a worker thread)."""
+    try:
+        client = create_sync_client()
+        if client is None:
+            return
+        with client:
+            pipe = client.pipeline()
+            pipe.incr(f"{PREFIX}gen:{scope_id}")
+            pipe.expire(f"{PREFIX}gen:{scope_id}", GENERATION_TTL_S)
+            pipe.execute()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Company brain invalidation could not reach Redis: %s", exc)

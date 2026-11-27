@@ -42,7 +42,7 @@ export default function ResetPassword() {
     return (
       <AuthLayout role="org">
         <div className="text-center space-y-4">
-          <h1 className="text-3xl font-bold text-[var(--text-primary)]">Invalid Link</h1>
+          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-primary">Invalid link</h1>
           <p className="text-[var(--text-secondary)]">This reset link is missing or invalid.</p>
           <Link to="/forgot-password" className="text-[var(--action-primary)] hover:underline">Request a new link</Link>
         </div>
@@ -52,10 +52,10 @@ export default function ResetPassword() {
 
   return (
     <AuthLayout role="org">
-      <div className="space-y-4">
-        <div className="text-center">
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">Reset Password</h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">Choose a new password for your account</p>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-primary">Reset your password</h1>
+          <p className="mt-1.5 text-sm text-secondary">Choose a new password for your account</p>
         </div>
         <div className="glass-card">
           {success ? (
@@ -65,11 +65,11 @@ export default function ResetPassword() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
               {error && (
-                <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>
+                <div className="rounded-md bg-error-bg px-3 py-2.5 text-[13px] text-error-text">{error}</div>
               )}
-              <Input label="New Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-              <Input label="Confirm Password" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
-              <Button type="submit" loading={loading} className="w-full">Reset Password</Button>
+              <Input label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <Input label="Confirm password" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+              <Button type="submit" size="lg" loading={loading} className="w-full">Reset your password</Button>
             </form>
           )}
         </div>

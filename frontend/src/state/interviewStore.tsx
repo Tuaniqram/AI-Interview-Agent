@@ -35,6 +35,8 @@ export type InterviewState = {
   historyIndex: number;
   cardVisible: boolean;
   finalReport: InterviewReport | null;
+  /** The interview is over and the server is still building the report. */
+  reportPending: boolean;
 
   // AURA conductor turn (spoken message for the current/pending question)
   conversationTurn: string;
@@ -78,6 +80,7 @@ type InterviewAction =
   | { type: 'SET_INTEGRITY_POLICY'; payload: IntegrityPolicy | null }
   | { type: 'SET_FLAGGED_COUNT'; payload: number }
   | { type: 'SET_INTEGRITY_TERMINATED'; payload: { reason: string | null } }
+  | { type: 'SET_REPORT_PENDING'; payload: boolean }
   | { type: 'SET_WS_PHASE'; payload: 'idle' | 'evaluating' | 'question_ready' | 'reconnecting' | 'loading_context' | 'planning_interview' }
   | { type: 'SET_INTERVIEW_MODE'; payload: InterviewMode }
   | { type: 'SET_LOADING'; payload: boolean }
@@ -97,6 +100,7 @@ const initialState: InterviewState = {
   historyIndex: -1,
   cardVisible: false,
   finalReport: null,
+  reportPending: false,
   conversationTurn: '',
   wsPhase: 'idle',
   integrityPolicy: null,
@@ -201,6 +205,12 @@ function interviewReducer(state: InterviewState, action: InterviewAction): Inter
         ...state,
         integrityTerminated: true,
         integrityTerminationReason: action.payload.reason,
+      };
+
+    case 'SET_REPORT_PENDING':
+      return {
+        ...state,
+        reportPending: action.payload,
       };
 
     case 'SET_WS_PHASE':
@@ -310,6 +320,7 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
   const [state, dispatch] = useReducer(interviewReducer, initialState, initState);
   const controller = interviewController;
   const wsOffRef = useRef<(() => void) | null>(null);
+  const reportOffRef = useRef<(() => void) | null>(null);
   const closeOffRef = useRef<(() => void) | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const reconnectAttemptsRef = useRef(0);
@@ -347,6 +358,7 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
         const result = await controller.initInterviewViaWS(sessionId);
         reconnectAttemptsRef.current = 0;
         dispatch({ type: 'SET_ERROR', payload: '' });
+        dispatch({ type: 'SET_REPORT_PENDING', payload: !!result.reportPending });
         dispatch({ type: 'SET_SESSION', payload: result.session });
         dispatch({ type: 'SET_QUESTION', payload: result.firstQuestion });
         dispatch({ type: 'SET_CONVERSATION_TURN', payload: result.conversationTurn });
@@ -401,13 +413,19 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
               dispatch({ type: 'SET_WS_PHASE', payload: data.phase });
             }
           });
+          reportOffRef.current?.();
+          reportOffRef.current = interviewWebSocket.on('report_ready', () => {
+            dispatch({ type: 'SET_REPORT_PENDING', payload: false });
+          });
           const result = await controller.initInterviewViaWS(sessionId);
           closeOffRef.current?.();
           closeOffRef.current = interviewWebSocket.on('close', () => {
-            if (stateRef.current.session?.status === 'completed') return;
+            // A finished interview needs no connection, unless its report is still on the way.
+            if (stateRef.current.session?.status === 'completed' && !stateRef.current.reportPending) return;
             scheduleReconnect();
           });
 
+          dispatch({ type: 'SET_REPORT_PENDING', payload: !!result.reportPending });
           dispatch({ type: 'SET_SESSION', payload: result.session });
           dispatch({ type: 'SET_QUESTION', payload: result.firstQuestion });
           dispatch({ type: 'SET_CONVERSATION_TURN', payload: result.conversationTurn });
@@ -425,6 +443,8 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
       cancelInterview: () => {
         wsOffRef.current?.();
         wsOffRef.current = null;
+        reportOffRef.current?.();
+        reportOffRef.current = null;
         closeOffRef.current?.();
         closeOffRef.current = null;
         clearReconnectTimer();
@@ -490,6 +510,7 @@ export function InterviewProvider({ children }: InterviewProviderProps) {
           dispatch({ type: 'PUSH_EVALUATION', payload: entry });
 
           if (result.interview_status === 'completed') {
+            dispatch({ type: 'SET_REPORT_PENDING', payload: !!result.report_pending });
             dispatch({ type: 'SET_WS_PHASE', payload: 'idle' });
             dispatch({ type: 'SET_CONVERSATION_TURN', payload: '' });
             const sess = stateRef.current.session;

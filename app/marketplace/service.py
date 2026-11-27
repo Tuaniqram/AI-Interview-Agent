@@ -42,6 +42,7 @@ from app.models.db import (
 )
 from app.services.audit_log import AuditLogService
 from app.services.marketplace_generator import generate_rich_description
+from app.engine.store_io import store_set
 from app.services.v4_session_store import get_v4_session_store
 from app.config.interview_styles import get_style
 
@@ -339,7 +340,7 @@ async def start_public_interview(
         "evaluator_mode": style.get("evaluator_mode", "unified"),
         "strategy_cache_valid": False,
     }
-    store.set(str(session.id), state)
+    await store_set(store, str(session.id), state)
 
     # A real credential for this one session (the WebSocket requires it); it used to be a random
     # string that nothing ever checked.

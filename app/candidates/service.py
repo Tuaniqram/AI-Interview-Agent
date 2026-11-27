@@ -46,6 +46,7 @@ from app.models.db import (
     User,
 )
 from app.services.it_role_resolver import resolve_it_role
+from app.engine.store_io import store_set
 from app.services.v4_session_store import get_v4_session_store
 from app.config.interview_styles import get_style
 from app.data.competency_taxonomy import COMPETENCY_TAXONOMY
@@ -450,7 +451,7 @@ async def start_practice(
         "evaluator_mode": style.get("evaluator_mode", "unified"),
         "strategy_cache_valid": False,
     }
-    store.set(str(session.id), state)
+    await store_set(store, str(session.id), state)
 
     return PracticeStartResponse(
         session_id=session.id,

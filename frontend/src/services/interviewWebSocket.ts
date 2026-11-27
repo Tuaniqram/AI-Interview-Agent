@@ -180,7 +180,7 @@ export class InterviewWebSocket {
     paste_chars?: number;
     focus_lost_count?: number;
   }): Promise<any> {
-    return this.sendAndWait('submit_answer', params as Record<string, unknown>, ['evaluation', 'report'], 300_000);
+    return this.sendAndWait('submit_answer', params as Record<string, unknown>, ['evaluation', 'report', 'report_pending'], 300_000);
   }
 
   async getStatus(session_id: string): Promise<any> {

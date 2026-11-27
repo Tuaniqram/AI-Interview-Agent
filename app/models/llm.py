@@ -6,6 +6,14 @@ from typing import Any
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 
+from app.models.provider_health import (
+    PERMANENT_COOLDOWN_S,
+    PERMANENT_STATUS,
+    TRANSIENT_COOLDOWN_S,
+    ProviderHealth,
+)
+from app.services.redis_client import AsyncLink
+
 logger = logging.getLogger(__name__)
 
 load_dotenv()
@@ -15,11 +23,13 @@ class EmptyModelResponse(RuntimeError):
 
 
 class FallbackLLM:
-    """Tries multiple LLMs in sequence on failure, with a per-model circuit breaker.
+    """Tries multiple LLMs in sequence on failure, with a circuit breaker per provider and model.
 
     A provider that fails is remembered and skipped for a cool-down, so a dead model (a retired
     model id returning 404, a local gateway returning 410, a revoked key) no longer costs a
-    network round trip on *every* call before the chain reaches one that works.
+    network round trip on *every* call before the chain reaches one that works. The memory is a
+    ``ProviderHealth``: the real chains share one through Redis, so what one worker learns every
+    worker knows.
 
     * permanent errors (401/402/403/404/410): skipped for ``PERMANENT_COOLDOWN_S``
     * transient errors (429, 5xx, timeouts, connection): skipped for ``TRANSIENT_COOLDOWN_S``
@@ -27,14 +37,13 @@ class FallbackLLM:
       chain degrades to the old behaviour instead of refusing to answer.
     """
 
-    PERMANENT_STATUS = frozenset({401, 402, 403, 404, 410})
-    PERMANENT_COOLDOWN_S = 15 * 60
-    TRANSIENT_COOLDOWN_S = 30
+    PERMANENT_STATUS = PERMANENT_STATUS
+    PERMANENT_COOLDOWN_S = PERMANENT_COOLDOWN_S
+    TRANSIENT_COOLDOWN_S = TRANSIENT_COOLDOWN_S
 
-    def __init__(self, models: list[ChatOpenAI], clock=time.monotonic):
+    def __init__(self, models: list[ChatOpenAI], clock=time.monotonic, health: ProviderHealth | None = None):
         self._models = models
-        self._clock = clock
-        self._skip_until: dict[int, float] = {}
+        self._health = health or ProviderHealth(clock=clock)
 
     def _sanitize_error(self, error: Exception) -> str:
         msg = str(error)
@@ -50,29 +59,32 @@ class FallbackLLM:
             status = getattr(getattr(error, "response", None), "status_code", None)
         return status if isinstance(status, int) else None
 
-    def _candidates(self) -> list:
-        now = self._clock()
-        healthy = [m for m in self._models if self._skip_until.get(id(m), 0.0) <= now]
+    async def _candidates(self):
+        """Yields ``(model, suspect)`` in the order to try: healthy first, never empty."""
+        blocked, half_open = await self._health.inspect(self._models)
+        deferred = []
+        for i, model in enumerate(self._models):
+            if blocked[i]:
+                continue
+            if half_open[i] and not await self._health.claim_probe(model):
+                deferred.append(model)  # somebody else is testing it right now
+                continue
+            yield model, half_open[i]
         # Last resort: models still cooling down, soonest-to-recover first (a 30s transient cool-down
         # before a 15 min "this model id is retired" one).
-        cooling = sorted(
-            (m for m in self._models if self._skip_until.get(id(m), 0.0) > now),
-            key=lambda m: self._skip_until[id(m)],
-        )
-        return healthy + cooling  # never empty while there is at least one model
+        for model in deferred:
+            yield model, True
+        for i in sorted((i for i in range(len(self._models)) if blocked[i]), key=lambda i: blocked[i]):
+            yield self._models[i], True
 
-    def _record_failure(self, model, error: Exception) -> None:
-        permanent = self._status_of(error) in self.PERMANENT_STATUS
-        cooldown = self.PERMANENT_COOLDOWN_S if permanent else self.TRANSIENT_COOLDOWN_S
-        self._skip_until[id(model)] = self._clock() + cooldown
-
-    def _record_success(self, model) -> None:
-        self._skip_until.pop(id(model), None)
+    async def _record_success(self, model, suspect: bool, result=None) -> None:
+        usage = getattr(result, "usage_metadata", None) or {}
+        await self._health.succeeded(model, tokens=int(usage.get("total_tokens") or 0), was_suspect=suspect)
         self.last_model = model.model_name  # diagnostics: which model answered (the harness logs it per call)
 
     async def ainvoke(self, messages: list, config: dict | None = None, **kwargs: Any) -> Any:
         last_error = None
-        for model in self._candidates():
+        async for model, suspect in self._candidates():
             try:
                 result = await model.ainvoke(messages, config, **kwargs)
                 content = getattr(result, "content", None)
@@ -80,27 +92,27 @@ class FallbackLLM:
                     # Free/overloaded models often answer 200 with an empty body. Treat it as a failed
                     # attempt so the next provider is tried, instead of handing every caller "".
                     raise EmptyModelResponse(f"{model.model_name} returned an empty response")
-                self._record_success(model)
+                await self._record_success(model, suspect, result)
                 return result
             except Exception as e:
                 last_error = e
-                self._record_failure(model, e)
+                await self._health.failed(model, self._status_of(e))
                 logger.warning("Model %s failed, trying next: %s", model.model_name, self._sanitize_error(e))
         raise RuntimeError("All models failed") from last_error
 
     async def astream(self, messages, config=None, **kwargs):
         """Stream tokens from the first available model."""
         last_error = None
-        for model in self._candidates():
+        async for model, suspect in self._candidates():
             try:
                 async for chunk in model.astream(messages, config, **kwargs):
                     if hasattr(chunk, 'content') and chunk.content:
                         yield chunk.content
-                self._record_success(model)
+                await self._record_success(model, suspect)
                 return
             except Exception as e:
                 last_error = e
-                self._record_failure(model, e)
+                await self._health.failed(model, self._status_of(e))
         raise RuntimeError("All models failed") from last_error
 
     @property
@@ -222,8 +234,10 @@ def _build_llm_instance(config: dict[str, Any]) -> ChatOpenAI:
     )
 
 
-llm: FallbackLLM = FallbackLLM([_build_llm_instance(c) for c in _LLM_CONFIGS])
-cheap_llm: FallbackLLM = FallbackLLM([_build_llm_instance(c) for c in _CHEAP_LLM_CONFIGS])
+# One breaker for both tiers and, through Redis, for every worker.
+provider_health = ProviderHealth(link=AsyncLink("LLM provider health"))
+llm: FallbackLLM = FallbackLLM([_build_llm_instance(c) for c in _LLM_CONFIGS], health=provider_health)
+cheap_llm: FallbackLLM = FallbackLLM([_build_llm_instance(c) for c in _CHEAP_LLM_CONFIGS], health=provider_health)
 
 logger.info("LLM initialized with fallback chain: %s", llm.model_name)
 logger.info("LLM cheap tier initialized with fallback chain: %s", cheap_llm.model_name)

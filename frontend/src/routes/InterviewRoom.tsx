@@ -18,41 +18,47 @@ export function InterviewRoom() {
 
   return (
     <div className="fixed inset-0 flex flex-col" data-theme="dark">
-      <header className="shrink-0 flex items-center justify-center glass relative">
-        <div className="flex-1 flex items-center gap-2 pl-3">
+      <header className="shrink-0 h-12 flex items-center bg-page border-b border-border">
+        <div className="flex-1 min-w-0 flex items-center gap-2.5 pl-4">
+          <img src="/favicon.svg" className="w-6 h-6 shrink-0" alt="" />
           {session && (
             <>
               {isPractice ? (
-                <span className="px-2 py-1 rounded-md bg-amber-500/15 text-amber-400 text-[10px] font-semibold uppercase tracking-wider">
+                <span className="h-5 px-1.5 rounded-md bg-warning-bg text-warning-text text-xs font-medium flex items-center shrink-0">
                   Practice
                 </span>
               ) : (
-                <span className="px-2 py-1 rounded-md bg-action-primary/15 text-action-primary text-[10px] font-semibold uppercase tracking-wider">
+                <span className="h-5 px-1.5 rounded-md bg-action-primary-soft text-action-primary text-xs font-medium flex items-center shrink-0">
                   Interview
                 </span>
               )}
-              <span className="text-xs text-secondary truncate max-w-[40vw]">
+              <span className="text-[13px] font-medium text-primary truncate">
                 {session.job_role || 'AURA Interview'}
-                {!isPractice ? ' · Live' : ''}
               </span>
+              {!isPractice && (
+                <span className="flex items-center gap-1.5 text-xs text-tertiary shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-error" aria-hidden /> Live
+                </span>
+              )}
             </>
           )}
         </div>
 
-        <div className="flex-1 flex justify-end items-center gap-2 pr-3">
+        <div className="flex justify-end items-center gap-2 pr-3">
           {isPractice && state.evaluationHistory.length > 0 && (
             <button
               onClick={actions.toggleCard}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              aria-pressed={state.cardVisible}
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-md border text-[13px] font-medium transition-colors ${
                 state.cardVisible
-                  ? 'bg-action-primary/20 text-action-primary'
-                  : 'bg-overlay text-secondary hover:bg-hover'
+                  ? 'border-transparent bg-action-primary-soft text-action-primary'
+                  : 'border-border text-secondary hover:bg-hover hover:text-primary'
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>Realtime Evaluation</span>
+              <span className="hidden sm:inline">Realtime evaluation</span>
               {state.evaluationHistory.length > 0 && (
-                <span className="bg-action-primary text-inverse text-[9px] font-bold px-1 rounded-full min-w-[14px] text-center">
+                <span className="bg-action-primary text-action-primary-text text-[11px] font-semibold px-1.5 rounded-md min-w-[18px] text-center tabular">
                   {state.evaluationHistory.length}
                 </span>
               )}
@@ -62,7 +68,7 @@ export function InterviewRoom() {
           {isPractice && (
             <button
               onClick={handleEnd}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-overlay text-secondary hover:bg-hover transition-colors"
+              className="flex items-center gap-1.5 h-8 px-3 rounded-md border border-border text-[13px] font-medium text-secondary hover:bg-hover hover:text-primary transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>End anytime</span>

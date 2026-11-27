@@ -15,6 +15,15 @@ class DatabaseException(AppException):
         super().__init__(detail=detail, status_code=500)
 
 
+class StaleSessionError(Exception):
+    """A write was refused: the stored session changed after this copy was read."""
+
+    def __init__(self, session_id: str, version: int):
+        super().__init__(f"session {session_id[:12]} changed since version {version} was read")
+        self.session_id = session_id
+        self.version = version
+
+
 class SessionNotFoundException(AppException):
     def __init__(self, detail: str = "Session not found"):
         super().__init__(detail=detail, status_code=404)
@@ -23,6 +32,13 @@ class SessionNotFoundException(AppException):
 class LLMServiceError(AppException):
     def __init__(self, detail: str = "LLM service error"):
         super().__init__(detail=detail, status_code=502)
+
+
+class LLMBudgetExceeded(LLMServiceError):
+    """This interview (or its organization today) has used up its LLM calls."""
+
+    def __init__(self, scope: str = "session"):
+        super().__init__(detail=f"LLM call budget used up ({scope})")
 
 
 class LLMTimeoutError(AppException):

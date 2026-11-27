@@ -30,20 +30,22 @@ from app.auth.jwt import decode_token
 from app.engine.guards import (
     IDLE_TIMEOUT_S,
     MessageRateLimiter,
-    SessionLocks,
     clean_message_id,
     parse_frame,
     validate_answer,
     validate_session_id,
 )
 from app.database.session import get_session_factory
+from app.services import llm_budget
 from app.services.event_log import get_event_log
 from app.models.db import CandidateProfile, InterviewSession
 from app.exceptions import SessionNotFoundException
 
 from app.engine.engine import InterviewEngine
 from app.engine.store_io import store_get
-from app.engine.builders import build_start_response, build_state_response
+from app.engine.builders import build_report_response, build_start_response, build_state_response
+from app.engine.report_jobs import active_queue_for
+from app.engine.session_lock import DistributedSessionLocks, SessionBusy
 from app.config.interview_styles import get_style
 from app.data.competency_resolver import (
     default_taxonomy,
@@ -64,13 +66,16 @@ _connection_timestamps: dict[str, float] = {}
 
 _cleanup_task = None
 
-# One lock per session: start / answer steps for the same interview never run concurrently
-# (two tabs, a double click, a reconnect racing a slow evaluation).
-_session_locks = SessionLocks()
-
 # Upper bound for one answer evaluation (LLM chain included); beyond it the client is told to retry.
 ANSWER_TIMEOUT_S = 300
 START_TIMEOUT_S = 300
+
+# One lock per session, across all workers: start / answer steps for the same interview never run
+# concurrently (two tabs, a double click, a reconnect racing a slow evaluation). The TTL outlasts both
+# timeouts above.
+_session_locks = DistributedSessionLocks(ttl_s=max(ANSWER_TIMEOUT_S, START_TIMEOUT_S) + 30)
+
+BUSY_DETAIL = "Your previous answer is still being processed. Please wait a moment."
 
 def start_cleanup_task():
     global _cleanup_task
@@ -284,6 +289,12 @@ async def _start_engine(session_id: str, notify=None) -> dict:
     style = get_style("AURA")
     from app.agents.planning.difficulty_engine import role_difficulty_floor
 
+    # Preparing the interview (role profile, company brain, planning) counts against its LLM budget too.
+    with llm_budget.scope(session_id, db_session.org_id):
+        return await _prepare_and_start(session_id, store, db_session, style, role_difficulty_floor, _progress)
+
+
+async def _prepare_and_start(session_id, store, db_session, style, role_difficulty_floor, _progress) -> dict:
     org_id_str = str(db_session.org_id) if db_session.org_id else None
     job_role = db_session.job_role_snapshot or "Software Engineer"
     await _progress("loading_context")
@@ -414,8 +425,33 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
     limiter = MessageRateLimiter()
     authorized: set[str] = set()  # sessions this connection already proved access to (saves DB hits)
 
+    send_lock = asyncio.Lock()  # the report watcher sends from its own task
+    watchers: dict[str, asyncio.Task] = {}
+
+    async def send(message: dict) -> None:
+        async with send_lock:
+            await websocket.send_json(message)
+
     async def reply(message: dict, request: Optional[dict] = None) -> None:
-        await websocket.send_json(_send_id(message, request or {}))
+        await send(_send_id(message, request or {}))
+
+    def watch_report(sid: str, queue) -> None:
+        """Push ``report_ready`` to this socket once the job (on any worker) has finished."""
+        if sid in watchers:
+            return
+
+        async def run() -> None:
+            try:
+                state = await queue.wait_for_report(sid, get_v4_session_store())
+                if state is not None:
+                    await send({**build_report_response(state), "type": "report_ready",
+                                "session_id": sid, "interview_complete": True})
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # noqa: BLE001 - the candidate can still open the report later
+                logger.warning("Could not deliver report_ready for %s", sid[:12], exc_info=True)
+
+        watchers[sid] = asyncio.create_task(run())
 
     async def deny(sid: str) -> bool:
         """True (and tell the client) when this connection may NOT use ``sid``."""
@@ -460,10 +496,10 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                 _connections[sid] = conn_state
                 async def push_progress(phase: str) -> None:
                     # No _id: it is a push, never the awaited reply (the "question" frame is).
-                    await websocket.send_json({"type": "status", "phase": phase})
+                    await send({"type": "status", "phase": phase})
 
                 try:
-                    async with _session_locks.lock(sid):
+                    async with _session_locks.lock(sid, wait=START_TIMEOUT_S):
                         response = await asyncio.wait_for(
                             _start_engine(sid, notify=push_progress), timeout=START_TIMEOUT_S
                         )
@@ -516,9 +552,11 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                 await reply({"type": "status", "phase": "evaluating"}, data)
 
                 try:
+                    queue = active_queue_for(get_v4_session_store())
                     engine = InterviewEngine(
                         store=get_v4_session_store(),
                         v5_persister=_get_v5_persister(),
+                        report_queue=queue,
                     )
                     async with _session_locks.lock(sid):
                         result = await asyncio.wait_for(
@@ -527,6 +565,10 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                         )
                 except SessionNotFoundException:
                     await reply({"type": "error", "detail": "Session not found"}, data)
+                    continue
+                except SessionBusy:
+                    logger.info(f"WS answer refused, session {sid} is busy")
+                    await reply({"type": "error", "code": "busy", "detail": BUSY_DETAIL}, data)
                     continue
                 except asyncio.TimeoutError:
                     logger.error(f"WS answer timed out for session {sid}")
@@ -538,7 +580,10 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                     continue
 
                 completed = result.get("status") == "completed" or result.get("interview_complete")
-                if completed:
+                if result.get("report_pending"):
+                    await reply({**result, "type": "report_pending"}, data)
+                    watch_report(sid, queue)
+                elif completed:
                     await reply({"type": "report", **result}, data)
                 else:
                     await reply({"type": "status", "phase": "question_ready"}, data)
@@ -554,6 +599,11 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                     await reply({"type": "error", "detail": "Session not found"}, data)
                     continue
                 await reply({"type": "status_snapshot", **build_state_response(sid, state)}, data)
+                # Back after a dropped connection while the report is still being built.
+                queue = active_queue_for(get_v4_session_store()) if state.get("report_pending") else None
+                if queue is not None:
+                    await queue.enqueue(sid)
+                    watch_report(sid, queue)
 
             else:
                 await reply({"type": "error", "detail": "Unknown message type"}, data)
@@ -567,6 +617,8 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
         except Exception:
             pass
     finally:
+        for task in watchers.values():
+            task.cancel()
         # Only remove our own registry entries (a newer connection may have replaced them).
         for key in {session_id, conn_state.get("session_id")}:
             if _connections.get(key) is conn_state:

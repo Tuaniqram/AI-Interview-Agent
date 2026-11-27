@@ -113,8 +113,8 @@ export default function Scorecards() {
   return (
     <>
       <div className="space-y-6">
-        <PageHeader title="Scorecards" description="Define custom evaluation scorecards for your interviews"
-          actions={<Button onClick={() => { resetForm(); setShowForm(true); }}><Plus className="w-4 h-4 mr-1" /> New Scorecard</Button>}
+        <PageHeader title="Scorecards" description="The competencies an interview is scored on, and how much each one counts."
+          actions={<Button onClick={() => { resetForm(); setShowForm(true); }}><Plus className="w-4 h-4 mr-1" /> New scorecard</Button>}
         />
 
         {showForm && (
@@ -164,7 +164,7 @@ export default function Scorecards() {
         )}
 
         {templates.length === 0 && !showForm ? (
-          <EmptyState title="No scorecards yet" description="Create a scorecard to define custom evaluation criteria for your interviews" />
+          <EmptyState title="No scorecards yet" description="Create one to choose which competencies count and how much. Without one, the built-in rubric is used." />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {templates.map(t => (
@@ -174,12 +174,12 @@ export default function Scorecards() {
                   <p className="text-xs text-muted mt-1">{t.competencies.length} competencies</p>
                   <div className="flex flex-wrap gap-1 mt-2">
                     {t.competencies.slice(0, 4).map(c => (
-                      <span key={c.id} className="text-[10px] px-2 py-0.5 rounded-full bg-action-primary/10 text-action-primary">
+                      <span key={c.id} className="text-[11px] px-2 py-0.5 rounded-full bg-action-primary/10 text-action-primary">
                         {c.name} ({c.weight}x)
                       </span>
                     ))}
                     {t.competencies.length > 4 && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-hover text-muted">+{t.competencies.length - 4}</span>
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-hover text-muted">+{t.competencies.length - 4}</span>
                     )}
                   </div>
                 </div>
@@ -250,7 +250,7 @@ export default function Scorecards() {
 
       <ConfirmDialog
         open={!!deleteTarget}
-        title="Delete Scorecard"
+        title="Delete scorecard"
         message="Are you sure you want to delete this scorecard? This cannot be undone."
         confirmLabel="Delete"
         variant="danger"

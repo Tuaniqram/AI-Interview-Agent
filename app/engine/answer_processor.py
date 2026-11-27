@@ -11,6 +11,7 @@ from app.core.interview_brain import InterviewBrain
 from app.core.interview_state import brain_to_dict, dict_to_brain, sync_brain
 from app.engine.persistence import persist_evidence
 from app.engine.store_io import store_get_or_raise
+from app.services import llm_budget
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +21,17 @@ async def process_answer(
 ) -> dict:
     """Sanitize/evaluate/extract evidence, then route the next step."""
     store = engine._get_store()
-    events = engine._get_events()
 
     raw = await store_get_or_raise(store, session_id)
     brain = dict_to_brain(raw)
+    with llm_budget.scope(session_id, getattr(brain, "org_id", None)):
+        return await _process_turn(engine, brain, session_id, answer, integrity_meta)
+
+
+async def _process_turn(
+    engine, brain: InterviewBrain, session_id: str, answer: str, integrity_meta: dict | None
+) -> dict:
+    events = engine._get_events()
 
     # A finished interview never re-runs: a late or duplicate answer (second tab, retry after the
     # report was already sent) gets the same report back instead of re-scoring and re-persisting.
@@ -33,6 +41,13 @@ async def process_answer(
         report = build_report_response(brain)
         report["interview_complete"] = True
         return report
+
+    # The report is being built: a repeated submit is not another answer. (Queueing again covers a
+    # job that was lost; without a queue the report is built now.)
+    if getattr(brain, "report_pending", False):
+        from app.engine.decision import finalize_session
+
+        return await finalize_session(engine, brain)
 
     from app.utils.input_sanitizer import (
         detect_prompt_injection,

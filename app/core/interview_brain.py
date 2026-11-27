@@ -148,6 +148,12 @@ class InterviewBrain:
     start_time: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     nodes_executed: list = field(default_factory=list)
     state_version: int = 0
+    # Version of the stored copy this brain was read from (compare-and-set between workers).
+    store_version: int = 0
+    # The interview ran out of LLM calls (llm_budget): later turns are not scored; flagged for review.
+    llm_budget_exceeded: bool = False
+    # The last answer is in and a background job is building the report (report_jobs).
+    report_pending: bool = False
 
     # ------------------------------------------------------------------ #
     # Serialization / compatibility

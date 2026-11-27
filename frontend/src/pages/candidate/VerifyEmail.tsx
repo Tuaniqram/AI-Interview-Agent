@@ -36,12 +36,12 @@ export default function CandidateVerifyEmail() {
         {state === 'verifying' && (
           <>
             <div className="mx-auto animate-spin w-8 h-8 border-2 border-[var(--action-primary)] border-t-transparent rounded-full" />
-            <h1 className="text-xl font-bold text-[var(--text-primary)]">Verifying your email…</h1>
+            <h1 className="text-2xl font-semibold tracking-[-0.02em] text-primary">Verifying your email…</h1>
           </>
         )}
         {state === 'success' && (
           <>
-            <h1 className="text-xl font-bold text-[var(--text-primary)]">Email verified</h1>
+            <h1 className="text-2xl font-semibold tracking-[-0.02em] text-primary">Email verified</h1>
             <p className="text-sm text-[var(--text-secondary)]">
               Your applications and interview history are now available.
             </p>
@@ -52,7 +52,7 @@ export default function CandidateVerifyEmail() {
         )}
         {(state === 'error' || state === 'missing') && (
           <>
-            <h1 className="text-xl font-bold text-[var(--text-primary)]">Verification failed</h1>
+            <h1 className="text-2xl font-semibold tracking-[-0.02em] text-primary">Verification failed</h1>
             <p className="text-sm text-[var(--text-secondary)]" role="alert">
               {state === 'missing' ? 'This verification link is missing its token.' : error}
             </p>

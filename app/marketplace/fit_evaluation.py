@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.engine.session_lock import DistributedSessionLocks, SessionBusy
 from app.models.db import (
     CandidateDocument,
     CandidateProfile,
@@ -36,6 +37,7 @@ from app.models.db import (
     PublicInterviewSubmission,
     RoleCompetency,
 )
+from app.services import content_cache
 
 logger = logging.getLogger(__name__)
 
@@ -295,8 +297,23 @@ async def _mark(
     await db.commit()
 
 
+async def _evaluate_prompt(prompt: str, competency_ids: set[str], fresh: bool) -> FitResult:
+    """The model's reading of one CV against one listing (the prompt holds both).
+
+    The same inputs give the same answer from the cache; ``fresh`` (the organization's "Re-run")
+    asks the model again and replaces the cached one.
+    """
+    cache_key = content_cache.key("fit", prompt)
+    cached = None if fresh else await content_cache.get(cache_key)
+    if cached is not None:
+        return validate_fit_result(cached, competency_ids)
+    result = validate_fit_result(await _call_llm(prompt), competency_ids)
+    await content_cache.put(cache_key, result.model_dump(), content_cache.CANDIDATE_TTL_S)
+    return result
+
+
 async def evaluate_application_fit(
-    application_id: UUID | str, db: AsyncSession
+    application_id: UUID | str, db: AsyncSession, fresh: bool = False
 ) -> Optional[PublicInterviewSubmission]:
     """Evaluate one application and persist the result. Never raises for
     evaluation problems: they become ``fit_status = 'failed'`` + ``fit_error``.
@@ -341,7 +358,7 @@ async def evaluate_application_fit(
             PROMPT_FILE,
             **build_prompt_inputs(ctx=ctx, analysis=analysis, match=match, org_context=org_text),
         )
-        result = validate_fit_result(await _call_llm(prompt), competency_ids)
+        result = await _evaluate_prompt(prompt, competency_ids, fresh)
 
         names = {c["id"]: c.get("name") or c["id"] for c in ctx["competencies"]}
         breakdown = {
@@ -397,7 +414,11 @@ async def evaluate_application_fit(
         return await db.get(PublicInterviewSubmission, application_id)
 
 
-async def run_application_fit_evaluation(application_id: str) -> None:
+# One evaluation of an application at a time across workers. The TTL only matters if a worker dies.
+_evaluation_locks = DistributedSessionLocks(ttl_s=10 * 60)
+
+
+async def run_application_fit_evaluation(application_id: str, fresh: bool = False) -> None:
     """Background-task entry point: owns its DB session because the request's
     session is closed by the time background tasks run."""
     from app.database.session import get_session_factory
@@ -407,8 +428,15 @@ async def run_application_fit_evaluation(application_id: str) -> None:
         logger.error("Fit evaluation skipped for %s: database is not configured", application_id)
         return
     try:
-        async with factory() as db:
-            await evaluate_application_fit(application_id, db)
+        async with _evaluation_locks.lock(f"fit:{application_id}"):
+            async with factory() as db:
+                # Every worker resumes unfinished evaluations at startup: another may have done this one.
+                row = await db.get(PublicInterviewSubmission, UUID(str(application_id)))
+                if row is None or row.fit_status not in ("pending", "running"):
+                    return
+                await evaluate_application_fit(application_id, db, fresh=fresh)
+    except SessionBusy:
+        logger.info("Fit evaluation of %s is already running elsewhere", application_id)
     except Exception:  # noqa: BLE001 - a background task must never raise
         logger.exception("Background fit evaluation crashed for %s", application_id)
 

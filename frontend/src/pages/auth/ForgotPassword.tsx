@@ -27,10 +27,10 @@ export default function ForgotPassword() {
 
   return (
     <AuthLayout role="org">
-      <div className="space-y-4">
-        <div className="text-center">
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">Forgot Password</h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">Enter your email and we'll send you a reset link</p>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-[-0.02em] text-primary">Forgot your password?</h1>
+          <p className="mt-1.5 text-sm text-secondary">Enter your email and we'll send you a reset link</p>
         </div>
         <div className="glass-card">
           {sent ? (
@@ -38,14 +38,14 @@ export default function ForgotPassword() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
               {error && (
-                <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400">{error}</div>
+                <div className="rounded-md bg-error-bg px-3 py-2.5 text-[13px] text-error-text">{error}</div>
               )}
               <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-              <Button type="submit" loading={loading} className="w-full">Send Reset Link</Button>
+              <Button type="submit" size="lg" loading={loading} className="w-full">Send reset link</Button>
             </form>
           )}
         </div>
-        <p className="text-center text-sm text-[var(--text-secondary)]">
+        <p className="text-sm text-secondary">
           <Link to="/login" className="text-[var(--action-primary)] hover:underline">Back to sign in</Link>
         </p>
       </div>

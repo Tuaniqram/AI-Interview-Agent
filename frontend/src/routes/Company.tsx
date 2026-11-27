@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Building2, FileText, ListChecks, ExternalLink, AlertCircle, Clock, Copy, Plus, Pencil, Trash2 } from 'lucide-react';
-import { Breadcrumb } from '../components/shared/Breadcrumb';
+import { ArrowLeft, ExternalLink, AlertCircle, Clock, Copy, Plus, Pencil, Trash2 } from 'lucide-react';
 import { orgContentService, type Document, type SessionRecord, type Template } from '../services/orgContentService';
 import { marketplaceService } from '../services/marketplaceService';
 import { itService, type ItRole } from '../services/itService';
@@ -9,7 +8,7 @@ import { useOrg } from '../contexts/OrgContext';
 import { Button } from '../components/shared/Button';
 import { Card } from '../components/shared/Card';
 import { DateTimePicker } from '../components/shared/DateTimePicker';
-import { MetricCard } from '../components/shared/MetricCard';
+import { StatStrip } from '../components/shared/StatStrip';
 import { DocumentCard } from '../components/org/DocumentCard';
 import { DocumentUploader } from '../components/org/DocumentUploader';
 import { InterviewHistoryTable } from '../components/org/InterviewHistoryTable';
@@ -210,7 +209,7 @@ export function Company() {
   const tabs: { key: Tab; label: string }[] = [
     { key: 'overview', label: 'Overview' },
     { key: 'documents', label: `Documents (${documents.length})` },
-    { key: 'listings', label: `Interview Listings (${listings.length})` },
+    { key: 'listings', label: `Interview listings (${listings.length})` },
     { key: 'history', label: `History (${sessions.length})` },
   ];
 
@@ -231,14 +230,14 @@ export function Company() {
     return (
       <div>
         <button onClick={() => navigate('/org')} className="flex items-center gap-1.5 text-xs text-muted hover:text-secondary mb-4 transition-colors">
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to Organization
+          <ArrowLeft className="w-3.5 h-3.5" /> Back to the dashboard
         </button>
         <Card>
           <div className="flex flex-col items-center py-8 text-center">
             <AlertCircle className="w-8 h-8 text-error mb-3" />
             <p className="text-sm text-primary font-medium mb-1">{error}</p>
             <button onClick={() => navigate('/org')} className="mt-3 text-sm text-action-primary hover:text-action-primary-hover transition-colors">
-              Back to Organization
+              Back to the dashboard
             </button>
           </div>
         </Card>
@@ -250,64 +249,49 @@ export function Company() {
 
   return (
     <div>
-      <Breadcrumb crumbs={[
-        { label: 'Organization', to: '/org' },
-        { label: activeOrg.name || 'Company' },
-      ]} />
+      {/* Who the company is: the same profile candidates see on the Opportunity Hub. */}
+      <header className="mb-6">
+        <h1 className="text-[22px] leading-7 font-semibold tracking-[-0.015em] text-primary">{activeOrg.name}</h1>
+        <p className="mt-1 text-sm text-secondary">
+          {activeOrg.website && (
+            <a href={activeOrg.website} target="_blank" rel="noreferrer" className="text-action-primary hover:underline">{activeOrg.website.replace(/^https?:\/\//, '')}</a>
+          )}
+          {activeOrg.website && activeOrg.created_at && <span className="text-border-strong mx-2" aria-hidden>/</span>}
+          {activeOrg.created_at && <span className="text-tertiary">Since {new Date(activeOrg.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</span>}
+        </p>
+        {activeOrg.description && <p className="text-sm text-secondary mt-2 max-w-[65ch]">{activeOrg.description}</p>}
+      </header>
 
-      <Card className="mb-6">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-action-primary/15 flex items-center justify-center shrink-0">
-            <Building2 className="w-6 h-6 text-action-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold text-primary">{activeOrg.name}</h1>
-            {activeOrg.website && <p className="text-sm text-muted mt-0.5">{activeOrg.website}</p>}
-            {activeOrg.description && <p className="text-sm text-secondary mt-1 max-w-xl">{activeOrg.description}</p>}
-          </div>
-        </div>
-      </Card>
-
-      <div className="flex gap-4 mb-6">
+      <div role="tablist" aria-label="Company sections" className="flex gap-6 mb-6 border-b border-border overflow-x-auto">
         {tabs.map(t => (
           <button
             key={t.key}
+            role="tab"
+            aria-selected={tab === t.key}
             onClick={() => setTab(t.key)}
-            className={`px-1 py-2 text-sm font-medium transition-colors relative ${
-              tab === t.key
-                ? 'text-action-primary'
-                : 'text-secondary hover:text-primary'
+            className={`relative -mb-px pb-2.5 text-[13px] font-medium whitespace-nowrap transition-colors border-b-2 ${
+              tab === t.key ? 'text-primary border-action-primary' : 'text-secondary border-transparent hover:text-primary'
             }`}
           >
             {t.label}
-            {tab === t.key && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-action-primary rounded-full" />
-            )}
           </button>
         ))}
       </div>
 
       {tab === 'overview' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <MetricCard label="Total Sessions" value={sessions.length} icon={<ListChecks className="w-4 h-4" />} />
-            <MetricCard label="Documents" value={documents.length} icon={<FileText className="w-4 h-4" />} />
-            <MetricCard
-              label="Avg Score"
-              value={avgScore !== null ? avgScore.toFixed(1) : '—'}
-              trend={avgScore !== null && avgScore >= 6 ? 'up' : avgScore !== null ? 'down' : undefined}
-            />
-          </div>
-          <Card>
-            <h3 className="text-sm font-medium text-primary mb-1">Company Info</h3>
-            <p className="text-xs text-muted">Created {new Date(activeOrg.created_at || '').toLocaleDateString()}</p>
-            {activeOrg.description && <p className="text-sm text-secondary mt-2">{activeOrg.description}</p>}
-          </Card>
+          <StatStrip stats={[
+            { label: 'Interviews', value: String(sessions.length) },
+            { label: 'Documents', value: String(documents.length) },
+            { label: 'Average score', value: avgScore !== null ? avgScore.toFixed(1) : '—', hint: avgScore !== null ? '/ 10' : undefined },
+          ]} />
           {sessions.length > 0 && (
-            <Card>
-              <h3 className="text-sm font-medium text-primary mb-3">Recent Sessions</h3>
-              <InterviewHistoryTable sessions={sessions.slice(0, 5)} />
-            </Card>
+            <section>
+              <h2 className="text-sm font-semibold text-primary mb-3">Recent interviews</h2>
+              <Card padding="none" className="overflow-hidden">
+                <InterviewHistoryTable sessions={sessions.slice(0, 5)} />
+              </Card>
+            </section>
           )}
         </div>
       )}
@@ -358,20 +342,20 @@ export function Company() {
           </div>
 
           <div className={`transition-all duration-300 ease-in-out overflow-hidden ${showForm ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
-            <form onSubmit={handleSave} className="bg-[var(--bg-section)] rounded-xl p-6 border border-[var(--border-color)] space-y-4 mb-4">
-              <h3 className="font-semibold text-[var(--text-primary)]">
+            <form onSubmit={handleSave} className="bg-section rounded-xl p-6 border border-border space-y-4 mb-4">
+              <h3 className="font-semibold text-primary">
                 {editing ? 'Edit Listing' : 'New Listing'} — {activeOrg?.name}
               </h3>
 
               <div>
-                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Title *</label>
+                <label className="block text-sm font-medium text-primary mb-1">Title *</label>
                 <input type="text" value={fTitle} onChange={e => { setFTitle(e.target.value); setFormErrors(prev => ({ ...prev, title: undefined })); }}
-                  className={`w-full px-3 py-2 rounded-lg border bg-[var(--bg-page)] text-[var(--text-primary)] transition-colors focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)] ${formErrors.title ? 'border-red-500' : 'border-[var(--border-color)]'}`} />
+                  className={`w-full px-3 py-2 rounded-lg border bg-[var(--bg-page)] text-primary transition-colors focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)] ${formErrors.title ? 'border-red-500' : 'border-border'}`} />
                 {formErrors.title && <p className="text-xs text-error mt-1">{formErrors.title}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">IT Role *</label>
+                <label className="block text-sm font-medium text-primary mb-1">IT Role *</label>
                 <Select label="" value={fRoleId} onChange={v => { setFRoleId(v); setFormErrors(prev => ({ ...prev, role: undefined })); }}
                   placeholder="Select an IT role"
                   options={[
@@ -383,13 +367,13 @@ export function Company() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Description</label>
+                <label className="block text-sm font-medium text-primary mb-1">Description</label>
                 <textarea value={fDescription} onChange={e => setFDescription(e.target.value)} rows={3}
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)] focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)] transition-colors" />
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-[var(--bg-page)] text-primary focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)] transition-colors" />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Interview Style</label>
+                <label className="block text-sm font-medium text-primary mb-1">Interview Style</label>
                 <Select label="Interview Style" value={fStyle} onChange={setFStyle}
                   options={INTERVIEW_STYLES.map(s => ({ value: s.value, label: s.label }))}
                 />
@@ -397,7 +381,7 @@ export function Company() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Template (optional)</label>
+                  <label className="block text-sm font-medium text-primary mb-1">Template (optional)</label>
                   <Select label="" value={fTemplateId} onChange={setFTemplateId}
                     placeholder="No template"
                     options={[
@@ -407,10 +391,10 @@ export function Company() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Max Candidates</label>
+                  <label className="block text-sm font-medium text-primary mb-1">Max Candidates</label>
                   <input type="number" value={fMaxCandidates} onChange={e => setFMaxCandidates(e.target.value)} min={1}
                     placeholder="Unlimited"
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-page)] text-[var(--text-primary)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)] transition-colors" />
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-[var(--bg-page)] text-primary [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:ring-2 focus:ring-[var(--focus-ring)] focus:outline-none focus:border-[var(--focus-ring)] transition-colors" />
                 </div>
               </div>
 
@@ -455,11 +439,11 @@ export function Company() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <h3 className="font-semibold text-primary truncate">{listing.title}</h3>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${listing.is_open ? 'bg-green-500/15 text-green-500' : 'bg-red-500/15 text-red-500'}`}>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${listing.is_open ? 'bg-green-500/15 text-success-text' : 'bg-red-500/15 text-error-text'}`}>
                             {listing.is_open ? 'Open' : 'Closed'}
                           </span>
                           {expired && listing.is_open && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/15 text-red-500">Expired</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/15 text-error-text">Expired</span>
                           )}
                           {expiryDays !== null && expiryDays > 0 && expiryDays <= 7 && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-500">
@@ -477,7 +461,7 @@ export function Company() {
                             </span>
                           )}
                           {listing.style_name && listing.style_name !== 'STANDARD' && (
-                            <span className="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-500">
+                            <span className="text-xs px-2 py-0.5 rounded bg-info-bg text-info-text">
                               {listing.style_name}
                             </span>
                           )}
@@ -494,13 +478,13 @@ export function Company() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <Button variant="ghost" size="sm" onClick={() => handleCopyLink(listing.token)} title="Copy link">
-                          {copiedId === listing.token ? <span className="text-green-500">Copied!</span> : <Copy className="w-4 h-4" />}
+                          {copiedId === listing.token ? <span className="text-success-text">Copied!</span> : <Copy className="w-4 h-4" />}
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(listing)} title="Edit">
                           <Pencil className="w-4 h-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(listing)} title="Delete listing">
-                          <Trash2 className="w-4 h-4 text-red-500" />
+                          <Trash2 className="w-4 h-4 text-error-text" />
                         </Button>
                       </div>
                     </div>
@@ -520,7 +504,7 @@ export function Company() {
 
       <ConfirmDialog
         open={!!deleteTarget}
-        title="Delete Listing"
+        title="Delete listing"
         message={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone.`}
         confirmLabel="Delete"
         variant="danger"

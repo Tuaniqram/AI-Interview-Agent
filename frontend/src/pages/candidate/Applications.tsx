@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { candidateService } from '../../services/candidateService';
 import { Button } from '../../components/shared/Button';
+import { Card } from '../../components/shared/Card';
+import { PageHeader } from '../../components/shared/PageHeader';
 import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { EmptyState } from '../../components/shared/EmptyState';
 import { useToast } from '../../components/shared/Toast';
 import { useCandidateAuth } from '../../contexts/CandidateAuthContext';
-import { Calendar, CheckCircle, FileText, Mail, XCircle } from 'lucide-react';
+import { Briefcase, Calendar, Check, FileText, Mail, X } from 'lucide-react';
 import type { Application, FitStatus } from '../../types/marketplace';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -75,48 +77,52 @@ export default function CandidateApplications() {
   if (loading) return <ContentSkeleton />;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">My Applications</h1>
-        <p className="text-[var(--text-secondary)] mt-1">Track applications and interview invitations</p>
-      </div>
+    <div>
+      <PageHeader
+        title="Applications"
+        description="Roles you applied for, and interview invitations waiting for your answer."
+      />
 
       {needsVerification ? (
-        <div className="p-5 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-3" role="alert">
-          <p className="font-semibold text-[var(--text-primary)]">Verify your email to see your applications</p>
-          <p className="text-sm text-[var(--text-secondary)]">
+        <div className="p-5 rounded-xl bg-warning-bg space-y-3" role="alert">
+          <p className="text-sm font-semibold text-warning-text">Verify your email to see your applications</p>
+          <p className="text-[13px] text-secondary max-w-[65ch]">
             Applications you made as a guest with this email will appear here, with your CV and interview history,
             once your email is verified.
           </p>
-          <Button size="sm" loading={sendingVerification} onClick={handleResendVerification}>
-            <Mail className="w-4 h-4 mr-1" /> Resend verification email
+          <Button size="sm" variant="secondary" icon={<Mail />} loading={sendingVerification} onClick={handleResendVerification}>
+            Resend verification email
           </Button>
         </div>
       ) : applications.length === 0 ? (
-        <EmptyState
-          title="No applications yet"
-          description="Browse the Opportunity Hub and apply to open IT interviews."
-        />
+        <Card>
+          <EmptyState
+            icon={<Briefcase />}
+            title="No applications yet"
+            description="Browse the Opportunity Hub and apply to an open interview. It shows up here with its status."
+            action={<Link to="/opportunity-hub"><Button variant="secondary">Browse open interviews</Button></Link>}
+          />
+        </Card>
       ) : (
-        <div className="space-y-3">
+        <ul className="rounded-xl border border-border bg-section divide-y divide-[var(--divider)]">
           {applications.map((application) => {
             const canRespond = application.org_decision === 'invited' && application.candidate_response === 'pending';
             const canStart = application.candidate_response === 'accepted' && application.session_id;
             const status = STATUS_LABELS[application.status] || application.status;
 
             return (
-              <div key={application.id} className="p-5 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)]">
-                <div className="flex items-start justify-between gap-4">
+              <li key={application.id} className="px-4 py-4 sm:px-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                   <div className="min-w-0">
-                    <h3 className="font-semibold text-[var(--text-primary)] truncate">
+                    <h3 className="text-sm font-semibold text-primary truncate">
                       {application.public_title || 'IT Interview'}
                     </h3>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-[var(--text-secondary)]">
-                      <span className="px-2 py-0.5 rounded-full bg-[var(--action-primary)]/10 text-[var(--action-primary)]">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-tertiary">
+                      <span className={`h-5 px-1.5 rounded-md flex items-center font-medium ${canRespond ? 'bg-action-primary-soft text-action-primary' : 'bg-hover text-secondary'}`}>
                         {status}
                       </span>
                       {application.fit_score != null ? (
-                        <span>Fit {application.fit_score.toFixed(1)}/10</span>
+                        <span className="tabular">Fit {application.fit_score.toFixed(1)} / 10</span>
                       ) : (
                         <span>{FIT_STATUS_LABELS[application.fit_status] ?? application.fit_status}</span>
                       )}
@@ -134,20 +140,20 @@ export default function CandidateApplications() {
                       )}
                     </div>
                     {application.fit_summary && (
-                      <p className="text-sm text-[var(--text-secondary)] mt-2 line-clamp-2">{application.fit_summary}</p>
+                      <p className="text-[13px] text-secondary mt-2 line-clamp-2 max-w-[70ch]">{application.fit_summary}</p>
                     )}
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
                     {canRespond && (
                       <>
-                        <Button size="sm" loading={acting === application.id}
-                          onClick={() => handleRespond(application, 'accepted')}>
-                          <CheckCircle className="w-4 h-4 mr-1" /> Accept
-                        </Button>
-                        <Button size="sm" variant="ghost" disabled={acting === application.id}
+                        <Button size="sm" variant="secondary" icon={<X />} disabled={acting === application.id}
                           onClick={() => handleRespond(application, 'declined')}>
-                          <XCircle className="w-4 h-4 mr-1" /> Decline
+                          Decline
+                        </Button>
+                        <Button size="sm" icon={<Check />} loading={acting === application.id}
+                          onClick={() => handleRespond(application, 'accepted')}>
+                          Accept interview
                         </Button>
                       </>
                     )}
@@ -158,10 +164,10 @@ export default function CandidateApplications() {
                     )}
                   </div>
                 </div>
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </div>
   );

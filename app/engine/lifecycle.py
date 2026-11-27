@@ -7,7 +7,8 @@ question and persists the first brain snapshot.
 import logging
 
 from app.core.interview_state import brain_to_dict, dict_to_brain, sync_brain
-from app.engine.store_io import store_checkpoint, store_get
+from app.engine.store_io import store_commit, store_get
+from app.services import llm_budget
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,11 @@ async def start_session(engine, state: dict, build_intelligence: bool = False, i
 
     Returns the ``{type: question}`` response dict.
     """
+    with llm_budget.scope(state["session_id"], state.get("org_id")):
+        return await _start_session(engine, state, build_intelligence, intelligence)
+
+
+async def _start_session(engine, state: dict, build_intelligence: bool, intelligence: dict | None) -> dict:
     store = engine._get_store()
     events = engine._get_events()
     session_id = state["session_id"]
@@ -57,6 +63,8 @@ async def start_session(engine, state: dict, build_intelligence: bool = False, i
     from app.agents.generation.question_generator import question_generator_node
 
     brain = dict_to_brain(state)
+    if existing is not None:  # a seeded session (practice / public start): this start replaces that copy
+        brain.store_version = existing.get("store_version", 0)
 
     provided = {
         key: intelligence.get(key)
@@ -158,8 +166,7 @@ async def start_session(engine, state: dict, build_intelligence: bool = False, i
     brain.question_asked_at = now_iso()
     brain.bump_version()
 
-    store.set(session_id, brain.to_dict())
-    await store_checkpoint(store, session_id, brain.to_dict())
+    await store_commit(store, session_id, brain)
 
     await events.append(session_id, "session_started", {
         "job_role": brain.job_role,

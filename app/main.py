@@ -46,10 +46,6 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("DATABASE_URL not set — async DB features disabled")
 
-    # Startup: initialize Redis cache
-    from app.services.cache import get_cache
-    await get_cache().init()
-
     # Pre-load prompt templates into cache
     from app.services.prompt_loader import load_prompt as _warm
     _warm("interview", "question_generation.md", job_role="warmup", phase="intro", difficulty_level=1,
@@ -59,6 +55,13 @@ async def lifespan(app: FastAPI):
     # Start WebSocket stale-connection cleanup
     from app.api.interview_ws import start_cleanup_task
     cleanup_handle = start_cleanup_task()
+
+    # Final reports are built by background jobs when Redis is there (every worker consumes).
+    from app.engine.report_jobs import get_report_queue
+    from app.services.v4_session_store import RedisV4SessionStore, get_v4_session_store
+
+    if isinstance(get_v4_session_store(), RedisV4SessionStore):
+        get_report_queue().start()
 
     async def _warm_up():
         """Slow, best-effort warm-up that runs AFTER the server is listening.
@@ -112,6 +115,8 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    await get_report_queue().stop()
+
     token_cleanup = getattr(app.state, "token_cleanup_task", None)
     if token_cleanup is not None:
         token_cleanup.cancel()
@@ -137,10 +142,6 @@ async def lifespan(app: FastAPI):
     if eng:
         await eng.dispose()
         logger.info("Async SQLAlchemy engine disposed")
-
-    # Shutdown: close Redis connection
-    from app.services.cache import get_cache
-    await get_cache().close()
 
 
 def docs_urls(enabled: bool) -> dict:
@@ -261,8 +262,14 @@ def home():
 
 @app.get("/health")
 @app.post("/health")
-def health_check():
+async def health_check():
+    from app.services.redis_client import redis_status
+    from app.services.v4_session_store import RedisV4SessionStore, get_v4_session_store
+
+    # Always 200: without Redis the app still works (degraded), so this must not fail a deploy.
     return {
+        "redis": await redis_status(),
+        "session_store": "redis" if isinstance(get_v4_session_store(), RedisV4SessionStore) else "memory",
         "status": "✅ API is working",
         "message": "You can now access the API from your HTML file",
         "timestamp": str(__import__('datetime').datetime.now()),

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, ArrowLeft, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, ArrowLeft, ArrowUp, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { useInterviewStore } from '../../state/interviewStore';
 
 const PHASES = ['intro', 'experience', 'technical', 'behavioral', 'conclusion'];
@@ -26,7 +26,7 @@ export function BackButton() {
   return (
     <div className="absolute top-3 start-3 z-30">
       <button onClick={() => navigate(-1)}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-overlay text-secondary rounded-lg text-xs hover:bg-hover transition-colors">
+        className="flex items-center gap-1.5 h-8 px-3 rounded-md border border-border bg-section text-secondary text-[13px] hover:text-primary hover:border-border-strong transition-colors">
         <ArrowLeft className="w-3.5 h-3.5" /> Back
       </button>
     </div>
@@ -43,11 +43,11 @@ export function LoadingScreen({ label = 'Preparing interview...' }: { label?: st
   }, []);
   return (
     <div className="fixed inset-0 bg-page flex items-center justify-center" data-theme="dark" role="status" aria-live="polite">
-      <div className="text-center space-y-4 max-w-xs px-4">
-        <Loader2 className="animate-spin w-12 h-12 text-action-primary mx-auto" />
-        <p className="text-secondary">{label}</p>
+      <div className="text-center max-w-xs px-4">
+        <Loader2 className="animate-spin w-6 h-6 text-action-primary mx-auto" />
+        <p className="mt-4 text-sm text-primary">{label}</p>
         {slow && (
-          <p className="text-muted text-xs">
+          <p className="mt-2 text-[13px] text-tertiary leading-relaxed">
             Tailoring the interview to the role takes a little while the first time. Please keep this tab open.
           </p>
         )}
@@ -61,14 +61,12 @@ export function QuestionDisplay() {
   const q = state.currentQuestion;
   if (!q) return null;
   return (
-    <div className="glass rounded-xl p-4 shadow-lg">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="px-2 py-0.5 bg-action-primary/10 text-action-primary text-[10px] font-semibold rounded">
-          Q{q.question_number || '?'}
-        </span>
-        <span className="text-[10px] text-muted capitalize">{humanizePhase(q.phase || state.session?.current_phase)}</span>
+    <div className="rounded-xl border border-border bg-section p-4">
+      <div className="flex items-center gap-2 mb-2 text-xs">
+        <span className="font-semibold text-action-primary">Question {q.question_number || '?'}</span>
+        <span className="text-tertiary">{humanizePhase(q.phase || state.session?.current_phase)}</span>
       </div>
-      <p className="text-sm text-primary leading-relaxed">{q.question}</p>
+      <p className="text-[15px] text-primary leading-relaxed">{q.question}</p>
     </div>
   );
 }
@@ -157,26 +155,28 @@ type HistoryEntry = ReturnType<typeof useInterviewStore>['state']['evaluationHis
 function EarlierAnswer({ entry }: { entry: HistoryEntry }) {
   const [open, setOpen] = React.useState(false);
   return (
-    <div className="rounded-xl border border-[var(--border-color)]/60 overflow-hidden">
+    <li>
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-hover/50 transition-colors"
+        className="w-full flex items-center gap-3 px-4 h-12 text-left hover:bg-hover/60 transition-colors"
       >
-        <span className="text-sm font-semibold text-action-primary shrink-0">Q{entry.questionNumber}</span>
+        <span className="w-6 h-6 rounded-md bg-hover text-secondary text-xs font-semibold flex items-center justify-center shrink-0 tabular">
+          {entry.questionNumber}
+        </span>
         <span className="flex-1 min-w-0 text-sm text-secondary truncate">{entry.question || entry.conversationTurn}</span>
-        {open ? <ChevronUp className="w-4 h-4 text-muted shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted shrink-0" />}
+        {open ? <ChevronUp className="w-4 h-4 text-tertiary shrink-0" /> : <ChevronDown className="w-4 h-4 text-tertiary shrink-0" />}
       </button>
       {open && (
-        <div className="px-4 pb-4 space-y-3">
-          <p className="text-base text-primary leading-relaxed">{entry.conversationTurn || entry.question}</p>
-          <div className="pl-3 border-l-2 border-action-primary/40">
-            <p className="text-xs uppercase tracking-wide text-muted mb-1">Your answer</p>
-            <p className="text-base text-secondary leading-relaxed whitespace-pre-wrap">{entry.answer}</p>
+        <div className="px-4 pb-4 pl-[3.25rem] space-y-3">
+          <p className="text-[15px] text-primary leading-relaxed">{entry.conversationTurn || entry.question}</p>
+          <div className="rounded-lg bg-page border border-border px-4 py-3">
+            <p className="text-xs text-tertiary mb-1">Your answer</p>
+            <p className="text-[15px] text-secondary leading-relaxed whitespace-pre-wrap">{entry.answer}</p>
           </div>
         </div>
       )}
-    </div>
+    </li>
   );
 }
 
@@ -196,26 +196,30 @@ export function ConversationThread() {
   }, [q?.question_number]);
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4" data-conversation-thread>
-      <div ref={topRef} className="max-w-3xl mx-auto w-full space-y-4">
+    <div className="flex-1 overflow-y-auto px-4 py-6 sm:py-10" data-conversation-thread>
+      <div ref={topRef} className="max-w-3xl mx-auto w-full space-y-8">
         {q && (
-          <section aria-label="Current question" className="rounded-2xl bg-section/70 px-6 py-5 space-y-3">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-              <span className="font-semibold text-action-primary">
+          <section aria-label="Current question" aria-live="polite">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
+              <span className="font-medium text-action-primary">
                 Question {q.question_number}{total >= q.question_number ? ` of ${total}` : ''}
               </span>
-              {q.phase && <span className="text-muted">{humanizePhase(q.phase)}</span>}
-            </div>
-            <p className="text-xl text-primary leading-relaxed">{state.conversationTurn || q.question}</p>
+              {q.phase && (<><span className="text-border-strong" aria-hidden>/</span><span className="text-tertiary">{humanizePhase(q.phase)}</span></>)}
+            </p>
+            <p className="mt-3 text-[22px] sm:text-2xl leading-[1.45] tracking-[-0.01em] text-primary max-w-[60ch]">
+              {state.conversationTurn || q.question}
+            </p>
           </section>
         )}
 
         {earlier.length > 0 && (
-          <section aria-label="Earlier questions" className="space-y-2">
-            <p className="text-sm text-muted pt-2">Earlier questions</p>
-            {earlier.map((entry) => (
-              <EarlierAnswer key={entry.questionNumber} entry={entry} />
-            ))}
+          <section aria-label="Earlier questions">
+            <h2 className="text-[13px] text-tertiary mb-2">Earlier questions</h2>
+            <ul className="rounded-xl border border-border bg-section divide-y divide-[var(--divider)] overflow-hidden">
+              {earlier.map((entry) => (
+                <EarlierAnswer key={entry.questionNumber} entry={entry} />
+              ))}
+            </ul>
           </section>
         )}
       </div>
@@ -246,45 +250,39 @@ export function InputBar({ input, onInputChange, onSend, onKeyDown, isSending, p
     }
   }, [input]);
 
+  // A composer: the answer box with its tools underneath, like a message field, not a lone input.
   return (
-    <div className="bg-page p-3 z-30">
-      <div className="max-w-3xl mx-auto flex gap-3 items-end">
-        {children}
-        <div className="flex-1 relative">
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => onInputChange(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={isSending ? 'Waiting for response...' : placeholder}
-            rows={1}
-            disabled={isSending}
-            aria-label="Type your answer"
-            className="w-full px-4 py-2.5 pr-12 bg-input text-primary rounded-xl resize-none border-0 focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring)] disabled:opacity-50 transition-all text-base placeholder-muted leading-relaxed"
-          />
-          <div className="absolute right-2 bottom-2 flex items-center gap-1">
-            {input.length > 0 && (
-              <span className="text-[10px] text-muted">{input.length}</span>
-            )}
-          </div>
+    <div className="shrink-0 bg-page px-3 sm:px-4 pb-3 sm:pb-4 pt-2 z-30">
+      <div className="max-w-3xl mx-auto rounded-xl border border-border-strong bg-section shadow-sm focus-within:border-[var(--action-primary)] focus-within:ring-[3px] focus-within:ring-[var(--focus-ring)] transition-colors">
+        <textarea
+          ref={textareaRef}
+          value={input}
+          onChange={(e) => onInputChange(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder={isSending ? 'Waiting for response...' : placeholder}
+          rows={1}
+          disabled={isSending}
+          aria-label="Type your answer"
+          className="block w-full px-4 pt-3 pb-1 bg-transparent text-primary resize-none border-0 focus:outline-none disabled:opacity-50 text-[15px] placeholder:text-tertiary leading-relaxed"
+        />
+        <div className="flex items-center gap-2 px-2 pb-2">
+          {children}
+          {statusIndicator && <span className="flex items-center gap-3 text-xs text-tertiary min-w-0">{statusIndicator}</span>}
+          <span className="ml-auto flex items-center gap-3">
+            {input.length > 0 && <span className="text-xs text-tertiary tabular">{input.length}</span>}
+            <button
+              onClick={onSend}
+              disabled={!input.trim() || isSending || !state.currentQuestion}
+              className="w-8 h-8 bg-action-primary text-action-primary-text rounded-lg flex items-center justify-center hover:bg-action-primary-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
+              title="Send (Enter)"
+              aria-label="Send answer"
+            >
+              {isSending ? <Loader2 className="animate-spin w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
+            </button>
+          </span>
         </div>
-        <button
-          onClick={onSend}
-          disabled={!input.trim() || isSending || !state.currentQuestion}
-          className="w-10 h-10 bg-action-primary text-inverse rounded-xl flex items-center justify-center hover:bg-action-primary-hover disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0"
-          title="Send (Enter)"
-        >
-          {isSending ? <Loader2 className="animate-spin w-4 h-4" /> : (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
-            </svg>
-          )}
-        </button>
       </div>
-      <div className="max-w-3xl mx-auto flex items-center justify-between mt-1">
-        <span className="text-xs text-muted">Enter to send · Shift+Enter for newline</span>
-        {statusIndicator && <span className="text-[10px] text-muted">{statusIndicator}</span>}
-      </div>
+      <p className="max-w-3xl mx-auto mt-1.5 px-1 text-xs text-tertiary">Enter to send, Shift+Enter for a new line</p>
     </div>
   );
 }

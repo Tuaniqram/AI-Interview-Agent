@@ -2,12 +2,50 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { candidateService } from '../../services/candidateService';
 import { useCandidateAuth } from '../../contexts/CandidateAuthContext';
-import { MetricCard } from '../../components/shared/MetricCard';
 import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
+import { StatStrip } from '../../components/shared/StatStrip';
+import { Card } from '../../components/shared/Card';
+import { Button } from '../../components/shared/Button';
 import { useToast } from '../../components/shared/Toast';
-import { CompetencyRadar } from '../../components/candidate/CompetencyRadar';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { InterviewList } from '../../components/candidate/InterviewList';
+import { AlertCircle, ChevronRight, FileText, PlayCircle, Store } from 'lucide-react';
 import type { CandidateStats, CandidateInterview, CompetencyScore, SavedListing } from '../../types/candidate';
+
+function barTone(score: number): string {
+  if (score >= 7) return 'bg-success';
+  if (score >= 5) return 'bg-warning';
+  return 'bg-error';
+}
+
+/** One row per skill: the average score across your interviews, and how many answers it comes from. */
+function SkillList({ scores }: { scores: CompetencyScore[] }) {
+  return (
+    <ul className="grid gap-x-10 gap-y-4 sm:grid-cols-2">
+      {scores.map(s => (
+        <li key={s.competency || s.name}>
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[13px] text-primary truncate">{s.name}</span>
+            <span className="text-[13px] font-semibold text-primary tabular">{s.average_score.toFixed(1)}</span>
+          </div>
+          <div className="mt-1.5 flex items-center gap-3">
+            <div className="flex-1 h-1.5 rounded-full bg-hover overflow-hidden" aria-hidden>
+              <div className={`h-full rounded-full ${barTone(s.average_score)}`} style={{ width: `${Math.max(0, Math.min(100, s.average_score * 10))}%` }} />
+            </div>
+            <span className="text-xs text-tertiary w-20 text-right tabular">
+              {s.evidence_count} {s.evidence_count === 1 ? 'answer' : 'answers'}
+            </span>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const NEXT = [
+  { to: '/candidate/practice', icon: PlayCircle, title: 'Practice interview', text: 'A mock interview for any role, as often as you like' },
+  { to: '/opportunity-hub', icon: Store, title: 'Find open interviews', text: 'Roles from organizations hiring now' },
+  { to: '/candidate/profile', icon: FileText, title: 'Your profile and CV', text: 'Skills from your CV shape your interviews' },
+];
 
 export default function CandidateDashboard() {
   const { candidate, sendVerification } = useCandidateAuth();
@@ -32,7 +70,7 @@ export default function CandidateDashboard() {
       setSavedListings(sl as SavedListing[]);
     }).catch((err) => {
       // 403 = email not verified: the verify banner above already explains it, so no error toast.
-      if (err?.response?.status !== 403) toast.error('Failed to load dashboard');
+      if (err?.response?.status !== 403) toast.error('Could not load your dashboard. Reload the page to try again.');
     })
     .finally(() => setLoading(false));
   }, []);
@@ -41,9 +79,9 @@ export default function CandidateDashboard() {
     setVerifying(true);
     try {
       await sendVerification();
-      toast.success('Verification email sent! Check your inbox.');
+      toast.success('Verification email sent. Check your inbox.');
     } catch {
-      toast.error('Failed to send verification. Try again.');
+      toast.error('Could not send the verification email. Try again in a minute.');
     } finally {
       setVerifying(false);
     }
@@ -51,174 +89,118 @@ export default function CandidateDashboard() {
 
   if (loading) return <ContentSkeleton />;
 
+  const skills = [...competencyScores].sort((a, b) => b.evidence_count - a.evidence_count || b.average_score - a.average_score);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {candidate && !candidate.is_verified && (
-        <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Verify your email</p>
-            <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">Some features are locked until you verify your email address.</p>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl bg-warning-bg px-4 py-3" role="status">
+          <AlertCircle className="w-4 h-4 text-warning-text shrink-0 hidden sm:block" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-warning-text">Verify your email</p>
+            <p className="text-[13px] text-warning-text/80 mt-0.5">Your applications and scores stay hidden until you confirm your email address.</p>
           </div>
-          <button onClick={handleVerify} disabled={verifying} className="shrink-0 px-4 py-2 text-xs font-medium rounded-lg bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 transition-colors">
-            {verifying ? 'Sending...' : 'Resend verification'}
-          </button>
+          <Button size="sm" variant="secondary" loading={verifying} onClick={handleVerify}>Resend verification</Button>
         </div>
       )}
-      <div className="flex items-start justify-between gap-4">
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Welcome, {candidate?.name}</h1>
-          <p className="text-[var(--text-secondary)] mt-1">Your interview dashboard</p>
+          <h1 className="text-[22px] leading-7 font-semibold tracking-[-0.015em] text-primary">Welcome back, {candidate?.name}</h1>
+          <p className="text-sm text-secondary mt-1">Your interviews, scores and the skills they show.</p>
         </div>
-        <Link to="/candidate/profile"
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+        <Link
+          to="/candidate/profile"
+          className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[13px] font-medium border transition-colors self-start sm:self-auto ${
             candidate?.resume_url
-              ? 'text-success border-success/30 bg-success/5'
-              : 'text-muted border-border bg-section hover:border-action-primary/40'
-          }`}>
-          {candidate?.resume_url ? (
-            <><CheckCircle className="w-3.5 h-3.5" /> Resume uploaded</>
+              ? 'border-transparent bg-success-bg text-success-text'
+              : 'border-border-strong text-primary hover:bg-hover'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          {candidate?.resume_url ? 'CV on file' : 'Upload your CV'}
+        </Link>
+      </div>
+
+      <StatStrip stats={[
+        { label: 'Interviews', value: String(stats?.total_interviews ?? 0), to: '/candidate/interviews' },
+        { label: 'Completed', value: String(stats?.completed_interviews ?? 0) },
+        { label: 'In progress', value: String(stats?.active_interviews ?? 0) },
+        { label: 'Average score', value: stats?.average_score != null ? stats.average_score.toFixed(1) : '—', hint: stats?.average_score != null ? '/ 10' : undefined },
+      ]} />
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className="lg:col-span-2 min-w-0" aria-labelledby="skills-heading">
+          <h2 id="skills-heading" className="text-sm font-semibold text-primary mb-3">Your skills</h2>
+          {skills.length > 0 ? (
+            <Card padding="lg">
+              <SkillList scores={skills.slice(0, 8)} />
+            </Card>
           ) : (
-            <><XCircle className="w-3.5 h-3.5" /> No resume — upload</>
+            <Card padding="lg">
+              <p className="text-sm font-medium text-primary">No scores yet</p>
+              <p className="text-[13px] text-secondary mt-1">
+                {candidate && !candidate.is_verified
+                  ? 'Verify your email, then complete an interview to see your skills here.'
+                  : 'Complete a practice or real interview and your skills show up here.'}
+              </p>
+              <Link to="/candidate/practice" className="inline-block mt-3 text-[13px] font-medium text-action-primary hover:underline">Start a practice interview</Link>
+            </Card>
           )}
-        </Link>
-      </div>
+        </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard label="Total Interviews" value={stats?.total_interviews ?? 0} />
-        <MetricCard label="Completed" value={stats?.completed_interviews ?? 0} />
-        <MetricCard label="In Progress" value={stats?.active_interviews ?? 0} />
-        <MetricCard label="Avg Score" value={stats?.average_score != null ? `${stats.average_score.toFixed(1)}/10` : '-'} />
-      </div>
-
-      {/* Skill Progression: real scores only; a new candidate sees how to get started */}
-      <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Skill Progression</h2>
-        {competencyScores.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {competencyScores.slice(0, 4).map(skill => <SkillCard key={skill.name} name={skill.name} score={skill.average_score} />)}
-          </div>
-        ) : (
-          <div className="p-6 rounded-xl bg-[var(--bg-section)] border border-dashed border-[var(--border-color)] text-center">
-            <p className="text-sm font-medium text-[var(--text-primary)]">No scores yet</p>
-            <p className="text-xs text-[var(--text-secondary)] mt-1">
-              {candidate && !candidate.is_verified
-                ? 'Verify your email, then complete an interview to see your skills here.'
-                : 'Complete a practice or real interview and your skills will show up here.'}
-            </p>
-            <Link to="/candidate/practice" className="inline-block mt-3 text-xs font-medium text-[var(--action-primary)] hover:underline">Start a practice interview</Link>
-          </div>
-        )}
-      </div>
-
-      {/* A radar needs at least three axes; with fewer it collapses to a line, and the cards above already show them. */}
-      {competencyScores.length >= 3 && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-1">
-            <CompetencyRadar scores={competencyScores} />
-          </div>
-        </div>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Link to="/candidate/practice" className="p-6 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[var(--action-primary)] transition-colors">
-          <h3 className="font-semibold text-[var(--text-primary)]">Practice Interview</h3>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">Create a self-service mock interview to practice</p>
-        </Link>
-        <Link to="/opportunity-hub" className="p-6 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[var(--action-primary)] transition-colors">
-          <h3 className="font-semibold text-[var(--text-primary)]">Opportunity Hub</h3>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">Find open interviews from companies</p>
-        </Link>
+        <section aria-labelledby="next-heading">
+          <h2 id="next-heading" className="text-sm font-semibold text-primary mb-3">Next steps</h2>
+          <Card padding="none">
+            <ul className="divide-y divide-[var(--divider)]">
+              {NEXT.map(({ to, icon: Icon, title, text }) => (
+                <li key={to}>
+                  <Link to={to} className="group flex items-center gap-3 px-4 py-3 hover:bg-subtle transition-colors">
+                    <span className="w-8 h-8 rounded-lg border border-border bg-subtle flex items-center justify-center text-secondary shrink-0">
+                      <Icon className="w-4 h-4" />
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[13px] font-medium text-primary">{title}</span>
+                      <span className="block text-xs text-tertiary">{text}</span>
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-tertiary group-hover:text-primary" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </section>
       </div>
 
       {recent.length > 0 && (
-        <div>
-          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Recent Interviews</h2>
-          <div className="space-y-2">
-            {recent.map((interview) => (
-              <Link
-                key={interview.id}
-                to={`/candidate/interviews/${interview.id}`}
-                className="block p-4 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[var(--action-primary)] transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="font-medium text-[var(--text-primary)]">{interview.job_role}</span>
-              {interview.org_name && (
-                <span className="text-sm text-[var(--text-secondary)] ml-2">@{interview.org_name}</span>
-                    )}
-                  </div>
-                  {interview.final_score != null && (
-                    <span className="text-sm font-medium text-[var(--action-primary)]">{interview.final_score}/10</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--action-primary)]/10 text-[var(--action-primary)]">
-                    {interview.session_type}
-                  </span>
-                  <span className="text-xs text-[var(--text-secondary)]">
-                    {interview.started_at ? new Date(interview.started_at).toLocaleDateString() : ''}
-                  </span>
-                </div>
-              </Link>
-            ))}
+        <section aria-labelledby="recent-heading">
+          <div className="flex items-center justify-between mb-3">
+            <h2 id="recent-heading" className="text-sm font-semibold text-primary">Recent interviews</h2>
+            <Link to="/candidate/interviews" className="text-[13px] text-secondary hover:text-primary">View all</Link>
           </div>
-        </div>
+          <InterviewList interviews={recent} />
+        </section>
       )}
 
       {savedListings.length > 0 && (
-        <div>
-          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Saved Opportunities</h2>
-          <div className="space-y-2">
-            {savedListings.map((listing) => (
-              <Link
-                key={listing.id}
-                to={`/opportunity-hub/interviews/${listing.id}`}
-                className="block p-4 rounded-xl bg-[var(--bg-section)] border border-[var(--border-color)] hover:border-[var(--action-primary)] transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="font-medium text-[var(--text-primary)]">{listing.title}</span>
-                    <span className="text-sm text-[var(--text-secondary)] ml-2">@{listing.org_name}</span>
-                  </div>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--action-primary)]/10 text-[var(--action-primary)]">
-                    {listing.interview_mode}
+        <section aria-labelledby="saved-heading">
+          <h2 id="saved-heading" className="text-sm font-semibold text-primary mb-3">Saved opportunities</h2>
+          <ul className="rounded-xl border border-border bg-section divide-y divide-[var(--divider)] overflow-hidden">
+            {savedListings.map(listing => (
+              <li key={listing.id}>
+                <Link to={`/opportunity-hub/interviews/${listing.id}`} className="group flex items-center gap-4 px-4 py-3 hover:bg-subtle transition-colors">
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-medium text-primary truncate">{listing.title}</span>
+                    <span className="block text-xs text-tertiary truncate">{listing.org_name}</span>
                   </span>
-                </div>
-              </Link>
+                  <span className="text-xs text-secondary capitalize">{listing.interview_mode}</span>
+                  <ChevronRight className="w-4 h-4 text-tertiary group-hover:text-primary" />
+                </Link>
+              </li>
             ))}
-          </div>
-        </div>
+          </ul>
+        </section>
       )}
-    </div>
-  );
-}
-
-
-function SkillCard({ name, score }: { name: string; score: number }) {
-  const pct = Math.max(0, Math.min(100, Math.round((score / 10) * 100)));
-  const level = pct < 40 ? 'Beginner' : pct < 65 ? 'Intermediate' : pct < 85 ? 'Advanced' : 'Expert';
-  const levelColor = pct < 40 ? 'text-red-400' : pct < 65 ? 'text-amber-400' : pct < 85 ? 'text-blue-400' : 'text-emerald-400';
-  return (
-    <div className="p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-color)]">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="relative w-10 h-10">
-          <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
-            <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--border-color)" strokeWidth="3" />
-            <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--action-primary)" strokeWidth="3"
-              strokeDasharray={`${pct}, 100`} strokeLinecap="round" />
-          </svg>
-          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-primary">{pct}%</span>
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-primary truncate">{name}</p>
-          <p className={`text-[10px] font-medium ${levelColor}`}>{level}</p>
-        </div>
-      </div>
-      <div className="h-1.5 rounded-full bg-[var(--bg-page)] overflow-hidden">
-        <div className="h-full rounded-full bg-gradient-to-r from-action-primary to-action-primary-hover transition-all duration-500"
-          style={{ width: `${pct}%` }} />
-      </div>
-      <p className="text-[10px] text-muted mt-1.5">{score.toFixed(1)}/10 — {pct < 100 ? `${100 - pct}% to next level` : 'Mastered'}</p>
     </div>
   );
 }

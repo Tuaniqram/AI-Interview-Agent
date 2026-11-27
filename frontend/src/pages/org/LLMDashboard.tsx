@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { apiClient } from '../../services/apiClient';
 import { PageHeader } from '../../components/shared/PageHeader';
 import { Card } from '../../components/shared/Card';
+import { StatStrip } from '../../components/shared/StatStrip';
 import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { useToast } from '../../components/shared/Toast';
-import { Cpu, Activity, CheckCircle, XCircle } from 'lucide-react';
 
 export default function LLMDashboard() {
   const toast = useToast();
@@ -20,58 +20,43 @@ export default function LLMDashboard() {
     ]).then(([s, u]) => {
       setStatus(s);
       setUsage(u);
-    }).catch(() => toast.error('Failed to load LLM data'))
+    }).catch(() => toast.error('Could not load the model status. Reload the page to try again.'))
     .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <ContentSkeleton />;
 
+  const providers: { name: string; configured: boolean }[] = status?.providers ?? [];
+
   return (
-    <div className="space-y-6">
-      <PageHeader title="LLM Dashboard" description="AI model configuration and platform-wide usage" />
+    <div className="max-w-4xl space-y-8">
+      <PageHeader title="Language models" description="Which models the interviews use, and roughly how many calls they have made." />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card padding="lg">
-          <div className="flex items-center gap-3">
-            <Cpu className="w-5 h-5 text-action-primary" />
-            <div>
-              <p className="text-xs text-muted">Model Chain</p>
-              <p className="text-sm font-semibold text-primary">{status?.model_chain || '—'}</p>
-            </div>
-          </div>
-        </Card>
-        <Card padding="lg">
-          <div className="flex items-center gap-3">
-            <Activity className="w-5 h-5 text-action-primary" />
-            <div>
-              <p className="text-xs text-muted">Total Interviews</p>
-              <p className="text-sm font-semibold text-primary">{usage?.total_interviews || 0}</p>
-            </div>
-          </div>
-        </Card>
-        <Card padding="lg">
-          <div className="flex items-center gap-3">
-            <Cpu className="w-5 h-5 text-action-primary" />
-            <div>
-              <p className="text-xs text-muted">Est. LLM Calls</p>
-              <p className="text-sm font-semibold text-primary">{usage?.estimated_llm_calls?.toLocaleString() || 0}</p>
-            </div>
-          </div>
-        </Card>
-      </div>
+      <StatStrip stats={[
+        { label: 'Interviews', value: (usage?.total_interviews ?? 0).toLocaleString() },
+        { label: 'Estimated model calls', value: (usage?.estimated_llm_calls ?? 0).toLocaleString() },
+        { label: 'Providers configured', value: `${providers.filter(p => p.configured).length} of ${providers.length}` },
+      ]} />
 
-      <Card padding="lg">
-        <h3 className="text-sm font-semibold text-primary mb-3">Provider Status</h3>
-        <div className="space-y-2">
-          {status?.providers?.map((p: any) => (
-            <div key={p.name} className="flex items-center gap-3 p-2 rounded-lg bg-page border border-border">
-              {p.configured ? <CheckCircle className="w-4 h-4 text-success" /> : <XCircle className="w-4 h-4 text-muted" />}
-              <span className="text-sm text-primary">{p.name}</span>
-              <span className="text-xs text-muted ml-auto">{p.configured ? 'Configured' : 'Not configured'}</span>
-            </div>
-          ))}
-        </div>
-      </Card>
+      <section aria-labelledby="chain-heading">
+        <h2 id="chain-heading" className="text-sm font-semibold text-primary">Model chain</h2>
+        <p className="text-[13px] text-tertiary mt-0.5 mb-3">Each call tries these in order and falls back to the next when one fails.</p>
+        <Card padding="none">
+          <ol className="divide-y divide-[var(--divider)]">
+            {providers.map((p, i) => (
+              <li key={p.name} className="flex items-center gap-3 px-4 py-3">
+                <span className="w-6 h-6 rounded-md bg-hover text-secondary text-xs font-semibold flex items-center justify-center shrink-0 tabular">{i + 1}</span>
+                <span className="flex-1 min-w-0 text-sm text-primary truncate">{p.name}</span>
+                <span className={`inline-flex items-center gap-1.5 text-[13px] ${p.configured ? 'text-success-text' : 'text-tertiary'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${p.configured ? 'bg-success' : 'bg-tertiary'}`} aria-hidden />
+                  {p.configured ? 'Configured' : 'Not configured'}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </Card>
+        {status?.model_chain && <p className="mt-2 text-xs text-tertiary break-all">Raw setting: {status.model_chain}</p>}
+      </section>
     </div>
   );
 }

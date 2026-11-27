@@ -9,7 +9,7 @@ const navItems = [
   { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { to: '/admin/organizations', icon: Building2, label: 'Organizations' },
   { to: '/admin/users', icon: Users, label: 'Users' },
-  { to: '/admin/audit-logs', icon: ScrollText, label: 'Audit Logs' },
+  { to: '/admin/audit-logs', icon: ScrollText, label: 'Audit logs' },
   { to: '/admin/llm', icon: Cpu, label: 'LLM' },
   { to: '/admin/email-templates', icon: Mail, label: 'Emails' },
   { to: '/admin/health', icon: HeartPulse, label: 'Health' },

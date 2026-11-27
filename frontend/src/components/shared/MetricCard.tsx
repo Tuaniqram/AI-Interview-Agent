@@ -1,3 +1,4 @@
+import { KeyboardEvent, ReactNode } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 interface MetricCardProps {
@@ -5,27 +6,36 @@ interface MetricCardProps {
   value: string | number;
   trend?: 'up' | 'down' | 'neutral';
   trendLabel?: string;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   className?: string;
   onClick?: () => void;
 }
 
+/** One figure and what it counts. The number leads; the label explains it in plain words. */
 export function MetricCard({ label, value, trend, trendLabel, icon, className = '', onClick }: MetricCardProps) {
+  const onKeyDown = onClick
+    ? (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }
+    : undefined;
   return (
-    <div className={`bg-elevated rounded-xl p-4 ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''} ${className}`}
-      onClick={onClick}>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-medium text-secondary uppercase tracking-wider">{label}</span>
-        <span className="text-muted">{icon}</span>
+    <div
+      className={`bg-section border border-border rounded-xl px-4 py-3.5 ${onClick ? 'cursor-pointer transition-colors hover:border-border-strong hover:bg-subtle' : ''} ${className}`}
+      onClick={onClick}
+      onKeyDown={onKeyDown}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+    >
+      <div className="flex items-center gap-1.5 text-[13px] text-secondary">
+        {icon && <span className="text-tertiary [&_svg]:w-3.5 [&_svg]:h-3.5">{icon}</span>}
+        <span className="truncate">{label}</span>
       </div>
-      <div className="flex items-end gap-2">
-        <span className="text-2xl font-semibold text-primary">{value}</span>
-        {trend === 'up' && <TrendingUp className="w-4 h-4 text-success mb-1" />}
-        {trend === 'down' && <TrendingDown className="w-4 h-4 text-error mb-1" />}
+      <div className="mt-1.5 flex items-baseline gap-2">
+        <span className="text-[26px] leading-8 font-semibold tracking-[-0.02em] text-primary tabular">{value}</span>
+        {trend === 'up' && <TrendingUp className="w-4 h-4 text-success" />}
+        {trend === 'down' && <TrendingDown className="w-4 h-4 text-error" />}
       </div>
       {trendLabel && (
-        <span className={`block mt-0.5 text-[10px] ${trend === 'up' ? 'text-success' : trend === 'down' ? 'text-error' : 'text-muted'}`}>
-          {trend === 'up' ? '\u2191' : trend === 'down' ? '\u2193' : '\u2192'} {trendLabel} vs last period
+        <span className={`block mt-0.5 text-xs ${trend === 'up' ? 'text-success' : trend === 'down' ? 'text-error' : 'text-tertiary'}`}>
+          {trendLabel} vs last period
         </span>
       )}
     </div>

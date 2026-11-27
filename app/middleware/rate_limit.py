@@ -1,14 +1,31 @@
+import hashlib
 import time
+import uuid
 from collections import defaultdict
 
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from app.services.redis_client import AsyncLink
+
+KEY_PREFIX = "aura:rl:"
+
+# Sliding window shared by all workers. KEYS[1] = bucket; ARGV = now (ms), window (ms), limit, member.
+# A rejected request is not added, so a client that keeps hammering recovers after one window.
+_WINDOW_LUA = """
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', ARGV[1] - ARGV[2])
+if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[3]) then return 0 end
+redis.call('ZADD', KEYS[1], ARGV[1], ARGV[4])
+redis.call('PEXPIRE', KEYS[1], ARGV[2])
+return 1
+"""
+
 
 class RateLimitMiddleware:
-    """Simple in-memory sliding-window rate limiter.
+    """Sliding-window rate limiter shared by all workers through Redis.
 
-    Applies to a configurable set of path prefixes.  Tracks per-IP buckets.
+    Applies to a configurable set of path prefixes.  Tracks per-IP buckets. Without Redis each
+    process counts for itself (the limit is then per worker).
 
     Implemented as a plain ASGI middleware (not ``BaseHTTPMiddleware``): the latter makes
     the client wait for FastAPI ``BackgroundTasks`` to finish before the response completes,
@@ -23,6 +40,8 @@ class RateLimitMiddleware:
         window_seconds: int = 60,
         paths: list[str] | None = None,
         trusted_proxies: int = 0,
+        name: str | None = None,
+        redis_client=None,
     ):
         self.app = app
         self.max_requests = max_requests
@@ -35,6 +54,37 @@ class RateLimitMiddleware:
         self.trusted_proxies = max(0, trusted_proxies)
         self._buckets: dict[str, list[float]] = defaultdict(list)
         self._since_prune = 0
+        # Separate counters per limiter: the auth and the general limit must not share a bucket.
+        self.name = name or f"{max_requests}-{window_seconds}"
+        self._redis = AsyncLink("rate limiting", redis_client)
+
+    async def _allow_shared(self, client_key: str) -> bool | None:
+        """Redis verdict, or None when Redis cannot be asked."""
+        client = self._redis.client()
+        if client is None:
+            return None
+        digest = hashlib.sha256(client_key.encode("utf-8", "replace")).hexdigest()[:24]
+        try:
+            return bool(await client.eval(
+                _WINDOW_LUA, 1, f"{KEY_PREFIX}{self.name}:{digest}",
+                int(time.time() * 1000), self.window_seconds * 1000, self.max_requests, uuid.uuid4().hex,
+            ))
+        except Exception as exc:  # noqa: BLE001 - never fail a request because Redis is down
+            self._redis.failed(exc)
+            return None
+
+    def _allow_local(self, key: str) -> bool:
+        now = time.time()
+        self._since_prune += 1
+        if self._since_prune >= 1024:
+            self._since_prune = 0
+            self._prune(now)
+        bucket = self._buckets[key]
+        bucket[:] = [t for t in bucket if now - t < self.window_seconds]
+        if len(bucket) >= self.max_requests:
+            return False
+        bucket.append(now)
+        return True
 
     def _client_key(self, scope: Scope) -> str:
         if self.trusted_proxies:
@@ -63,15 +113,11 @@ class RateLimitMiddleware:
             return
 
         key = self._client_key(scope)
-        now = time.time()
-        self._since_prune += 1
-        if self._since_prune >= 1024:
-            self._since_prune = 0
-            self._prune(now)
-        bucket = self._buckets[key]
-        bucket[:] = [t for t in bucket if now - t < self.window_seconds]
+        allowed = await self._allow_shared(key)
+        if allowed is None:
+            allowed = self._allow_local(key)
 
-        if len(bucket) >= self.max_requests:
+        if not allowed:
             response = JSONResponse(
                 status_code=429,
                 content={"detail": "Too many requests. Please try again later."},
@@ -79,5 +125,4 @@ class RateLimitMiddleware:
             await response(scope, receive, send)
             return
 
-        bucket.append(now)
         await self.app(scope, receive, send)

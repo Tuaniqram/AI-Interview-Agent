@@ -38,8 +38,8 @@ export default function OrgManagement() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Organizations" description="Manage all organizations" />
-      <SearchInput value={search} onChange={setSearch} placeholder="Search organizations..." />
+      <PageHeader title="Organizations" description="Every organization on the platform." />
+      <SearchInput className="max-w-sm" value={search} onChange={setSearch} placeholder="Search organizations" />
       {orgs.length === 0 ? (
         <EmptyState title="No organizations found" />
       ) : (
@@ -48,11 +48,11 @@ export default function OrgManagement() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-page">
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Organization</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Owner</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Interviews</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Status</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium uppercase tracking-wider text-secondary">Actions</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-secondary">Organization</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-secondary">Owner</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-secondary">Interviews</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-secondary">Status</th>
+                  <th className="text-right px-4 py-3 text-xs font-medium text-secondary">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -86,7 +86,8 @@ export default function OrgManagement() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Button
-                        variant={org.is_active ? 'danger' : 'primary'}
+                        variant="secondary"
+                        className={org.is_active ? '!text-error-text' : ''}
                         size="sm"
                         onClick={() => handleToggleSuspend(org.id)}
                       >

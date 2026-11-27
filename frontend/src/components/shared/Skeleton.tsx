@@ -6,7 +6,7 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ className = '', variant = 'text', width, height }: SkeletonProps) {
-  const base = 'shimmer bg-elevated';
+  const base = 'animate-pulse bg-hover';
   const shape = variant === 'circle' ? 'rounded-full' : variant === 'rect' ? 'rounded-lg' : 'rounded h-4';
 
   return (
@@ -19,9 +19,9 @@ export function Skeleton({ className = '', variant = 'text', width, height }: Sk
 
 export function CardSkeleton() {
   return (
-    <div className="bg-elevated rounded-xl p-4 space-y-3">
-      <Skeleton width="60%" />
-      <Skeleton width="40%" height="2rem" />
+    <div className="bg-section border border-border rounded-xl px-4 py-3.5 space-y-3">
+      <Skeleton width="45%" height="0.75rem" />
+      <Skeleton width="30%" height="1.75rem" />
     </div>
   );
 }

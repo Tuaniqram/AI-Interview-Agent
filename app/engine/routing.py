@@ -11,7 +11,7 @@ from typing import Optional
 from app.core.interview_brain import InterviewBrain
 from app.core.interview_state import brain_to_dict, sync_brain
 from app.engine.persistence import persist_answer_turn, summarize_hypotheses
-from app.engine.store_io import store_checkpoint
+from app.engine.store_io import store_commit
 
 logger = logging.getLogger(__name__)
 
@@ -313,8 +313,7 @@ async def emit_question_and_persist(
         "difficulty_level": brain.difficulty_level,
     })
 
-    store.set(session_id, brain.to_dict())
-    await store_checkpoint(store, session_id, brain.to_dict())
+    await store_commit(store, session_id, brain)
     brain.bump_version()
 
     logger.info(

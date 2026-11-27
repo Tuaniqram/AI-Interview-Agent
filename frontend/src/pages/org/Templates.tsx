@@ -160,8 +160,8 @@ export default function Templates() {
   return (
     <>
       <div className="space-y-6">
-        <PageHeader title="Templates Library" description="Interview templates across all IT roles"
-          actions={<Button onClick={() => { resetForm(); setShowForm(true); }}><Plus className="w-4 h-4 mr-1" /> New Template</Button>}
+        <PageHeader title="Templates" description="Reusable interview setups: the role, how many questions, and the scorecard to use."
+          actions={<Button onClick={() => { resetForm(); setShowForm(true); }}><Plus className="w-4 h-4 mr-1" /> New template</Button>}
         />
 
         <div className="flex items-center gap-3">
@@ -290,7 +290,7 @@ export default function Templates() {
         )}
 
         {filtered.length === 0 && !showForm ? (
-          <EmptyState title="No templates yet" description="Create interview templates to standardize your hiring process" />
+          <EmptyState title="No templates yet" description="Create one so every interview for a role asks the same number of questions and uses the same scorecard." />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map(t => (
@@ -305,10 +305,10 @@ export default function Templates() {
                   <p className="text-xs text-muted mt-2">{t.level_code ? `${t.level_code} level` : 'IT role'}</p>
                   {t.description && <p className="text-xs text-secondary mt-1 line-clamp-2">{t.description}</p>}
                   <div className="flex items-center gap-2 mt-3">
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-action-primary/10 text-action-primary">AURA</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-hover text-muted">{t.total_questions} questions</span>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-action-primary/10 text-action-primary">AURA</span>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-hover text-muted">{t.total_questions} questions</span>
                     {t.competencies && t.competencies.length > 0 && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-hover text-muted">{t.competencies.length} competencies</span>
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-hover text-muted">{t.competencies.length} competencies</span>
                     )}
                   </div>
                 </div>
@@ -324,7 +324,7 @@ export default function Templates() {
 
       <ConfirmDialog
         open={!!deleteTarget}
-        title="Delete Template"
+        title="Delete template"
         message={`Are you sure you want to delete "${deleteTarget?.name}"? This cannot be undone.`}
         confirmLabel="Delete"
         variant="danger"

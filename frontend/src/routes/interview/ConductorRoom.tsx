@@ -1,7 +1,7 @@
 import { getCandidateToken } from '../../utils/candidateToken';
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Mic, MicOff, Sparkles, Volume2, VolumeX } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { useInterviewStore } from '../../state/interviewStore';
 import { useVoice } from '../../hooks/useVoice';
 import { useAntiCheatTelemetry } from '../../utils/antiCheatTelemetry';
@@ -151,8 +151,8 @@ export function ConductorRoom() {
     const loggedIn = !!getCandidateToken();
     return (
       <div className="flex-1 h-full bg-page flex items-center justify-center" data-theme="dark" role="alert">
-        <div className="text-center space-y-4 max-w-sm px-4">
-          <p className="text-primary text-base font-semibold">
+        <div className="text-center space-y-3 max-w-sm px-4">
+          <p className="text-primary text-lg font-semibold">
             {accessDenied ? "You don't have access to this interview" : "We couldn't start your interview"}
           </p>
           <p className="text-secondary text-sm">
@@ -162,7 +162,7 @@ export function ConductorRoom() {
           </p>
           <button
             onClick={() => navigate(loggedIn ? '/candidate/applications' : '/opportunity-hub')}
-            className="px-4 py-2 rounded-lg bg-action-primary text-inverse text-xs hover:bg-action-primary-hover transition-colors"
+            className="mt-2 h-9 px-4 rounded-md bg-action-primary text-action-primary-text text-[13px] font-medium hover:bg-action-primary-hover transition-colors"
           >
             {loggedIn ? 'Back to my applications' : 'Back to opportunities'}
           </button>
@@ -187,16 +187,18 @@ export function ConductorRoom() {
   if (isCompleted) {
     return (
       <div className="flex-1 h-full bg-page flex items-center justify-center" data-theme="dark">
-        <div className="text-center space-y-6 px-4">
-          <AuraCore state="idle" size={220} className="mx-auto" />
+        <div className="text-center space-y-6 px-4 max-w-md">
+          <AuraCore state="idle" size={180} className="mx-auto" />
           <div>
-            <h2 className="text-xl font-semibold text-primary">
+            <h2 className="text-2xl font-semibold tracking-[-0.015em] text-primary">
               {state.integrityTerminated ? 'Session terminated' : 'Interview complete'}
             </h2>
-            <p className="text-secondary text-sm mt-2 max-w-sm mx-auto">
+            <p className="text-secondary text-[15px] leading-relaxed mt-2 max-w-sm mx-auto">
               {state.integrityTerminated
                 ? state.integrityTerminationReason ||
                   'This session was stopped because repeated integrity violations were detected. Contact the interviewer to discuss next steps.'
+                : state.reportPending
+                  ? 'Your report is being prepared.'
                 : isPractice
                   ? 'Nice work. Review your performance or try another practice round.'
                   : 'AURA has finished evaluating your interview. Your results are ready.'}
@@ -206,21 +208,21 @@ export function ConductorRoom() {
             {isPractice ? (
               <button
                 onClick={() => navigate('/candidate/practice')}
-                className="px-4 py-2 rounded-lg bg-action-primary text-inverse text-xs hover:bg-action-primary-hover transition-colors"
+                className="h-9 px-4 rounded-md bg-action-primary text-action-primary-text text-[13px] font-medium hover:bg-action-primary-hover transition-colors"
               >
                 Try another practice
               </button>
-            ) : (
+            ) : state.reportPending ? null : (
               <button
                 onClick={() => session && navigate(`/interview/${session.session_id}/report`)}
-                className="px-4 py-2 rounded-lg bg-action-primary text-inverse text-xs hover:bg-action-primary-hover transition-colors"
+                className="h-9 px-4 rounded-md bg-action-primary text-action-primary-text text-[13px] font-medium hover:bg-action-primary-hover transition-colors"
               >
                 View report
               </button>
             )}
             <button
               onClick={() => navigate(isPractice ? '/candidate/dashboard' : '/opportunity-hub')}
-              className="px-4 py-2 rounded-lg bg-overlay text-secondary text-xs hover:bg-hover transition-colors"
+              className="h-9 px-4 rounded-md border border-border-strong bg-section text-primary text-[13px] font-medium hover:bg-hover transition-colors"
             >
               {isPractice ? 'Back to dashboard' : 'Back to opportunities'}
             </button>
@@ -233,11 +235,11 @@ export function ConductorRoom() {
   return (
     <div className="flex-1 h-full bg-page flex flex-col min-h-0" data-theme="dark">
       {/* Compact AURA bar: status, voice, integrity and progress stay in view without taking the screen */}
-      <div className="shrink-0 flex items-center gap-4 px-4 py-3 border-b border-[var(--border-color)]/50">
-        <AuraCore state={auraState} size={72} className="shrink-0" />
+      <div className="shrink-0 border-b border-border">
+       <div className="max-w-3xl mx-auto flex items-center gap-4 px-4 py-3">
+        <AuraCore state={auraState} size={64} className="shrink-0 -my-1" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-secondary flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-action-primary shrink-0" />
+          <p className="text-sm text-primary font-medium" aria-live="polite">
             {state.wsPhase === 'reconnecting'
               ? 'Reconnecting...'
               : auraState === 'thinking'
@@ -249,7 +251,7 @@ export function ConductorRoom() {
           {(state.session?.total_questions ?? 0) > 0 && state.currentQuestion && (
             <div className="mt-2 flex items-center gap-3">
               <div
-                className="h-1.5 flex-1 max-w-xs rounded-full bg-border overflow-hidden"
+                className="h-1 flex-1 max-w-xs rounded-full bg-hover overflow-hidden"
                 role="progressbar"
                 aria-valuemin={0}
                 aria-valuemax={state.session?.total_questions}
@@ -261,7 +263,7 @@ export function ConductorRoom() {
                   style={{ width: `${Math.min(100, ((state.currentQuestion.question_number - 1) / (state.session?.total_questions || 1)) * 100)}%` }}
                 />
               </div>
-              <span className="text-xs text-muted tabular-nums">
+              <span className="text-xs text-tertiary tabular-nums">
                 {state.currentQuestion.question_number} / {state.session?.total_questions}
               </span>
             </div>
@@ -271,16 +273,18 @@ export function ConductorRoom() {
           onClick={toggleVoice}
           title={voiceEnabled ? 'Mute AURA voice' : 'Enable AURA voice'}
           aria-label={voiceEnabled ? 'Mute AURA voice' : 'Enable AURA voice'}
-          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0 ${
-            voiceEnabled ? 'bg-action-primary/10 text-action-primary hover:bg-action-primary/20' : 'bg-input text-muted hover:bg-hover'
+          aria-pressed={voiceEnabled}
+          className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors shrink-0 ${
+            voiceEnabled ? 'border-transparent bg-action-primary-soft text-action-primary hover:bg-action-primary/20' : 'border-border text-tertiary hover:bg-hover hover:text-primary'
           }`}
         >
-          {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+          {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
         </button>
         <FlagGauge
           count={state.flaggedCount}
           max={state.integrityPolicy?.enabled ? state.integrityPolicy?.max_flags ?? 0 : 0}
         />
+       </div>
       </div>
 
       {/* Conversation */}
@@ -300,7 +304,7 @@ export function ConductorRoom() {
           <>
             {answerLimitS > 0 && (
               <span
-                className={`font-mono tabular-nums ${
+                className={`tabular-nums font-medium ${
                   remaining <= 15 ? 'text-error font-semibold' : remaining <= 30 ? 'text-warning' : 'text-muted'
                 }`}
                 title={`Time remaining for this answer (${answerLimitS}s window)`}
@@ -321,13 +325,15 @@ export function ConductorRoom() {
         <button
           onClick={handleMicToggle}
           disabled={isSending || !voice.isSupported}
-          className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shrink-0 ${
+          aria-label={voice.isListening ? 'Stop recording' : 'Answer by voice'}
+          title={voice.isListening ? 'Stop recording' : 'Answer by voice'}
+          className={`h-8 rounded-lg flex items-center justify-center gap-1.5 transition-colors shrink-0 ${
             voice.isListening
-              ? 'bg-error text-inverse pulse-ring'
-              : 'bg-input text-muted hover:bg-hover'
+              ? 'px-2.5 bg-error text-white'
+              : 'w-8 text-secondary hover:bg-hover hover:text-primary'
           } disabled:opacity-50 disabled:cursor-not-allowed`}
         >
-          {voice.isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+          {voice.isListening ? <><MicOff className="w-4 h-4" /><span className="text-xs font-medium">Stop</span></> : <Mic className="w-4 h-4" />}
         </button>
       </InputBar>
     </div>

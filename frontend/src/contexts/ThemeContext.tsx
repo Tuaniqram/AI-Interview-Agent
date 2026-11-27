@@ -2,63 +2,65 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 
 const THEME_KEY = 'ai-interview-theme';
 
+export type ThemeMode = 'light' | 'dark' | 'system';
+
 interface ThemeContextType {
   isDark: boolean;
+  mode: ThemeMode;
+  setMode: (mode: ThemeMode) => void;
   toggle: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-function getInitialTheme(): boolean {
+const media = () => window.matchMedia('(prefers-color-scheme: dark)');
+
+function readMode(): ThemeMode {
   const stored = localStorage.getItem(THEME_KEY);
-  if (stored === 'dark') return true;
-  if (stored === 'light') return false;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return stored === 'dark' || stored === 'light' ? stored : 'system';
 }
 
-function applyTheme(isDark: boolean) {
-  const theme = isDark ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', theme);
-  localStorage.setItem(THEME_KEY, theme);
+function resolve(mode: ThemeMode): boolean {
+  return mode === 'system' ? media().matches : mode === 'dark';
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [isDark, setIsDark] = useState(getInitialTheme);
+  const [mode, setModeState] = useState<ThemeMode>(readMode);
+  const [isDark, setIsDark] = useState(() => resolve(readMode()));
 
+  // Apply the resolved theme, and follow the OS while the mode is "system".
   useEffect(() => {
-    applyTheme(isDark);
-  }, [isDark]);
+    const apply = () => {
+      const dark = resolve(mode);
+      setIsDark(dark);
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    };
+    apply();
+    if (mode !== 'system') return;
+    const mq = media();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, [mode]);
 
-  useEffect(() => {
-    applyTheme(getInitialTheme());
-  }, []);
-
+  // Keep other tabs in step.
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === THEME_KEY) {
-        setIsDark(e.newValue === 'dark');
-      }
+      if (e.key === THEME_KEY) setModeState(readMode());
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
-  const toggle = useCallback(() => {
-    setIsDark(prev => {
-      const next = !prev;
-      const theme = next ? 'dark' : 'light';
-      localStorage.setItem(THEME_KEY, theme);
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: THEME_KEY,
-        newValue: theme,
-        oldValue: prev ? 'dark' : 'light',
-      }));
-      return next;
-    });
+  const setMode = useCallback((next: ThemeMode) => {
+    if (next === 'system') localStorage.removeItem(THEME_KEY);
+    else localStorage.setItem(THEME_KEY, next);
+    setModeState(next);
   }, []);
 
+  const toggle = useCallback(() => setMode(isDark ? 'light' : 'dark'), [isDark, setMode]);
+
   return (
-    <ThemeContext.Provider value={{ isDark, toggle }}>
+    <ThemeContext.Provider value={{ isDark, mode, setMode, toggle }}>
       {children}
     </ThemeContext.Provider>
   );
