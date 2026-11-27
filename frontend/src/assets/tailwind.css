@@ -80,6 +80,7 @@
 
     /* One accent: a deep pine green. It marks the action to take and the current place, nothing else. */
     --action-primary:           #11694f;
+    --hub-banner:               #0d3b30;  /* Opportunity Hub banner: deep pine, white text on it */
     --action-primary-hover:     #0b5640;
     --action-primary-text:      #ffffff;
     --action-primary-soft:      #e6f1ed;
@@ -161,6 +162,7 @@
     --border-strong:      #42444b;
 
     --action-primary:           #4fb28d;
+    --hub-banner:               #12302a;
     --action-primary-hover:     #63c19e;
     --action-primary-text:      #0d2a20;
     --action-primary-soft:      rgba(79, 178, 141, 0.14);

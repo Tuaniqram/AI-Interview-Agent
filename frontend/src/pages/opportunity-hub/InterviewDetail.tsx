@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { marketplaceService } from '../../services/marketplaceService';
 import { ContentSkeleton } from '../../components/shared/ContentSkeleton';
 import { EmptyState } from '../../components/shared/EmptyState';
@@ -7,13 +7,18 @@ import { Button } from '../../components/shared/Button';
 import { Input } from '../../components/shared/Input';
 import { useToast } from '../../components/shared/Toast';
 import { useCandidateAuth } from '../../contexts/CandidateAuthContext';
-import { ArrowLeft, Building2, Clock, Tag, Shield, Briefcase, Upload, CheckCircle } from 'lucide-react';
+import { FileText, CheckCircle2, X } from 'lucide-react';
+import { HubBanner, HubBody } from '../../components/opportunity-hub/HubBanner';
+import { closingInfo, formatDate, modeLabel, splitSkills } from '../../components/opportunity-hub/listing';
 import type { PublicInterview } from '../../types/marketplace';
 
 const MAX_CV_BYTES = 5 * 1024 * 1024;
 
 export default function InterviewDetail() {
   const { interviewId } = useParams<{ interviewId: string }>();
+  // Set by the organization page's links. Without it (a shared link), go back to the hub list:
+  // the organization's address can't be rebuilt from its name.
+  const backState = useLocation().state as { from?: string; orgName?: string } | null;
   const { candidate, isLoading: authLoading } = useCandidateAuth();
   const [interview, setInterview] = useState<PublicInterview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,7 +42,7 @@ export default function InterviewDetail() {
     setLoading(true);
     marketplaceService.getInterview(interviewId)
       .then(setInterview)
-      .catch(console.error)
+      .catch(() => setInterview(null))
       .finally(() => setLoading(false));
   }, [interviewId]);
 
@@ -52,15 +57,20 @@ export default function InterviewDetail() {
     setError('');
     if (file) {
       if (!file.name.toLowerCase().endsWith('.pdf')) {
-        setError('CV must be a PDF file');
+        setError('Your CV needs to be a PDF.');
         return;
       }
       if (file.size > MAX_CV_BYTES) {
-        setError('CV is too large (max 5 MB)');
+        setError('That file is over 5 MB. Try a smaller PDF.');
         return;
       }
     }
     setCvFile(file);
+  };
+
+  const clearCv = () => {
+    setCvFile(null);
+    if (cvInputRef.current) cvInputRef.current.value = '';
   };
 
   const handleApply = async (e: React.FormEvent) => {
@@ -69,7 +79,7 @@ export default function InterviewDetail() {
     setError('');
     setAccountExists(false);
     if (cvRequired && !cvFile) {
-      setError('Please upload your CV (PDF) to apply');
+      setError('Add your CV (PDF) to apply.');
       return;
     }
     setSubmitting(true);
@@ -79,170 +89,170 @@ export default function InterviewDetail() {
         ...(cvFile ? { resume: cvFile } : {}),
       });
       setApplied(true);
-      toast.success('Application submitted');
+      toast.success('Application sent');
     } catch (err: any) {
       if (err?.response?.status === 409) setAccountExists(true);
-      setError(err?.response?.data?.detail || 'Failed to submit application');
+      setError(err?.response?.data?.detail || 'Could not send the application. Try again in a moment.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) return <ContentSkeleton />;
-  if (!interview) return <EmptyState title="Interview not found" />;
+  const back = { to: backState?.from || '/opportunity-hub', label: backState?.orgName || 'All organizations' };
 
-  const skills = interview.skills_required?.split(',').map(s => s.trim()).filter(Boolean) || [];
-  const isExpired = interview.expires_at ? new Date(interview.expires_at) < new Date() : false;
-  const daysUntil = interview.expires_at
-    ? Math.ceil((new Date(interview.expires_at).getTime() - Date.now()) / 86400000)
-    : null;
+  if (loading) return <HubBody><ContentSkeleton /></HubBody>;
+  if (!interview) {
+    return (
+      <>
+        <HubBanner back={back} title="Role not found" />
+        <HubBody>
+          <div className="rounded-xl border border-border bg-section">
+            <EmptyState title="Nothing to show" description="It may have closed, or the link is out of date." />
+          </div>
+        </HubBody>
+      </>
+    );
+  }
+
+  const skills = splitSkills(interview.skills_required);
+  const closing = closingInfo(interview.expires_at);
+  const isExpired = closing?.tone === 'closed';
+  const about = interview.rich_description || interview.description;
+
+  const facts: { label: string; value: string; tone?: string }[] = [
+    { label: 'Interview', value: modeLabel(interview.interview_mode) },
+    ...(interview.starts_at ? [{ label: 'Opens', value: formatDate(interview.starts_at) }] : []),
+    ...(interview.expires_at ? [{
+      label: 'Closes',
+      value: closing?.tone === 'neutral' ? formatDate(interview.expires_at) : `${formatDate(interview.expires_at)} (${closing?.text.toLowerCase()})`,
+      tone: closing?.tone === 'soon' ? 'text-[#f5d58a]' : closing?.tone === 'closed' ? 'text-[#f4a9a0]' : undefined,
+    }] : []),
+  ];
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
-      <Link
-        to={interview.org_name ? `/opportunity-hub/organizations/${interview.org_name?.toLowerCase().replace(/\s+/g, '-')}` : '/opportunity-hub'}
-        className="inline-flex items-center gap-1.5 text-sm text-secondary hover:text-primary transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back to opportunities
-      </Link>
-
-      <div className="rounded-xl bg-subtle border border-border p-6 sm:p-8">
-        <div className="flex items-start gap-4 mb-4">
-          <div className="w-12 h-12 rounded-xl bg-action-primary flex items-center justify-center shrink-0">
-            <Briefcase className="w-6 h-6 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-primary font-heading">{interview.title}</h1>
-            <div className="flex items-center gap-2 mt-1 text-sm text-secondary flex-wrap">
-              {interview.org_name && (
-                <span className="flex items-center gap-1">
-                  <Building2 className="w-3.5 h-3.5" />
-                  {interview.org_name}
-                </span>
-              )}
+    <>
+      <HubBanner back={back} eyebrow={interview.org_name} title={interview.title}>
+        <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-2 text-[13px]">
+          {facts.map(f => (
+            <div key={f.label}>
+              <dt className="text-white/60">{f.label}</dt>
+              <dd className={`text-white tabular ${f.tone ?? ''}`}>{f.value}</dd>
             </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs px-3 py-1 rounded-full bg-action-primary-soft text-[var(--action-primary)] font-medium flex items-center gap-1">
-            <Shield className="w-3 h-3" />
-            {interview.interview_mode}
-          </span>
-          {skills.map(skill => (
-            <span key={skill} className="text-xs px-3 py-1 rounded-full bg-[var(--bg-section)] text-secondary border border-[var(--border-color)] flex items-center gap-1">
-              <Tag className="w-3 h-3" /> {skill}
-            </span>
           ))}
+        </dl>
+      </HubBanner>
+
+      <HubBody>
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+        <article className="min-w-0">
+          {skills.length > 0 && (
+            <section className="mb-8" aria-labelledby="skills-heading">
+              <h2 id="skills-heading" className="text-sm font-semibold text-primary mb-2.5">Skills they are looking for</h2>
+              <ul className="flex flex-wrap gap-1.5">
+                {skills.map(s => (
+                  <li key={s} className="text-xs h-6 px-2 inline-flex items-center rounded-md border border-border bg-section text-secondary">{s}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <section aria-labelledby="about-heading">
+            <h2 id="about-heading" className="text-sm font-semibold text-primary mb-2.5">About the role</h2>
+            {about ? (
+              <div className="text-sm text-secondary leading-relaxed whitespace-pre-line max-w-[68ch]">{about}</div>
+            ) : (
+              <p className="text-sm text-tertiary">The organization has not added a description.</p>
+            )}
+          </section>
+        </article>
+
+        <aside className="lg:sticky lg:top-20 rounded-xl border border-border bg-section p-5" aria-labelledby="apply-heading">
           {isExpired ? (
-            <span className="text-xs px-3 py-1 rounded-full bg-red-500/15 text-red-500 font-medium">Expired</span>
-          ) : daysUntil !== null && daysUntil <= 7 ? (
-            <span className="text-xs px-3 py-1 rounded-full bg-amber-500/15 text-amber-500 font-medium flex items-center gap-1">
-              <Clock className="w-3 h-3" /> {daysUntil}d left
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      {interview.rich_description && (
-        <div className="bg-[var(--bg-section)] rounded-xl p-6 border border-[var(--border-color)]">
-          <h2 className="text-sm font-semibold text-primary mb-3">About this position</h2>
-          <div className="text-sm text-secondary leading-relaxed whitespace-pre-line">
-            {interview.rich_description}
-          </div>
-        </div>
-      )}
-
-      {!interview.rich_description && interview.description && (
-        <div className="bg-[var(--bg-section)] rounded-xl p-6 border border-[var(--border-color)]">
-          <h2 className="text-sm font-semibold text-primary mb-3">About this position</h2>
-          <p className="text-sm text-secondary">{interview.description}</p>
-        </div>
-      )}
-
-      {interview.starts_at || interview.expires_at ? (
-        <div className="flex items-center gap-6 text-sm text-muted">
-          {interview.starts_at && (
-            <span className="flex items-center gap-1.5">
-              <Clock className="w-4 h-4" />
-              Opens {new Date(interview.starts_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-            </span>
-          )}
-          {interview.expires_at && (
-            <span className="flex items-center gap-1.5">
-              <Clock className="w-4 h-4" />
-              Closes {new Date(interview.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-            </span>
-          )}
-        </div>
-      ) : null}
-
-      {!isExpired && (
-        <div className="rounded-xl bg-subtle border border-border p-6 sm:p-8">
-          <h2 className="text-lg font-semibold text-primary mb-1 font-heading">Apply for this interview</h2>
-          <p className="text-sm text-secondary mb-6">Submit your application with your CV. The organization will review it and invite you to interview.</p>
-          {authLoading ? (
+            <>
+              <h2 id="apply-heading" className="text-sm font-semibold text-primary">Applications are closed</h2>
+              <p className="text-[13px] text-secondary mt-1">This role stopped taking applications on {formatDate(interview.expires_at!)}.</p>
+            </>
+          ) : authLoading ? (
             <ContentSkeleton />
           ) : applied ? (
-            <div className="rounded-lg bg-green-500/10 p-4 text-sm text-green-700 border border-green-500/20 space-y-2" role="status">
-              <p className="flex items-center gap-2 font-semibold">
-                <CheckCircle className="w-4 h-4" /> Application submitted
-              </p>
+            <div role="status">
+              <h2 id="apply-heading" className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <CheckCircle2 className="w-4 h-4 text-success-text" /> Application sent
+              </h2>
               {isLoggedIn ? (
-                <p>
-                  Check your email for updates.{' '}
+                <p className="text-[13px] text-secondary mt-2">
+                  We'll email you with updates.{' '}
                   {candidate?.is_verified ? (
-                    <>Track your status in <Link to="/candidate/applications" className="font-medium underline">My Applications</Link>.</>
+                    <>You can follow it in <Link to="/candidate/applications" className="text-action-primary hover:underline">Applications</Link>.</>
                   ) : (
-                    <>Verify your email to see your applications in <Link to="/candidate/applications" className="font-medium underline">My Applications</Link>.</>
+                    <>Verify your email to follow it in <Link to="/candidate/applications" className="text-action-primary hover:underline">Applications</Link>.</>
                   )}
                 </p>
               ) : (
-                <p>
-                  Check your email ({email}) for updates. If the organization invites you, the interview link will be sent there.
-                  Want to keep your history? <Link to="/candidate/register" className="font-medium underline">Create an account</Link> with the same email.
-                </p>
+                <>
+                  <p className="text-[13px] text-secondary mt-2">
+                    Updates go to {email}. If the organization invites you, the interview link arrives there too.
+                  </p>
+                  <p className="text-[13px] text-secondary mt-2">
+                    To keep a history of your applications, <Link to="/candidate/register" className="text-action-primary hover:underline">create an account</Link> with the same email.
+                  </p>
+                </>
               )}
             </div>
           ) : (
-          <form onSubmit={handleApply} className="space-y-4 max-w-md">
-            {error && (
-              <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-600 border border-red-500/20" role="alert">
-                {error}
-                {accountExists && (
-                  <> <Link to="/candidate/login" className="font-medium underline">Sign in</Link></>
-                )}
+            <form onSubmit={handleApply} className="space-y-4">
+              <div>
+                <h2 id="apply-heading" className="text-sm font-semibold text-primary">Apply</h2>
+                <p className="text-[13px] text-secondary mt-1">The organization reads your CV first. If they invite you, you take the interview by email link.</p>
               </div>
-            )}
-            <Input label="Your Name" value={name} onChange={(e) => setName(e.target.value)} required readOnly={isLoggedIn} placeholder="John Doe" />
-            <Input label="Email Address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required readOnly={isLoggedIn} placeholder="john@example.com" />
-            <div>
-              <label className="block text-sm font-medium text-primary mb-1">
-                CV (PDF){cvRequired ? ' *' : ''}
-              </label>
-              <input ref={cvInputRef} type="file" accept=".pdf,application/pdf" onChange={(e) => pickCv(e.target.files?.[0] ?? null)} className="hidden" />
-              {hasProfileCv && !cvFile && (
-                <p className="text-sm text-secondary mb-2">We'll use the CV on your profile. Upload a new one to replace it.</p>
+
+              {error && (
+                <div className="rounded-md bg-error-bg px-3 py-2 text-[13px] text-error-text" role="alert">
+                  {error}
+                  {accountExists && <> <Link to="/candidate/login" className="font-medium underline">Sign in</Link></>}
+                </div>
               )}
-              <button type="button" onClick={() => cvInputRef.current?.click()}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-secondary bg-input rounded-lg border border-border hover:border-action-primary/40 transition-colors">
-                <Upload className="w-4 h-4" />
-                {cvFile ? cvFile.name : hasProfileCv ? 'Upload a different CV' : 'Upload CV'}
-              </button>
-              {cvFile && (
-                <button type="button" onClick={() => { setCvFile(null); if (cvInputRef.current) cvInputRef.current.value = ''; }}
-                  className="ml-2 text-xs text-red-500 hover:text-red-600">Remove</button>
+
+              <Input label="Your name" value={name} onChange={e => setName(e.target.value)} required readOnly={isLoggedIn} autoComplete="name" />
+              <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} required readOnly={isLoggedIn} autoComplete="email" />
+
+              <div className="space-y-1.5">
+                <span className="block text-[13px] font-medium text-primary">CV{cvRequired ? '' : ' (optional)'}</span>
+                <input ref={cvInputRef} type="file" accept=".pdf,application/pdf" onChange={e => pickCv(e.target.files?.[0] ?? null)} className="sr-only" id="cv-file" />
+                {cvFile ? (
+                  <div className="flex items-center gap-2 h-9 px-2.5 rounded-md border border-border bg-subtle text-[13px]">
+                    <FileText className="w-4 h-4 text-tertiary shrink-0" />
+                    <span className="flex-1 min-w-0 truncate text-primary">{cvFile.name}</span>
+                    <button type="button" onClick={clearCv} className="p-1 rounded text-tertiary hover:text-primary hover:bg-hover" aria-label="Remove this CV">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="cv-file"
+                    className="flex items-center gap-2 h-9 px-2.5 rounded-md border border-dashed border-[var(--border-strong)] text-[13px] text-secondary hover:text-primary hover:border-[var(--text-tertiary)] cursor-pointer focus-within:ring-[3px] focus-within:ring-[var(--focus-ring)]"
+                  >
+                    <FileText className="w-4 h-4 text-tertiary" />
+                    {hasProfileCv ? 'Use a different CV' : 'Choose a PDF'}
+                  </label>
+                )}
+                <p className="text-xs text-tertiary">
+                  {hasProfileCv && !cvFile ? 'The CV on your profile is sent unless you choose another. ' : ''}PDF, up to 5 MB.
+                </p>
+              </div>
+
+              <Button type="submit" loading={submitting} className="w-full">Send application</Button>
+
+              {!isLoggedIn && (
+                <p className="text-xs text-tertiary">
+                  Have an account? <Link to="/candidate/login" className="text-action-primary hover:underline">Sign in</Link> to apply with your profile.
+                </p>
               )}
-              <p className="text-xs text-muted mt-1">PDF only, up to 5 MB.</p>
-            </div>
-            <Button type="submit" loading={submitting} className="w-full sm:w-auto">
-              Submit application
-            </Button>
-          </form>
+            </form>
           )}
-        </div>
-      )}
-    </div>
+        </aside>
+      </div>
+      </HubBody>
+    </>
   );
 }
