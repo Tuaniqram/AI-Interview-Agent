@@ -108,3 +108,5 @@ tools/interview_sim/out/
 threat-model/
 # unify-accounts backups contain password and token hashes: never commit
 backups/
+
+tools/claim_replay/out/
